@@ -91,7 +91,10 @@ class ApprovalRequestResource extends Resource
                     ->listWithLineBreaks()->badge()->color('danger')
                     ->visible(fn (ApprovalRequest $r) => isset($r->payload['before'])),
                 KeyValueEntry::make('payload_view')->label('Payload')
-                    ->state(fn (ApprovalRequest $r) => collect($r->payload)->map(fn ($v) => is_scalar($v) ? (string) $v : json_encode($v))->all())
+                    // Encrypted secrets (bank account number, UPI) are never displayed; masked copies are.
+                    ->state(fn (ApprovalRequest $r) => collect($r->payload)
+                        ->reject(fn ($v, string $k) => str_ends_with($k, '_encrypted'))
+                        ->map(fn ($v) => is_scalar($v) || $v === null ? (string) ($v ?? '—') : json_encode($v))->all())
                     ->visible(fn (ApprovalRequest $r) => ! isset($r->payload['before'])),
             ])->columns(2),
             Section::make('Decision')->columns(3)->visible(fn (ApprovalRequest $r) => $r->decided_at !== null)->schema([

@@ -58,6 +58,7 @@ final class ApiTokenGuard
         }
 
         $request->attributes->set('auth_session', $session);
+        $request->attributes->set('auth_device', $device);
         $this->sessions->touch($session);
 
         return $account;

@@ -28,6 +28,17 @@ return [
         // First-ever Super Admin device is trusted automatically (installation only; set false afterwards).
         'bootstrap_trust_first_device' => (bool) env('RICEMILL_BOOTSTRAP_TRUST_FIRST_DEVICE', false),
         'hsts' => (bool) env('RICEMILL_HSTS', true),
+        // Key for searchable hashes of encrypted identifiers (GSTIN, PAN, bank account). Empty = derived from APP_KEY.
+        'blind_index_key' => env('RICEMILL_BLIND_INDEX_KEY', ''),
+    ],
+
+    'sync' => [
+        // A device offline longer than this must sign in again; older events go to supervisor review.
+        'max_offline_hours' => (int) env('RICEMILL_SYNC_MAX_OFFLINE_HOURS', 72),
+        'max_push_events' => 500,
+        'max_pull_changes' => 500,
+        // Accepted clock skew between a device and the server.
+        'max_future_skew_seconds' => 300,
     ],
 
     'approvals' => [

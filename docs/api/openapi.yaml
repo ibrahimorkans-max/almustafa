@@ -1,0 +1,274 @@
+openapi: 3.1.0
+info:
+  title: Rice Mill ERP — device API (auth + sync)
+  version: "1.0.0"
+  description: |
+    One contract for the PWA, the Flutter app and the gate hardware agent.
+
+    * Every authenticated call sends `Authorization: Bearer <access_token>` **and** `X-Device-Id: <device_uid>`.
+      Tokens only work with the device they were issued to.
+    * Access tokens live 15 minutes (5 for Super Admin). Refresh tokens are single-use: re-using one revokes the
+      whole session.
+    * Super Admin may add `X-Entity-Id` to choose the working entity.
+    * Weights are decimal strings in **kilograms** (max 3 decimals); money is integer **paise**; GST rates are basis
+      points (500 = 5 %). Timestamps are ISO-8601 UTC.
+    * A device with a pending remote wipe gets `403 {"error":"wipe_required"}` on every call except `POST /sync/wipe-ack`.
+
+    **Sync model.** Devices write locally first and queue events. `push` uploads them in `client_seq` order; each event
+    is idempotent by `event_id`. Master data uses version checks + last-write-wins with a conflict log; unmergeable
+    cases go to a supervisor review queue. `pull` returns the latest state of changed records after a cursor;
+    `op: archive` means "remove from local storage".
+servers:
+  - url: /api/v1
+security:
+  - bearer: []
+paths:
+  /auth/login:
+    post:
+      summary: Sign in on a device
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, device_uid, platform]
+              properties:
+                username: { type: string, maxLength: 64 }
+                password: { type: string, maxLength: 256 }
+                otp: { type: string, description: 6-digit TOTP or a recovery code; required when the response was mfa_required }
+                device_uid: { type: string, minLength: 16, maxLength: 100, pattern: '^[A-Za-z0-9._:-]+$' }
+                device_name: { type: string, maxLength: 120 }
+                platform: { type: string, enum: [pwa, android, ios, agent] }
+      responses:
+        '200':
+          description: Signed in, or a second factor is needed
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TokenPair'
+                  - type: object
+                    properties: { status: { const: mfa_required } }
+        '401': { $ref: '#/components/responses/AuthError' }
+        '403': { $ref: '#/components/responses/AuthError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { description: Too many attempts }
+  /auth/refresh:
+    post:
+      summary: Rotate tokens
+      security: []
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties: { refresh_token: { type: string, pattern: '^rmr_' } }
+      responses:
+        '200': { description: New pair, content: { application/json: { schema: { $ref: '#/components/schemas/TokenPair' } } } }
+        '401': { $ref: '#/components/responses/AuthError' }
+  /auth/logout:
+    post:
+      summary: End this session
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      responses: { '200': { description: Signed out } }
+  /auth/me:
+    get:
+      summary: Current account, entity, role and permissions
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      responses:
+        '200': { description: Account, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Account' } } } } } }
+  /auth/switch:
+    post:
+      summary: Switch to another login account of the same person (switcher login mode only)
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [login_account_id]
+              properties:
+                login_account_id: { type: string, format: uuid }
+                otp: { type: string }
+      responses:
+        '200': { description: New session for the target account, content: { application/json: { schema: { $ref: '#/components/schemas/TokenPair' } } } }
+        '401': { $ref: '#/components/responses/AuthError' }
+        '403': { $ref: '#/components/responses/AuthError' }
+  /sessions:
+    get:
+      summary: Active sessions (own; `all=1` with session.view_all)
+      parameters:
+        - { $ref: '#/components/parameters/DeviceId' }
+        - { name: all, in: query, schema: { type: boolean } }
+      responses: { '200': { description: Sessions } }
+  /sessions/{session}:
+    delete:
+      summary: Revoke a session (own, or any with session.revoke_any)
+      parameters:
+        - { $ref: '#/components/parameters/DeviceId' }
+        - { name: session, in: path, required: true, schema: { type: string, format: uuid } }
+      responses: { '200': { description: Revoked }, '403': { description: Not allowed } }
+  /audit:
+    get:
+      summary: Audit log (audit.view), cursor-paginated
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      responses: { '200': { description: Entries }, '403': { description: Not allowed } }
+  /audit/verify:
+    get:
+      summary: Verify the hash chain (audit.verify); Super Admin may pass all=1
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      responses: { '200': { description: Intact }, '409': { description: Tampering detected } }
+  /sync/bootstrap:
+    get:
+      summary: Everything a device needs before syncing
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      responses:
+        '200':
+          description: Contract parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  server_time: { type: string, format: date-time }
+                  protocol_version: { const: 1 }
+                  max_offline_hours: { type: integer, description: Lock the local app and require online sign-in after this long without server contact }
+                  max_push_events: { type: integer }
+                  cursor: { type: integer, description: Current head of the change feed }
+                  types:
+                    type: array
+                    items: { type: object, properties: { type: { type: string }, read: { type: boolean }, write: { type: boolean } } }
+                  account: { $ref: '#/components/schemas/Account' }
+        '403': { $ref: '#/components/responses/WipeRequired' }
+  /sync/push:
+    post:
+      summary: Upload queued events (ordered, idempotent)
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events: { type: array, minItems: 1, maxItems: 500, items: { $ref: '#/components/schemas/SyncEvent' } }
+      responses:
+        '200':
+          description: One result per event, in client_seq order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results: { type: array, items: { $ref: '#/components/schemas/SyncResult' } }
+                  cursor: { type: integer }
+        '403': { $ref: '#/components/responses/WipeRequired' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /sync/pull:
+    get:
+      summary: Changes after a cursor
+      parameters:
+        - { $ref: '#/components/parameters/DeviceId' }
+        - { name: cursor, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 500 } }
+      responses:
+        '200':
+          description: Changes (latest state per record) and the next cursor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  changes: { type: array, items: { $ref: '#/components/schemas/Change' } }
+                  next_cursor: { type: integer }
+                  has_more: { type: boolean }
+        '403': { $ref: '#/components/responses/WipeRequired' }
+  /sync/wipe-ack:
+    post:
+      summary: Device confirms it erased its local data; all its sessions end
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      responses: { '200': { description: Wiped }, '409': { description: No wipe requested } }
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer }
+  parameters:
+    DeviceId: { name: X-Device-Id, in: header, required: true, schema: { type: string } }
+  responses:
+    AuthError:
+      description: Authentication refused (generic message by design)
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string, enum: [invalid_credentials, invalid_mfa_code, device_not_allowed, device_pending_approval, network_not_allowed, session_invalid, mfa_enrollment_required, password_change_required] }
+              message: { type: string }
+    ValidationError: { description: Invalid request envelope }
+    WipeRequired:
+      description: Remote wipe pending (or other device-state refusal)
+      content: { application/json: { schema: { type: object, properties: { error: { const: wipe_required } } } } }
+  schemas:
+    TokenPair:
+      type: object
+      properties:
+        status: { const: ok }
+        token_type: { const: Bearer }
+        access_token: { type: string, pattern: '^rma_' }
+        access_token_expires_at: { type: string, format: date-time }
+        refresh_token: { type: string, pattern: '^rmr_' }
+        refresh_token_expires_at: { type: string, format: date-time }
+        session_id: { type: string, format: uuid }
+        account: { $ref: '#/components/schemas/Account' }
+    Account:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        entity: { type: object }
+        working_entity_id: { type: [string, 'null'] }
+        role: { type: object }
+        mfa_enabled: { type: boolean }
+        permissions: { type: array, items: { type: string } }
+    SyncEvent:
+      type: object
+      required: [event_id, client_seq, occurred_at, type, payload]
+      properties:
+        event_id: { type: string, format: uuid, description: Generated on the device; idempotency key }
+        client_seq: { type: integer, minimum: 1, description: Strictly increasing per device }
+        occurred_at: { type: string, format: date-time, description: Device clock; clamped to server time if ahead }
+        type: { type: string, examples: [vehicle.upsert, driver.upsert, party.upsert, product.upsert, brand.upsert, godown.upsert, tax_rate.upsert] }
+        record_id: { type: [string, 'null'], format: uuid, description: Client-generated id for new records }
+        base_version: { type: [integer, 'null'], description: Version the edit was made on (omit for creates) }
+        payload: { type: object, description: Writable fields; partial updates allowed }
+    SyncResult:
+      type: object
+      properties:
+        event_id: { type: string, format: uuid }
+        client_seq: { type: integer }
+        status:
+          type: string
+          enum: [applied, conflict_client_won, conflict_server_won, needs_review, pending_online, rejected, retry]
+          description: |
+            Drop the event from the outbox for every status except `pending_online` (wait for online
+            confirmation) and `retry` (temporary server error).
+        reason: { type: string }
+        version: { type: integer }
+        record: { type: object, description: Current server record when the server won }
+        errors: { type: object, description: Field errors when rejected for validation }
+        duplicate: { type: boolean, description: This event was already processed }
+    Change:
+      type: object
+      properties:
+        seq: { type: integer }
+        type: { type: string }
+        op: { type: string, enum: [upsert, archive] }
+        id: { type: string, format: uuid }
+        version: { type: integer }
+        data: { type: object, description: Present for upsert; fields filtered by the viewer's permissions }

@@ -10,6 +10,10 @@
 | `app/Domain/Audit` | `AuditLogger` (only writer of `audit_log`), `AuditVerifier`, `AuditHasher`, `Auditable` model trait |
 | `app/Domain/Approvals` | Maker-checker `ApprovalService` + actions (`ChangeRolePermissions`, `TrustDevice`) |
 | `app/Domain/Settings` | Global / per-entity settings (e.g. login mode) |
+| `app/Domain/Sync` | `SyncService` (push/pull), `SyncRegistry` (event types + permissions), `SyncFeed` (gap-free change feed), `ConflictLog`, `ConflictResolver`, handlers |
+| `app/Models/Masters` | Master data on `MasterModel` (scope, audit, version, archive, change feed) |
+| `app/Support/Values` | `Weight` (kg, bcmath), `Money` (paise), `IndianIds` (GSTIN/PAN/IFSC/vehicle/mobile) |
+| `public/pwa` | Offline PWA: service worker, IndexedDB store, sync engine, gate vehicles screen |
 | `app/Http` | Thin API controllers (`/api/v1`), Form Requests, API Resources, middleware |
 | `app/Filament` | Back office: login with 2FA step, 2FA setup, password change, switch entity/account, resources |
 | `app/Policies` | Authorization per model; permission codes are answered by `Gate::before` |
@@ -25,6 +29,8 @@
 5. Anything needing maker-checker is an `ApprovalAction`.
 6. Controllers use method injection (controllers are cached on routes; tenant/actor context is request-scoped).
 7. Future-dated columns use `dateTime` (MySQL `TIMESTAMP` ends in 2038).
+8. Anything a device can create is a sync event type registered in `SyncRegistry`; ledger/stock/weighment types are append-only handlers.
+9. Secrets inside approval payloads are stored encrypted (`*_encrypted`) and never displayed.
 
 ## Commands
 
@@ -41,4 +47,5 @@ php artisan audit:verify [--entity=<uuid>]            # recompute audit hash cha
 `POST /auth/refresh` (header `X-Device-Id`), `POST /auth/logout`, `GET /auth/me`, `POST /auth/switch`,
 `GET /sessions`, `DELETE /sessions/{id}`, `GET /audit`, `GET /audit/verify`.
 Authenticated calls send `Authorization: Bearer …` and `X-Device-Id`; Super Admin may add `X-Entity-Id`.
-The OpenAPI document arrives with the sync API in phase 2.
+Sync: `GET /sync/bootstrap`, `POST /sync/push`, `GET /sync/pull`, `POST /sync/wipe-ack`.
+Full contract: [docs/api/openapi.yaml](../docs/api/openapi.yaml) (kept in step with the routes by a test).

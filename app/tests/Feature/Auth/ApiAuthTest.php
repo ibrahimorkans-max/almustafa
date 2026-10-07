@@ -143,6 +143,13 @@ describe('two-factor authentication', function () {
             ->assertJsonPath('error', 'mfa_enrollment_required');
     });
 
+    it('refuses app login until a temporary password is changed', function () {
+        $gate = Make::account($this->entity, 'GATE_OPERATOR', ['must_change_password' => true]);
+
+        $this->postJson('/api/v1/auth/login', loginBody($gate))->assertStatus(403)
+            ->assertJsonPath('error', 'password_change_required');
+    });
+
     it('counts wrong codes towards the lockout', function () {
         $this->withoutMiddleware(ThrottleRequests::class);
         $accountant = Make::account($this->entity, 'ACCOUNTANT');

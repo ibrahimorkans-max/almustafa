@@ -26,6 +26,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $last_seen_at
  * @property string|null $last_ip
  * @property Carbon|null $wipe_requested_at
+ * @property string|null $wipe_requested_by
+ * @property Carbon|null $wiped_at
  * @property-read LoginAccount $loginAccount
  */
 class Device extends Model
@@ -71,6 +73,12 @@ class Device extends Model
     public function isUsable(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
+    }
+
+    /** A wipe-pending device may still authenticate, but only to receive the wipe instruction. */
+    public function canReceiveInstructions(): bool
+    {
+        return in_array($this->status, [self::STATUS_ACTIVE, self::STATUS_WIPE_PENDING], true);
     }
 
     public function isTrusted(): bool

@@ -25,6 +25,18 @@ admin rights · operator of the server/DB · thief of a phone or gate PC.
 | **Elevation of privilege** | Owner grants himself entity.manage | Maker-checker; cannot grant/assign permissions you do not hold; Super Admin role only by Super Admin; maker ≠ checker by *person* | — |
 | | Pending-2FA user uses the app | Account holds no permissions until 2FA enrolled / password changed | — |
 
+## Phase 2 additions
+
+| Threat | Controls | Remaining |
+|---|---|---|
+| Vendor bank account swapped to divert payments | Bank accounts change only via maker-checker; checker needs `bank.view`; numbers encrypted at rest and inside the pending request; masked everywhere else | Penny-drop / name-match verification (phase 5) |
+| Replayed or reordered device events | Idempotent `event_id`, increasing `client_seq` per device, device-bound tokens | Request signing for the gate agent (phase 3) |
+| Device clock set ahead to win conflicts | Event time clamped to server receipt time; every overwrite logged with both sides | — |
+| Stale device floods old data | Events older than `max_offline_hours` go to supervisor review; client locks itself | — |
+| Lost / stolen phone or tablet | Remote wipe instruction on next contact, then sessions end; sign-out wipes local data | Browser storage is not encrypted at rest (OS/disk encryption assumed); Flutter app uses SQLCipher (phase 10) |
+| XSS in the PWA stealing tokens from IndexedDB | Strict CSP (scripts/styles from self only, no inline), DOM built with `textContent`, no third-party scripts | Move refresh token to an HttpOnly cookie if a web view without IndexedDB isolation is ever needed |
+| Cross-entity data via guessed record ids | Scope + RLS on every master; an id belonging to another entity can only produce a review item, never an overwrite (tested) | — |
+
 ## Trust boundaries
 Browser/PWA ↔ Nginx (TLS) ↔ PHP-FPM ↔ PostgreSQL/Redis · Gate agent ↔ API (signed requests, ph. 3) ·
 Agent ↔ hardware (serial/IO, local only).

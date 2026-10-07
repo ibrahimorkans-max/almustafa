@@ -7,6 +7,7 @@ use App\Domain\Access\RoleTemplates;
 use App\Models\Entity;
 use App\Models\LoginAccount;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Tests\Support\Make;
 
 /*
@@ -129,6 +130,27 @@ it('protects the audit API by permission', function (string $role) {
         ->assertStatus(in_array('audit.verify', RoleTemplates::get($role)['permissions'], true) ? 200 : 403);
 })->with('roles');
 
+it('enforces sync read/write rights per role', function (string $role) {
+    $account = accountFor($role, $this->entity);
+    $headers = Make::apiHeaders(Make::apiTokens($account));
+    $grants = RoleTemplates::get($role)['permissions'];
+    $has = fn (string ...$any) => array_intersect($any, $grants) !== [];
+
+    $types = collect($this->withHeaders($headers)->getJson('/api/v1/sync/bootstrap')->assertOk()->json('types'))->keyBy('type');
+
+    expect($types['party']['read'])->toBe($has('master.view'), "{$role} reads parties")
+        ->and($types['party']['write'])->toBe($has('master.manage'), "{$role} writes parties")
+        ->and($types['vehicle']['write'])->toBe($has('master.manage', 'gate.entry'), "{$role} writes vehicles");
+
+    $result = $this->withHeaders($headers)->postJson('/api/v1/sync/push', ['events' => [[
+        'event_id' => (string) Str::uuid(), 'client_seq' => 1, 'occurred_at' => now()->toIso8601ZuluString(),
+        'type' => 'party.upsert', 'record_id' => (string) Str::uuid(),
+        'payload' => ['code' => 'P'.random_int(100, 999), 'name' => 'X', 'gst_registration_type' => 'unregistered'],
+    ]]])->assertOk()->json('results.0.status');
+
+    expect($result)->toBe($has('master.manage') ? 'applied' : 'rejected', "{$role} pushes a party");
+})->with('roles');
+
 it('rejects every protected API endpoint without a token', function (string $method, string $uri) {
     $this->json($method, $uri)->assertUnauthorized();
 })->with([
@@ -139,4 +161,8 @@ it('rejects every protected API endpoint without a token', function (string $met
     ['DELETE', '/api/v1/sessions/01a11539-95e1-705a-82e9-acaddf3f37a5'],
     ['GET', '/api/v1/audit'],
     ['GET', '/api/v1/audit/verify'],
+    ['GET', '/api/v1/sync/bootstrap'],
+    ['POST', '/api/v1/sync/push'],
+    ['GET', '/api/v1/sync/pull'],
+    ['POST', '/api/v1/sync/wipe-ack'],
 ]);

@@ -25,7 +25,7 @@ See [infra/README.md](infra/README.md) for Docker and for a Docker-free Windows 
 cd app
 composer install
 php artisan migrate --seed            # local env also seeds demo mills + one user per role
-php artisan serve                     # http://127.0.0.1:8000/admin
+php artisan serve                     # back office: http://127.0.0.1:8000/admin · gate PWA: /pwa/
 ```
 
 Demo passwords are random and written to `app/storage/app/private/demo-credentials.txt` (git-ignored).
@@ -38,6 +38,7 @@ cd app
 vendor/bin/pest                          # PostgreSQL (incl. row-level security tests)
 vendor/bin/pest -c phpunit.mariadb.xml   # MariaDB/MySQL (shared-hosting pilot)
 vendor/bin/pint --test && vendor/bin/phpstan analyse
+npm run test:js                          # PWA sync engine (node --test)
 ```
 
 ## Status
@@ -45,5 +46,6 @@ vendor/bin/pint --test && vendor/bin/phpstan analyse
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Laravel setup, Docker, auth, 2FA, roles/permissions, entities + RLS, audit log, Filament shell | **done** — [summary](docs/phase-1-summary.md) |
-| 2 | Masters, sync API, PWA offline shell | next |
-| 3–10 | see [docs/phase-1-plan.md](docs/phase-1-plan.md) and the project brief | planned |
+| 2 | Masters, sync API, PWA offline shell | **done** — [summary](docs/phase-2-summary.md) · [API](docs/api/openapi.yaml) |
+| 3 | Procurement & sauda, gate entry, weighbridge, lab, device simulators | next |
+| 4–10 | see [docs/phase-1-plan.md](docs/phase-1-plan.md) and the project brief | planned |

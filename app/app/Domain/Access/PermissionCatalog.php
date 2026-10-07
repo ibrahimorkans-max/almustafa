@@ -36,6 +36,8 @@ final class PermissionCatalog
         // Masters
         'master.view' => ['masters', 'View master data'],
         'master.manage' => ['masters', 'Create and edit master data'],
+        // Sync
+        'sync.review' => ['sync', 'Resolve sync conflicts in the supervisor review queue'],
         // Procurement
         'requirement.broadcast' => ['procurement', 'Broadcast paddy requirements'],
         'quote.view' => ['procurement', 'View quotes'],

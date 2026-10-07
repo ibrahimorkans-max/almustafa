@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Approvals;
 
 use App\Domain\Approvals\Actions\ChangeRolePermissions;
+use App\Domain\Approvals\Actions\PartyBankAccountChange;
 use App\Domain\Approvals\Actions\TrustDevice;
 use App\Domain\Approvals\Contracts\ApprovalAction;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
@@ -31,6 +32,7 @@ final class ApprovalService
     private const ACTIONS = [
         ChangeRolePermissions::KEY => ChangeRolePermissions::class,
         TrustDevice::KEY => TrustDevice::class,
+        PartyBankAccountChange::KEY => PartyBankAccountChange::class,
     ];
 
     public function __construct(

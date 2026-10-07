@@ -90,7 +90,7 @@ final class TokenService
             throw new AuthenticationFailed(AuthenticationFailed::SESSION_INVALID, 'device_mismatch');
         }
 
-        if ($token->expires_at->isPast() || ! $session->isActive() || ! $device->isUsable() || ! $account->isActive()) {
+        if ($token->expires_at->isPast() || ! $session->isActive() || ! $device->canReceiveInstructions() || ! $account->isActive()) {
             throw new AuthenticationFailed(AuthenticationFailed::SESSION_INVALID, 'refresh_expired_or_session_ended');
         }
 
@@ -129,7 +129,7 @@ final class TokenService
             return null;
         }
 
-        if (! $session->isActive() || ! $device->isUsable() || ! $account->isActive()) {
+        if (! $session->isActive() || ! $device->canReceiveInstructions() || ! $account->isActive()) {
             return null;
         }
 

@@ -10,10 +10,13 @@ use App\Domain\Auth\ApiTokenGuard;
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Auth\SessionService;
 use App\Domain\Auth\TenantAwareUserProvider;
+use App\Domain\Sync\SyncRegistry;
 use App\Domain\Tenancy\TenantContext;
 use App\Http\Middleware\EnsureWebAuthSession;
 use App\Models\AuthSession;
 use App\Models\LoginAccount;
+use App\Models\Masters;
+use App\Policies;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -35,6 +38,7 @@ class AppServiceProvider extends ServiceProvider
         // Per request / per job state (flushed between Octane requests and queue jobs).
         $this->app->scoped(TenantContext::class);
         $this->app->scoped(ActorContext::class);
+        $this->app->scoped(SyncRegistry::class);
         $this->app->singleton(Google2FA::class);
     }
 
@@ -61,6 +65,20 @@ class AppServiceProvider extends ServiceProvider
         ));
 
         Auth::viaRequest('ricemill-token', fn (Request $request) => $this->app->make(ApiTokenGuard::class)($request));
+
+        // Master data lives in App\Models\Masters, outside policy auto-discovery.
+        foreach ([
+            Masters\Party::class => Policies\Masters\PartyPolicy::class,
+            Masters\Vehicle::class => Policies\Masters\VehiclePolicy::class,
+            Masters\Driver::class => Policies\Masters\DriverPolicy::class,
+            Masters\Product::class => Policies\Masters\ProductPolicy::class,
+            Masters\Brand::class => Policies\Masters\BrandPolicy::class,
+            Masters\Godown::class => Policies\Masters\GodownPolicy::class,
+            Masters\TaxRate::class => Policies\Masters\TaxRatePolicy::class,
+            Masters\PartyBankAccount::class => Policies\PartyBankAccountPolicy::class,
+        ] as $model => $policy) {
+            Gate::policy($model, $policy);
+        }
 
         // Permission codes ("deal.approve") are answered from the account's role grants.
         Gate::before(function ($user, string $ability): ?bool {

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="theme-color" content="#047857">
+  <title>Rice Mill — Gate</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="bar">
+    <strong class="brand">Rice Mill · Gate</strong>
+    <span id="status" class="badge" role="status" aria-live="polite">…</span>
+  </header>
+
+  <main id="view" tabindex="-1"></main>
+
+  <template id="tpl-login">
+    <form id="login-form" class="card narrow" autocomplete="on">
+      <h1>Sign in</h1>
+      <p class="muted">Works offline after the first sign-in on this device.</p>
+      <label>Username <input name="username" autocomplete="username" required maxlength="64"></label>
+      <label>Password <input name="password" type="password" autocomplete="current-password" required maxlength="256"></label>
+      <label class="otp" hidden>Authentication code <input name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="32"></label>
+      <p class="error" role="alert"></p>
+      <button type="submit">Sign in</button>
+    </form>
+  </template>
+
+  <template id="tpl-main">
+    <section class="toolbar">
+      <input id="search" type="search" placeholder="Search registration no." aria-label="Search vehicles">
+      <button id="sync-now" type="button" class="secondary">Sync now</button>
+      <button id="logout" type="button" class="secondary">Sign out</button>
+    </section>
+
+    <form id="vehicle-form" class="card">
+      <h2>Register vehicle</h2>
+      <div class="row">
+        <label>Registration no. <input name="registration_no" required maxlength="20" placeholder="HR05AB1234" autocapitalize="characters"></label>
+        <label>Type
+          <select name="vehicle_type">
+            <option value="truck">Truck</option><option value="tractor">Tractor</option><option value="trolley">Trolley</option>
+            <option value="tempo">Tempo</option><option value="other">Other</option>
+          </select>
+        </label>
+        <button type="submit">Save</button>
+      </div>
+      <p class="error" role="alert"></p>
+    </form>
+
+    <section class="card">
+      <h2>Vehicles <small id="vehicle-count" class="muted"></small></h2>
+      <ul id="vehicles" class="list"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Messages</h2>
+      <ul id="notices" class="list"></ul>
+    </section>
+  </template>
+
+  <template id="tpl-message">
+    <section class="card narrow">
+      <h1 class="title"></h1>
+      <p class="text"></p>
+      <button type="button" class="action">Sign in</button>
+    </section>
+  </template>
+</body>
+</html>

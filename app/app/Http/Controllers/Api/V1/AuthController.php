@@ -33,6 +33,15 @@ final class AuthController extends Controller
     {
         $account = $login->verifyPassword($request->string('username')->toString(), $request->string('password')->toString(), $request->ip());
 
+        if ($account->must_change_password) {
+            $audit->record('auth.login.blocked', $account, meta: ['reason' => 'password_change_required']);
+
+            return response()->json([
+                'error' => 'password_change_required',
+                'message' => 'Change your temporary password in the web admin before using the app.',
+            ], 403);
+        }
+
         $mfaPassed = false;
         switch ($login->mfaStep($account)) {
             case LoginService::MFA_ENROLL:

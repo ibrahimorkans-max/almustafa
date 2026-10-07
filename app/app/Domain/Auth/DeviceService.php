@@ -69,7 +69,10 @@ final class DeviceService
         });
     }
 
-    /** The device deletes its local data on its next sync (phase 2), then reports `wiped`. */
+    /**
+     * The device keeps its sessions so it can receive the instruction: every API call then
+     * answers 403 wipe_required until the device deletes its local data and acknowledges.
+     */
     public function requestWipe(Device $device, string $reason): void
     {
         DB::transaction(function () use ($device, $reason): void {
@@ -77,8 +80,19 @@ final class DeviceService
             $device->wipe_requested_at = now();
             $device->wipe_requested_by = app(ActorContext::class)->accountId();
             $device->save();
-            $this->sessions->revokeForDevice($device, 'wipe_requested');
             $this->audit->record('device.wipe_requested', $device, meta: ['reason' => $reason]);
+        });
+    }
+
+    /** Called by the device after it erased its local data. Ends all its sessions. */
+    public function acknowledgeWipe(Device $device): void
+    {
+        DB::transaction(function () use ($device): void {
+            $device->status = Device::STATUS_WIPED;
+            $device->wiped_at = now();
+            $device->save();
+            $this->sessions->revokeForDevice($device, 'wiped');
+            $this->audit->record('device.wiped', $device);
         });
     }
 

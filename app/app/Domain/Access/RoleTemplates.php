@@ -88,7 +88,7 @@ final class RoleTemplates
                 'session_max_minutes' => 720,
                 'permissions' => [
                     'entity.view', 'approval.view', 'device.view',
-                    'master.view',
+                    'master.view', 'master.manage', 'sync.review',
                     'deal.view', 'gate.entry', 'weighment.capture', 'weighment.override', 'lab.test', 'lab.decide',
                     'production.view', 'production.log', 'batch.manage',
                     'stock.view', 'requisition.create', 'requisition.approve',

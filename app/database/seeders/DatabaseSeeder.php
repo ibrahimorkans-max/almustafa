@@ -13,7 +13,7 @@ class DatabaseSeeder extends Seeder
         $this->call(AccessCatalogSeeder::class);
 
         if (app()->environment('local')) {
-            $this->call(DemoSeeder::class);
+            $this->call([DemoSeeder::class, DemoMastersSeeder::class]);
         }
     }
 }
