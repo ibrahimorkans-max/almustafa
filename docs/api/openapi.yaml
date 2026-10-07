@@ -148,7 +148,7 @@ paths:
                   cursor: { type: integer, description: Current head of the change feed }
                   types:
                     type: array
-                    description: Record types (masters, plus read-only feeds gate_entry and sauda)
+                    description: Record types (masters, plus read-only feeds gate_entry, sauda and production_batch)
                     items: { type: object, properties: { type: { type: string }, read: { type: boolean }, write: { type: boolean } } }
                   events:
                     type: array
@@ -281,9 +281,13 @@ components:
             * `weighment.captured` {gate_entry_id, kind: gross|tare, weight_kg, scale_id?, readings: {samples[], window_ms}, photo_sha256?}
             * `lab_test.recorded` {gate_entry_id, moisture_bp?, foreign_matter_bp?, broken_bp?, damaged_bp?, immature_bp?, chalky_bp?, grade?, remarks?, sample_code?}
             * `gate_entry.lab_decided` {gate_entry_id, accept, note?}
-            * `gate_entry.event` {gate_entry_id, event: unloaded|exited}
+            * `gate_entry.event` {gate_entry_id, event: unloaded|exited, godown_id? (where the lot was unloaded; the slip books the stock receipt there)}
             A fact about a gate entry the server has not received yet is answered `retry`.
-          examples: [vehicle.upsert, gate_entry.arrived, weighment.captured, lab_test.recorded]
+            Append-only production facts (`record_id` = new log id):
+            * `production_log.recorded` {batch_id, kind: input|output, product_id (output only), godown_id, quantity_kg, period_start, period_end, note?}
+              Moves stock at once. `retry` with reason `insufficient_stock` while the godown does not hold the paddy
+              (e.g. the receipt is still on another device), `reference_not_yet_synced` for an unknown batch/godown.
+          examples: [vehicle.upsert, gate_entry.arrived, weighment.captured, lab_test.recorded, production_log.recorded]
         record_id: { type: [string, 'null'], format: uuid, description: Client-generated id for new records }
         base_version: { type: [integer, 'null'], description: Version the edit was made on (omit for creates) }
         payload: { type: object, description: Writable fields; partial updates allowed }

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 
 /**
@@ -47,6 +48,7 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName
     use BelongsToEntity;
     use HasOptimisticLock;
     use HasUuids;
+    use Notifiable;
     use TracksCreator;
 
     public const STATUS_ACTIVE = 'active';

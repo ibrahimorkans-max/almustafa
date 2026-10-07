@@ -12,7 +12,9 @@ use App\Filament\Resources\Procurement\SaudaResource\Pages\ViewSauda;
 use App\Models\Device;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\LabTest;
+use App\Models\Inventory\StockBalance;
 use App\Models\LoginAccount;
+use App\Models\Masters\Godown;
 use App\Models\Procurement\Sauda;
 use Filament\Facades\Filament;
 use Livewire\Livewire;
@@ -97,13 +99,16 @@ it('runs a vehicle visit from the gate screens', function () {
     expect(LabTest::query()->sole()->moisture_bp)->toBe(1850);
 
     Livewire::test(ViewGateEntry::class, ['record' => $entry->id])->callAction('accept', ['note' => null]);
-    Livewire::test(ViewGateEntry::class, ['record' => $entry->id])->callAction('unloaded');
+    $silo = Godown::query()->create(['code' => 'S1', 'name' => 'Paddy silo', 'type' => 'silo']);
+    Livewire::test(ViewGateEntry::class, ['record' => $entry->id])->callAction('unloaded')->assertHasActionErrors(['godown_id' => 'required']);
+    Livewire::test(ViewGateEntry::class, ['record' => $entry->id])->callAction('unloaded', ['godown_id' => $silo->id])->assertNotified('Marked unloaded');
     app(GateService::class)->recordWeighment($entry, 'tare', '10230', $this->f->scale, GateFixtures::readings('10230'), str_repeat('d', 64));
     Livewire::test(ViewGateEntry::class, ['record' => $entry->id])->callAction('slip')->assertNotified('Slip issued');
     Livewire::test(ViewGateEntry::class, ['record' => $entry->id])->callAction('download')->assertFileDownloaded();
     Livewire::test(ViewGateEntry::class, ['record' => $entry->id])->callAction('exit');
 
-    expect($entry->fresh()->status)->toBe('exited')->and($sauda->fresh()->delivered_kg)->toBe('14781.250');
+    expect($entry->fresh()->status)->toBe('exited')->and($sauda->fresh()->delivered_kg)->toBe('14781.250')
+        ->and(StockBalance::query()->where('godown_id', $silo->id)->value('quantity_kg'))->toBe('15250.000');
 });
 
 it('does not offer any way to type a weight except the Super Admin override', function () {

@@ -28,6 +28,10 @@ final class DocumentNumbers
 
     public const GATE = 'G';
 
+    public const REQUISITION = 'RQ';
+
+    public const BATCH = 'B';
+
     public function __construct(private readonly TenantContext $tenant) {}
 
     public function next(string $series, ?CarbonInterface $date = null): string

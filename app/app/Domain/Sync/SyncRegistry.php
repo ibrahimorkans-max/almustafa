@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Domain\Sync;
 
 use App\Domain\Gate\GateService;
+use App\Domain\Production\ProductionService;
 use App\Domain\Sync\Contracts\SyncHandler;
 use App\Domain\Sync\Handlers\GateHandlers;
 use App\Domain\Sync\Handlers\MasterUpsertHandler;
+use App\Domain\Sync\Handlers\ProductionHandlers;
 use App\Models\Gate\GateEntry;
 use App\Models\LoginAccount;
 use App\Models\Masters\Brand;
@@ -19,6 +21,7 @@ use App\Models\Masters\Product;
 use App\Models\Masters\TaxRate;
 use App\Models\Masters\Vehicle;
 use App\Models\Procurement\Sauda;
+use App\Models\Production\ProductionBatch;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Database\Eloquent\Model;
 
@@ -52,6 +55,7 @@ final class SyncRegistry
     public const FEEDS = [
         'gate_entry' => [GateEntry::class, ['gate.entry', 'weighment.capture', 'lab.test', 'lab.decide']],
         'sauda' => [Sauda::class, ['deal.view', 'gate.entry']],
+        'production_batch' => [ProductionBatch::class, ['production.view', 'production.log']],
     ];
 
     /** @var array<string, SyncHandler> extra handlers registered by later phases / tests */
@@ -79,7 +83,11 @@ final class SyncRegistry
     {
         if ($this->appendOnly === null) {
             $this->appendOnly = [];
-            foreach (GateHandlers::all($this->container->make(GateService::class)) as $handler) {
+            $handlers = [
+                ...GateHandlers::all($this->container->make(GateService::class)),
+                ...ProductionHandlers::all($this->container->make(ProductionService::class)),
+            ];
+            foreach ($handlers as $handler) {
                 $this->appendOnly[$handler->type()] = $handler;
             }
         }

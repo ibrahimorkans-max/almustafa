@@ -39,6 +39,9 @@ class Product extends MasterModel
         'sale_unit', 'bag_weight_kg', 'is_stock_item', 'status',
     ];
 
+    /** @var array<string, mixed> */
+    protected $attributes = ['status' => 'active', 'is_stock_item' => true];
+
     protected function casts(): array
     {
         return [

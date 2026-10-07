@@ -54,6 +54,13 @@ return [
         'certificate_reminder_days' => [30, 7, 0],
     ],
 
+    'inventory' => [
+        // Batch closed with (input − outputs) above this share of input → "unaccounted loss" alert.
+        'unaccounted_loss_bp' => (int) env('RICEMILL_UNACCOUNTED_LOSS_BP', 150),
+        // Stock count lower than the system balance by more than this share → "shrinkage" alert.
+        'shrinkage_bp' => (int) env('RICEMILL_SHRINKAGE_BP', 50),
+    ],
+
     'approvals' => [
         'expire_after_hours' => (int) env('RICEMILL_APPROVAL_EXPIRY_HOURS', 72),
     ],

@@ -17,6 +17,7 @@ use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
 use App\Models\Gate\LabTest;
 use App\Models\LoginAccount;
+use App\Models\Masters\Godown;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Facades\Filament;
@@ -69,12 +70,19 @@ class ViewGateEntry extends ViewRecord
                 ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->decideLab($e, false, $data['note']), 'Lot rejected')),
             Action::make('unloaded')->label('Mark unloaded')->icon('heroicon-o-arrow-down-tray')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $e->direction === 'inbound' && $can('gate.entry') && ! $has($e, 'unloaded'))
-                ->requiresConfirmation()
-                ->action(fn (GateEntry $e) => $this->run(fn (GateService $g) => $g->markUnloaded($e), 'Marked unloaded')),
+                ->modalDescription('The slip will book the net weight into this godown.')
+                ->form([
+                    Select::make('godown_id')->label('Unloaded into')->required()
+                        ->options(fn () => Godown::query()->where('status', 'active')->orderBy('code')->get()->mapWithKeys(fn (Godown $g) => [$g->id => "{$g->code} — {$g->name}"])),
+                ])
+                ->action(fn (GateEntry $e, array $data) => $this->run(
+                    fn (GateService $g) => $g->markUnloaded($e, godown: Godown::query()->findOrFail($data['godown_id'])),
+                    'Marked unloaded',
+                )),
             Action::make('slip')->label('Issue weighment slip')->icon('heroicon-o-document-text')->color('primary')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $can('weighment.capture') && ! $has($e, 'slip_issued') && $e->gross_kg !== null && $e->tare_kg !== null)
                 ->requiresConfirmation()
-                ->modalDescription('Freezes gross, tare, net and deductions, and books the payable weight on the sauda.')
+                ->modalDescription('Freezes gross, tare, net and deductions, books the payable weight on the sauda and the net weight into the godown.')
                 ->action(fn (GateEntry $e) => $this->run(fn (GateService $g) => $g->issueSlip($e), 'Slip issued')),
             Action::make('download')->label('Download slip (PDF)')->icon('heroicon-o-arrow-down-tray')->color('gray')
                 ->visible(fn (GateEntry $e) => $has($e, 'slip_issued'))

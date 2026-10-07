@@ -48,7 +48,7 @@ class GateEntryResource extends Resource
         'unknown_vehicle' => 'Unknown vehicle', 'blocked_vehicle' => 'BLOCKED vehicle', 'sauda_not_open' => 'Sauda not open',
         'stability_unverified' => 'Weight not proven stable', 'no_photo' => 'No camera photo', 'scale_certificate_invalid' => 'Scale certificate invalid',
         'tare_deviation' => 'Tare differs from usual', 'manual_override' => 'Manual weight (approved)', 'out_of_order' => 'Steps out of order',
-        'net_not_positive' => 'Net not positive',
+        'net_not_positive' => 'Net not positive', 'no_godown' => 'Not booked into stock (no godown)',
     ];
 
     public static function form(Form $form): Form
@@ -110,6 +110,7 @@ class GateEntryResource extends Resource
                 TextEntry::make('sauda.number')->label('Sauda')->placeholder('—'),
                 TextEntry::make('product.name')->label('Product')->placeholder('—'),
                 TextEntry::make('bag_count')->label('Bags')->placeholder('—'),
+                TextEntry::make('godown.name')->label('Unloaded into')->placeholder('—'),
                 TextEntry::make('flags')->badge()->color('danger')->columnSpanFull()
                     ->formatStateUsing(fn (string $state) => self::FLAG_LABELS[$state] ?? $state)->placeholder('No flags'),
             ]),

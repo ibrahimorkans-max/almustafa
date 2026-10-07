@@ -13,15 +13,18 @@ use App\Domain\Auth\TenantAwareUserProvider;
 use App\Domain\Sync\SyncRegistry;
 use App\Domain\Tenancy\TenantContext;
 use App\Http\Middleware\EnsureWebAuthSession;
+use App\Models\Alert;
 use App\Models\AuthSession;
 use App\Models\Gate\DeductionRule;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\Scale;
+use App\Models\Inventory;
 use App\Models\LoginAccount;
 use App\Models\Masters;
 use App\Models\Procurement\PaddyRequirement;
 use App\Models\Procurement\Quote;
 use App\Models\Procurement\Sauda;
+use App\Models\Production;
 use App\Policies;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -88,6 +91,13 @@ class AppServiceProvider extends ServiceProvider
             GateEntry::class => Policies\Phase3\GateEntryPolicy::class,
             Scale::class => Policies\Phase3\ScalePolicy::class,
             DeductionRule::class => Policies\Phase3\DeductionRulePolicy::class,
+            Inventory\StockBalance::class => Policies\Phase4\StockBalancePolicy::class,
+            Inventory\StockEntry::class => Policies\Phase4\StockEntryPolicy::class,
+            Inventory\Requisition::class => Policies\Phase4\RequisitionPolicy::class,
+            Inventory\StockCount::class => Policies\Phase4\StockCountPolicy::class,
+            Production\ProductionBatch::class => Policies\Phase4\ProductionBatchPolicy::class,
+            Production\OutturnStandard::class => Policies\Phase4\OutturnStandardPolicy::class,
+            Alert::class => Policies\Phase4\AlertPolicy::class,
         ] as $model => $policy) {
             Gate::policy($model, $policy);
         }
@@ -127,10 +137,16 @@ class AppServiceProvider extends ServiceProvider
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
     }
 
-    /** Long-running workers must never carry one job's entity into the next. */
+    /**
+     * Long-running workers must never carry one job's entity into the next. A job on the
+     * `sync` connection runs inline inside the current request, whose context must survive it.
+     */
     private function registerQueueContextReset(): void
     {
-        $reset = function (): void {
+        $reset = function (JobProcessing|JobProcessed $event): void {
+            if ($event->connectionName === 'sync') {
+                return;
+            }
             $this->app->make(TenantContext::class)->clear();
             $this->app->make(ActorContext::class)->clear();
         };
