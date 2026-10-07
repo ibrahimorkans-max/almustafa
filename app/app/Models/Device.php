@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $wipe_requested_at
  * @property string|null $wipe_requested_by
  * @property Carbon|null $wiped_at
+ * @property string|null $signing_secret
  * @property-read LoginAccount $loginAccount
  */
 class Device extends Model
@@ -50,6 +51,11 @@ class Device extends Model
 
     protected $fillable = ['entity_id', 'login_account_id', 'device_uid', 'name', 'platform', 'status', 'last_seen_at', 'last_ip'];
 
+    protected $hidden = ['signing_secret'];
+
+    /** @var list<string> */
+    protected array $auditSecret = ['signing_secret'];
+
     /** @var list<string> */
     protected array $auditIgnored = ['last_seen_at', 'last_ip'];
 
@@ -60,6 +66,7 @@ class Device extends Model
             'last_seen_at' => 'datetime',
             'wipe_requested_at' => 'datetime',
             'wiped_at' => 'datetime',
+            'signing_secret' => 'encrypted',
             'version' => 'integer',
         ];
     }

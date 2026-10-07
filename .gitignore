@@ -16,3 +16,8 @@ __pycache__/
 
 # machine-specific editor/agent config
 .claude/launch.json
+
+# gate agent local files
+agent/agent.toml
+*.sqlite3
+*.sqlite3-*

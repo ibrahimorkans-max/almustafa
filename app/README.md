@@ -13,6 +13,10 @@
 | `app/Domain/Sync` | `SyncService` (push/pull), `SyncRegistry` (event types + permissions), `SyncFeed` (gap-free change feed), `ConflictLog`, `ConflictResolver`, handlers |
 | `app/Models/Masters` | Master data on `MasterModel` (scope, audit, version, archive, change feed) |
 | `app/Support/Values` | `Weight` (kg, bcmath), `Money` (paise), `IndianIds` (GSTIN/PAN/IFSC/vehicle/mobile) |
+| `app/Domain/Procurement` | `RequirementService`, `QuoteService` (negotiation), `SaudaService` (lifecycle, maker-checker, deliveries, expiry) |
+| `app/Domain/Gate` | `GateService` (facts + projection), `DeductionCalculator`, `TareCheck`, `SlipRenderer` |
+| `app/Domain/Documents` | `DocumentNumbers` (gap-free per entity / series / Indian financial year) |
+| `app/Domain/Files` | `FileStore` (content-addressed private files) |
 | `public/pwa` | Offline PWA: service worker, IndexedDB store, sync engine, gate vehicles screen |
 | `app/Http` | Thin API controllers (`/api/v1`), Form Requests, API Resources, middleware |
 | `app/Filament` | Back office: login with 2FA step, 2FA setup, password change, switch entity/account, resources |
@@ -37,7 +41,9 @@
 ```bash
 php artisan access:sync [--export=permissions.json]   # sync permission catalog; run on every deploy
 php artisan ricemill:create-super-admin <username>    # installation bootstrap (asks for password)
-php artisan audit:verify [--entity=<uuid>]            # recompute audit hash chains
+php artisan audit:verify [--entity=<uuid>]            # recompute audit hash chains (scheduled daily)
+php artisan procurement:expire                        # expire quotes / saudas (scheduled daily)
+php artisan scales:certificate-reminders              # weighbridge certificate expiry (scheduled daily)
 ```
 
 ## API (v1)
@@ -47,5 +53,6 @@ php artisan audit:verify [--entity=<uuid>]            # recompute audit hash cha
 `POST /auth/refresh` (header `X-Device-Id`), `POST /auth/logout`, `GET /auth/me`, `POST /auth/switch`,
 `GET /sessions`, `DELETE /sessions/{id}`, `GET /audit`, `GET /audit/verify`.
 Authenticated calls send `Authorization: Bearer …` and `X-Device-Id`; Super Admin may add `X-Entity-Id`.
-Sync: `GET /sync/bootstrap`, `POST /sync/push`, `GET /sync/pull`, `POST /sync/wipe-ack`.
+Sync: `GET /sync/bootstrap`, `POST /sync/push`, `GET /sync/pull`, `POST /sync/wipe-ack`, `POST /files`.
+Gate agents additionally sign every authenticated request (see OpenAPI description).
 Full contract: [docs/api/openapi.yaml](../docs/api/openapi.yaml) (kept in step with the routes by a test).

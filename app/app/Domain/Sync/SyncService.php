@@ -43,6 +43,8 @@ final class SyncService
 
         try {
             return $this->pushOneInTransaction($account, $device, $event, $base);
+        } catch (RetryLater $retry) {
+            return $base + $retry->outcome->toArray();
         } catch (\Throwable $e) {
             // Nothing was stored: the device keeps the event and retries later.
             report($e);
@@ -70,14 +72,20 @@ final class SyncService
 
             // Serialise pushes from the same device (two tabs / retries racing).
             Device::query()->whereKey($device->id)->lockForUpdate()->first();
-            $lastSeq = (int) DB::table('sync_events')->where('device_id', $device->id)->max('client_seq');
-            if ($event->clientSeq <= $lastSeq) {
-                return $base + ['status' => SyncOutcome::REJECTED, 'reason' => 'client_seq_not_increasing', 'last_client_seq' => $lastSeq];
+            // client_seq orders a batch and must be unique per device. It need not be higher than
+            // everything stored: an event answered "retry" is re-sent later with its original seq.
+            if (DB::table('sync_events')->where('device_id', $device->id)->where('client_seq', $event->clientSeq)->exists()) {
+                return $base + ['status' => SyncOutcome::REJECTED, 'reason' => 'client_seq_reused'];
             }
 
             $receivedAt = CarbonImmutable::now('UTC');
             $event = $this->clampClock($event, $receivedAt);
             $outcome = $this->decide($account, $event, $receivedAt);
+
+            if ($outcome->status === SyncOutcome::RETRY) {
+                // Nothing is stored (the handler's work is rolled back); the device sends it again later.
+                throw new RetryLater($outcome);
+            }
 
             DB::table('sync_events')->insert([
                 'id' => $event->eventId,
@@ -172,7 +180,7 @@ final class SyncService
         $records = [];
         foreach ($byType as $type => $ids) {
             $model = $this->registry->modelFor($type);
-            $records[$type] = $model === null ? collect() : $model::query()->withArchived()->whereIn('id', $ids)->get()->keyBy('id');
+            $records[$type] = $model === null ? collect() : $model::query()->withoutGlobalScope('not_archived')->whereIn('id', $ids)->get()->keyBy('id');
         }
 
         $changes = [];

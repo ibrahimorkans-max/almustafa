@@ -19,6 +19,9 @@ final readonly class SyncOutcome
 
     public const REJECTED = 'rejected';
 
+    /** Not applicable yet (e.g. refers to a record another device has not uploaded); nothing stored, send again later. */
+    public const RETRY = 'retry';
+
     /**
      * @param  array<string, mixed>  $data  e.g. new version, current server record, validation errors
      */
@@ -31,7 +34,7 @@ final readonly class SyncOutcome
     /** Statuses after which the device may drop the event from its outbox. */
     public function isFinal(): bool
     {
-        return $this->status !== self::PENDING_ONLINE;
+        return ! in_array($this->status, [self::PENDING_ONLINE, self::RETRY], true);
     }
 
     /** @return array<string, mixed> */

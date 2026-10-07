@@ -33,6 +33,7 @@ final class SyncController extends Controller
             'max_push_events' => (int) config('ricemill.sync.max_push_events'),
             'cursor' => $sync->cursor(),
             'types' => $registry->capabilities($account),
+            'events' => $registry->eventCapabilities($account),
             'account' => new AccountResource($account),
         ]);
     }

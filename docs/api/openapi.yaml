@@ -13,6 +13,11 @@ info:
     * Weights are decimal strings in **kilograms** (max 3 decimals); money is integer **paise**; GST rates are basis
       points (500 = 5 %). Timestamps are ISO-8601 UTC.
     * A device with a pending remote wipe gets `403 {"error":"wipe_required"}` on every call except `POST /sync/wipe-ack`.
+    * Gate agents (platform `agent`, registered by an administrator) must also sign every authenticated request:
+      `X-Timestamp` (unix s, ±300), `X-Nonce` (single use), `X-Signature` = hex HMAC-SHA256(device secret,
+      "{ts}\n{nonce}\n{METHOD}\n{path?query}\n{sha256 hex of body}"). Test vector: secret `test-secret-do-not-use`,
+      ts `1791360000`, nonce `nonce-0000000000000001`, `POST /api/v1/sync/push?x=1`, body `{"events":[]}` →
+      `978e446264d4092aa50a22bc5b2687a349e67cba7a8ae6b49d65b09a46214081`.
 
     **Sync model.** Devices write locally first and queue events. `push` uploads them in `client_seq` order; each event
     is idempotent by `event_id`. Master data uses version checks + last-write-wins with a conflict log; unmergeable
@@ -143,7 +148,12 @@ paths:
                   cursor: { type: integer, description: Current head of the change feed }
                   types:
                     type: array
+                    description: Record types (masters, plus read-only feeds gate_entry and sauda)
                     items: { type: object, properties: { type: { type: string }, read: { type: boolean }, write: { type: boolean } } }
+                  events:
+                    type: array
+                    description: Append-only event types and whether this account may send them
+                    items: { type: object, properties: { type: { type: string }, allowed: { type: boolean } } }
                   account: { $ref: '#/components/schemas/Account' }
         '403': { $ref: '#/components/responses/WipeRequired' }
   /sync/push:
@@ -195,6 +205,25 @@ paths:
       summary: Device confirms it erased its local data; all its sessions end
       parameters: [{ $ref: '#/components/parameters/DeviceId' }]
       responses: { '200': { description: Wiped }, '409': { description: No wipe requested } }
+  /files:
+    post:
+      summary: Upload a photo or document (content-addressed, idempotent)
+      description: |
+        Either the raw bytes as the request body with `Content-Type: image/jpeg|image/png|application/pdf`
+        (required for gate agents, because only a raw body can be signed), or multipart field `file`.
+        The real content type is detected from the bytes. Same bytes → same `sha256`. Max 5 MB.
+        Reference the returned `sha256` from events (e.g. `weighment.captured.photo_sha256`).
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      requestBody:
+        required: true
+        content:
+          image/jpeg: { schema: { type: string, format: binary } }
+          image/png: { schema: { type: string, format: binary } }
+          application/pdf: { schema: { type: string, format: binary } }
+          multipart/form-data: { schema: { type: object, properties: { file: { type: string, format: binary } } } }
+      responses:
+        '201': { description: Stored, content: { application/json: { schema: { type: object, properties: { sha256: { type: string }, mime: { type: string }, size_bytes: { type: integer } } } } } }
+        '422': { description: 'Empty, too large or type not allowed' }
 components:
   securitySchemes:
     bearer: { type: http, scheme: bearer }
@@ -241,9 +270,20 @@ components:
       required: [event_id, client_seq, occurred_at, type, payload]
       properties:
         event_id: { type: string, format: uuid, description: Generated on the device; idempotency key }
-        client_seq: { type: integer, minimum: 1, description: Strictly increasing per device }
+        client_seq: { type: integer, minimum: 1, description: Unique per device; orders events inside a batch. A retry re-sends the same event with the same seq }
         occurred_at: { type: string, format: date-time, description: Device clock; clamped to server time if ahead }
-        type: { type: string, examples: [vehicle.upsert, driver.upsert, party.upsert, product.upsert, brand.upsert, godown.upsert, tax_rate.upsert] }
+        type:
+          type: string
+          description: |
+            Master upserts (version check + last-write-wins): vehicle, driver, party, product, brand, godown, tax_rate `.upsert`.
+            Append-only gate facts (never conflict; `record_id` = new fact id):
+            * `gate_entry.arrived` {registration_no, direction?, purpose?, party_id?, sauda_id?, product_id?, driver_id?, driver_name?, bag_count?}
+            * `weighment.captured` {gate_entry_id, kind: gross|tare, weight_kg, scale_id?, readings: {samples[], window_ms}, photo_sha256?}
+            * `lab_test.recorded` {gate_entry_id, moisture_bp?, foreign_matter_bp?, broken_bp?, damaged_bp?, immature_bp?, chalky_bp?, grade?, remarks?, sample_code?}
+            * `gate_entry.lab_decided` {gate_entry_id, accept, note?}
+            * `gate_entry.event` {gate_entry_id, event: unloaded|exited}
+            A fact about a gate entry the server has not received yet is answered `retry`.
+          examples: [vehicle.upsert, gate_entry.arrived, weighment.captured, lab_test.recorded]
         record_id: { type: [string, 'null'], format: uuid, description: Client-generated id for new records }
         base_version: { type: [integer, 'null'], description: Version the edit was made on (omit for creates) }
         payload: { type: object, description: Writable fields; partial updates allowed }

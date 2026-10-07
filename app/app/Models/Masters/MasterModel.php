@@ -5,22 +5,20 @@ declare(strict_types=1);
 namespace App\Models\Masters;
 
 use App\Domain\Audit\Auditable;
-use App\Domain\Sync\SyncFeed;
+use App\Domain\Sync\FeedsSync;
 use App\Domain\Tenancy\BelongsToEntity;
-use App\Models\LoginAccount;
 use App\Support\Eloquent\HasOptimisticLock;
 use App\Support\Eloquent\TracksCreator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Base for master data:
  *  - entity-scoped (scope + RLS), audited, optimistic version, created_by;
  *  - archived rows are hidden from normal queries (`withArchived()` to include them);
- *  - every save writes the change feed devices pull from, in the same transaction.
+ *  - every save writes the change feed devices pull from, in the same transaction (FeedsSync).
  *
  * Subclasses define SYNC_TYPE, validation rules for API/sync writes, the fields a device may
  * write, and how the record is serialised for a given viewer (confidential fields).
@@ -36,6 +34,7 @@ abstract class MasterModel extends Model
 {
     use Auditable;
     use BelongsToEntity;
+    use FeedsSync;
     use HasOptimisticLock;
     use HasUuids;
     use TracksCreator;
@@ -46,22 +45,6 @@ abstract class MasterModel extends Model
     protected static function booted(): void
     {
         static::addGlobalScope('not_archived', fn (Builder $q) => $q->whereNull($q->getModel()->qualifyColumn('archived_at')));
-
-        static::saved(function (MasterModel $model): void {
-            app(SyncFeed::class)->record(
-                $model->entity_id,
-                static::SYNC_TYPE,
-                $model->id,
-                (int) $model->version,
-                $model->archived_at === null ? 'upsert' : 'archive',
-            );
-        });
-    }
-
-    /** Record + audit row + feed entry commit together. */
-    public function save(array $options = []): bool
-    {
-        return DB::transaction(fn () => parent::save($options));
     }
 
     /** @param  Builder<static>  $query */
@@ -83,13 +66,6 @@ abstract class MasterModel extends Model
      * @return list<string>
      */
     abstract public static function writableFields(): array;
-
-    /**
-     * Representation sent to devices / API clients.
-     *
-     * @return array<string, mixed>
-     */
-    abstract public function toSyncArray(LoginAccount $viewer): array;
 
     /** @return array<string, mixed> */
     protected function syncEnvelope(): array

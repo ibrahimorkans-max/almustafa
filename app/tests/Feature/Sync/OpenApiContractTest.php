@@ -35,5 +35,5 @@ it('lists every sync status the server can return', function () {
     $statuses = $spec['components']['schemas']['SyncResult']['properties']['status']['enum'];
 
     $reflection = new ReflectionClass(SyncOutcome::class);
-    expect($statuses)->toEqualCanonicalizing([...array_values($reflection->getConstants()), 'retry']);
+    expect($statuses)->toEqualCanonicalizing(array_values($reflection->getConstants()));
 });

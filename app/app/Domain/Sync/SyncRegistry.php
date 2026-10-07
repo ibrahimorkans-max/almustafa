@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Sync;
 
+use App\Domain\Gate\GateService;
 use App\Domain\Sync\Contracts\SyncHandler;
+use App\Domain\Sync\Handlers\GateHandlers;
 use App\Domain\Sync\Handlers\MasterUpsertHandler;
+use App\Models\Gate\GateEntry;
 use App\Models\LoginAccount;
 use App\Models\Masters\Brand;
 use App\Models\Masters\Driver;
@@ -15,6 +18,9 @@ use App\Models\Masters\Party;
 use App\Models\Masters\Product;
 use App\Models\Masters\TaxRate;
 use App\Models\Masters\Vehicle;
+use App\Models\Procurement\Sauda;
+use Illuminate\Contracts\Container\Container;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * What devices may push and pull. Later phases register their handlers/types here.
@@ -37,20 +43,57 @@ final class SyncRegistry
         'tax_rate' => [TaxRate::class, ['master.view'], ['master.manage']],
     ];
 
+    /**
+     * Read-only feeds: records devices pull but change only through append-only events.
+     * type => [model, read permissions (any of)].
+     *
+     * @var array<string, array{0: class-string<Model>, 1: list<string>}>
+     */
+    public const FEEDS = [
+        'gate_entry' => [GateEntry::class, ['gate.entry', 'weighment.capture', 'lab.test', 'lab.decide']],
+        'sauda' => [Sauda::class, ['deal.view', 'gate.entry']],
+    ];
+
     /** @var array<string, SyncHandler> extra handlers registered by later phases / tests */
     private array $extra = [];
 
-    public function __construct(private readonly ConflictLog $conflicts) {}
+    /** @var array<string, SyncHandler>|null */
+    private ?array $appendOnly = null;
+
+    public function __construct(
+        private readonly ConflictLog $conflicts,
+        private readonly Container $container,
+    ) {}
 
     public function register(SyncHandler $handler): void
     {
         $this->extra[$handler->type()] = $handler;
     }
 
+    /**
+     * Append-only event types (gate, weighbridge, lab), built on first use.
+     *
+     * @return array<string, SyncHandler>
+     */
+    private function appendOnlyHandlers(): array
+    {
+        if ($this->appendOnly === null) {
+            $this->appendOnly = [];
+            foreach (GateHandlers::all($this->container->make(GateService::class)) as $handler) {
+                $this->appendOnly[$handler->type()] = $handler;
+            }
+        }
+
+        return $this->appendOnly;
+    }
+
     public function handler(string $eventType): ?SyncHandler
     {
         if (isset($this->extra[$eventType])) {
             return $this->extra[$eventType];
+        }
+        if (isset($this->appendOnlyHandlers()[$eventType])) {
+            return $this->appendOnlyHandlers()[$eventType];
         }
 
         [$type, $op] = array_pad(explode('.', $eventType, 2), 2, null);
@@ -62,15 +105,21 @@ final class SyncRegistry
         return new MasterUpsertHandler($model, $write, $this->conflicts);
     }
 
-    /** @return class-string<MasterModel>|null */
+    /** @return class-string<Model>|null */
     public function modelFor(string $type): ?string
+    {
+        return self::MASTERS[$type][0] ?? self::FEEDS[$type][0] ?? null;
+    }
+
+    /** @return class-string<MasterModel>|null */
+    public function masterModelFor(string $type): ?string
     {
         return self::MASTERS[$type][0] ?? null;
     }
 
     public function canRead(LoginAccount $account, string $type): bool
     {
-        foreach (self::MASTERS[$type][1] ?? [] as $permission) {
+        foreach (self::MASTERS[$type][1] ?? self::FEEDS[$type][1] ?? [] as $permission) {
             if ($account->hasPermission($permission)) {
                 return true;
             }
@@ -90,7 +139,19 @@ final class SyncRegistry
                 'write' => (bool) $this->handler($type.'.upsert')?->canWrite($account),
             ];
         }
+        foreach (array_keys(self::FEEDS) as $type) {
+            $out[] = ['type' => $type, 'read' => $this->canRead($account, $type), 'write' => false];
+        }
 
         return $out;
+    }
+
+    /** @return list<array{type: string, allowed: bool}> append-only event types the account may send */
+    public function eventCapabilities(LoginAccount $account): array
+    {
+        return array_values(array_map(
+            fn (SyncHandler $h) => ['type' => $h->type(), 'allowed' => $h->canWrite($account)],
+            $this->appendOnlyHandlers(),
+        ));
     }
 }

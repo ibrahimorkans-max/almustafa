@@ -1,0 +1,21 @@
+[project]
+name = "ricemill-agent"
+version = "0.3.0"
+description = "Gate hardware agent for Rice Mill ERP: weighbridge indicator, camera, offline queue, signed sync"
+requires-python = ">=3.12"
+dependencies = [
+    "cryptography>=43",
+]
+
+[project.optional-dependencies]
+serial = ["pyserial>=3.5"]
+
+[project.scripts]
+ricemill-agent = "ricemill_agent.cli:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["ricemill_agent*"]

@@ -6,6 +6,9 @@ namespace Database\Seeders;
 
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
+use App\Models\Gate\DeductionRule;
+use App\Models\Gate\Scale;
+use App\Models\Gate\ScaleCertificate;
 use App\Models\Masters\Brand;
 use App\Models\Masters\Driver;
 use App\Models\Masters\Godown;
@@ -61,6 +64,18 @@ class DemoMastersSeeder extends Seeder
                 'code' => $code, 'name' => $name, 'category' => $category, 'variety' => $variety, 'hsn_code' => $hsn,
                 'tax_rate_id' => $tax->id, 'brand_id' => $brandModel?->id, 'sale_unit' => $unit, 'bag_weight_kg' => $bag,
             ]);
+        }
+
+        // Weighbridge with a valid stamping certificate, and typical paddy deduction rules.
+        $scale = Scale::query()->create(['code' => 'WB1', 'name' => 'Main weighbridge (demo)', 'capacity_kg' => '60000', 'resolution_kg' => '10']);
+        ScaleCertificate::query()->create([
+            'scale_id' => $scale->id, 'type' => ScaleCertificate::TYPE_STAMPING, 'certificate_no' => 'LM/DEMO/'.$entity->code,
+            'issued_by' => 'Legal Metrology (demo)', 'issued_on' => now()->subMonths(3)->toDateString(), 'valid_until' => now()->addMonths(9)->toDateString(),
+        ]);
+        foreach (Product::query()->where('category', 'paddy')->get() as $paddy) {
+            DeductionRule::query()->create(['product_id' => $paddy->id, 'parameter' => 'moisture', 'method' => 'excess_weight', 'free_limit_bp' => 1700, 'factor' => 10000, 'reject_above_bp' => 2200]);
+            DeductionRule::query()->create(['product_id' => $paddy->id, 'parameter' => 'foreign_matter', 'method' => 'rate_cut', 'free_limit_bp' => 200, 'factor' => 1000]);
+            DeductionRule::query()->create(['product_id' => $paddy->id, 'parameter' => 'bags', 'method' => 'per_bag', 'factor' => 600]);
         }
 
         foreach ([['G1', 'Main godown', 'godown', '2500000'], ['S1', 'Paddy silo 1', 'silo', '1000000'], ['Y1', 'Open yard', 'yard', null]] as [$code, $name, $type, $cap]) {

@@ -14,8 +14,14 @@ use App\Domain\Sync\SyncRegistry;
 use App\Domain\Tenancy\TenantContext;
 use App\Http\Middleware\EnsureWebAuthSession;
 use App\Models\AuthSession;
+use App\Models\Gate\DeductionRule;
+use App\Models\Gate\GateEntry;
+use App\Models\Gate\Scale;
 use App\Models\LoginAccount;
 use App\Models\Masters;
+use App\Models\Procurement\PaddyRequirement;
+use App\Models\Procurement\Quote;
+use App\Models\Procurement\Sauda;
 use App\Policies;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -76,6 +82,12 @@ class AppServiceProvider extends ServiceProvider
             Masters\Godown::class => Policies\Masters\GodownPolicy::class,
             Masters\TaxRate::class => Policies\Masters\TaxRatePolicy::class,
             Masters\PartyBankAccount::class => Policies\PartyBankAccountPolicy::class,
+            PaddyRequirement::class => Policies\Phase3\PaddyRequirementPolicy::class,
+            Quote::class => Policies\Phase3\QuotePolicy::class,
+            Sauda::class => Policies\Phase3\SaudaPolicy::class,
+            GateEntry::class => Policies\Phase3\GateEntryPolicy::class,
+            Scale::class => Policies\Phase3\ScalePolicy::class,
+            DeductionRule::class => Policies\Phase3\DeductionRulePolicy::class,
         ] as $model => $policy) {
             Gate::policy($model, $policy);
         }

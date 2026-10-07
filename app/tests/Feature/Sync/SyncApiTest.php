@@ -91,12 +91,12 @@ it('is idempotent: a re-sent event returns the stored result and changes nothing
         ->and(Make::system(fn () => DB::table('sync_events')->count()))->toBe(1);
 });
 
-it('requires client_seq to increase per device', function () {
+it('rejects a client_seq already used by another event of the device', function () {
     $a = syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => 'HR05AB1111', 'vehicle_type' => 'truck']);
     pushEvents($this, $a);
     $old = ['client_seq' => 1] + syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => 'HR05AB2222', 'vehicle_type' => 'truck']);
 
-    expect(pushEvents($this, $old)[0])->toMatchArray(['status' => 'rejected', 'reason' => 'client_seq_not_increasing']);
+    expect(pushEvents($this, $old)[0])->toMatchArray(['status' => 'rejected', 'reason' => 'client_seq_reused']);
 });
 
 it('rejects invalid data with field errors, unknown types and forbidden writes', function () {

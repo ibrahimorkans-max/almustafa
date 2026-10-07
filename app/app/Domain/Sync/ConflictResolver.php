@@ -29,7 +29,7 @@ final class ConflictResolver
     {
         return DB::transaction(function () use ($conflict, $note): MasterModel {
             $conflict = $this->lockOpen($conflict);
-            $model = $this->registry->modelFor($conflict->type) ?? throw new RuntimeException("No model for {$conflict->type}.");
+            $model = $this->registry->masterModelFor($conflict->type) ?? throw new RuntimeException("No model for {$conflict->type}.");
 
             /** @var MasterModel|null $record */
             $record = $conflict->record_id ? $model::query()->withArchived()->lockForUpdate()->find($conflict->record_id) : null;

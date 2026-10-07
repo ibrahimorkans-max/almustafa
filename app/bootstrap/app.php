@@ -21,10 +21,15 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(CaptureClientContext::class);
+        // API: plain 401, never a redirect. Web: the back-office sign-in page.
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : '/admin/login');
         $middleware->append(SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->dontReport([AuthenticationFailed::class, ApprovalDenied::class]);
+
+        // The API always answers in JSON (devices may omit Accept), never with a login redirect.
+        $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());
 
         $json = fn (Request $request) => $request->is('api/*') || $request->expectsJson();
 

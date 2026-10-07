@@ -37,12 +37,13 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('Rice Mill ERP')
             ->login(Login::class)
             ->authGuard('web')
+            ->databaseNotifications()
             ->colors(['primary' => Color::Emerald])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([Dashboard::class])
             ->widgets([AccountWidget::class])
-            ->navigationGroups(['Administration', 'Security'])
+            ->navigationGroups(['Gate & weighbridge', 'Procurement', 'Masters', 'Administration', 'Security'])
             ->userMenuItems([
                 MenuItem::make()->label('Switch entity / account')->icon('heroicon-o-arrows-right-left')
                     ->url(fn () => SwitchContext::getUrl()),

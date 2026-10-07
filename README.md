@@ -39,6 +39,7 @@ vendor/bin/pest                          # PostgreSQL (incl. row-level security 
 vendor/bin/pest -c phpunit.mariadb.xml   # MariaDB/MySQL (shared-hosting pilot)
 vendor/bin/pint --test && vendor/bin/phpstan analyse
 npm run test:js                          # PWA sync engine (node --test)
+cd ../agent && python -m unittest discover -s tests   # gate agent
 ```
 
 ## Status
@@ -47,5 +48,6 @@ npm run test:js                          # PWA sync engine (node --test)
 |---|---|---|
 | 1 | Laravel setup, Docker, auth, 2FA, roles/permissions, entities + RLS, audit log, Filament shell | **done** — [summary](docs/phase-1-summary.md) |
 | 2 | Masters, sync API, PWA offline shell | **done** — [summary](docs/phase-2-summary.md) · [API](docs/api/openapi.yaml) |
-| 3 | Procurement & sauda, gate entry, weighbridge, lab, device simulators | next |
-| 4–10 | see [docs/phase-1-plan.md](docs/phase-1-plan.md) and the project brief | planned |
+| 3 | Procurement & sauda, gate entry, weighbridge, lab, gate agent + simulators | **done** — [summary](docs/phase-3-summary.md) · [agent](agent/README.md) |
+| 4 | Inventory, stock ledger, production, by-products | next |
+| 5–10 | see [docs/phase-1-plan.md](docs/phase-1-plan.md) and the project brief | planned |

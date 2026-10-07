@@ -34,6 +34,12 @@ final class DeviceService
             ->first();
 
         if ($device === null) {
+            // Gate agents must be registered by an administrator first (they hold a signing key).
+            if ($info->platform === 'agent') {
+                $this->audit->record('auth.login.blocked', $account, meta: ['reason' => 'agent_not_registered']);
+
+                throw new AuthenticationFailed(AuthenticationFailed::DEVICE_NOT_ALLOWED, 'agent_not_registered', 403);
+            }
             $device = Device::query()->create([
                 'entity_id' => $account->entity_id,
                 'login_account_id' => $account->id,
@@ -93,6 +99,31 @@ final class DeviceService
             $device->save();
             $this->sessions->revokeForDevice($device, 'wiped');
             $this->audit->record('device.wiped', $device);
+        });
+    }
+
+    /**
+     * Registers a gate agent PC for an account and returns its request-signing secret.
+     * The secret is shown exactly once; only its encrypted form is stored.
+     *
+     * @return array{device: Device, secret: string}
+     */
+    public function registerAgent(LoginAccount $account, string $deviceUid, string $name): array
+    {
+        return DB::transaction(function () use ($account, $deviceUid, $name): array {
+            $secret = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+            $device = Device::query()->create([
+                'entity_id' => $account->entity_id,
+                'login_account_id' => $account->id,
+                'device_uid' => $deviceUid,
+                'name' => $name,
+                'platform' => 'agent',
+                'status' => Device::STATUS_ACTIVE,
+            ]);
+            $device->forceFill(['signing_secret' => $secret, 'trusted_at' => now(), 'trusted_by' => app(ActorContext::class)->accountId()])->save();
+            $this->audit->record('device.agent_registered', $device, meta: ['login_account_id' => $account->id]);
+
+            return ['device' => $device, 'secret' => $secret];
         });
     }
 

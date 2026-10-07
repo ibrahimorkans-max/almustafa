@@ -41,6 +41,19 @@ return [
         'max_future_skew_seconds' => 300,
     ],
 
+    'gate' => [
+        // Evidence the indicator must send with a weight: this many consecutive samples within one scale step.
+        'min_stable_samples' => (int) env('RICEMILL_MIN_STABLE_SAMPLES', 5),
+        // Repeat-tare check: flag a tare that differs from the vehicle's recent median by more than
+        // max(tolerance kg, tolerance % of median).
+        'tare_tolerance_kg' => env('RICEMILL_TARE_TOLERANCE_KG', '100'),
+        'tare_tolerance_bp' => (int) env('RICEMILL_TARE_TOLERANCE_BP', 200),
+        'tare_history' => 5,
+        // Refuse (instead of flag) weighments on a scale without a valid stamping certificate.
+        'block_uncertified_scale' => (bool) env('RICEMILL_BLOCK_UNCERTIFIED_SCALE', false),
+        'certificate_reminder_days' => [30, 7, 0],
+    ],
+
     'approvals' => [
         'expire_after_hours' => (int) env('RICEMILL_APPROVAL_EXPIRY_HOURS', 72),
     ],

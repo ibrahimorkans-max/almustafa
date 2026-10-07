@@ -37,6 +37,19 @@ admin rights · operator of the server/DB · thief of a phone or gate PC.
 | XSS in the PWA stealing tokens from IndexedDB | Strict CSP (scripts/styles from self only, no inline), DOM built with `textContent`, no third-party scripts | Move refresh token to an HttpOnly cookie if a web view without IndexedDB isolation is ever needed |
 | Cross-entity data via guessed record ids | Scope + RLS on every master; an id belonging to another entity can only produce a review item, never an overwrite (tested) | — |
 
+## Phase 3 additions
+
+| Threat | Controls | Remaining |
+|---|---|---|
+| Typed / edited weights at the weighbridge | No weight entry on screens; indicator samples as evidence re-checked by the server; weighments append-only; manual value only by Super Admin + reason + second-person approval, flagged on the slip | Indicator sealing / tamper switch input (phase 6 hardware) |
+| Truck tare manipulated (water tank, extra person) | Repeat-tare check against the vehicle's recent median, flagged | Axle / camera analytics (later) |
+| Uncalibrated scale | Stamping certificate validity checked per weighment (flag or block); expiry reminders | — |
+| Photo swapped after the fact | Photo SHA-256 stored on the weighment; content-addressed, re-verifiable | — |
+| Altered printed slip | HMAC verification code over the frozen slip snapshot | Public verification page (phase 8) |
+| Stolen agent token used from elsewhere | Device-bound tokens + per-device HMAC signature with timestamp and single-use nonce | Hardware-backed key store on the gate PC (phase 9) |
+| Deal terms changed after approval | Approved sauda terms frozen in code; lifecycle as append-only events; maker ≠ checker | Amendment workflow (later) |
+| Quality deductions changed retroactively | Rules frozen into each lab decision | — |
+
 ## Trust boundaries
 Browser/PWA ↔ Nginx (TLS) ↔ PHP-FPM ↔ PostgreSQL/Redis · Gate agent ↔ API (signed requests, ph. 3) ·
 Agent ↔ hardware (serial/IO, local only).
