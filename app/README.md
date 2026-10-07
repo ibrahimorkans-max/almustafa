@@ -1,0 +1,44 @@
+# Rice Mill ERP — Laravel application
+
+## Code map
+
+| Path | Responsibility |
+|---|---|
+| `app/Domain/Tenancy` | `TenantContext` (current entity + RLS session settings), `BelongsToEntity` trait, `EntityScope` |
+| `app/Domain/Auth` | `LoginService` (password, lockout, 2FA), `MfaService` (TOTP, recovery codes), `TokenService` (rotating device-bound API tokens), `SessionService`, `DeviceService`, `AccountSwitcher`, `ApiTokenGuard`, `TenantAwareUserProvider` |
+| `app/Domain/Access` | `PermissionCatalog` (all permission codes), `RoleTemplates`, `AccessCatalogSync`, `EntityProvisioner` |
+| `app/Domain/Audit` | `AuditLogger` (only writer of `audit_log`), `AuditVerifier`, `AuditHasher`, `Auditable` model trait |
+| `app/Domain/Approvals` | Maker-checker `ApprovalService` + actions (`ChangeRolePermissions`, `TrustDevice`) |
+| `app/Domain/Settings` | Global / per-entity settings (e.g. login mode) |
+| `app/Http` | Thin API controllers (`/api/v1`), Form Requests, API Resources, middleware |
+| `app/Filament` | Back office: login with 2FA step, 2FA setup, password change, switch entity/account, resources |
+| `app/Policies` | Authorization per model; permission codes are answered by `Gate::before` |
+| `database/migrations` | Schema, PostgreSQL RLS policies, audit immutability triggers |
+| `tests/` | Pest: isolation, RLS, audit tamper detection, auth/API, authorization matrix per role, maker-checker |
+
+## Rules for new code (from phase 2 on)
+
+1. Every tenant table has `entity_id` and its model uses `BelongsToEntity`; add the table to the RLS migration list.
+2. Every business write happens in `DB::transaction()` and is audited (`Auditable` trait or `AuditLogger::record`).
+3. Ledgers and stock tables are append-only: add them to the immutability triggers; corrections are reversal entries.
+4. Money as integer paise (or `decimal(18,2)`), weights in kg — never floats.
+5. Anything needing maker-checker is an `ApprovalAction`.
+6. Controllers use method injection (controllers are cached on routes; tenant/actor context is request-scoped).
+7. Future-dated columns use `dateTime` (MySQL `TIMESTAMP` ends in 2038).
+
+## Commands
+
+```bash
+php artisan access:sync [--export=permissions.json]   # sync permission catalog; run on every deploy
+php artisan ricemill:create-super-admin <username>    # installation bootstrap (asks for password)
+php artisan audit:verify [--entity=<uuid>]            # recompute audit hash chains
+```
+
+## API (v1)
+
+`POST /api/v1/auth/login` `{username, password, otp?, device_uid, device_name?, platform}` →
+`{status: ok|mfa_required, access_token, refresh_token, …}`;
+`POST /auth/refresh` (header `X-Device-Id`), `POST /auth/logout`, `GET /auth/me`, `POST /auth/switch`,
+`GET /sessions`, `DELETE /sessions/{id}`, `GET /audit`, `GET /audit/verify`.
+Authenticated calls send `Authorization: Bearer …` and `X-Device-Id`; Super Admin may add `X-Entity-Id`.
+The OpenAPI document arrives with the sync API in phase 2.

@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+defaults:
+  run:
+    working-directory: app
+
+jobs:
+  quality:
+    name: Pint, Larastan, composer audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: intl, bcmath, pdo_pgsql, pdo_mysql, sodium
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: vendor/bin/pint --test
+      - run: vendor/bin/phpstan analyse --no-progress --memory-limit=2G
+      - run: composer audit
+
+  tests-postgres:
+    name: Tests (PostgreSQL + RLS)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 20
+    env:
+      DB_PASSWORD: ci-only-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: intl, bcmath, pdo_pgsql, sodium
+          coverage: none
+      - name: Create non-superuser application role (superusers bypass RLS)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -p 5433 -U postgres -c "CREATE ROLE ricemill LOGIN PASSWORD '$DB_PASSWORD' NOSUPERUSER NOBYPASSRLS"
+          psql -h 127.0.0.1 -p 5433 -U postgres -c "CREATE DATABASE ricemill_test OWNER ricemill"
+          psql -h 127.0.0.1 -p 5433 -U postgres -d ricemill_test -c "CREATE EXTENSION IF NOT EXISTS pgcrypto; CREATE EXTENSION IF NOT EXISTS citext"
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: echo "APP_KEY=base64:$(openssl rand -base64 32)" > .env.testing
+      - run: vendor/bin/pest
+
+  tests-mariadb:
+    name: Tests (MariaDB — shared-hosting pilot)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: ricemill_test
+          MARIADB_USER: ricemill
+          MARIADB_PASSWORD: ci-only-password
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized" --health-interval 5s --health-retries 20
+    env:
+      DB_PASSWORD: ci-only-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: intl, bcmath, pdo_mysql, sodium
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: echo "APP_KEY=base64:$(openssl rand -base64 32)" > .env.testing
+      - run: vendor/bin/pest -c phpunit.mariadb.xml

@@ -1,0 +1,42 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Policies;
+
+use App\Models\Entity;
+use App\Models\LoginAccount;
+
+final class EntityPolicy
+{
+    public function viewAny(LoginAccount $user): bool
+    {
+        return $user->hasPermission('entity.view');
+    }
+
+    public function view(LoginAccount $user, Entity $entity): bool
+    {
+        return $user->hasPermission('entity.view');
+    }
+
+    public function create(LoginAccount $user): bool
+    {
+        return $user->isSuperAdmin() && $user->hasPermission('entity.manage');
+    }
+
+    public function update(LoginAccount $user, Entity $entity): bool
+    {
+        return $user->hasPermission('entity.manage');
+    }
+
+    /** Entities are never deleted (legal retention); suspend instead. */
+    public function delete(LoginAccount $user, Entity $entity): bool
+    {
+        return false;
+    }
+
+    public function deleteAny(LoginAccount $user): bool
+    {
+        return false;
+    }
+}
