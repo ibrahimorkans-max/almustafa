@@ -43,7 +43,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([Dashboard::class])
             ->widgets([AccountWidget::class])
-            ->navigationGroups(['Gate & weighbridge', 'Procurement', 'Masters', 'Administration', 'Security'])
+            ->navigationGroups(['Gate & weighbridge', 'Stock & production', 'Procurement', 'Masters', 'Administration', 'Security'])
             ->userMenuItems([
                 MenuItem::make()->label('Switch entity / account')->icon('heroicon-o-arrows-right-left')
                     ->url(fn () => SwitchContext::getUrl()),

@@ -16,6 +16,7 @@ use App\Models\Masters\Party;
 use App\Models\Masters\Product;
 use App\Models\Masters\TaxRate;
 use App\Models\Masters\Vehicle;
+use App\Models\Production\OutturnStandard;
 use App\Support\Values\IndianIds;
 use Illuminate\Database\Seeder;
 use RuntimeException;
@@ -80,6 +81,16 @@ class DemoMastersSeeder extends Seeder
 
         foreach ([['G1', 'Main godown', 'godown', '2500000'], ['S1', 'Paddy silo 1', 'silo', '1000000'], ['Y1', 'Open yard', 'yard', null]] as [$code, $name, $type, $cap]) {
             Godown::query()->create(['code' => $code, 'name' => $name, 'type' => $type, 'capacity_kg' => $cap]);
+        }
+
+        // Indicative outturn per paddy (demo values; each mill sets its own): head rice, broken, bran, husk.
+        $byCode = Product::query()->pluck('id', 'code');
+        foreach (['PDY-1121' => ['RCE-1121-25', 6400], 'PDY-PR126' => ['RCE-PR126', 6700]] as $paddyCode => [$riceCode, $riceBp]) {
+            foreach ([[$riceCode, $riceBp, 200], ['BYP-BROKEN', 500, 200], ['BYP-BRAN', 700, 150], ['BYP-HUSK', 2100, 200]] as [$outCode, $bp, $tolerance]) {
+                OutturnStandard::query()->create([
+                    'paddy_product_id' => $byCode[$paddyCode], 'output_product_id' => $byCode[$outCode], 'expected_bp' => $bp, 'tolerance_bp' => $tolerance,
+                ]);
+            }
         }
 
         $prefix = $entity->code;

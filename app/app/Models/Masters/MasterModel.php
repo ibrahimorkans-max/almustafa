@@ -42,6 +42,13 @@ abstract class MasterModel extends Model
     /** Name used in sync events ("vehicle.upsert") and the change feed. */
     public const SYNC_TYPE = '';
 
+    /**
+     * Mirrors the column default, so a model created in this request reads the same as a loaded one.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = ['status' => 'active'];
+
     protected static function booted(): void
     {
         static::addGlobalScope('not_archived', fn (Builder $q) => $q->whereNull($q->getModel()->qualifyColumn('archived_at')));

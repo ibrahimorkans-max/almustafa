@@ -9,6 +9,7 @@ use App\Domain\Sync\FeedsSync;
 use App\Domain\Tenancy\BelongsToEntity;
 use App\Models\LoginAccount;
 use App\Models\Masters\Driver;
+use App\Models\Masters\Godown;
 use App\Models\Masters\Party;
 use App\Models\Masters\Product;
 use App\Models\Masters\Vehicle;
@@ -54,7 +55,9 @@ use Illuminate\Support\Carbon;
  * @property-read Vehicle|null $vehicle
  * @property-read Party|null $party
  * @property-read Sauda|null $sauda
+ * @property string|null $godown_id
  * @property-read Product|null $product
+ * @property-read Godown|null $godown
  */
 class GateEntry extends Model
 {
@@ -160,6 +163,12 @@ class GateEntry extends Model
         return $this->belongsTo(Product::class);
     }
 
+    /** @return BelongsTo<Godown, $this> */
+    public function godown(): BelongsTo
+    {
+        return $this->belongsTo(Godown::class);
+    }
+
     public function toSyncArray(LoginAccount $viewer): array
     {
         return [
@@ -168,7 +177,7 @@ class GateEntry extends Model
             'vehicle_id' => $this->vehicle_id, 'registration_no' => $this->registration_no,
             'driver_id' => $this->driver_id, 'driver_name' => $this->driver_name,
             'party_id' => $this->party_id, 'sauda_id' => $this->sauda_id, 'product_id' => $this->product_id,
-            'bag_count' => $this->bag_count, 'flags' => $this->flags ?? [],
+            'godown_id' => $this->godown_id, 'bag_count' => $this->bag_count, 'flags' => $this->flags ?? [],
             'gross_kg' => $this->gross_kg, 'tare_kg' => $this->tare_kg, 'net_kg' => $this->net_kg,
             'deduction_kg' => $this->deduction_kg, 'payable_kg' => $this->payable_kg,
             'arrived_at' => $this->arrived_at->toIso8601ZuluString('millisecond'),

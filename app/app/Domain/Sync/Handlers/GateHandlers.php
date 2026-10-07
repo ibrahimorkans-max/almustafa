@@ -14,6 +14,7 @@ use App\Models\Gate\LabTest;
 use App\Models\Gate\Scale;
 use App\Models\Gate\Weighment;
 use App\Models\LoginAccount;
+use App\Models\Masters\Godown;
 use App\Support\Values\IndianIds;
 use Closure;
 use Illuminate\Support\Facades\Validator;
@@ -131,6 +132,7 @@ final class GateHandlers
                 $v = Validator::make($e->payload, [
                     'gate_entry_id' => ['required', 'uuid'],
                     'event' => ['required', Rule::in(['unloaded', 'exited'])],
+                    'godown_id' => ['nullable', 'uuid'],
                 ]);
                 if ($v->fails()) {
                     return new SyncOutcome(SyncOutcome::REJECTED, ['errors' => $v->errors()->toArray()], 'validation_failed');
@@ -139,7 +141,12 @@ final class GateHandlers
                 if ($entry === null) {
                     return new SyncOutcome(SyncOutcome::RETRY, reason: 'gate_entry_not_yet_synced');
                 }
-                $event = $gate->recordDeviceEvent($entry, (string) $e->payload['event'], $e->occurredAt);
+                $godown = null;
+                if (isset($e->payload['godown_id'])) {
+                    $godown = Godown::query()->find($e->payload['godown_id'])
+                        ?? throw new BusinessRuleViolation('Unknown godown.');
+                }
+                $event = $gate->recordDeviceEvent($entry, (string) $e->payload['event'], $e->occurredAt, $godown);
 
                 return new SyncOutcome(SyncOutcome::APPLIED, ['anomaly' => $event->anomaly]);
             }),

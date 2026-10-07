@@ -7,8 +7,10 @@ namespace App\Domain\Approvals;
 use App\Domain\Approvals\Actions\ChangeRolePermissions;
 use App\Domain\Approvals\Actions\ManualWeighmentOverride;
 use App\Domain\Approvals\Actions\PartyBankAccountChange;
+use App\Domain\Approvals\Actions\StockAdjustment;
 use App\Domain\Approvals\Actions\TrustDevice;
 use App\Domain\Approvals\Contracts\ApprovalAction;
+use App\Domain\Approvals\Contracts\HandlesRejection;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
@@ -35,6 +37,7 @@ final class ApprovalService
         TrustDevice::KEY => TrustDevice::class,
         PartyBankAccountChange::KEY => PartyBankAccountChange::class,
         ManualWeighmentOverride::KEY => ManualWeighmentOverride::class,
+        StockAdjustment::KEY => StockAdjustment::class,
     ];
 
     public function __construct(
@@ -147,6 +150,7 @@ final class ApprovalService
             $this->decide($request, $checker, $note);
             $request->status = ApprovalRequest::STATUS_REJECTED;
             $request->save();
+            $this->notifyClosed($request);
             $this->audit->record('approval.rejected', $request, meta: ['note' => $note]);
 
             return $request;
@@ -163,10 +167,19 @@ final class ApprovalService
             }
             $request->status = ApprovalRequest::STATUS_CANCELLED;
             $request->save();
+            $this->notifyClosed($request);
             $this->audit->record('approval.cancelled', $request);
 
             return $request;
         });
+    }
+
+    private function notifyClosed(ApprovalRequest $request): void
+    {
+        $action = $this->action($request->action);
+        if ($action instanceof HandlesRejection) {
+            $action->closed($request);
+        }
     }
 
     private function lockPending(ApprovalRequest $request): ApprovalRequest

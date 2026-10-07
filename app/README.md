@@ -29,6 +29,7 @@
 1. Every tenant table has `entity_id` and its model uses `BelongsToEntity`; add the table to the RLS migration list.
 2. Every business write happens in `DB::transaction()` and is audited (`Auditable` trait or `AuditLogger::record`).
 3. Ledgers and stock tables are append-only: add them to the immutability triggers; corrections are reversal entries.
+   Stock moves only through `StockLedger::post` (balance row lock, no negative stock) — never write `stock_balances` directly.
 4. Money as integer paise (or `decimal(18,2)`), weights in kg — never floats.
 5. Anything needing maker-checker is an `ApprovalAction`.
 6. Controllers use method injection (controllers are cached on routes; tenant/actor context is request-scoped).
@@ -44,6 +45,7 @@ php artisan ricemill:create-super-admin <username>    # installation bootstrap (
 php artisan audit:verify [--entity=<uuid>]            # recompute audit hash chains (scheduled daily)
 php artisan procurement:expire                        # expire quotes / saudas (scheduled daily)
 php artisan scales:certificate-reminders              # weighbridge certificate expiry (scheduled daily)
+php artisan stock:verify                              # recompute stock balances from the ledger (scheduled daily)
 ```
 
 ## API (v1)

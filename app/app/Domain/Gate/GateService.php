@@ -6,6 +6,7 @@ namespace App\Domain\Gate;
 
 use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
+use App\Domain\Inventory\StockLedger;
 use App\Domain\Procurement\SaudaService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Gate\DeductionRule;
@@ -14,6 +15,8 @@ use App\Models\Gate\GateEvent;
 use App\Models\Gate\LabTest;
 use App\Models\Gate\Scale;
 use App\Models\Gate\Weighment;
+use App\Models\Inventory\StockEntry;
+use App\Models\Masters\Godown;
 use App\Models\Masters\Vehicle;
 use App\Models\Procurement\Sauda;
 use App\Support\Values\IndianIds;
@@ -38,6 +41,7 @@ final class GateService
         private readonly DeductionCalculator $deductions,
         private readonly TareCheck $tareCheck,
         private readonly SaudaService $saudas,
+        private readonly StockLedger $stock,
         private readonly ActorContext $actor,
     ) {}
 
@@ -264,13 +268,21 @@ final class GateService
 
     // ------------------------------------------------------------------ yard & exit
 
-    public function markUnloaded(GateEntry $entry, ?CarbonInterface $at = null, bool $strict = true): GateEvent
+    /** The godown is where the slip will book the paddy receipt. */
+    public function markUnloaded(GateEntry $entry, ?CarbonInterface $at = null, bool $strict = true, ?Godown $godown = null): GateEvent
     {
         $this->require('gate.entry');
 
         return $this->simpleEvent($entry, 'unloaded', $at, $strict, function (GateEntry $e): void {
             if ($e->direction === 'inbound' && ! $this->hasEvent($e, 'lab_accepted')) {
                 throw new BusinessRuleViolation('Unload only after the lab has accepted the lot.');
+            }
+        }, $godown ? ['godown_id' => $godown->id, 'godown' => $godown->code] : [], function (GateEntry $e) use ($godown): void {
+            if ($godown !== null && $godown->status !== 'active') {
+                throw new BusinessRuleViolation("Godown {$godown->name} is not active.");
+            }
+            if ($godown !== null) {
+                $e->godown_id = $godown->id;
             }
         });
     }
@@ -311,6 +323,9 @@ final class GateService
                     $this->saudas->recordDelivery($sauda, $entry, Weight::kg($entry->payable_kg));
                 }
             }
+            if ($entry->direction === 'inbound' && $accepted) {
+                $this->bookReceipt($entry);
+            }
             $this->project($entry);
 
             return $event;
@@ -345,10 +360,10 @@ final class GateService
     }
 
     /** Generic event coming from a device (sync); lenient ordering. */
-    public function recordDeviceEvent(GateEntry $entry, string $event, CarbonInterface $at): GateEvent
+    public function recordDeviceEvent(GateEntry $entry, string $event, CarbonInterface $at, ?Godown $godown = null): GateEvent
     {
         return match ($event) {
-            'unloaded' => $this->markUnloaded($entry, $at, false),
+            'unloaded' => $this->markUnloaded($entry, $at, false, $godown),
             'exited' => $this->exit($entry, $at, false),
             default => throw new BusinessRuleViolation("Event {$event} cannot be sent by a device."),
         };
@@ -423,6 +438,27 @@ final class GateService
     // ------------------------------------------------------------------ helpers
 
     /**
+     * Stock receives the physical net weight (what is actually in the godown); quality
+     * deductions only change what is paid for. Without a godown or product the receipt
+     * cannot be booked, so the entry is flagged for the stores to resolve.
+     */
+    private function bookReceipt(GateEntry $entry): void
+    {
+        $godown = $entry->godown_id ? Godown::query()->find($entry->godown_id) : null;
+        $product = $entry->product;
+        if ($godown === null || $product === null || ! $product->is_stock_item) {
+            $entry->flags = array_values(array_unique([...($entry->flags ?? []), 'no_godown']));
+            $entry->save();
+
+            return;
+        }
+
+        $this->stock->post($product, $godown, Weight::kg((string) $entry->net_kg), StockEntry::RECEIPT, [
+            'source_type' => 'gate_entry', 'source_id' => $entry->id, 'note' => $entry->number,
+        ]);
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      */
     private function appendEvent(GateEntry $entry, string $event, array $data, CarbonInterface $at, ?bool $strict): GateEvent
@@ -487,14 +523,22 @@ final class GateService
     }
 
     /** @param  callable(GateEntry): void  $guard */
-    private function simpleEvent(GateEntry $entry, string $event, ?CarbonInterface $at, bool $strict, callable $guard): GateEvent
+    /**
+     * @param  callable(GateEntry): void  $guard  flow rule, enforced only when strict
+     * @param  array<string, mixed>  $data
+     * @param  (callable(GateEntry): void)|null  $apply  always runs (validation + changes before projection)
+     */
+    private function simpleEvent(GateEntry $entry, string $event, ?CarbonInterface $at, bool $strict, callable $guard, array $data = [], ?callable $apply = null): GateEvent
     {
-        return DB::transaction(function () use ($entry, $event, $at, $strict, $guard): GateEvent {
+        return DB::transaction(function () use ($entry, $event, $at, $strict, $guard, $data, $apply): GateEvent {
             $entry = $this->lock($entry);
             if ($strict) {
                 $guard($entry);
             }
-            $gateEvent = $this->appendEvent($entry, $event, [], $at ?? now(), $strict);
+            if ($apply !== null) {
+                $apply($entry);
+            }
+            $gateEvent = $this->appendEvent($entry, $event, $data, $at ?? now(), $strict);
             $this->project($entry);
 
             return $gateEvent;

@@ -50,6 +50,17 @@ admin rights · operator of the server/DB · thief of a phone or gate PC.
 | Deal terms changed after approval | Approved sauda terms frozen in code; lifecycle as append-only events; maker ≠ checker | Amendment workflow (later) |
 | Quality deductions changed retroactively | Rules frozen into each lab decision | — |
 
+## Phase 4 additions
+
+| Threat | Controls | Remaining |
+|---|---|---|
+| Stock quietly edited to hide pilferage | Stock ledger append-only (DB triggers); balances only through `StockLedger` under row locks; nightly `stock:verify` recomputes balances from the ledger | Off-site anchoring of ledger hashes (phase 9) |
+| Paddy issued without authority | Stores issue only against a requisition approved by a different *person*; direct plant input needs `production.log` and is logged per device and hour | — |
+| Production figures massaged to hide loss | Logs are append-only; corrections are reversing logs with a reason; yield and the standards used are frozen at batch close; unaccounted loss above the limit raises a critical alert | Machine-counter / bagging-scale integration (later) |
+| Count "adjusted" to match the books | Count captures the books figure at counting time; difference posted only after second-person approval; shrinkage alert raised immediately and acknowledged with a note | Blind counts (counter does not see the books figure) as an option |
+| Race between two issues overdrawing a godown | Row lock on the balance; negative stock refused; offline devices get `retry` | — |
+| Notification job wiping the request's tenant context | Context reset skipped for jobs run inline on the `sync` queue (found in phase 4, regression-tested) | — |
+
 ## Trust boundaries
 Browser/PWA ↔ Nginx (TLS) ↔ PHP-FPM ↔ PostgreSQL/Redis · Gate agent ↔ API (signed requests, ph. 3) ·
 Agent ↔ hardware (serial/IO, local only).
