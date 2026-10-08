@@ -106,6 +106,21 @@ admin rights · operator of the server/DB · thief of a phone or gate PC.
 | Data leaving for "AI" analysis | Rules run on the server; nothing is sent to external services | — |
 | Spreadsheet formula injection via exports | Text cells starting with = + - @ are prefixed | — |
 
+## Phase 9 additions
+
+| Threat | Controls | Remaining |
+|---|---|---|
+| Data loss (disk, ransomware, mistakes) | Nightly encrypted backups, off-site copy with a write-only key, 14/8/12 retention, weekly restore drill with all verifiers | Object lock on the bucket is the provider's setting |
+| Stolen backup file | XChaCha20-Poly1305 with a key kept outside backups; tampering / truncation / wrong key detected | Key custody is a people process (two copies off the server) |
+| Audit history rewritten by someone with server access | Chain heads e-mailed to the owner after each backup (anchoring); `audit:verify` nightly | Owner must keep the mails |
+| Misconfigured production (debug on, superuser DB login, RLS not forced) | `ricemill:preflight` blocks every deploy on any FAIL | — |
+| Silent failures (scheduler stopped, worker dead, backups failing) | Heartbeats + `/health` for an uptime monitor; failed tasks / jobs / drills alert Super Admins and owners | External uptime monitor to be chosen |
+| Password guessing | Account lockout (ph. 1); nginx rate limits + fail2ban; burst of failed sign-ins alerts | — |
+| Server takeover via SSH / services | Keys only, UFW 22/80/443, fail2ban, unattended upgrades, FPM pool as non-root with `clear_env`, sudo limited to reloads | Annual penetration test |
+| Secrets leaking through Git | Secrets only in `/etc/ricemill/ricemill.env` (0640); CI secret scan fails the build | — |
+| Gate PC config copied | Agent secrets DPAPI-protected (bound to the PC / Windows account) | A local admin on the gate PC can still decrypt |
+| Bad release | Preflight, pre-deploy backup, health check with automatic code rollback; manual deploys behind a reviewer | Schema rollback is a restore |
+
 ## Trust boundaries
 Browser/PWA ↔ Nginx (TLS) ↔ PHP-FPM ↔ PostgreSQL/Redis · Gate agent ↔ API (signed requests, ph. 3) ·
 Agent ↔ hardware (serial/IO, local only).

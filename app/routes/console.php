@@ -1,5 +1,8 @@
 <?php
 
+use App\Domain\Ops\Heartbeat;
+use App\Domain\Ops\OpsAlerts;
+use App\Jobs\QueueHeartbeat;
 use Illuminate\Support\Facades\Schedule;
 
 /*
@@ -13,3 +16,10 @@ Schedule::command('stock:verify')->dailyAt('02:30')->timezone('Asia/Kolkata')->w
 Schedule::command('books:verify')->dailyAt('02:45')->timezone('Asia/Kolkata')->withoutOverlapping();
 Schedule::command('archive:run')->monthlyOn(1, '03:30')->timezone('Asia/Kolkata')->withoutOverlapping();
 Schedule::command('anomalies:scan')->dailyAt('03:00')->timezone('Asia/Kolkata')->withoutOverlapping();
+
+// Heartbeats: the scheduler marks itself every minute and checks the queue worker every 5 minutes.
+Schedule::call(fn () => Heartbeat::beat(Heartbeat::SCHEDULER))->everyMinute()->name('heartbeat:scheduler');
+Schedule::job(new QueueHeartbeat(now()->toIso8601String()))->everyFiveMinutes()->name('heartbeat:queue');
+Schedule::command('backup:run')->dailyAt('01:30')->timezone('Asia/Kolkata')->withoutOverlapping();
+Schedule::command('backup:verify')->weeklyOn(0, '04:00')->timezone('Asia/Kolkata')->withoutOverlapping();
+Schedule::call(fn () => app(OpsAlerts::class)->checkFailedLoginBurst())->everyFiveMinutes()->name('ops:failed-login-burst');

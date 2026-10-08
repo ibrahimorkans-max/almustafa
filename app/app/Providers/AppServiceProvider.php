@@ -12,6 +12,7 @@ use App\Domain\Auth\SessionService;
 use App\Domain\Auth\TenantAwareUserProvider;
 use App\Domain\Gst\EInvoiceProvider;
 use App\Domain\Gst\SandboxEInvoiceProvider;
+use App\Domain\Ops\OpsAlerts;
 use App\Domain\Sync\SyncRegistry;
 use App\Domain\Tenancy\TenantContext;
 use App\Http\Middleware\EnsureWebAuthSession;
@@ -36,8 +37,11 @@ use App\Models\Sales\SalesBill;
 use App\Policies;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\Events\ScheduledTaskFailed;
+use Illuminate\Console\Events\ScheduledTaskFinished;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Auth;
@@ -72,6 +76,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerAuth();
         $this->registerRateLimits();
         $this->registerQueueContextReset();
+        $this->registerOpsAlerts();
 
         Password::defaults(fn () => Password::min((int) config('ricemill.auth.password_min_length'))
             ->letters()->mixedCase()->numbers()->symbols());
@@ -178,5 +183,21 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(JobProcessing::class, $reset);
         Event::listen(JobProcessed::class, $reset);
+    }
+
+    /** A failed scheduled task or queued job alerts the Super Admins / owners (ops monitoring). */
+    private function registerOpsAlerts(): void
+    {
+        $alert = fn (string $what, string $detail) => $this->app->make(OpsAlerts::class)->raise('ops_failure', 'critical',
+            mb_substr("Failed: {$what}", 0, 200), mb_substr($detail, 0, 1000), ['task' => $what]);
+
+        Event::listen(ScheduledTaskFinished::class, function (ScheduledTaskFinished $event) use ($alert): void {
+            if ($event->task->exitCode !== null && $event->task->exitCode !== 0) {
+                $alert((string) ($event->task->description ?? $event->task->command), "Exit code {$event->task->exitCode}. See storage/logs.");
+            }
+        });
+        Event::listen(ScheduledTaskFailed::class, fn (ScheduledTaskFailed $event) => $alert(
+            (string) ($event->task->description ?? $event->task->command), $event->exception->getMessage()));
+        Event::listen(JobFailed::class, fn (JobFailed $event) => $alert($event->job->resolveName(), $event->exception->getMessage()));
     }
 }

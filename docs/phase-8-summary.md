@@ -15,7 +15,7 @@
 | Masters | Entity city and PIN code (needed for e-invoices) |
 
 ## Tested
-* **PostgreSQL:** 404 passed, 1 skipped. **MariaDB:** not run at the end of this phase — the `ricemill` login was missing from the local MariaDB (environment, not code); to be re-run once it is restored. Larastan level 6 and Pint clean.
+* **PostgreSQL:** 404 passed, 1 skipped. **MariaDB:** 395 passed, 10 skipped (PostgreSQL-only RLS tests) — run after repairing the local MariaDB system tables. Larastan level 6 and Pint clean.
 * New: GST returns (GSTR-1 tables with B2B / B2C / CDNR / HSN, 3B net of credit notes, portal JSON), e-invoice (IRN formula,
   exchange log append-only, idempotent; gate pass needs IRN then e-way bill; e-way validity stored in UTC; 24-hour and
   e-way-bill cancellation rules; B2C and missing PIN refused), TDS 194Q (no-PAN 5 %, PAN 0.1 %, exempt, disabled),

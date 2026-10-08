@@ -6,13 +6,13 @@ url = "https://erp.example.in"          # HTTPS required (http://127.0.0.1 allow
 
 [auth]
 username = "wb.agent"                  # a GATE_OPERATOR login account reserved for this PC
-password = ""                          # prefer RICEMILL_AGENT_PASSWORD
+password = ""                          # `ricemill-agent protect` → "dpapi:…", or RICEMILL_AGENT_PASSWORD
 device_uid = "agent-xxxxxxxxxxxxxxxxxxxxxxxx"   # shown once by Devices → "Register gate agent"
-signing_secret = ""                    # shown once with the device_uid; prefer the env variable
+signing_secret = ""                    # shown once with the device_uid; protect it ("dpapi:…") or use the env variable
 
 [store]
 path = "C:/ProgramData/RiceMillAgent/store.sqlite3"
-key = ""                               # `ricemill-agent new-store-key`; prefer RICEMILL_AGENT_STORE_KEY
+key = ""                               # `ricemill-agent new-store-key`, then protect it ("dpapi:…") or use RICEMILL_AGENT_STORE_KEY
 
 [scale]
 id = ""                                # Weighbridges → copy the scale's id

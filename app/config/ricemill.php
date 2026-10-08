@@ -95,6 +95,32 @@ return [
         'yield_drift_batches' => 3,        // consecutive out-of-range batches of a variety
     ],
 
+    'ops' => [
+        'scheduler_max_minutes' => 5,
+        'queue_max_minutes' => 20,
+        'backup_max_hours' => 26,
+        'min_free_disk_percent' => 10,
+        // Failed logins across the system within 15 minutes that trigger an alert to Super Admins.
+        'failed_login_burst' => (int) env('RICEMILL_FAILED_LOGIN_BURST', 30),
+    ],
+
+    'backup' => [
+        // 32-byte key, base64. Keep it in the secret store — never inside a backup.
+        'key' => env('RICEMILL_BACKUP_KEY', ''),
+        'path' => env('RICEMILL_BACKUP_PATH', storage_path('backups')),
+        // Laravel filesystem disk for the off-site copy (an S3-compatible bucket); empty = local only.
+        'offsite_disk' => env('RICEMILL_BACKUP_OFFSITE_DISK', ''),
+        'keep_daily' => 14,
+        'keep_weekly' => 8,
+        'keep_monthly' => 12,
+        // Who receives the daily audit-chain anchor (head hashes); empty = only kept in the backup manifest.
+        'anchor_email' => env('RICEMILL_AUDIT_ANCHOR_EMAIL', ''),
+        // Restore drill target: a separate, empty database the app login may own (never the live one).
+        'drill_database' => env('RICEMILL_BACKUP_DRILL_DATABASE', ''),
+        'pg_bin' => env('RICEMILL_PG_BIN', ''),        // folder of pg_dump / pg_restore / psql when not on PATH
+        'mysql_bin' => env('RICEMILL_MYSQL_BIN', ''),
+    ],
+
     'archive' => [
         // Closed records (saudas, gate entries, batches, requisitions, claims) are archived this long after closing.
         'retention_months' => (int) env('RICEMILL_ARCHIVE_RETENTION_MONTHS', 24),
