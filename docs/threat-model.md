@@ -61,6 +61,18 @@ admin rights · operator of the server/DB · thief of a phone or gate PC.
 | Race between two issues overdrawing a godown | Row lock on the balance; negative stock refused; offline devices get `retry` | — |
 | Notification job wiping the request's tenant context | Context reset skipped for jobs run inline on the `sync` queue (found in phase 4, regression-tested) | — |
 
+## Phase 5 additions
+
+| Threat | Controls | Remaining |
+|---|---|---|
+| Books edited after the fact | Vouchers and lines append-only (DB triggers); reversal vouchers via maker-checker; nightly `books:verify`; locked months reopen only with a second person | Off-site anchoring (phase 9) |
+| Inflated purchase bill | Bill amounts computed from the frozen slip and frozen sauda terms, never typed; draft reviewed before posting | — |
+| Payment diverted to a different account | Payee only from the party's approved bank account (itself maker-checker), frozen in the request; bank file hash re-checked on every download; spreadsheet formula injection neutralised in the CSV | Penny-drop / name-match verification with the bank |
+| One person paying themselves | Release by a different *person* with `payment.approve`; above the limit a third person excluding requester and first approver | — |
+| Double payment of a bill | Allocations limited to the outstanding amount, counting requests still awaiting approval | — |
+| Cash withdrawal disguised as an adjustment | Bank and cash ledgers cannot be used in journals; cash payments capped per person per day (s. 40A(3)) | — |
+| Cost / margin leakage | Valuation rates and stock value visible only to accounts roles (`ledger.view` / `ledger.post`); figures hidden, never altered | Field-level checks across all reports (phase 7) |
+
 ## Trust boundaries
 Browser/PWA ↔ Nginx (TLS) ↔ PHP-FPM ↔ PostgreSQL/Redis · Gate agent ↔ API (signed requests, ph. 3) ·
 Agent ↔ hardware (serial/IO, local only).

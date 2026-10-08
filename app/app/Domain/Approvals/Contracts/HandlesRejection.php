@@ -8,7 +8,7 @@ use App\Models\ApprovalRequest;
 
 /**
  * Optional for an ApprovalAction whose subject has its own status that must follow the
- * request when it is rejected or withdrawn (e.g. a stock count waiting for adjustment).
+ * request when it is rejected, withdrawn or fails on execution (e.g. a stock count waiting for adjustment).
  */
 interface HandlesRejection
 {

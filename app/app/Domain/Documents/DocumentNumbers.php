@@ -32,6 +32,10 @@ final class DocumentNumbers
 
     public const BATCH = 'B';
 
+    public const PAYMENT_REQUEST = 'PMT';
+
+    public const BANK_FILE = 'BF';
+
     public function __construct(private readonly TenantContext $tenant) {}
 
     public function next(string $series, ?CarbonInterface $date = null): string

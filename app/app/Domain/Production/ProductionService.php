@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Production;
 
+use App\Domain\Accounts\StockValuation;
 use App\Domain\Alerts\AlertService;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
@@ -33,6 +34,7 @@ final class ProductionService
         private readonly DocumentNumbers $numbers,
         private readonly YieldCalculator $yield,
         private readonly AlertService $alerts,
+        private readonly StockValuation $valuation,
         private readonly ActorContext $actor,
     ) {}
 
@@ -165,6 +167,7 @@ final class ProductionService
             ])->save();
 
             $this->raiseYieldAlerts($batch, $snapshot);
+            $this->valuation->recordBatch($batch, $this->netQuantities($batch));
 
             return $batch;
         });

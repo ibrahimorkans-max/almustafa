@@ -1,0 +1,143 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Domain\Accounts\BankFiles;
+use App\Domain\Accounts\Books;
+use App\Domain\Accounts\ChartOfAccounts;
+use App\Domain\Accounts\PaymentService;
+use App\Domain\Accounts\PurchaseBillService;
+use App\Domain\Approvals\ApprovalService;
+use App\Domain\Shared\BusinessRuleViolation;
+use App\Models\Accounts\Payment;
+use App\Models\Accounts\VoucherLine;
+use App\Models\ApprovalRequest;
+use App\Models\AuditLog;
+use App\Models\Masters\PartyBankAccount;
+use Illuminate\Support\Facades\DB;
+use Tests\Support\AccountsFixtures;
+use Tests\Support\Make;
+
+beforeEach(function () {
+    $this->f = new AccountsFixtures(Make::entity('PAY'));
+    $entry = $this->f->receiveLot();
+    $this->f->as($this->f->accountant);
+    $this->bill = app(PurchaseBillService::class)->post($this->f->billFor($entry));
+    $this->f->as($this->f->accountant);
+    $this->seller = $this->f->inv->gate->seller;
+});
+
+function requestPayment(object $t, int $paise, array $alloc = [], string $mode = 'neft', $from = null): Payment
+{
+    $t->f->as($t->f->accountant);
+
+    return app(PaymentService::class)->request($t->seller, $mode, $from ?? $t->f->bank, $paise, now(), $alloc);
+}
+
+it('pays a bill to the approved bank account after a different person releases it', function () {
+    $payment = requestPayment($this, 36_805_300, [$this->bill->id => 36_805_300]);
+
+    expect($payment->status)->toBe('pending')
+        ->and($payment->payee)->toMatchArray(['holder' => 'RAM SINGH', 'ifsc' => 'PUNB0123400', 'last4' => '0123'])
+        ->and($payment->number)->toContain('/PMT/');
+    $request = ApprovalRequest::query()->findOrFail($payment->approval_request_id);
+    expect(app(ApprovalService::class)->canDecide($this->f->accountant, $request))->toBeFalse();
+
+    app(ApprovalService::class)->approve($request, $this->f->owner);
+    $payment->refresh();
+    $lines = VoucherLine::query()->where('voucher_id', $payment->voucher_id)->orderBy('line_no')->get();
+
+    expect($payment->status)->toBe('approved')
+        ->and($lines->map(fn ($l) => [$l->dr_paise, $l->cr_paise, $l->bill_id])->all())->toBe([
+            [36_805_300, 0, $this->bill->id],
+            [0, 36_805_300, null],
+        ])
+        ->and(app(Books::class)->balance(app(ChartOfAccounts::class)->partyLedger($this->seller)))->toBe(0)
+        ->and(app(Books::class)->balance($this->f->bank))->toBe(-36_805_300)
+        ->and(app(PurchaseBillService::class)->outstanding($this->bill->fresh()))->toBe(0);
+});
+
+it('freezes the payee: a later bank-account change does not redirect the payment', function () {
+    $payment = requestPayment($this, 10_000_00, [$this->bill->id => 10_000_00]);
+    $this->f->sellerBank->forceFill(['account_number' => '9999999999999', 'ifsc' => 'HDFC0000001'])->save();
+
+    expect($payment->fresh()->payee_account_number)->toBe('1234567890123')
+        ->and($payment->fresh()->payee['ifsc'])->toBe('PUNB0123400');
+});
+
+it('refuses bank payments without an approved account, over-payment and over-allocation', function () {
+    PartyBankAccount::query()->update(['status' => 'inactive']);
+    expect(fn () => requestPayment($this, 100_00))->toThrow(BusinessRuleViolation::class, 'no approved bank account');
+    PartyBankAccount::query()->update(['status' => 'active']);
+
+    expect(fn () => requestPayment($this, 40_000_000, [$this->bill->id => 36_805_301]))->toThrow(BusinessRuleViolation::class, 'outstanding');
+    expect(fn () => requestPayment($this, 100_00, [$this->bill->id => 200_00]))->toThrow(BusinessRuleViolation::class, 'more than the payment');
+
+    // Money already requested is reserved: a second request cannot pay the same bill again.
+    requestPayment($this, 30_000_000, [$this->bill->id => 30_000_000]);
+    expect(fn () => requestPayment($this, 10_000_000, [$this->bill->id => 10_000_000]))->toThrow(BusinessRuleViolation::class, 'outstanding');
+});
+
+it('needs two different approvers above the limit', function () {
+    config(['ricemill.accounts.second_approval_above_paise' => 1_00_000_00]); // ₹1,00,000
+    // Requested by an owner (who could approve payments in general) to prove the requester is excluded.
+    $third = Make::account($this->f->entity, 'OWNER');
+    $this->f->as($this->f->owner2);
+    $payment = app(PaymentService::class)->request($this->seller, 'neft', $this->f->bank, 36_805_300, now(), [$this->bill->id => 36_805_300]);
+    $approvals = app(ApprovalService::class);
+
+    $result = $approvals->approve(ApprovalRequest::query()->findOrFail($payment->approval_request_id), $this->f->owner);
+    $payment->refresh();
+    $second = ApprovalRequest::query()->findOrFail($payment->approval_request_id);
+
+    expect($result->status)->toBe('executed')->and($payment->status)->toBe('first_approved')->and($payment->voucher_id)->toBeNull()
+        ->and($approvals->canDecide($this->f->owner, $second))->toBeFalse()   // first approver
+        ->and($approvals->canDecide($this->f->owner2, $second))->toBeFalse()  // requester
+        ->and($approvals->canDecide($third, $second))->toBeTrue();
+
+    $approvals->approve($second, $third);
+    expect($payment->fresh()->status)->toBe('approved')->and($payment->fresh()->voucher_id)->not->toBeNull();
+});
+
+it('limits cash to one person per day (s. 40A(3))', function () {
+    $cash = app(ChartOfAccounts::class)->system('cash');
+    requestPayment($this, 6_000_00, mode: 'cash', from: $cash);
+
+    expect(fn () => requestPayment($this, 4_000_01, mode: 'cash', from: $cash))->toThrow(BusinessRuleViolation::class, '40A(3)');
+    expect(fn () => requestPayment($this, 100_00, mode: 'cash'))->toThrow(BusinessRuleViolation::class, 'cash ledger');
+    expect(fn () => requestPayment($this, 100_00, mode: 'neft', from: $cash))->toThrow(BusinessRuleViolation::class, 'bank accounts');
+});
+
+it('frees the bill again when a payment is rejected', function () {
+    $payment = requestPayment($this, 36_805_300, [$this->bill->id => 36_805_300]);
+    app(ApprovalService::class)->reject(ApprovalRequest::query()->findOrFail($payment->approval_request_id), $this->f->owner, 'Hold until quality claim is settled');
+
+    expect($payment->fresh()->status)->toBe('rejected')
+        ->and(app(PurchaseBillService::class)->outstanding($this->bill->fresh()))->toBe(36_805_300);
+});
+
+it('builds a bank file once per payment, audits downloads and detects edits', function () {
+    foreach ([20_000_000, 16_805_300] as $amount) {
+        $p = requestPayment($this, $amount, [$this->bill->id => $amount]);
+        app(ApprovalService::class)->approve(ApprovalRequest::query()->findOrFail($p->approval_request_id), $this->f->owner);
+    }
+
+    $this->f->as($this->f->owner);
+    $files = app(BankFiles::class);
+    $file = $files->create($this->f->bank);
+    expect(fn () => $files->create($this->f->bank))->toThrow(BusinessRuleViolation::class, 'No released');
+
+    $csv = $files->csv($file);
+    $rows = array_map('str_getcsv', explode("\n", trim($csv)));
+    expect($file->payment_count)->toBe(2)->and($file->total_paise)->toBe(36_805_300)
+        ->and($rows[0])->toBe(BankFiles::HEADER)
+        ->and($rows[1])->toMatchArray([1 => 'NEFT', 2 => '200000.00', 3 => 'RAM SINGH', 4 => '1234567890123', 5 => 'PUNB0123400', 6 => '30012345678'])
+        ->and(AuditLog::query()->where('action', 'bank_file.downloaded')->count())->toBe(1);
+
+    // Someone edits a frozen payee in the database: the file no longer matches what was approved.
+    DB::table('payments')->where('bank_file_id', $file->id)->limit(1)->update(['payee' => json_encode(['holder' => 'MALLORY', 'ifsc' => 'PUNB0123400', 'last4' => '0123', 'bank_name' => null])]);
+    expect(fn () => $files->csv($file->fresh()))->toThrow(BusinessRuleViolation::class, 'no longer matches');
+
+    $this->f->as($this->f->inv->supervisor);
+    expect(fn () => $files->csv($file))->toThrow(BusinessRuleViolation::class, 'bank.view');
+});

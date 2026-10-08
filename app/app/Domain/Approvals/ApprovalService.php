@@ -7,8 +7,11 @@ namespace App\Domain\Approvals;
 use App\Domain\Approvals\Actions\ChangeRolePermissions;
 use App\Domain\Approvals\Actions\ManualWeighmentOverride;
 use App\Domain\Approvals\Actions\PartyBankAccountChange;
+use App\Domain\Approvals\Actions\PaymentRelease;
+use App\Domain\Approvals\Actions\PeriodUnlock;
 use App\Domain\Approvals\Actions\StockAdjustment;
 use App\Domain\Approvals\Actions\TrustDevice;
+use App\Domain\Approvals\Actions\VoucherReversal;
 use App\Domain\Approvals\Contracts\ApprovalAction;
 use App\Domain\Approvals\Contracts\HandlesRejection;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
@@ -38,6 +41,9 @@ final class ApprovalService
         PartyBankAccountChange::KEY => PartyBankAccountChange::class,
         ManualWeighmentOverride::KEY => ManualWeighmentOverride::class,
         StockAdjustment::KEY => StockAdjustment::class,
+        PaymentRelease::KEY => PaymentRelease::class,
+        VoucherReversal::KEY => VoucherReversal::class,
+        PeriodUnlock::KEY => PeriodUnlock::class,
     ];
 
     public function __construct(
@@ -135,6 +141,9 @@ final class ApprovalService
             }
 
             $request->save();
+            if ($request->status === ApprovalRequest::STATUS_FAILED) {
+                $this->notifyClosed($request);
+            }
             $this->audit->record('approval.'.$request->status, $request, meta: ['result' => $request->result, 'error' => $request->error]);
 
             return $request;

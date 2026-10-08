@@ -13,6 +13,7 @@ use App\Domain\Auth\TenantAwareUserProvider;
 use App\Domain\Sync\SyncRegistry;
 use App\Domain\Tenancy\TenantContext;
 use App\Http\Middleware\EnsureWebAuthSession;
+use App\Models\Accounts;
 use App\Models\Alert;
 use App\Models\AuthSession;
 use App\Models\Gate\DeductionRule;
@@ -98,6 +99,13 @@ class AppServiceProvider extends ServiceProvider
             Production\ProductionBatch::class => Policies\Phase4\ProductionBatchPolicy::class,
             Production\OutturnStandard::class => Policies\Phase4\OutturnStandardPolicy::class,
             Alert::class => Policies\Phase4\AlertPolicy::class,
+            Accounts\Voucher::class => Policies\Phase5\VoucherPolicy::class,
+            Accounts\PurchaseBill::class => Policies\Phase5\PurchaseBillPolicy::class,
+            Accounts\Payment::class => Policies\Phase5\PaymentPolicy::class,
+            Accounts\BankFile::class => Policies\Phase5\BankFilePolicy::class,
+            Accounts\BankStatementLine::class => Policies\Phase5\BankStatementLinePolicy::class,
+            Accounts\PeriodLock::class => Policies\Phase5\PeriodLockPolicy::class,
+            Accounts\LedgerAccount::class => Policies\Phase5\LedgerAccountPolicy::class,
         ] as $model => $policy) {
             Gate::policy($model, $policy);
         }

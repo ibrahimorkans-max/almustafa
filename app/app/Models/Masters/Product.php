@@ -23,6 +23,7 @@ use Illuminate\Validation\Rule;
  * @property string|null $bag_weight_kg
  * @property bool $is_stock_item
  * @property string $status
+ * @property int|null $valuation_paise_per_kg
  * @property-read TaxRate|null $taxRate
  * @property-read Brand|null $brand
  */
@@ -36,7 +37,7 @@ class Product extends MasterModel
 
     protected $fillable = [
         'code', 'name', 'category', 'variety', 'hsn_code', 'tax_rate_id', 'brand_id',
-        'sale_unit', 'bag_weight_kg', 'is_stock_item', 'status',
+        'sale_unit', 'bag_weight_kg', 'is_stock_item', 'status', 'valuation_paise_per_kg',
     ];
 
     /** @var array<string, mixed> */
@@ -47,6 +48,7 @@ class Product extends MasterModel
         return [
             'bag_weight_kg' => 'decimal:3',
             'is_stock_item' => 'boolean',
+            'valuation_paise_per_kg' => 'integer',
             'version' => 'integer',
             'archived_at' => 'datetime',
         ];

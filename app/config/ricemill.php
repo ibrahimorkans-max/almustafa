@@ -61,6 +61,15 @@ return [
         'shrinkage_bp' => (int) env('RICEMILL_SHRINKAGE_BP', 50),
     ],
 
+    'accounts' => [
+        // Round the amount owed on each purchase bill to the rupee (difference to "Round off").
+        'round_bills_to_rupee' => (bool) env('RICEMILL_ROUND_BILLS_TO_RUPEE', true),
+        // Payments above this need a second, different approver (paise; default ₹5,00,000).
+        'second_approval_above_paise' => (int) env('RICEMILL_SECOND_APPROVAL_ABOVE_PAISE', 500_000_00),
+        // Income-tax s. 40A(3): cash paid to one person in one day above this is not allowed (paise).
+        'cash_limit_per_day_paise' => (int) env('RICEMILL_CASH_LIMIT_PER_DAY_PAISE', 10_000_00),
+    ],
+
     'approvals' => [
         'expire_after_hours' => (int) env('RICEMILL_APPROVAL_EXPIRY_HOURS', 72),
     ],

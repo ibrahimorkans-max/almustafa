@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Domain\Accounts\ChartOfAccounts;
 use App\Domain\Tenancy\TenantContext;
+use App\Models\Accounts\LedgerAccount;
 use App\Models\Entity;
 use App\Models\Gate\DeductionRule;
 use App\Models\Gate\Scale;
@@ -81,6 +83,16 @@ class DemoMastersSeeder extends Seeder
 
         foreach ([['G1', 'Main godown', 'godown', '2500000'], ['S1', 'Paddy silo 1', 'silo', '1000000'], ['Y1', 'Open yard', 'yard', null]] as [$code, $name, $type, $cap]) {
             Godown::query()->create(['code' => $code, 'name' => $name, 'type' => $type, 'capacity_kg' => $cap]);
+        }
+
+        // Accounts: a mill bank account and by-product realisable values (demo figures).
+        LedgerAccount::query()->create([
+            'entity_id' => $entity->id, 'group_id' => app(ChartOfAccounts::class)->group('BANK_ACCOUNTS')->id,
+            'code' => 'BANK-MAIN', 'name' => 'Main current account (demo)', 'kind' => 'bank',
+            'bank_account_number' => '3001'.$this->num($entity->code, 9).'0001', 'bank_ifsc' => 'SBIN0000001', 'bank_name' => 'State Bank of India',
+        ]);
+        foreach (['BYP-HUSK' => 300, 'BYP-BRAN' => 1800, 'BYP-BROKEN' => 2200] as $code => $paisePerKg) {
+            Product::query()->where('code', $code)->first()?->forceFill(['valuation_paise_per_kg' => $paisePerKg])->save();
         }
 
         // Indicative outturn per paddy (demo values; each mill sets its own): head rice, broken, bran, husk.
