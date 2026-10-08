@@ -30,3 +30,21 @@ type = "simulated"                     # simulated | serial | tcp
 [camera]
 type = "simulated"                     # simulated | http | none
 # url = "http://192.168.1.60/cgi-bin/snapshot.cgi"
+
+[anpr]
+type = "none"                          # none | simulated | http
+# result_url = "http://192.168.1.61/api/plate/latest"   # JSON {"plate": "...", "confidence": 0.97}
+# snapshot_url = "http://192.168.1.61/cgi-bin/snapshot.cgi"
+
+[barrier]
+type = "simulated"                     # simulated | tcp  (opens only on the server's yes; fails closed)
+# host = "192.168.1.70"
+# port = 4002
+# open_command = "OPEN\n"
+# close_command = "CLOSE\n"
+
+[display]
+type = "none"                          # none | simulated | tcp
+# host = "192.168.1.71"
+# port = 4003
+# width = 16

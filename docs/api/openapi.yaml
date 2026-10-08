@@ -224,6 +224,38 @@ paths:
       responses:
         '201': { description: Stored, content: { application/json: { schema: { type: object, properties: { sha256: { type: string }, mime: { type: string }, size_bytes: { type: integer } } } } } }
         '422': { description: 'Empty, too large or type not allowed' }
+  /gate/barrier:
+    post:
+      summary: May the boom barrier open for this vehicle? (gate agent)
+      description: |
+        The agent opens the barrier only on `open: true`; with no answer (offline, error) it stays closed.
+        Every decision is logged. Rules — in: a registered arrival that is not blocked; out: inbound with a slip
+        (or lab rejection), outbound dispatch only with a gate pass. Identify the vehicle by `gate_entry_id` or by `plate`
+        (the open gate entry with that registration).
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [side]
+              properties:
+                side: { type: string, enum: [in, out] }
+                gate_entry_id: { type: [string, 'null'], format: uuid }
+                plate: { type: [string, 'null'] }
+      responses:
+        '200':
+          description: Decision
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  open: { type: boolean }
+                  reason: { type: string, examples: [arrival_registered, slip_issued, gate_pass_issued, no_slip, no_gate_pass, blocked_vehicle, no_matching_vehicle] }
+                  gate_entry_id: { type: [string, 'null'], format: uuid }
+        '403': { description: No gate permission (barrier stays closed) }
 components:
   securitySchemes:
     bearer: { type: http, scheme: bearer }
@@ -281,7 +313,9 @@ components:
             * `weighment.captured` {gate_entry_id, kind: gross|tare, weight_kg, scale_id?, readings: {samples[], window_ms}, photo_sha256?}
             * `lab_test.recorded` {gate_entry_id, moisture_bp?, foreign_matter_bp?, broken_bp?, damaged_bp?, immature_bp?, chalky_bp?, grade?, remarks?, sample_code?}
             * `gate_entry.lab_decided` {gate_entry_id, accept, note?}
-            * `gate_entry.event` {gate_entry_id, event: unloaded|exited, godown_id? (where the lot was unloaded; the slip books the stock receipt there)}
+            * `gate_entry.event` {gate_entry_id, event: unloaded|loaded|exited, godown_id? (where the lot was unloaded; the slip books the stock receipt there)}
+            * `gate_entry.plate_read` {plate, confidence_bp?, photo_sha256?, gate_entry_id?} — ANPR read; a plate that differs from the typed registration is flagged `plate_mismatch`
+            * `barrier.manual_open` {side: in|out, reason, gate_entry_id?} — guard override; flagged `barrier_manual_open` and audited
             A fact about a gate entry the server has not received yet is answered `retry`.
             Append-only production facts (`record_id` = new log id):
             * `production_log.recorded` {batch_id, kind: input|output, product_id (output only), godown_id, quantity_kg, period_start, period_end, note?}

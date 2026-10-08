@@ -26,6 +26,9 @@ class AgentConfig:
     min_stable_samples: int
     indicator: dict
     camera: dict
+    anpr: dict
+    barrier: dict
+    display: dict
 
     @staticmethod
     def load(path: Path | str) -> "AgentConfig":
@@ -51,4 +54,7 @@ class AgentConfig:
             min_stable_samples=int(scale.get("min_stable_samples", 6)),
             indicator=data.get("indicator", {"type": "simulated"}),
             camera=data.get("camera", {"type": "simulated"}),
+            anpr=data.get("anpr", {"type": "none"}),
+            barrier=data.get("barrier", {"type": "simulated"}),
+            display=data.get("display", {"type": "none"}),
         )

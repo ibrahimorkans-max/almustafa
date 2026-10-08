@@ -26,6 +26,8 @@ use App\Models\Procurement\PaddyRequirement;
 use App\Models\Procurement\Quote;
 use App\Models\Procurement\Sauda;
 use App\Models\Production;
+use App\Models\Sales\DispatchOrder;
+use App\Models\Sales\SalesBill;
 use App\Policies;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -106,6 +108,8 @@ class AppServiceProvider extends ServiceProvider
             Accounts\BankStatementLine::class => Policies\Phase5\BankStatementLinePolicy::class,
             Accounts\PeriodLock::class => Policies\Phase5\PeriodLockPolicy::class,
             Accounts\LedgerAccount::class => Policies\Phase5\LedgerAccountPolicy::class,
+            DispatchOrder::class => Policies\Phase6\DispatchOrderPolicy::class,
+            SalesBill::class => Policies\Phase6\SalesBillPolicy::class,
         ] as $model => $policy) {
             Gate::policy($model, $policy);
         }

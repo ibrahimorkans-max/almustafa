@@ -51,7 +51,7 @@ class AccountsReports extends Page implements HasForms
     /** @var array<string, string> */
     public const REPORTS = [
         'trial_balance' => 'Trial balance', 'ledger' => 'Ledger statement', 'day_book' => 'Day book',
-        'ageing' => 'Payables ageing', 'stock_value' => 'Stock value',
+        'ageing' => 'Payables ageing', 'receivables' => 'Receivables ageing', 'stock_value' => 'Stock value',
     ];
 
     #[Url]
@@ -106,6 +106,7 @@ class AccountsReports extends Page implements HasForms
                 : ['account' => null],
             'day_book' => ['vouchers' => $reports->dayBook($to)],
             'ageing' => ['rows' => $reports->payablesAgeing($to)],
+            'receivables' => ['rows' => $reports->receivablesAgeing($to)],
             'stock_value' => [
                 'rows' => app(StockValuation::class)->stockValue(),
                 'products' => Product::query()->pluck('name', 'id'),

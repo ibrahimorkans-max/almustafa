@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Approvals;
 
 use App\Domain\Approvals\Actions\ChangeRolePermissions;
+use App\Domain\Approvals\Actions\CreditOverride;
 use App\Domain\Approvals\Actions\ManualWeighmentOverride;
 use App\Domain\Approvals\Actions\PartyBankAccountChange;
 use App\Domain\Approvals\Actions\PaymentRelease;
@@ -44,6 +45,7 @@ final class ApprovalService
         PaymentRelease::KEY => PaymentRelease::class,
         VoucherReversal::KEY => VoucherReversal::class,
         PeriodUnlock::KEY => PeriodUnlock::class,
+        CreditOverride::KEY => CreditOverride::class,
     ];
 
     public function __construct(

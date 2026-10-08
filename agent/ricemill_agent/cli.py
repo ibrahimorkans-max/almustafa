@@ -5,6 +5,8 @@
     arrive REG [--sauda ID]      record a vehicle arrival (works offline)
     capture ENTRY gross|tare     wait for a stable weight, photograph, queue
     simulate REG GROSS TARE      full inbound weighing with the simulated indicator
+    gate in|out [--entry ID]     plate read + server decision; opens the barrier only on yes
+    manual-open in|out REASON    guard override (recorded and flagged)
     new-store-key                print a fresh encryption key for [store].key
 """
 
@@ -17,9 +19,13 @@ from decimal import Decimal
 
 from .api import ApiClient, Credentials
 from .config import AgentConfig
+from .drivers.anpr import HttpAnprCamera, SimulatedAnprCamera
+from .drivers.barrier import SimulatedBarrier, TcpRelayBarrier
 from .drivers.camera import HttpSnapshotCamera, SimulatedCamera
+from .drivers.display import SimulatedDisplay, TcpTextDisplay
 from .drivers.indicator import FrameParser, SerialIndicator, SimulatedIndicator, TcpIndicator
 from .gate import GateAgent
+from .gate_control import GateController
 from .queue import LocalStore
 from .sync import SyncWorker
 
@@ -43,6 +49,25 @@ def build_camera(cfg: AgentConfig):
     return SimulatedCamera()
 
 
+def build_gate(cfg: AgentConfig, store: LocalStore, api: ApiClient, simulated_plate: str | None = None) -> GateController:
+    anpr = None
+    if cfg.anpr.get("type") == "http":
+        anpr = HttpAnprCamera(cfg.anpr["result_url"], cfg.anpr.get("snapshot_url"))
+    elif cfg.anpr.get("type") == "simulated" or simulated_plate:
+        anpr = SimulatedAnprCamera([simulated_plate] if simulated_plate else [])
+    if cfg.barrier.get("type") == "tcp":
+        barrier = TcpRelayBarrier(cfg.barrier["host"], int(cfg.barrier["port"]),
+                                  cfg.barrier.get("open_command", "OPEN\n"), cfg.barrier.get("close_command", "CLOSE\n"))
+    else:
+        barrier = SimulatedBarrier()
+    display = None
+    if cfg.display.get("type") == "tcp":
+        display = TcpTextDisplay(cfg.display["host"], int(cfg.display["port"]), int(cfg.display.get("width", 16)))
+    elif cfg.display.get("type") == "simulated":
+        display = SimulatedDisplay(int(cfg.display.get("width", 16)))
+    return GateController(store, api, anpr, barrier, display)
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="ricemill-agent")
     p.add_argument("--config", default="agent.toml")
@@ -62,6 +87,14 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("gross", type=Decimal)
     s.add_argument("tare", type=Decimal)
     s.add_argument("--sauda")
+    g = sub.add_parser("gate")
+    g.add_argument("side", choices=["in", "out"])
+    g.add_argument("--entry")
+    g.add_argument("--plate", help="simulated ANPR: plate to 'see'")
+    m = sub.add_parser("manual-open")
+    m.add_argument("side", choices=["in", "out"])
+    m.add_argument("reason")
+    m.add_argument("--entry")
     args = p.parse_args(argv)
 
     if args.cmd == "new-store-key":
@@ -95,6 +128,14 @@ def main(argv: list[str] | None = None) -> int:
         print("gross queued; syncing:", SyncWorker(store, api).run().__dict__)
         print(f"entry {entry}: record the lab decision and unloading in the admin panel, then run:")
         print(f"  ricemill-agent --config {args.config} capture {entry} tare")
+        return 0
+    if args.cmd == "gate":
+        result = build_gate(cfg, store, api, args.plate).request_passage(args.side, args.entry)
+        print(json.dumps(result.__dict__))
+        return 0 if result.opened else 2
+    if args.cmd == "manual-open":
+        build_gate(cfg, store, api).manual_open(args.side, args.reason, args.entry)
+        print("barrier opened manually; the event is queued for sync")
         return 0
     return 1
 

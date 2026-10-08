@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domain\Sync\Handlers;
 
+use App\Domain\Gate\GateDevices;
 use App\Domain\Gate\GateService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Sync\Contracts\SyncHandler;
 use App\Domain\Sync\SyncEvent;
 use App\Domain\Sync\SyncOutcome;
+use App\Models\Gate\GateDeviceEvent;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\LabTest;
 use App\Models\Gate\Scale;
@@ -131,7 +133,7 @@ final class GateHandlers
             self::make('gate_entry.event', ['gate.entry'], function (SyncEvent $e) use ($gate): SyncOutcome {
                 $v = Validator::make($e->payload, [
                     'gate_entry_id' => ['required', 'uuid'],
-                    'event' => ['required', Rule::in(['unloaded', 'exited'])],
+                    'event' => ['required', Rule::in(['unloaded', 'loaded', 'exited'])],
                     'godown_id' => ['nullable', 'uuid'],
                 ]);
                 if ($v->fails()) {
@@ -149,6 +151,50 @@ final class GateHandlers
                 $event = $gate->recordDeviceEvent($entry, (string) $e->payload['event'], $e->occurredAt, $godown);
 
                 return new SyncOutcome(SyncOutcome::APPLIED, ['anomaly' => $event->anomaly]);
+            }),
+
+            self::make('gate_entry.plate_read', ['gate.entry'], function (SyncEvent $e): SyncOutcome {
+                if ($e->recordId !== null && GateDeviceEvent::query()->whereKey($e->recordId)->exists()) {
+                    return new SyncOutcome(SyncOutcome::APPLIED, ['note' => 'already recorded']);
+                }
+                $v = Validator::make($e->payload, [
+                    'plate' => ['required', 'string', 'max:20'],
+                    'confidence_bp' => ['nullable', 'integer', 'min:0', 'max:10000'],
+                    'photo_sha256' => ['nullable', 'regex:/^[0-9a-f]{64}$/'],
+                    'gate_entry_id' => ['nullable', 'uuid'],
+                ]);
+                if ($v->fails()) {
+                    return new SyncOutcome(SyncOutcome::REJECTED, ['errors' => $v->errors()->toArray()], 'validation_failed');
+                }
+                $entry = isset($e->payload['gate_entry_id']) ? GateEntry::query()->find($e->payload['gate_entry_id']) : null;
+                if (isset($e->payload['gate_entry_id']) && $entry === null) {
+                    return new SyncOutcome(SyncOutcome::RETRY, reason: 'gate_entry_not_yet_synced');
+                }
+                $r = app(GateDevices::class)->plateRead((string) $e->payload['plate'], $e->payload['confidence_bp'] ?? null,
+                    $e->payload['photo_sha256'] ?? null, $entry, $e->occurredAt, $e->recordId);
+
+                return new SyncOutcome(SyncOutcome::APPLIED, ['gate_entry_id' => $r['gate_entry']?->id, 'mismatch' => $r['mismatch']]);
+            }),
+
+            self::make('barrier.manual_open', ['gate.entry'], function (SyncEvent $e): SyncOutcome {
+                if ($e->recordId !== null && GateDeviceEvent::query()->whereKey($e->recordId)->exists()) {
+                    return new SyncOutcome(SyncOutcome::APPLIED, ['note' => 'already recorded']);
+                }
+                $v = Validator::make($e->payload, [
+                    'side' => ['required', Rule::in(['in', 'out'])],
+                    'reason' => ['required', 'string', 'min:5', 'max:255'],
+                    'gate_entry_id' => ['nullable', 'uuid'],
+                ]);
+                if ($v->fails()) {
+                    return new SyncOutcome(SyncOutcome::REJECTED, ['errors' => $v->errors()->toArray()], 'validation_failed');
+                }
+                $entry = isset($e->payload['gate_entry_id']) ? GateEntry::query()->find($e->payload['gate_entry_id']) : null;
+                if (isset($e->payload['gate_entry_id']) && $entry === null) {
+                    return new SyncOutcome(SyncOutcome::RETRY, reason: 'gate_entry_not_yet_synced');
+                }
+                $event = app(GateDevices::class)->manualOpen($entry, (string) $e->payload['side'], (string) $e->payload['reason'], $e->occurredAt, $e->recordId);
+
+                return new SyncOutcome(SyncOutcome::APPLIED, ['event_id' => $event->id]);
             }),
         ];
     }

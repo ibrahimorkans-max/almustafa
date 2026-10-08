@@ -48,6 +48,11 @@ final class ChartOfAccounts
         'round_off' => ['EXP-ROUNDOFF', 'Round off', 'INDIRECT_EXPENSES', 'system'],
         'cash' => ['CASH', 'Cash', 'CASH_IN_HAND', 'cash'],
         'capital' => ['CAPITAL', 'Proprietor / partners capital', 'CAPITAL', 'system'],
+        'sales_rice' => ['SAL-RICE', 'Sales – Rice', 'SALES_ACCOUNTS', 'system'],
+        'sales_byproduct' => ['SAL-BYPRODUCT', 'Sales – By-products', 'SALES_ACCOUNTS', 'system'],
+        'output_cgst' => ['GST-OUT-CGST', 'Output CGST', 'DUTIES_TAXES', 'system'],
+        'output_sgst' => ['GST-OUT-SGST', 'Output SGST', 'DUTIES_TAXES', 'system'],
+        'output_igst' => ['GST-OUT-IGST', 'Output IGST', 'DUTIES_TAXES', 'system'],
     ];
 
     public function __construct(private readonly TenantContext $tenant) {}

@@ -11,7 +11,7 @@ ledgers and audit, offline-capable gate/weighbridge/lab, security by design, eve
 | Path | What |
 |---|---|
 | [app/](app/) | Laravel application: API, Filament back office, domain code, migrations, tests |
-| [agent/](agent/) | Python hardware agent (weighbridge, ANPR, boom barrier, display) — phase 3 |
+| [agent/](agent/) | Python hardware agent (weighbridge, camera, ANPR, boom barrier, display) — phases 3 and 6 |
 | [mobile/](mobile/) | Flutter offline app — phase 10 |
 | [infra/](infra/) | Docker Compose (php-fpm, nginx, PostgreSQL, Redis), DB bootstrap |
 | [docs/](docs/) | Plan, ADRs, threat model, phase summaries |
@@ -51,5 +51,6 @@ cd ../agent && python -m unittest discover -s tests   # gate agent
 | 3 | Procurement & sauda, gate entry, weighbridge, lab, gate agent + simulators | **done** — [summary](docs/phase-3-summary.md) · [agent](agent/README.md) |
 | 4 | Inventory, stock ledger, production, by-products | **done** — [summary](docs/phase-4-summary.md) |
 | 5 | Accounts (double-entry, vouchers, purchase bills, payments, bank, valuation) | **done** — [summary](docs/phase-5-summary.md) |
-| 6 | Sales, dispatch, ANPR | next |
+| 6 | Sales, dispatch, GST invoices, ANPR / barrier / display | **done** — [summary](docs/phase-6-summary.md) |
+| 7 | Claims, pricing, archive | next |
 | 5–10 | see [docs/phase-1-plan.md](docs/phase-1-plan.md) and the project brief | planned |

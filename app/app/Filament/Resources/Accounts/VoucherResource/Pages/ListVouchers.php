@@ -5,21 +5,25 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Accounts\VoucherResource\Pages;
 
 use App\Domain\Accounts\ManualVouchers;
+use App\Domain\Sales\SalesBillService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Accounts\VoucherResource;
 use App\Filament\Support\Units;
 use App\Models\Accounts\LedgerAccount;
 use App\Models\Accounts\Voucher;
 use App\Models\Masters\Party;
+use App\Models\Sales\SalesBill;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 
@@ -41,13 +45,18 @@ class ListVouchers extends ListRecords
             ActionGroup::make([
                 Action::make('receipt')->label('Receipt from party')->icon('heroicon-o-arrow-down-left')
                     ->form([
-                        Select::make('party_id')->label('From party')->required()->searchable()->options(fn () => Party::query()->orderBy('name')->pluck('name', 'id')),
+                        Select::make('party_id')->label('From party')->required()->searchable()->live()
+                            ->options(fn () => Party::query()->orderBy('name')->pluck('name', 'id')),
                         Select::make('into')->label('Into')->required()->options($moneyLedgers),
-                        $amount(), $date(), Textarea::make('narration')->maxLength(500),
+                        $amount(), $date(),
+                        CheckboxList::make('invoices')->label('Against invoices (settled oldest first; any remainder is on account)')
+                            ->options(fn (Get $get) => self::openInvoices($get('party_id'))),
+                        Textarea::make('narration')->maxLength(500),
                     ])
                     ->action(fn (array $data) => $this->postVoucher(fn (ManualVouchers $m) => $m->receipt(
                         Party::query()->findOrFail($data['party_id']), LedgerAccount::query()->findOrFail($data['into']),
                         Units::rupeesToPaise($data['amount']), CarbonImmutable::parse($data['date'], 'Asia/Kolkata'), $data['narration'] ?? null,
+                        self::allocate(Units::rupeesToPaise($data['amount']), (array) ($data['invoices'] ?? [])),
                     ))),
                 Action::make('contra')->label('Contra (cash ↔ bank)')->icon('heroicon-o-arrows-right-left')
                     ->form([
@@ -81,6 +90,44 @@ class ListVouchers extends ListRecords
                     ))),
             ])->label('New entry')->icon('heroicon-o-plus')->button()->visible($can),
         ];
+    }
+
+    /** @return array<string, string> posted invoices of the party with something outstanding, oldest due first */
+    public static function openInvoices(?string $partyId): array
+    {
+        if ($partyId === null) {
+            return [];
+        }
+        $service = app(SalesBillService::class);
+
+        return SalesBill::query()->where('party_id', $partyId)->where('status', SalesBill::POSTED)->orderBy('due_date')->get()
+            ->filter(fn (SalesBill $b) => $service->outstanding($b) > 0)
+            ->mapWithKeys(fn (SalesBill $b) => [$b->id => sprintf('%s · due %s · %s outstanding', $b->number, $b->due_date->format('d M'), Units::paiseToRupees($service->outstanding($b)))])
+            ->all();
+    }
+
+    /**
+     * Settles the chosen invoices oldest-due first, up to the amount received.
+     *
+     * @param  list<string>  $invoiceIds
+     * @return array<string, int>
+     */
+    public static function allocate(int $amount, array $invoiceIds): array
+    {
+        $service = app(SalesBillService::class);
+        $allocations = [];
+        foreach (SalesBill::query()->whereIn('id', $invoiceIds)->orderBy('due_date')->get() as $bill) {
+            if ($amount <= 0) {
+                break;
+            }
+            $take = min($amount, $service->outstanding($bill));
+            if ($take > 0) {
+                $allocations[$bill->id] = $take;
+                $amount -= $take;
+            }
+        }
+
+        return $allocations;
     }
 
     /** @param  callable(ManualVouchers): Voucher  $callback */

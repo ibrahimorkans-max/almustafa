@@ -9,6 +9,7 @@ use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
 use App\Domain\Inventory\StockLedger;
 use App\Domain\Procurement\SaudaService;
+use App\Domain\Sales\SalesBillService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Gate\DeductionRule;
 use App\Models\Gate\GateEntry;
@@ -20,6 +21,8 @@ use App\Models\Inventory\StockEntry;
 use App\Models\Masters\Godown;
 use App\Models\Masters\Vehicle;
 use App\Models\Procurement\Sauda;
+use App\Models\Sales\DispatchOrder;
+use App\Models\Sales\SalesBill;
 use App\Support\Values\IndianIds;
 use App\Support\Values\Weight;
 use Carbon\CarbonImmutable;
@@ -44,6 +47,7 @@ final class GateService
         private readonly SaudaService $saudas,
         private readonly StockLedger $stock,
         private readonly PurchaseBillService $bills,
+        private readonly SalesBillService $salesBills,
         private readonly ActorContext $actor,
     ) {}
 
@@ -63,6 +67,19 @@ final class GateService
                 $flags[] = 'unknown_vehicle';
             } elseif ($vehicle->is_blocked) {
                 $flags[] = 'blocked_vehicle';
+            }
+
+            // Outbound against a dispatch order: the order decides buyer, deal and product.
+            $order = isset($data['dispatch_order_id']) ? DispatchOrder::query()->lockForUpdate()->find($data['dispatch_order_id']) : null;
+            if (isset($data['dispatch_order_id']) && $order === null) {
+                throw new BusinessRuleViolation('Dispatch order not found.');
+            }
+            if ($order !== null) {
+                $data = ['direction' => 'outbound', 'purpose' => 'dispatch', 'sauda_id' => $order->sauda_id,
+                    'party_id' => $order->party_id, 'product_id' => $order->product_id, 'bag_count' => $order->bag_count] + $data;
+                if ($order->status !== DispatchOrder::OPEN) {
+                    $flags[] = 'dispatch_order_not_open';
+                }
             }
 
             $sauda = isset($data['sauda_id']) ? Sauda::query()->find($data['sauda_id']) : null;
@@ -89,7 +106,13 @@ final class GateService
             $entry->number = $this->numbers->next(DocumentNumbers::GATE, $occurredAt);
             $entry->status = 'arrived';
             $entry->flags = $flags;
+            if ($order !== null && $order->status === DispatchOrder::OPEN) {
+                $entry->dispatch_order_id = $order->id;
+            }
             $entry->save();
+            if ($entry->dispatch_order_id !== null && $order !== null) {
+                $order->forceFill(['status' => DispatchOrder::LOADING, 'gate_entry_id' => $entry->id])->save();
+            }
 
             $this->appendEvent($entry, 'arrived', ['flags' => $flags], $occurredAt, null);
 
@@ -310,6 +333,12 @@ final class GateService
                 throw new BusinessRuleViolation('Net weight is not positive; check the weighments.');
             }
 
+            $order = $entry->direction === 'outbound' && $entry->dispatch_order_id !== null
+                ? DispatchOrder::query()->lockForUpdate()->find($entry->dispatch_order_id) : null;
+            if ($order !== null) {
+                $entry->flags = array_values(array_unique([...($entry->flags ?? []), ...$this->dispatchFlags($entry, $order)]));
+            }
+
             $accepted = $this->hasEvent($entry, 'lab_accepted') && ! $this->latestLabDecisionIsReject($entry);
             $snapshot = [
                 'gross_kg' => $entry->gross_kg, 'tare_kg' => $entry->tare_kg, 'net_kg' => $entry->net_kg,
@@ -329,6 +358,62 @@ final class GateService
                 $this->bookReceipt($entry);
                 $this->bills->draftFromSlip($entry);
             }
+            if ($order !== null) {
+                $this->dispatch($entry, $order);
+            }
+            $this->project($entry);
+
+            return $event;
+        });
+    }
+
+    /** Outbound: the vehicle has been loaded from the dispatch order's godown. */
+    public function markLoaded(GateEntry $entry, ?int $bagCount = null, ?CarbonInterface $at = null, bool $strict = true): GateEvent
+    {
+        $this->require('dispatch.manage');
+        if ($entry->direction !== 'outbound' || $entry->dispatch_order_id === null) {
+            throw new BusinessRuleViolation('Only a vehicle collecting a dispatch order is loaded.');
+        }
+        $order = DispatchOrder::query()->findOrFail($entry->dispatch_order_id);
+
+        return $this->simpleEvent($entry, 'loaded', $at, $strict, function (GateEntry $e): void {
+            if (! $this->hasEvent($e, 'tare_weighed')) {
+                throw new BusinessRuleViolation('Weigh the empty vehicle (tare) before loading.');
+            }
+        }, ['godown_id' => $order->godown_id, 'bag_count' => $bagCount ?? $order->bag_count], function (GateEntry $e) use ($bagCount): void {
+            if ($bagCount !== null) {
+                $e->bag_count = $bagCount;
+            }
+        });
+    }
+
+    /**
+     * Outbound: the document the vehicle leaves with. Needs the slip and the posted tax invoice,
+     * so goods never move without an invoice.
+     */
+    public function issueGatePass(GateEntry $entry): GateEvent
+    {
+        $this->require('gatepass.issue');
+
+        return DB::transaction(function () use ($entry): GateEvent {
+            $entry = $this->lock($entry);
+            if ($entry->direction !== 'outbound' || $entry->dispatch_order_id === null) {
+                throw new BusinessRuleViolation('Gate passes are for dispatches.');
+            }
+            if (! $this->hasEvent($entry, 'slip_issued')) {
+                throw new BusinessRuleViolation('Issue the weighment slip first.');
+            }
+            if ($this->hasEvent($entry, 'gate_pass_issued')) {
+                throw new BusinessRuleViolation('A gate pass was already issued.');
+            }
+            $bill = SalesBill::query()->where('gate_entry_id', $entry->id)->first();
+            if ($bill === null || $bill->status !== SalesBill::POSTED) {
+                throw new BusinessRuleViolation('The tax invoice must be posted by accounts before the gate pass.');
+            }
+            $event = $this->appendEvent($entry, 'gate_pass_issued', [
+                'number' => $this->numbers->next(DocumentNumbers::GATE_PASS),
+                'invoice_number' => $bill->number, 'net_kg' => $entry->net_kg, 'bag_count' => $entry->bag_count,
+            ], now(), true);
             $this->project($entry);
 
             return $event;
@@ -342,6 +427,9 @@ final class GateService
         return $this->simpleEvent($entry, 'exited', $at, $strict, function (GateEntry $e) use ($strict): void {
             if ($strict && ! $this->hasEvent($e, 'slip_issued') && ! $this->hasEvent($e, 'lab_rejected')) {
                 throw new BusinessRuleViolation('Issue the weighment slip before the vehicle leaves.');
+            }
+            if ($e->direction === 'outbound' && $e->dispatch_order_id !== null && ! $this->hasEvent($e, 'gate_pass_issued')) {
+                throw new BusinessRuleViolation('A loaded vehicle leaves only with a gate pass.');
             }
         });
     }
@@ -367,6 +455,7 @@ final class GateService
     {
         return match ($event) {
             'unloaded' => $this->markUnloaded($entry, $at, false, $godown),
+            'loaded' => $this->markLoaded($entry, null, $at, false),
             'exited' => $this->exit($entry, $at, false),
             default => throw new BusinessRuleViolation("Event {$event} cannot be sent by a device."),
         };
@@ -445,6 +534,53 @@ final class GateService
      * deductions only change what is paid for. Without a godown or product the receipt
      * cannot be booked, so the entry is flagged for the stores to resolve.
      */
+    /**
+     * Checks on a loaded vehicle against its dispatch order (flags, never silent corrections):
+     * net outside the order quantity ± the sauda tolerance, or net far from bags × bag size.
+     *
+     * @return list<string>
+     */
+    private function dispatchFlags(GateEntry $entry, DispatchOrder $order): array
+    {
+        $flags = [];
+        $net = Weight::kg((string) $entry->net_kg);
+        $toleranceBp = (int) (Sauda::query()->whereKey($order->sauda_id)->value('tolerance_bp') ?? 0);
+        $allowed = Weight::kg(bcdiv(bcmul($order->quantity_kg, (string) $toleranceBp, 3), '10000', 3));
+        $diff = $net->minus(Weight::kg($order->quantity_kg));
+        if (bccomp(ltrim($diff->kg, '-'), $allowed->kg, 3) > 0) {
+            $flags[] = 'quantity_out_of_tolerance';
+        }
+        $bags = $entry->bag_count ?? $order->bag_count;
+        if ($bags !== null && $order->bag_weight_kg !== null) {
+            $expected = bcmul((string) $bags, $order->bag_weight_kg, 3);
+            // Packed bags: allow 1 % for packing material and moisture.
+            if (bccomp(ltrim(bcsub($net->kg, $expected, 3), '-'), bcdiv($expected, '100', 3), 3) > 0) {
+                $flags[] = 'bag_weight_mismatch';
+            }
+        }
+
+        return $flags;
+    }
+
+    /**
+     * Outbound slip: stock leaves the order's godown (refused if short — the slip is then not issued),
+     * the delivery is booked on the sales sauda and the tax invoice is drafted.
+     */
+    private function dispatch(GateEntry $entry, DispatchOrder $order): void
+    {
+        $product = $entry->product ?? throw new BusinessRuleViolation('The dispatch has no product.');
+        $godown = Godown::query()->findOrFail($order->godown_id);
+        $this->stock->post($product, $godown, Weight::zero()->minus(Weight::kg((string) $entry->net_kg)), StockEntry::DISPATCH, [
+            'source_type' => 'gate_entry', 'source_id' => $entry->id, 'note' => "{$entry->number} · {$order->number}",
+        ]);
+        $sauda = Sauda::query()->find($order->sauda_id);
+        if ($sauda !== null && $sauda->isOpenForDelivery()) {
+            $this->saudas->recordDelivery($sauda, $entry, Weight::kg((string) $entry->net_kg));
+        }
+        $order->forceFill(['status' => DispatchOrder::DISPATCHED])->save();
+        $this->salesBills->draftFromSlip($entry);
+    }
+
     private function bookReceipt(GateEntry $entry): void
     {
         $godown = $entry->godown_id ? Godown::query()->find($entry->godown_id) : null;

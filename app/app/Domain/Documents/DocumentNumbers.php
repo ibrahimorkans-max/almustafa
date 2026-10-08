@@ -36,6 +36,12 @@ final class DocumentNumbers
 
     public const BANK_FILE = 'BF';
 
+    public const DISPATCH_ORDER = 'DO';
+
+    public const SALES_INVOICE = 'INV';
+
+    public const GATE_PASS = 'GP';
+
     public function __construct(private readonly TenantContext $tenant) {}
 
     public function next(string $series, ?CarbonInterface $date = null): string

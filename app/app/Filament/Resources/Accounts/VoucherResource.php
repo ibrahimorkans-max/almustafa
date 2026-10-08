@@ -38,7 +38,7 @@ class VoucherResource extends Resource
 
     /** @var array<string, string> */
     public const TYPE_LABELS = [
-        'purchase' => 'Purchase', 'payment' => 'Payment', 'receipt' => 'Receipt', 'journal' => 'Journal',
+        'sales' => 'Sales', 'purchase' => 'Purchase', 'payment' => 'Payment', 'receipt' => 'Receipt', 'journal' => 'Journal',
         'contra' => 'Contra', 'debit_note' => 'Debit note', 'credit_note' => 'Credit note', 'opening' => 'Opening',
     ];
 

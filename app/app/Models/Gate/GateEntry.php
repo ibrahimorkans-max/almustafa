@@ -56,6 +56,7 @@ use Illuminate\Support\Carbon;
  * @property-read Party|null $party
  * @property-read Sauda|null $sauda
  * @property string|null $godown_id
+ * @property string|null $dispatch_order_id
  * @property-read Product|null $product
  * @property-read Godown|null $godown
  */
@@ -73,11 +74,11 @@ class GateEntry extends Model
     /** Inbound paddy happy path, in order. */
     public const INBOUND_FLOW = ['arrived', 'gross_weighed', 'lab_accepted', 'unloaded', 'tare_weighed', 'slip_issued', 'exited'];
 
-    public const OUTBOUND_FLOW = ['arrived', 'tare_weighed', 'loaded', 'gross_weighed', 'slip_issued', 'exited'];
+    public const OUTBOUND_FLOW = ['arrived', 'tare_weighed', 'loaded', 'gross_weighed', 'slip_issued', 'gate_pass_issued', 'exited'];
 
     protected $fillable = [
         'direction', 'purpose', 'vehicle_id', 'registration_no', 'driver_id', 'driver_name', 'party_id',
-        'sauda_id', 'product_id', 'bag_count', 'arrived_at',
+        'sauda_id', 'product_id', 'bag_count', 'arrived_at', 'dispatch_order_id',
     ];
 
     /** @var list<string> */
@@ -161,6 +162,12 @@ class GateEntry extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /** @return HasMany<GateDeviceEvent, $this> */
+    public function deviceEvents(): HasMany
+    {
+        return $this->hasMany(GateDeviceEvent::class)->orderBy('occurred_at');
     }
 
     /** @return BelongsTo<Godown, $this> */
