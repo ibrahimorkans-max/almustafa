@@ -7,6 +7,7 @@ namespace App\Domain\Sales;
 use App\Domain\Accounts\Books;
 use App\Domain\Accounts\ChartOfAccounts;
 use App\Domain\Auth\ActorContext;
+use App\Domain\Claims\ClaimService;
 use App\Domain\Documents\DocumentNumbers;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Accounts\ReceiptAllocation;
@@ -133,6 +134,9 @@ final class SalesBillService
     /** Called when the invoice's sales voucher is reversed through an approved request. */
     public function markReversed(SalesBill $bill, string $reason): void
     {
+        if (ClaimService::settledOn($bill->id) > 0) {
+            throw new BusinessRuleViolation('Claims are approved or settled against this document; reverse or withdraw them first.');
+        }
         if (ReceiptAllocation::query()->where('sales_bill_id', $bill->id)->exists()) {
             throw new BusinessRuleViolation('Receipts are allocated to this invoice; reverse them first.');
         }
@@ -145,7 +149,8 @@ final class SalesBillService
             return 0;
         }
 
-        return $bill->total_paise - (int) ReceiptAllocation::query()->where('sales_bill_id', $bill->id)->sum('amount_paise');
+        return $bill->total_paise - (int) ReceiptAllocation::query()->where('sales_bill_id', $bill->id)->sum('amount_paise')
+            - ClaimService::notedOn($bill->id);
     }
 
     private function lock(SalesBill $bill, string $status): SalesBill

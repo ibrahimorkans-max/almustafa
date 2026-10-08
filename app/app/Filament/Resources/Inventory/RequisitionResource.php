@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Inventory;
 
 use App\Filament\Resources\Inventory\RequisitionResource\Pages;
+use App\Filament\Support\ArchivedFilter;
 use App\Filament\Support\Units;
 use App\Models\Inventory\Requisition;
 use App\Models\Masters\Godown;
@@ -90,6 +91,7 @@ class RequisitionResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
+                ArchivedFilter::make(),
                 SelectFilter::make('status')->options(array_combine(
                     ['requested', 'approved', 'issued', 'rejected', 'cancelled'],
                     ['Waiting for approval', 'Approved (to issue)', 'Issued', 'Rejected', 'Cancelled'],

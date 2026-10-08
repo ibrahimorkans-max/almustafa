@@ -11,3 +11,4 @@ Schedule::command('scales:certificate-reminders')->dailyAt('08:00')->timezone('A
 Schedule::command('audit:verify')->dailyAt('02:00')->timezone('Asia/Kolkata')->withoutOverlapping();
 Schedule::command('stock:verify')->dailyAt('02:30')->timezone('Asia/Kolkata')->withoutOverlapping();
 Schedule::command('books:verify')->dailyAt('02:45')->timezone('Asia/Kolkata')->withoutOverlapping();
+Schedule::command('archive:run')->monthlyOn(1, '03:30')->timezone('Asia/Kolkata')->withoutOverlapping();

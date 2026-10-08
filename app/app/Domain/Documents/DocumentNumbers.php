@@ -42,6 +42,8 @@ final class DocumentNumbers
 
     public const GATE_PASS = 'GP';
 
+    public const CLAIM = 'CLM';
+
     public function __construct(private readonly TenantContext $tenant) {}
 
     public function next(string $series, ?CarbonInterface $date = null): string

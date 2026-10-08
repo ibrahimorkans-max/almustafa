@@ -15,6 +15,8 @@ use App\Models\Accounts\PurchaseBill;
 use App\Models\Accounts\ReceiptAllocation;
 use App\Models\Accounts\Voucher;
 use App\Models\ApprovalRequest;
+use App\Models\Claims\Claim;
+use App\Models\Claims\ClaimEvent;
 use App\Models\LoginAccount;
 use App\Models\Sales\SalesBill;
 use App\Support\Values\Money;
@@ -77,6 +79,16 @@ final class VoucherReversal implements ApprovalAction
             if ($voucher->source_type === 'purchase_bill') {
                 $bill = PurchaseBill::query()->lockForUpdate()->findOrFail($voucher->source_id);
                 $this->bills->markReversed($bill, $reason);
+            }
+            if ($voucher->source_type === 'claim') {
+                // The note is undone; the claim goes back to "approved" so it can be settled again or withdrawn.
+                $claim = Claim::query()->lockForUpdate()->findOrFail($voucher->source_id);
+                $claim->forceFill(['status' => Claim::APPROVED, 'voucher_id' => null])->save();
+                ClaimEvent::query()->create([
+                    'entity_id' => $claim->entity_id, 'claim_id' => $claim->id, 'event' => 'note_reversed',
+                    'data' => ['voucher' => $voucher->number, 'reason' => $reason],
+                    'actor_login_account_id' => $checker->id, 'actor_person_id' => $checker->person_id, 'created_at' => now(),
+                ]);
             }
             if ($voucher->source_type === 'sales_bill') {
                 $this->salesBills->markReversed(SalesBill::query()->lockForUpdate()->findOrFail($voucher->source_id), $reason);

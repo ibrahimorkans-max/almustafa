@@ -70,6 +70,11 @@ return [
         'cash_limit_per_day_paise' => (int) env('RICEMILL_CASH_LIMIT_PER_DAY_PAISE', 10_000_00),
     ],
 
+    'archive' => [
+        // Closed records (saudas, gate entries, batches, requisitions, claims) are archived this long after closing.
+        'retention_months' => (int) env('RICEMILL_ARCHIVE_RETENTION_MONTHS', 24),
+    ],
+
     'approvals' => [
         'expire_after_hours' => (int) env('RICEMILL_APPROVAL_EXPIRY_HOURS', 72),
     ],

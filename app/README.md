@@ -49,6 +49,7 @@ php artisan scales:certificate-reminders              # weighbridge certificate 
 php artisan stock:verify                              # recompute stock balances from the ledger (scheduled daily)
 php artisan books:verify                              # every voucher balances (scheduled daily)
 php artisan accounts:install                          # chart of accounts for entities created before phase 5
+php artisan archive:run [--dry-run] [--months=24]     # archive closed records (scheduled monthly; never deletes)
 ```
 
 ## API (v1)

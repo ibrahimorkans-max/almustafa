@@ -84,6 +84,16 @@ admin rights · operator of the server/DB · thief of a phone or gate PC.
 | Missing / reused invoice numbers | Number assigned on posting in the same transaction (gap-free per financial year); invoices reversed, never deleted | E-invoice IRN (phase 8) |
 | Edited printed invoice / gate pass | HMAC verification code over the frozen data on both PDFs | Public verification page (phase 8) |
 
+## Phase 7 additions
+
+| Threat | Controls | Remaining |
+|---|---|---|
+| Quiet write-off disguised as a claim | Claim history append-only; settlement approved by a different person, capped by the claim and by the document; posted as a traceable credit / debit note | — |
+| Wrong GST on credit notes | GST reversed in the invoice's own proportion (tested) | GSTR-1 credit-note reporting (phase 8) |
+| Rate cut without approval | Price-list versions append-only; changes only via maker-checker; below-list deals flagged to the approver | — |
+| Showing different numbers to different people ("second set of books") | Confidential figures computed only for `pricing.margin.view` and otherwise not rendered at all; test compares two roles' views of the same invoice | — |
+| Evidence destroyed by "cleaning up" old records | Archive is a flag; never deletes; restore needs a reason and is audited; books / ledgers / audit never archived | Off-site backups (phase 9) |
+
 ## Trust boundaries
 Browser/PWA ↔ Nginx (TLS) ↔ PHP-FPM ↔ PostgreSQL/Redis · Gate agent ↔ API (signed requests, ph. 3) ·
 Agent ↔ hardware (serial/IO, local only).

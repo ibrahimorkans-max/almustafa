@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Sales;
 
+use App\Domain\Pricing\PricingService;
 use App\Domain\Sales\SalesBillService;
 use App\Filament\Resources\Sales\SalesBillResource\Pages;
 use App\Filament\Support\Units;
+use App\Models\Masters\Product;
+use App\Models\Procurement\Sauda;
 use App\Models\Sales\SalesBill;
+use Filament\Facades\Filament;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Infolist;
@@ -101,7 +105,34 @@ class SalesBillResource extends Resource
                     ->state(fn (SalesBill $record) => Units::paiseToRupees(app(SalesBillService::class)->outstanding($record))),
                 TextEntry::make('note')->placeholder('—'),
             ]),
+            self::marginSection(fn (SalesBill $r) => [$r->product, $r->rate_paise_per_quintal]),
         ]);
+    }
+
+    /**
+     * Confidential cost and margin. Rendered only for holders of `pricing.margin.view`; nobody else
+     * receives these figures at all (hidden, never altered).
+     *
+     * @param  callable(SalesBill|Sauda): array{0: Product, 1: int}  $source
+     */
+    public static function marginSection(callable $source): Section
+    {
+        $margin = function ($record) use ($source): ?array {
+            [$product, $rate] = $source($record);
+
+            return app(PricingService::class)->margin(Filament::auth()->user(), $product, $rate);
+        };
+
+        return Section::make('Cost and margin (confidential)')->columns(3)
+            ->visible(fn () => Filament::auth()->user()?->can('pricing.margin.view') ?? false)
+            ->schema([
+                TextEntry::make('margin_cost')->label('Cost / qtl (weighted average)')
+                    ->state(fn ($record) => Units::paiseToRupees($margin($record)['cost_paise_per_quintal'] ?? null)),
+                TextEntry::make('margin_value')->label('Margin / qtl')
+                    ->state(fn ($record) => Units::paiseToRupees($margin($record)['margin_paise_per_quintal'] ?? null)),
+                TextEntry::make('margin_pct')->label('Margin %')
+                    ->state(fn ($record) => Units::bpToPercent($margin($record)['margin_bp'] ?? null)),
+            ]);
     }
 
     public static function getPages(): array

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Accounts;
 
+use App\Domain\Claims\ClaimService;
 use App\Models\Accounts\AccountGroup;
 use App\Models\Accounts\LedgerAccount;
 use App\Models\Accounts\Payment;
@@ -112,7 +113,7 @@ final class AccountReports
             $mine = $alloc->where('bill_id', $bill->id);
             $paid = (int) $mine->where('status', Payment::APPROVED)->sum('amount');
             $requested = (int) $mine->whereIn('status', [Payment::PENDING, Payment::FIRST_APPROVED])->sum('amount');
-            $outstanding = $bill->net_paise - $paid;
+            $outstanding = $bill->net_paise - $paid - ClaimService::notedOn($bill->id);
             if ($outstanding <= 0) {
                 continue;
             }
@@ -142,7 +143,7 @@ final class AccountReports
 
         foreach ($bills as $bill) {
             $got = (int) ($received[$bill->id] ?? 0);
-            $outstanding = $bill->total_paise - $got;
+            $outstanding = $bill->total_paise - $got - ClaimService::notedOn($bill->id);
             if ($outstanding <= 0) {
                 continue;
             }

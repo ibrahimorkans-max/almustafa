@@ -10,6 +10,7 @@ use App\Domain\Approvals\Actions\ManualWeighmentOverride;
 use App\Domain\Approvals\Actions\PartyBankAccountChange;
 use App\Domain\Approvals\Actions\PaymentRelease;
 use App\Domain\Approvals\Actions\PeriodUnlock;
+use App\Domain\Approvals\Actions\RateChange;
 use App\Domain\Approvals\Actions\StockAdjustment;
 use App\Domain\Approvals\Actions\TrustDevice;
 use App\Domain\Approvals\Actions\VoucherReversal;
@@ -46,6 +47,7 @@ final class ApprovalService
         VoucherReversal::KEY => VoucherReversal::class,
         PeriodUnlock::KEY => PeriodUnlock::class,
         CreditOverride::KEY => CreditOverride::class,
+        RateChange::KEY => RateChange::class,
     ];
 
     public function __construct(
