@@ -1,0 +1,11 @@
+[sshd]
+enabled = true
+maxretry = 5
+bantime = 1h
+
+# Clients that keep hitting the nginx login / API rate limits.
+[nginx-limit-req]
+enabled = true
+logpath = /var/log/nginx/ricemill-error.log
+maxretry = 10
+bantime = 1h

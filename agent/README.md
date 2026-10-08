@@ -29,6 +29,11 @@ copy agent.example.toml agent.toml                   # fill in; restrict file ac
 1. In the admin panel create a **GATE_OPERATOR login account** for this PC (e.g. `wb.agent`).
 2. Devices → **Register gate agent** → copy the `device_uid` and `signing_secret` (shown **once**).
 3. Weighbridges → copy the scale id into `[scale].id`.
+4. Protect the three secrets with Windows DPAPI instead of pasting them in plain text: run
+   `.venv\Scripts\ricemill-agent protect` once per secret (it asks for the value without showing it) and paste the
+   printed `dpapi:…` value into `password`, `signing_secret` and `[store].key`. Only this PC can decrypt them, so a copied
+   `agent.toml` or disk image is useless elsewhere. `--scope user` binds them to the Windows account instead (run it as
+   the service account). The `RICEMILL_AGENT_*` environment variables still work and take precedence.
 
 ## Use
 

@@ -1,6 +1,7 @@
 """Agent configuration (TOML). Secrets may come from environment variables instead of the file:
 RICEMILL_AGENT_PASSWORD, RICEMILL_AGENT_SIGNING_SECRET, RICEMILL_AGENT_STORE_KEY.
-Keep the config file readable only by the service account running the agent.
+On Windows, prefer DPAPI-protected values (``ricemill-agent protect`` → ``dpapi:...``), which only this PC
+can decrypt. Keep the config file readable only by the service account running the agent.
 """
 
 from __future__ import annotations
@@ -10,6 +11,8 @@ import tomllib
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
+
+from . import secrets
 
 
 @dataclass(frozen=True)
@@ -39,7 +42,7 @@ class AgentConfig:
             resolved = os.environ.get(env) or value
             if not resolved:
                 raise ValueError(f"Missing secret: set {env} or the config value.")
-            return resolved
+            return secrets.reveal(resolved)
 
         return AgentConfig(
             server_url=data["server"]["url"],

@@ -1,0 +1,64 @@
+name: Deploy
+
+# Manual only. The `production` environment should require a reviewer (Settings → Environments),
+# so one person cannot both merge and ship. CI must be green on the chosen ref.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to deploy (tag or commit on main)
+        required: true
+        default: main
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  checks: read
+
+jobs:
+  deploy:
+    name: Deploy to the VPS
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Resolve the commit
+        id: sha
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ inputs.ref }}
+        run: |
+          sha="$(gh api "repos/${{ github.repository }}/commits/${REF}" --jq .sha)"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - name: Require green CI on that commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          runs="$(gh api "repos/${{ github.repository }}/commits/${SHA}/check-runs" --jq '[.check_runs[] | select(.app.slug == "github-actions")]')"
+          total="$(jq length <<<"$runs")"
+          bad="$(jq '[.[] | select(.conclusion != "success" and .conclusion != "skipped")] | length' <<<"$runs")"
+          if [ "$total" -eq 0 ] || [ "$bad" -ne 0 ]; then
+            echo "CI is not green for $SHA ($bad of $total checks not successful)." >&2
+            exit 1
+          fi
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # deploy.sh is taken from the commit being deployed, so the script and the code always match.
+          ssh -i ~/.ssh/deploy -o StrictHostKeyChecking=yes "ricemill@${HOST}" \
+            "set -e; tmp=\$(mktemp -d); git -C /srv/ricemill/current archive ${SHA} infra/vps/deploy.sh 2>/dev/null | tar -x -C \$tmp \
+             || { git -C /srv/ricemill/current fetch -q origin && git -C /srv/ricemill/current archive ${SHA} infra/vps/deploy.sh | tar -x -C \$tmp; }; \
+             bash \$tmp/infra/vps/deploy.sh ${SHA}; rm -rf \$tmp"
+      - name: Clean up
+        if: always()
+        run: rm -f ~/.ssh/deploy

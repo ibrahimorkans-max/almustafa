@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import sys
 from decimal import Decimal
@@ -26,6 +27,7 @@ from .drivers.display import SimulatedDisplay, TcpTextDisplay
 from .drivers.indicator import FrameParser, SerialIndicator, SimulatedIndicator, TcpIndicator
 from .gate import GateAgent
 from .gate_control import GateController
+from . import secrets
 from .queue import LocalStore
 from .sync import SyncWorker
 
@@ -75,6 +77,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("status")
     sub.add_parser("sync")
     sub.add_parser("new-store-key")
+    pr = sub.add_parser("protect", help="DPAPI-protect a secret for agent.toml (Windows); reads it from the keyboard")
+    pr.add_argument("--scope", choices=["machine", "user"], default="machine")
     a = sub.add_parser("arrive")
     a.add_argument("registration_no")
     a.add_argument("--sauda")
@@ -99,6 +103,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "new-store-key":
         print(LocalStore.new_key().decode())
+        return 0
+    if args.cmd == "protect":
+        value = getpass.getpass("Secret to protect (not shown): ")
+        if not value:
+            print("Nothing entered.", file=sys.stderr)
+            return 1
+        print(secrets.protect(value, args.scope))
         return 0
 
     cfg = AgentConfig.load(args.config)

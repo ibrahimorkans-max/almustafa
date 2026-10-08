@@ -1,5 +1,8 @@
 # Infrastructure
 
+**Production:** see [vps/README.md](vps/README.md) (Ubuntu VPS: provisioning, deploys, backups, disaster recovery).
+The options below are for development.
+
 ## Option A — Docker (recommended where available)
 
 ```bash

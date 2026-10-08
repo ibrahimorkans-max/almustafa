@@ -47,6 +47,21 @@ return [
             'report' => false,
         ],
 
+        // Off-site backup copies (any S3-compatible bucket: Backblaze B2, Cloudflare R2, Wasabi, AWS).
+        // Use a key that can only write to this bucket, and object lock / versioning if offered, so
+        // a compromised server cannot delete older backups. Errors are thrown, never swallowed.
+        'offsite' => [
+            'driver' => 's3',
+            'key' => env('RICEMILL_OFFSITE_KEY'),
+            'secret' => env('RICEMILL_OFFSITE_SECRET'),
+            'region' => env('RICEMILL_OFFSITE_REGION', 'auto'),
+            'bucket' => env('RICEMILL_OFFSITE_BUCKET'),
+            'endpoint' => env('RICEMILL_OFFSITE_ENDPOINT'),
+            'use_path_style_endpoint' => (bool) env('RICEMILL_OFFSITE_PATH_STYLE', true),
+            'throw' => true,
+            'report' => true,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

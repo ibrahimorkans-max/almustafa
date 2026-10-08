@@ -25,6 +25,18 @@ jobs:
       - run: vendor/bin/phpstan analyse --no-progress --memory-limit=2G
       - run: composer audit
 
+  security:
+    name: Secret scan and shell scripts
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash infra/ci/secret-scan.sh
+      - run: for f in infra/vps/*.sh infra/ci/*.sh; do bash -n "$f"; done
+      - run: shellcheck -S warning infra/vps/*.sh infra/ci/*.sh
+
   pwa:
     name: PWA sync engine (node --test)
     runs-on: ubuntu-latest
@@ -76,10 +88,19 @@ jobs:
         run: |
           psql -h 127.0.0.1 -p 5433 -U postgres -c "CREATE ROLE ricemill LOGIN PASSWORD '$DB_PASSWORD' NOSUPERUSER NOBYPASSRLS"
           psql -h 127.0.0.1 -p 5433 -U postgres -c "CREATE DATABASE ricemill_test OWNER ricemill"
+          psql -h 127.0.0.1 -p 5433 -U postgres -c "CREATE DATABASE ricemill_drill OWNER ricemill"
           psql -h 127.0.0.1 -p 5433 -U postgres -d ricemill_test -c "CREATE EXTENSION IF NOT EXISTS pgcrypto; CREATE EXTENSION IF NOT EXISTS citext"
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: echo "APP_KEY=base64:$(openssl rand -base64 32)" > .env.testing
+      - name: PostgreSQL 17 client tools (real backup / restore drill test)
+        run: |
+          sudo apt-get install -y -q postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -q postgresql-client-17
       - run: vendor/bin/pest
+        env:
+          RICEMILL_TEST_PG_BIN: /usr/lib/postgresql/17/bin
+          RICEMILL_TEST_DRILL_DATABASE: ricemill_drill
 
   tests-mariadb:
     name: Tests (MariaDB — shared-hosting pilot)
@@ -106,4 +127,12 @@ jobs:
           coverage: none
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: echo "APP_KEY=base64:$(openssl rand -base64 32)" > .env.testing
-      - run: vendor/bin/pest -c phpunit.mariadb.xml
+      - name: PostgreSQL 17 client tools (real backup / restore drill test)
+        run: |
+          sudo apt-get install -y -q postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -q postgresql-client-17
+      - run: vendor/bin/pest
+        env:
+          RICEMILL_TEST_PG_BIN: /usr/lib/postgresql/17/bin
+          RICEMILL_TEST_DRILL_DATABASE: ricemill_drill -c phpunit.mariadb.xml
