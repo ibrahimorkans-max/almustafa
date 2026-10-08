@@ -8,6 +8,9 @@ use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\ChangePassword;
 use App\Filament\Pages\SwitchContext;
 use App\Filament\Pages\TwoFactor;
+use App\Filament\Widgets\MoneyOverview;
+use App\Filament\Widgets\OperationsOverview;
+use App\Filament\Widgets\StockOverview;
 use App\Http\Middleware\EnsureWebAuthSession;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -42,7 +45,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([Dashboard::class])
-            ->widgets([AccountWidget::class])
+            ->widgets([AccountWidget::class, OperationsOverview::class, MoneyOverview::class, StockOverview::class])
             ->navigationGroups(['Gate & weighbridge', 'Sales & dispatch', 'Stock & production', 'Accounts', 'Claims & pricing', 'Procurement', 'Masters', 'Administration', 'Security'])
             ->userMenuItems([
                 MenuItem::make()->label('Switch entity / account')->icon('heroicon-o-arrows-right-left')

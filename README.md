@@ -53,5 +53,6 @@ cd ../agent && python -m unittest discover -s tests   # gate agent
 | 5 | Accounts (double-entry, vouchers, purchase bills, payments, bank, valuation) | **done** — [summary](docs/phase-5-summary.md) |
 | 6 | Sales, dispatch, GST invoices, ANPR / barrier / display | **done** — [summary](docs/phase-6-summary.md) |
 | 7 | Claims (credit / debit notes), pricing with confidential margin, archive | **done** — [summary](docs/phase-7-summary.md) |
-| 8 | GST returns, e-invoice / e-way bill, reports, anomaly alerts | next |
+| 8 | GST returns, e-invoice / e-way bill, TDS 194Q, reports, dashboard, anomaly alerts, document verification | **done** — [summary](docs/phase-8-summary.md) |
+| 9 | Hardening, backups, monitoring, deployment | next |
 | 5–10 | see [docs/phase-1-plan.md](docs/phase-1-plan.md) and the project brief | planned |

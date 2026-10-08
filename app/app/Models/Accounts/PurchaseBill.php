@@ -39,6 +39,9 @@ use Illuminate\Support\Carbon;
  * @property int $brokerage_paise
  * @property int $round_off_paise
  * @property int $net_paise
+ * @property int $tds_paise
+ * @property int $tds_rate_bp
+ * @property int $tds_base_paise
  * @property string $status
  * @property string|null $voucher_id
  * @property array<string, mixed> $snapshot
@@ -80,6 +83,7 @@ class PurchaseBill extends Model
             'bill_date' => 'date', 'due_date' => 'date', 'payable_kg' => 'decimal:3', 'rate_paise_per_quintal' => 'integer',
             'gross_paise' => 'integer', 'rate_cut_paise' => 'integer', 'brokerage_paise' => 'integer', 'round_off_paise' => 'integer',
             'net_paise' => 'integer', 'snapshot' => 'array', 'posted_at' => 'datetime', 'version' => 'integer',
+            'tds_paise' => 'integer', 'tds_rate_bp' => 'integer', 'tds_base_paise' => 'integer',
         ];
     }
 

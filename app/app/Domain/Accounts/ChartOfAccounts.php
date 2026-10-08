@@ -55,6 +55,7 @@ final class ChartOfAccounts
         'output_igst' => ['GST-OUT-IGST', 'Output IGST', 'DUTIES_TAXES', 'system'],
         'sales_claims' => ['SAL-CLAIMS', 'Sales claims & allowances', 'SALES_ACCOUNTS', 'system'],
         'purchase_claims' => ['PUR-CLAIMS', 'Purchase claims recovered', 'PURCHASE_ACCOUNTS', 'system'],
+        'tds_194q' => ['TDS-194Q', 'TDS payable (s. 194Q)', 'DUTIES_TAXES', 'system'],
     ];
 
     public function __construct(private readonly TenantContext $tenant) {}

@@ -18,6 +18,7 @@ use Illuminate\Validation\Rule;
  * @property string $name
  * @property string|null $legal_name
  * @property bool $is_customer
+ * @property bool $tds_194q_exempt
  * @property bool $is_vendor
  * @property bool $is_broker
  * @property bool $is_farmer
@@ -51,7 +52,7 @@ class Party extends MasterModel
     protected $fillable = [
         'code', 'name', 'legal_name', 'is_customer', 'is_vendor', 'is_broker', 'is_farmer', 'is_transporter',
         'contact_person', 'phone', 'email', 'address', 'city', 'state_code', 'pincode',
-        'gst_registration_type', 'gstin', 'pan', 'credit_limit_paise', 'credit_days', 'status', 'notes',
+        'gst_registration_type', 'gstin', 'pan', 'credit_limit_paise', 'credit_days', 'status', 'notes', 'tds_194q_exempt',
     ];
 
     protected $hidden = ['gstin_index', 'pan_index'];
@@ -62,7 +63,7 @@ class Party extends MasterModel
     protected function casts(): array
     {
         return [
-            'is_customer' => 'boolean', 'is_vendor' => 'boolean', 'is_broker' => 'boolean',
+            'tds_194q_exempt' => 'boolean', 'is_customer' => 'boolean', 'is_vendor' => 'boolean', 'is_broker' => 'boolean',
             'is_farmer' => 'boolean', 'is_transporter' => 'boolean',
             'gstin' => 'encrypted', 'pan' => 'encrypted',
             'credit_limit_paise' => 'integer', 'credit_days' => 'integer',

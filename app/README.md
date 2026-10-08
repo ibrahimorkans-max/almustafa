@@ -50,6 +50,7 @@ php artisan stock:verify                              # recompute stock balances
 php artisan books:verify                              # every voucher balances (scheduled daily)
 php artisan accounts:install                          # chart of accounts for entities created before phase 5
 php artisan archive:run [--dry-run] [--months=24]     # archive closed records (scheduled monthly; never deletes)
+php artisan anomalies:scan [--hours=24]               # explainable anomaly rules → alerts (scheduled nightly)
 ```
 
 ## API (v1)

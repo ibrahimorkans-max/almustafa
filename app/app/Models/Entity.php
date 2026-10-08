@@ -24,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $pan
  * @property string|null $state_code
  * @property string|null $address
+ * @property string|null $city
+ * @property string|null $pincode
  * @property string $status
  * @property int $version
  */
@@ -38,7 +40,7 @@ class Entity extends Model
 
     public const STATUS_SUSPENDED = 'suspended';
 
-    protected $fillable = ['code', 'name', 'legal_name', 'gstin', 'pan', 'state_code', 'address', 'status'];
+    protected $fillable = ['code', 'name', 'legal_name', 'gstin', 'pan', 'state_code', 'address', 'city', 'pincode', 'status'];
 
     /** @var list<string> */
     protected array $auditMasked = ['gstin', 'pan'];

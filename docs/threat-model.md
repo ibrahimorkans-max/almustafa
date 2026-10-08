@@ -94,6 +94,18 @@ admin rights · operator of the server/DB · thief of a phone or gate PC.
 | Showing different numbers to different people ("second set of books") | Confidential figures computed only for `pricing.margin.view` and otherwise not rendered at all; test compares two roles' views of the same invoice | — |
 | Evidence destroyed by "cleaning up" old records | Archive is a flag; never deletes; restore needs a reason and is audited; books / ledgers / audit never archived | Off-site backups (phase 9) |
 
+## Phase 8 additions
+
+| Threat | Controls | Remaining |
+|---|---|---|
+| Returns that disagree with the books | GSTR-1 / 3B computed only from posted documents; warning while the month is open | Reconciliation with GSTR-2B for purchases |
+| Lost or disputed e-invoice exchanges | Every request / answer (incl. failures) kept append-only; provider called outside transactions | Real GSP adapter and credentials in the secret store (phase 9) |
+| Goods moving without IRN / e-way bill | Gate pass can require both (settings) | — |
+| Forged printouts | Public `/verify` with number + HMAC code; minimal facts only; rate-limited | — |
+| Fraud patterns hidden in volume | Nightly explainable anomaly rules (weights, rates, hours, plates, overrides, approver–party concentration, yield drift) | Tuning thresholds on real data |
+| Data leaving for "AI" analysis | Rules run on the server; nothing is sent to external services | — |
+| Spreadsheet formula injection via exports | Text cells starting with = + - @ are prefixed | — |
+
 ## Trust boundaries
 Browser/PWA ↔ Nginx (TLS) ↔ PHP-FPM ↔ PostgreSQL/Redis · Gate agent ↔ API (signed requests, ph. 3) ·
 Agent ↔ hardware (serial/IO, local only).

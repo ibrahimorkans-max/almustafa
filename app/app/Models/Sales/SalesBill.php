@@ -52,6 +52,13 @@ use Illuminate\Support\Carbon;
  * @property string|null $note
  * @property Carbon|null $posted_at
  * @property int $version
+ * @property string|null $irn
+ * @property string|null $irn_ack_no
+ * @property Carbon|null $irn_ack_at
+ * @property string|null $irn_signed_qr
+ * @property string|null $einvoice_status
+ * @property string|null $eway_bill_no
+ * @property Carbon|null $eway_valid_until
  * @property-read Party $party
  * @property-read Product $product
  * @property-read Sauda $sauda
@@ -86,7 +93,7 @@ class SalesBill extends Model
             'bill_date' => 'date', 'due_date' => 'date', 'quantity_kg' => 'decimal:3', 'rate_paise_per_quintal' => 'integer',
             'gst_rate_bp' => 'integer', 'taxable_paise' => 'integer', 'cgst_paise' => 'integer', 'sgst_paise' => 'integer',
             'igst_paise' => 'integer', 'round_off_paise' => 'integer', 'total_paise' => 'integer', 'snapshot' => 'array',
-            'posted_at' => 'datetime', 'version' => 'integer',
+            'posted_at' => 'datetime', 'version' => 'integer', 'irn_ack_at' => 'datetime', 'eway_valid_until' => 'datetime',
         ];
     }
 

@@ -46,6 +46,8 @@ class EntityResource extends Resource
                     ->dehydrateStateUsing(fn (?string $state) => $state ? strtoupper($state) : null)
                     ->helperText('Stored encrypted.'),
                 TextInput::make('state_code')->label('GST state code')->length(2)->numeric(),
+                TextInput::make('city')->maxLength(80),
+                TextInput::make('pincode')->label('PIN code')->length(6)->numeric(),
                 Textarea::make('address')->columnSpanFull()->rows(2),
                 Select::make('status')->options([
                     Entity::STATUS_ACTIVE => 'Active',

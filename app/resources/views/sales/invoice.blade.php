@@ -22,6 +22,20 @@
     <h1>{{ $entity->legal_name ?? $entity->name }}</h1>
     <div class="muted">{{ $entity->address }} · GSTIN {{ $entity->gstin ?? '—' }} · State code {{ $entity->state_code ?? '—' }}</div>
     <h2>TAX INVOICE</h2>
+    @if ($bill->irn && $bill->einvoice_status === 'generated')
+        <table>
+            <tr>
+                <td style="width: 75%">
+                    <strong>IRN</strong> <span class="code" style="font-size: 8px">{{ $bill->irn }}</span><br>
+                    <strong>Ack no.</strong> {{ $bill->irn_ack_no }} · <strong>Ack date</strong> {{ $bill->irn_ack_at?->timezone('Asia/Kolkata')->format('d M Y H:i') }}
+                    @if ($bill->eway_bill_no)
+                        <br><strong>E-way bill</strong> {{ $bill->eway_bill_no }} · valid until {{ $bill->eway_valid_until?->timezone('Asia/Kolkata')->format('d M Y H:i') }}
+                    @endif
+                </td>
+                <td style="text-align: center"><img src="{{ \App\Domain\Sales\SalesDocuments::qrDataUri((string) $bill->irn_signed_qr) }}" width="100" height="100" alt="e-invoice QR"></td>
+            </tr>
+        </table>
+    @endif
 
     <table>
         <tr><th>Invoice no.</th><td>{{ $bill->number }}</td><th>Date</th><td>{{ $bill->bill_date->format('d M Y') }}</td></tr>
@@ -49,6 +63,6 @@
         <tr><th colspan="4" class="num">Total</th><th class="num">{{ $m($bill->total_paise) }}</th></tr>
     </table>
     <p><strong>{{ $words }}</strong></p>
-    <p class="muted">Verification code: <span class="code">{{ $code }}</span> · computer-generated from the weighment slip and the confirmed deal.</p>
+    <p class="muted">Verification code: <span class="code">{{ $code }}</span> · computer-generated from the weighment slip and the confirmed deal · check at {{ url('/verify') }}</p>
 </body>
 </html>

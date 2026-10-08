@@ -53,7 +53,7 @@
         <p class="flags">Notes: {{ implode(', ', $slip['flags']) }}</p>
     @endif
 
-    <p>Verification code: <span class="code">{{ $code }}</span></p>
+    <p>Verification code: <span class="code">{{ $code }}</span> · check at {{ url('/verify') }}</p>
     <p class="muted">Weights are recorded automatically from the weighbridge indicator. Any manual value is marked above and was approved by two people.</p>
 </body>
 </html>

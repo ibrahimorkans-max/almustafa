@@ -10,6 +10,8 @@ use App\Domain\Auth\ApiTokenGuard;
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Auth\SessionService;
 use App\Domain\Auth\TenantAwareUserProvider;
+use App\Domain\Gst\EInvoiceProvider;
+use App\Domain\Gst\SandboxEInvoiceProvider;
 use App\Domain\Sync\SyncRegistry;
 use App\Domain\Tenancy\TenantContext;
 use App\Http\Middleware\EnsureWebAuthSession;
@@ -55,6 +57,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(ActorContext::class);
         $this->app->scoped(SyncRegistry::class);
         $this->app->singleton(Google2FA::class);
+        // E-invoice / e-way bill: sandbox until the mill's GSP adapter and credentials are configured.
+        $this->app->bind(EInvoiceProvider::class, fn () => match (config('ricemill.gst.provider')) {
+            'sandbox' => new SandboxEInvoiceProvider,
+            default => throw new \RuntimeException('Unknown e-invoice provider '.config('ricemill.gst.provider').'; add its adapter first.'),
+        });
     }
 
     public function boot(): void

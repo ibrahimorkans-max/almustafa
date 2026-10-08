@@ -89,6 +89,10 @@ class PurchaseBillResource extends Resource
                 TextEntry::make('round_off_paise')->label('Round off')->formatStateUsing(fn (int $state) => ($state < 0 ? '− ' : '').Units::paiseToRupees(abs($state))),
                 TextEntry::make('net_paise')->label('Owed to party')->formatStateUsing($rupees)->weight('bold'),
                 TextEntry::make('brokerage_paise')->label('Brokerage (to broker)')->formatStateUsing($rupees),
+                TextEntry::make('tds_paise')->label('TDS u/s 194Q (withheld)')
+                    ->formatStateUsing(fn (int $state, PurchaseBill $record) => $state > 0
+                        ? Units::paiseToRupees($state).' ('.Units::bpToPercent($record->tds_rate_bp).' of '.Units::paiseToRupees($record->tds_base_paise).')'
+                        : ($record->status === PurchaseBill::DRAFT ? 'worked out on posting' : '—')),
                 TextEntry::make('outstanding')->label('Outstanding')
                     ->state(fn (PurchaseBill $record) => Units::paiseToRupees(app(PurchaseBillService::class)->outstanding($record))),
                 TextEntry::make('note')->placeholder('—')->columnSpanFull(),
