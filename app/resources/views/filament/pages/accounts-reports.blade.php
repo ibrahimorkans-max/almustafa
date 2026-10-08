@@ -70,6 +70,24 @@
                 </table>
                 @break
 
+            @case('receivables')
+                <table class="w-full">
+                    <thead><tr><th class="{{ $th }}">Invoice</th><th class="{{ $th }}">Buyer</th><th class="{{ $th }}">Due</th><th class="{{ $th }}">Age</th><th class="{{ $th }} text-right">Invoice total</th><th class="{{ $th }} text-right">Received</th><th class="{{ $th }} text-right">Outstanding</th></tr></thead>
+                    <tbody>
+                        @forelse ($r['rows'] as $row)
+                            <tr class="border-t border-gray-100 dark:border-white/5">
+                                <td class="{{ $td }} font-mono">{{ $row['number'] }}</td><td class="{{ $td }}">{{ $row['party'] }}</td>
+                                <td class="{{ $td }}">{{ \Carbon\Carbon::parse($row['due_date'])->format('d M Y') }}</td><td class="{{ $td }}">{{ $row['bucket'] }}</td>
+                                <td class="{{ $td }} text-right">{{ $money($row['total']) }}</td><td class="{{ $td }} text-right">{{ $money($row['received']) }}</td>
+                                <td class="{{ $td }} text-right font-semibold">{{ $money($row['outstanding']) }}</td>
+                            </tr>
+                        @empty
+                            <tr><td class="{{ $td }} text-gray-500" colspan="7">Nothing outstanding.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+                @break
+
             @case('stock_value')
                 <table class="w-full">
                     <thead><tr><th class="{{ $th }}">Product</th><th class="{{ $th }}">Godown</th><th class="{{ $th }} text-right">kg</th><th class="{{ $th }} text-right">Avg cost / kg</th><th class="{{ $th }} text-right">Value</th></tr></thead>

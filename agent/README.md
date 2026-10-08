@@ -12,8 +12,10 @@ Runs on the weighbridge PC. It is the only component that talks to gate hardware
 | `queue.py` | SQLite store, every row Fernet-encrypted: outbox, photos, cached feed; remote wipe |
 | `api.py` / `signing.py` | HTTPS client (stdlib), device-bound tokens, refresh, HMAC request signing |
 | `sync.py` | Upload photos → push events in order → pull feed; keeps `retry` / `pending_online` events |
-
-ANPR, boom barrier and display board drivers arrive in phase 6 on the same pattern (interface + simulator).
+| `drivers/anpr.py` | Number-plate camera (HTTP result + snapshot); **simulator** (can misread a character on purpose) |
+| `drivers/barrier.py` | Boom barrier via network relay (TCP text command); **simulator** (can simulate a dead relay) |
+| `drivers/display.py` | Two-line LED board (TCP text); **simulator** |
+| `gate_control.py` | Plate read → queued `gate_entry.plate_read`; asks the server `POST /gate/barrier`; opens only on yes; **fails closed** offline; guard override queued as `barrier.manual_open` |
 
 ## Setup (Windows weighbridge PC)
 
@@ -36,6 +38,8 @@ ricemill-agent --config agent.toml capture <gate-entry-id> gross
 ricemill-agent --config agent.toml sync
 ricemill-agent --config agent.toml status
 ricemill-agent --config agent.toml simulate HR05AB1234 24560 9870     # simulator end-to-end
+ricemill-agent --config agent.toml gate in --plate HR05AB1234           # plate read + barrier decision
+ricemill-agent --config agent.toml manual-open out "Server down, ambulance behind"   # guard override (flagged)
 ```
 
 Run `sync` from Task Scheduler every minute (or as a service); everything else works without network.
@@ -47,6 +51,10 @@ Run `sync` from Task Scheduler every minute (or as a service); everything else w
 * An event is removed from the queue only after a final server answer; `retry` (e.g. the gate entry was made on
   another device that has not synced yet) keeps it.
 * A remote-wipe instruction erases the local store, then acknowledges.
+* The barrier opens only on the server's yes (registered arrival in; slip out; gate pass for a dispatch). Offline,
+  on an error or with a dead relay it stays closed and the board says so. The guard's manual open needs a reason and
+  flags the vehicle on the server.
+* The plate read is forwarded exactly as the camera saw it; the server compares and flags `plate_mismatch`.
 
 ## Tests
 

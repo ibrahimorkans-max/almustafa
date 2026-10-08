@@ -9,6 +9,7 @@ use App\Domain\Approvals\ApprovalService;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
 use App\Domain\Gate\GateService;
 use App\Domain\Gate\SlipRenderer;
+use App\Domain\Sales\SalesDocuments;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\ApprovalRequestResource;
 use App\Filament\Resources\Gate\GateEntryResource;
@@ -45,7 +46,7 @@ class ViewGateEntry extends ViewRecord
 
         return [
             Action::make('labTest')->label('Record lab test')->icon('heroicon-o-beaker')
-                ->visible(fn (GateEntry $e) => $e->isOpen() && $can('lab.test'))
+                ->visible(fn (GateEntry $e) => $e->isOpen() && $e->direction === 'inbound' && $can('lab.test'))
                 ->form([
                     TextInput::make('sample_code')->maxLength(40),
                     $percent('moisture', 'Moisture'), $percent('foreign_matter', 'Foreign matter'), $percent('broken', 'Broken'),
@@ -89,6 +90,27 @@ class ViewGateEntry extends ViewRecord
                 ->action(fn (GateEntry $e) => response()->streamDownload(
                     fn () => print app(SlipRenderer::class)->pdf($e),
                     str_replace('/', '-', (string) $e->number).'.pdf',
+                    ['Content-Type' => 'application/pdf'],
+                )),
+            Action::make('loaded')->label('Mark loaded')->icon('heroicon-o-arrow-up-tray')
+                ->visible(fn (GateEntry $e) => $e->isOpen() && $e->direction === 'outbound' && $e->dispatch_order_id !== null && $can('dispatch.manage') && ! $has($e, 'loaded'))
+                ->modalDescription('Loaded from the dispatch order\'s godown. Stock leaves the godown when the slip is issued.')
+                ->form([TextInput::make('bag_count')->label('Bags loaded')->integer()->minValue(0)])
+                ->action(fn (GateEntry $e, array $data) => $this->run(
+                    fn (GateService $g) => $g->markLoaded($e, filled($data['bag_count'] ?? null) ? (int) $data['bag_count'] : null),
+                    'Marked loaded',
+                )),
+            Action::make('gatePass')->label('Issue gate pass')->icon('heroicon-o-ticket')->color('primary')
+                ->visible(fn (GateEntry $e) => $e->isOpen() && $e->direction === 'outbound' && $e->dispatch_order_id !== null
+                    && $can('gatepass.issue') && $has($e, 'slip_issued') && ! $has($e, 'gate_pass_issued'))
+                ->requiresConfirmation()
+                ->modalDescription('Needs the posted tax invoice. The barrier lets the vehicle out only with a gate pass.')
+                ->action(fn (GateEntry $e) => $this->run(fn (GateService $g) => $g->issueGatePass($e), 'Gate pass issued')),
+            Action::make('gatePassPdf')->label('Gate pass (PDF)')->icon('heroicon-o-arrow-down-tray')->color('gray')
+                ->visible(fn (GateEntry $e) => $has($e, 'gate_pass_issued'))
+                ->action(fn (GateEntry $e) => response()->streamDownload(
+                    fn () => print app(SalesDocuments::class)->gatePassPdf($e),
+                    'gate-pass-'.str_replace('/', '-', (string) $e->number).'.pdf',
                     ['Content-Type' => 'application/pdf'],
                 )),
             Action::make('exit')->label('Vehicle left')->icon('heroicon-o-arrow-right-start-on-rectangle')

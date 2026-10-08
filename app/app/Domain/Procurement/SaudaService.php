@@ -32,7 +32,7 @@ final class SaudaService
     /** @param  array<string, mixed>  $terms */
     public function create(array $terms): Sauda
     {
-        $this->require('deal.create');
+        $this->require(($terms['direction'] ?? 'purchase') === 'sale' ? 'sales.order' : 'deal.create');
 
         return DB::transaction(function () use ($terms): Sauda {
             $sauda = new Sauda($terms);
@@ -66,7 +66,7 @@ final class SaudaService
 
     public function submit(Sauda $sauda): Sauda
     {
-        $this->require('deal.create');
+        $this->require($sauda->direction === 'sale' ? 'sales.order' : 'deal.create');
 
         return $this->transition($sauda, [Sauda::STATUS_DRAFT], Sauda::STATUS_PENDING, 'submitted');
     }

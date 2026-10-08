@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AuditController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\FileController;
+use App\Http\Controllers\Api\V1\GateBarrierController;
 use App\Http\Controllers\Api\V1\SessionController;
 use App\Http\Controllers\Api\V1\SyncController;
 use App\Http\Middleware\EnforceRemoteWipe;
@@ -26,6 +27,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::get('sync/pull', [SyncController::class, 'pull'])->name('sync.pull');
         Route::post('sync/wipe-ack', [SyncController::class, 'wipeAck'])->name('sync.wipe-ack');
         Route::post('files', [FileController::class, 'store'])->name('files.store');
+        Route::post('gate/barrier', [GateBarrierController::class, 'decide'])->name('gate.barrier');
 
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
         Route::get('auth/me', [AuthController::class, 'me'])->name('auth.me');

@@ -40,13 +40,16 @@ class SaudaResource extends Resource
 
     protected static ?int $navigationSort = 30;
 
+    /** Purchase deals here; sales deals in SalesSaudaResource (same model and lifecycle). */
+    public const DIRECTION = 'purchase';
+
     /** @return Builder<Sauda> */
     public static function getEloquentQuery(): Builder
     {
         /** @var LoginAccount $me */
         $me = Filament::auth()->user();
         /** @var Builder<Sauda> $query */
-        $query = parent::getEloquentQuery()->with(['party', 'broker', 'product']);
+        $query = parent::getEloquentQuery()->with(['party', 'broker', 'product'])->where('direction', static::DIRECTION);
 
         return $query->tap(fn (Builder $q) => (new Sauda)->scopeVisibleTo($q, $me));
     }

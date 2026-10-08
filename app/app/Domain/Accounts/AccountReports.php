@@ -9,7 +9,9 @@ use App\Models\Accounts\LedgerAccount;
 use App\Models\Accounts\Payment;
 use App\Models\Accounts\PaymentAllocation;
 use App\Models\Accounts\PurchaseBill;
+use App\Models\Accounts\ReceiptAllocation;
 use App\Models\Accounts\VoucherLine;
+use App\Models\Sales\SalesBill;
 use Carbon\CarbonInterface;
 
 /**
@@ -119,6 +121,36 @@ final class AccountReports
                 'bill_id' => $bill->id, 'number' => (string) $bill->number, 'party' => $bill->party->name,
                 'bill_date' => $bill->bill_date->toDateString(), 'due_date' => $bill->due_date->toDateString(),
                 'net' => $bill->net_paise, 'paid' => $paid, 'requested' => $requested, 'outstanding' => $outstanding,
+                'days_overdue' => $days, 'bucket' => self::bucket($days, $bill->due_date->greaterThan($asOf)),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Unpaid sales invoices by age of the due date.
+     *
+     * @return list<array{bill_id: string, number: string, party: string, bill_date: string, due_date: string, total: int, received: int, outstanding: int, days_overdue: int, bucket: string}>
+     */
+    public function receivablesAgeing(CarbonInterface $asOf): array
+    {
+        $rows = [];
+        $bills = SalesBill::query()->where('status', SalesBill::POSTED)->with('party')->orderBy('due_date')->get();
+        $received = ReceiptAllocation::query()->toBase()->whereIn('sales_bill_id', $bills->pluck('id'))
+            ->groupBy('sales_bill_id')->selectRaw('sales_bill_id, SUM(amount_paise) AS amount')->pluck('amount', 'sales_bill_id');
+
+        foreach ($bills as $bill) {
+            $got = (int) ($received[$bill->id] ?? 0);
+            $outstanding = $bill->total_paise - $got;
+            if ($outstanding <= 0) {
+                continue;
+            }
+            $days = (int) max(0, $bill->due_date->diffInDays($asOf, false));
+            $rows[] = [
+                'bill_id' => $bill->id, 'number' => (string) $bill->number, 'party' => $bill->party->name,
+                'bill_date' => $bill->bill_date->toDateString(), 'due_date' => $bill->due_date->toDateString(),
+                'total' => $bill->total_paise, 'received' => $got, 'outstanding' => $outstanding,
                 'days_overdue' => $days, 'bucket' => self::bucket($days, $bill->due_date->greaterThan($asOf)),
             ];
         }

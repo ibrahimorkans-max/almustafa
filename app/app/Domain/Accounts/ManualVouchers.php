@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace App\Domain\Accounts;
 
 use App\Domain\Auth\ActorContext;
+use App\Domain\Sales\SalesBillService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Accounts\LedgerAccount;
+use App\Models\Accounts\ReceiptAllocation;
 use App\Models\Accounts\Voucher;
 use App\Models\Masters\Party;
+use App\Models\Sales\SalesBill;
+use App\Support\Values\Money;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Vouchers accountants enter by hand (`ledger.post`): receipts, journals and contra entries.
@@ -23,8 +28,13 @@ final class ManualVouchers
         private readonly ActorContext $actor,
     ) {}
 
-    /** Money received from a party into a bank or cash ledger. */
-    public function receipt(Party $party, LedgerAccount $into, int $amountPaise, CarbonInterface $date, ?string $narration = null): Voucher
+    /**
+     * Money received from a party into a bank or cash ledger, optionally against posted sales
+     * invoices (never more than an invoice's outstanding amount); the rest is on account.
+     *
+     * @param  array<string, int>  $allocations  sales bill id => paise
+     */
+    public function receipt(Party $party, LedgerAccount $into, int $amountPaise, CarbonInterface $date, ?string $narration = null, array $allocations = []): Voucher
     {
         $this->require();
         if (! in_array($into->kind, ['bank', 'cash'], true)) {
@@ -34,10 +44,36 @@ final class ManualVouchers
             throw new BusinessRuleViolation('Amount must be more than zero.');
         }
 
-        return $this->books->post('receipt', $date, [
-            ['account' => $into, 'dr' => $amountPaise],
-            ['account' => $this->chart->partyLedger($party), 'cr' => $amountPaise],
-        ], $narration ?? "Received from {$party->name}");
+        return DB::transaction(function () use ($party, $into, $amountPaise, $date, $narration, $allocations): Voucher {
+            $partyLedger = $this->chart->partyLedger($party);
+            $lines = [['account' => $into, 'dr' => $amountPaise]];
+            $allocated = 0;
+            foreach ($allocations as $billId => $paise) {
+                $bill = SalesBill::query()->lockForUpdate()->find($billId);
+                if ($bill === null || $bill->party_id !== $party->id || $bill->status !== SalesBill::POSTED) {
+                    throw new BusinessRuleViolation('A selected invoice is not a posted invoice of this party.');
+                }
+                $outstanding = app(SalesBillService::class)->outstanding($bill);
+                if ($paise <= 0 || $paise > $outstanding) {
+                    throw new BusinessRuleViolation(sprintf('Invoice %s has only %s outstanding.', $bill->number, Money::paise($outstanding)->format()));
+                }
+                $lines[] = ['account' => $partyLedger, 'cr' => $paise, 'bill_id' => $bill->id, 'memo' => "Against {$bill->number}"];
+                $allocated += $paise;
+            }
+            if ($allocated > $amountPaise) {
+                throw new BusinessRuleViolation('Invoices selected add up to more than the amount received.');
+            }
+            if ($amountPaise > $allocated) {
+                $lines[] = ['account' => $partyLedger, 'cr' => $amountPaise - $allocated, 'memo' => 'On account'];
+            }
+
+            $voucher = $this->books->post('receipt', $date, $lines, $narration ?? "Received from {$party->name}");
+            foreach ($allocations as $billId => $paise) {
+                ReceiptAllocation::query()->create(['voucher_id' => $voucher->id, 'sales_bill_id' => $billId, 'amount_paise' => $paise]);
+            }
+
+            return $voucher;
+        });
     }
 
     /** Cash ↔ bank, bank ↔ bank. */

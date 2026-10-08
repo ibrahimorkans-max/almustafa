@@ -73,6 +73,17 @@ admin rights · operator of the server/DB · thief of a phone or gate PC.
 | Cash withdrawal disguised as an adjustment | Bank and cash ledgers cannot be used in journals; cash payments capped per person per day (s. 40A(3)) | — |
 | Cost / margin leakage | Valuation rates and stock value visible only to accounts roles (`ledger.view` / `ledger.post`); figures hidden, never altered | Field-level checks across all reports (phase 7) |
 
+## Phase 6 additions
+
+| Threat | Controls | Remaining |
+|---|---|---|
+| Goods leave unbilled or under-billed | Stock leaves only by the outbound slip (net from the weighbridge); invoice computed from that slip; gate pass needs the posted invoice; exit of a dispatch needs the gate pass | Seal numbers on loaded trucks |
+| Truck waved through the gate | Barrier opens only on the server's rules; fails closed offline / on error / on a dead relay; manual open needs a reason, is flagged and audited; append-only hardware log | Tamper input from the barrier controller |
+| Wrong truck takes a load (swapped number) | ANPR read compared with the typed registration, mismatch flagged (never corrected) | Driver photo / licence check |
+| Selling beyond credit | Dispatch orders over the limit wait for a credit override by a different person; rejection cancels | Credit insurance limits per buyer |
+| Missing / reused invoice numbers | Number assigned on posting in the same transaction (gap-free per financial year); invoices reversed, never deleted | E-invoice IRN (phase 8) |
+| Edited printed invoice / gate pass | HMAC verification code over the frozen data on both PDFs | Public verification page (phase 8) |
+
 ## Trust boundaries
 Browser/PWA ↔ Nginx (TLS) ↔ PHP-FPM ↔ PostgreSQL/Redis · Gate agent ↔ API (signed requests, ph. 3) ·
 Agent ↔ hardware (serial/IO, local only).

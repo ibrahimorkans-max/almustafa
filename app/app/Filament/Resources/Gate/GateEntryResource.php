@@ -13,9 +13,11 @@ use App\Models\Gate\Weighment;
 use App\Models\Masters\Party;
 use App\Models\Masters\Vehicle;
 use App\Models\Procurement\Sauda;
+use App\Models\Sales\DispatchOrder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
@@ -49,6 +51,9 @@ class GateEntryResource extends Resource
         'stability_unverified' => 'Weight not proven stable', 'no_photo' => 'No camera photo', 'scale_certificate_invalid' => 'Scale certificate invalid',
         'tare_deviation' => 'Tare differs from usual', 'manual_override' => 'Manual weight (approved)', 'out_of_order' => 'Steps out of order',
         'net_not_positive' => 'Net not positive', 'no_godown' => 'Not booked into stock (no godown)',
+        'plate_mismatch' => 'Plate read ≠ typed number', 'barrier_manual_open' => 'Barrier opened by hand',
+        'quantity_out_of_tolerance' => 'Load outside order tolerance', 'bag_weight_mismatch' => 'Bags × size ≠ net',
+        'dispatch_order_not_open' => 'Dispatch order not cleared',
     ];
 
     public static function form(Form $form): Form
@@ -56,7 +61,12 @@ class GateEntryResource extends Resource
         return $form->columns(2)->schema([
             TextInput::make('registration_no')->label('Vehicle registration no.')->required()->maxLength(20)->placeholder('HR05AB1234')
                 ->datalist(fn () => Vehicle::query()->orderBy('registration_no')->limit(500)->pluck('registration_no')->all()),
-            Select::make('direction')->options(['inbound' => 'Inbound (paddy in)', 'outbound' => 'Outbound (dispatch)'])->default('inbound')->required(),
+            Select::make('direction')->options(['inbound' => 'Inbound (paddy in)', 'outbound' => 'Outbound (dispatch)'])->default('inbound')->required()->live(),
+            Select::make('dispatch_order_id')->label('Dispatch order')->searchable()
+                ->visible(fn (Get $get) => $get('direction') === 'outbound')
+                ->required(fn (Get $get) => $get('direction') === 'outbound')
+                ->options(fn () => DispatchOrder::query()->where('status', DispatchOrder::OPEN)->with(['party', 'product'])->get()
+                    ->mapWithKeys(fn (DispatchOrder $o) => [$o->id => "{$o->number} — {$o->party->name} · {$o->product->name} · {$o->quantity_kg} kg"])),
             Select::make('sauda_id')->label('Against sauda')->searchable()
                 ->options(fn () => Sauda::query()->whereIn('status', [Sauda::STATUS_CONFIRMED, Sauda::STATUS_IN_DELIVERY])->with('party')->get()
                     ->mapWithKeys(fn (Sauda $s) => [$s->id => "{$s->number} — {$s->party->name} ({$s->remaining()->in('quintal', 2)} qtl left)"])),
@@ -140,6 +150,17 @@ class GateEntryResource extends Resource
                     TextEntry::make('grade')->placeholder('—'),
                 ]),
             ]),
+            Section::make('Gate hardware (plate reads, barrier)')->schema([
+                RepeatableEntry::make('deviceEvents')->hiddenLabel()->columns(5)->schema([
+                    TextEntry::make('occurred_at')->label('When')->dateTime('d M H:i:s'),
+                    TextEntry::make('kind')->badge()->color(fn (string $state) => match ($state) {
+                        'barrier_opened' => 'success', 'barrier_refused' => 'warning', 'barrier_manual' => 'danger', default => 'gray',
+                    }),
+                    TextEntry::make('side')->placeholder('—'),
+                    TextEntry::make('plate')->placeholder('—')->fontFamily('mono'),
+                    TextEntry::make('reason')->placeholder('—'),
+                ]),
+            ])->collapsible()->visible(fn (GateEntry $record) => $record->deviceEvents()->exists()),
             Section::make('Timeline')->schema([
                 RepeatableEntry::make('events')->hiddenLabel()->columns(4)->schema([
                     TextEntry::make('occurred_at')->label('When')->dateTime('d M H:i:s'),

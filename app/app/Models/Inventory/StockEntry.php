@@ -55,6 +55,8 @@ class StockEntry extends Model
 
     public const REVERSAL = 'reversal';
 
+    public const DISPATCH = 'dispatch';
+
     protected $table = 'stock_ledger';
 
     protected $fillable = [

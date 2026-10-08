@@ -38,7 +38,7 @@ class Voucher extends Model
     /** type => number series */
     public const TYPES = [
         'purchase' => 'PV', 'payment' => 'PAY', 'receipt' => 'RCT', 'journal' => 'JV', 'contra' => 'CV',
-        'debit_note' => 'DN', 'credit_note' => 'CN', 'opening' => 'OB',
+        'debit_note' => 'DN', 'credit_note' => 'CN', 'opening' => 'OB', 'sales' => 'SV',
     ];
 
     protected $fillable = [
