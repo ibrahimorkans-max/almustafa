@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Production;
 
 use App\Domain\Production\ProductionService;
 use App\Filament\Resources\Production\ProductionBatchResource\Pages;
+use App\Filament\Support\ArchivedFilter;
 use App\Filament\Support\Units;
 use App\Models\Production\ProductionBatch;
 use App\Models\Production\ProductionLog;
@@ -71,6 +72,7 @@ class ProductionBatchResource extends Resource
             ])
             ->defaultSort('opened_at', 'desc')
             ->filters([
+                ArchivedFilter::make(),
                 SelectFilter::make('status')->options(['open' => 'Open', 'closed' => 'Closed']),
             ])
             ->actions([ViewAction::make()]);

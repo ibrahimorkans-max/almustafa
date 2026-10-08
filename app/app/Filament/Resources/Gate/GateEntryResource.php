@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Gate;
 
 use App\Filament\Resources\Gate\GateEntryResource\Pages;
+use App\Filament\Support\ArchivedFilter;
 use App\Filament\Support\Units;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
@@ -101,6 +102,7 @@ class GateEntryResource extends Resource
             ])
             ->defaultSort('arrived_at', 'desc')
             ->filters([
+                ArchivedFilter::make(),
                 SelectFilter::make('open')->label('Show')->options(['open' => 'Inside the mill', 'all' => 'All'])->default('open')
                     ->query(fn (Builder $q, array $data) => ($data['value'] ?? 'open') === 'open' ? $q->whereNotIn('status', ['exited', 'cancelled']) : $q),
             ])

@@ -65,7 +65,7 @@ class Requisition extends Model
 
     protected function casts(): array
     {
-        return ['quantity_kg' => 'decimal:3', 'approved_at' => 'datetime', 'issued_at' => 'datetime', 'version' => 'integer'];
+        return ['quantity_kg' => 'decimal:3', 'approved_at' => 'datetime', 'issued_at' => 'datetime', 'archived_at' => 'datetime', 'version' => 'integer'];
     }
 
     /** @return BelongsTo<Product, $this> */

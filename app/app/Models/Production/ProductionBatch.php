@@ -73,7 +73,7 @@ class ProductionBatch extends Model
     protected function casts(): array
     {
         return [
-            'opened_at' => 'datetime', 'closed_at' => 'datetime', 'input_kg' => 'decimal:3', 'output_kg' => 'decimal:3',
+            'opened_at' => 'datetime', 'closed_at' => 'datetime', 'archived_at' => 'datetime', 'input_kg' => 'decimal:3', 'output_kg' => 'decimal:3',
             'yield_snapshot' => 'array', 'version' => 'integer',
         ];
     }

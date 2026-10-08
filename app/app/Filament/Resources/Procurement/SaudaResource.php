@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Procurement;
 
 use App\Filament\Resources\Procurement\SaudaResource\Pages;
+use App\Filament\Support\ArchivedFilter;
 use App\Filament\Support\Units;
 use App\Models\LoginAccount;
 use App\Models\Procurement\Sauda;
@@ -129,7 +130,7 @@ class SaudaResource extends Resource
                 TextColumn::make('delivery_to')->label('Deliver by')->date()->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
-            ->filters([SelectFilter::make('status')->options(array_combine(
+            ->filters([ArchivedFilter::make(), SelectFilter::make('status')->options(array_combine(
                 ['draft', 'pending_approval', 'confirmed', 'in_delivery', 'completed', 'cancelled', 'expired'],
                 ['Draft', 'Pending approval', 'Confirmed', 'In delivery', 'Completed', 'Cancelled', 'Expired'],
             ))])

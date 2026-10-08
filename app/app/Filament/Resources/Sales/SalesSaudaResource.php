@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Sales;
 
+use App\Domain\Pricing\PricingService;
 use App\Filament\Resources\Procurement\SaudaResource;
 use App\Filament\Resources\Sales\SalesSaudaResource\Pages;
 use App\Filament\Support\Units;
+use App\Models\Procurement\Sauda;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Infolists\Components\Section as InfoSection;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Infolist;
 use Illuminate\Database\Eloquent\Builder;
 
 /** Sales deals: same sauda model, lifecycle and maker-checker as purchases, buyer side. */
@@ -49,6 +54,29 @@ class SalesSaudaResource extends SaudaResource
                 DatePicker::make('delivery_from')->required(),
                 DatePicker::make('delivery_to')->required()->afterOrEqual('delivery_from'),
             ]),
+        ]);
+    }
+
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        $base = parent::infolist($infolist)->getComponents();
+
+        return $infolist->schema([
+            ...$base,
+            InfoSection::make('Price list')->columns(2)->schema([
+                TextEntry::make('list_rate')->label('List rate / qtl today')
+                    ->state(fn (Sauda $r) => Units::paiseToRupees(app(PricingService::class)->listRate($r->product)) ?: '—'),
+                TextEntry::make('vs_list')->label('Deal vs list')
+                    ->state(function (Sauda $r): string {
+                        $list = app(PricingService::class)->listRate($r->product);
+
+                        return $list === null ? 'no list rate' : ($r->rate_paise_per_quintal < $list
+                            ? 'Below list by '.Units::paiseToRupees($list - $r->rate_paise_per_quintal)
+                            : 'At or above list');
+                    })
+                    ->color(fn (string $state) => str_starts_with($state, 'Below') ? 'danger' : null),
+            ]),
+            SalesBillResource::marginSection(fn (Sauda $r) => [$r->product, (int) $r->rate_paise_per_quintal]),
         ]);
     }
 

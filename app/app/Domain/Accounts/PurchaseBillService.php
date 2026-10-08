@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Accounts;
 
 use App\Domain\Auth\ActorContext;
+use App\Domain\Claims\ClaimService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Accounts\PaymentAllocation;
 use App\Models\Accounts\PurchaseBill;
@@ -133,6 +134,9 @@ final class PurchaseBillService
     /** Called when the bill's purchase voucher is reversed through an approved request. */
     public function markReversed(PurchaseBill $bill, string $reason): void
     {
+        if (ClaimService::settledOn($bill->id) > 0) {
+            throw new BusinessRuleViolation('Claims are approved or settled against this document; reverse or withdraw them first.');
+        }
         if (PaymentAllocation::query()->where('purchase_bill_id', $bill->id)
             ->whereHas('payment', fn ($q) => $q->whereIn('status', ['pending', 'first_approved', 'approved']))->exists()) {
             throw new BusinessRuleViolation('Payments are allocated to this bill; reverse or cancel them first.');
@@ -150,7 +154,7 @@ final class PurchaseBillService
             ->whereHas('payment', fn ($q) => $q->whereIn('status', ['pending', 'first_approved', 'approved']))
             ->sum('amount_paise');
 
-        return $bill->net_paise - $paid;
+        return $bill->net_paise - $paid - ClaimService::notedOn($bill->id);
     }
 
     private function lock(PurchaseBill $bill, string $status): PurchaseBill

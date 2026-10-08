@@ -16,12 +16,15 @@ use App\Http\Middleware\EnsureWebAuthSession;
 use App\Models\Accounts;
 use App\Models\Alert;
 use App\Models\AuthSession;
+use App\Models\Claims\Claim;
 use App\Models\Gate\DeductionRule;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\Scale;
 use App\Models\Inventory;
 use App\Models\LoginAccount;
 use App\Models\Masters;
+use App\Models\Pricing\MarkupSetting;
+use App\Models\Pricing\PriceList;
 use App\Models\Procurement\PaddyRequirement;
 use App\Models\Procurement\Quote;
 use App\Models\Procurement\Sauda;
@@ -110,6 +113,9 @@ class AppServiceProvider extends ServiceProvider
             Accounts\LedgerAccount::class => Policies\Phase5\LedgerAccountPolicy::class,
             DispatchOrder::class => Policies\Phase6\DispatchOrderPolicy::class,
             SalesBill::class => Policies\Phase6\SalesBillPolicy::class,
+            Claim::class => Policies\Phase7\ClaimPolicy::class,
+            PriceList::class => Policies\Phase7\PriceListPolicy::class,
+            MarkupSetting::class => Policies\Phase7\MarkupSettingPolicy::class,
         ] as $model => $policy) {
             Gate::policy($model, $policy);
         }
