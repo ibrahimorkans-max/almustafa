@@ -12,3 +12,4 @@ Schedule::command('audit:verify')->dailyAt('02:00')->timezone('Asia/Kolkata')->w
 Schedule::command('stock:verify')->dailyAt('02:30')->timezone('Asia/Kolkata')->withoutOverlapping();
 Schedule::command('books:verify')->dailyAt('02:45')->timezone('Asia/Kolkata')->withoutOverlapping();
 Schedule::command('archive:run')->monthlyOn(1, '03:30')->timezone('Asia/Kolkata')->withoutOverlapping();
+Schedule::command('anomalies:scan')->dailyAt('03:00')->timezone('Asia/Kolkata')->withoutOverlapping();

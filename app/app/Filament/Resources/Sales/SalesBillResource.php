@@ -105,6 +105,16 @@ class SalesBillResource extends Resource
                     ->state(fn (SalesBill $record) => Units::paiseToRupees(app(SalesBillService::class)->outstanding($record))),
                 TextEntry::make('note')->placeholder('—'),
             ]),
+            Section::make('E-invoice / e-way bill')->columns(4)
+                ->visible(fn (SalesBill $r) => $r->irn !== null)
+                ->schema([
+                    TextEntry::make('einvoice_status')->label('E-invoice')->badge()->color(fn (?string $state) => $state === 'generated' ? 'success' : 'danger'),
+                    TextEntry::make('irn_ack_no')->label('Ack no.'),
+                    TextEntry::make('irn_ack_at')->label('Ack date')->dateTime('d M Y H:i'),
+                    TextEntry::make('eway_bill_no')->label('E-way bill')->placeholder('—')
+                        ->suffix(fn (SalesBill $r) => $r->eway_valid_until ? ' (valid until '.$r->eway_valid_until->timezone('Asia/Kolkata')->format('d M H:i').')' : ''),
+                    TextEntry::make('irn')->label('IRN')->fontFamily('mono')->columnSpanFull(),
+                ]),
             self::marginSection(fn (SalesBill $r) => [$r->product, $r->rate_paise_per_quintal]),
         ]);
     }

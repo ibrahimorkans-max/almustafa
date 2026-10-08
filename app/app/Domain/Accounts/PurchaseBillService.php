@@ -85,10 +85,18 @@ final class PurchaseBillService
             $party = Party::query()->findOrFail($bill->party_id);
             $memo = "{$bill->snapshot['gate_entry_number']} · {$bill->snapshot['sauda_number']} · {$bill->payable_kg} kg";
 
+            // TDS (s. 194Q) is fixed at posting, from the seller's posted purchases of the year so far;
+            // it is withheld from what the supplier is paid.
+            $tds = app(Tds194Q::class)->forBill($bill, $party);
+            if ($tds['tds_paise'] > 0) {
+                $bill->forceFill($tds + ['net_paise' => $bill->net_paise - $tds['tds_paise']]);
+            }
+
             $lines = [
                 ['account' => $this->chart->system('purchase_paddy'), 'dr' => $bill->gross_paise, 'memo' => $memo],
                 ['account' => $this->chart->system('rate_cut'), 'cr' => $bill->rate_cut_paise, 'memo' => 'Quality rate cut'],
                 ['account' => $this->chart->partyLedger($party), 'cr' => $bill->net_paise, 'bill_id' => $bill->id, 'memo' => $memo],
+                ['account' => $this->chart->system('tds_194q'), 'cr' => $bill->tds_paise, 'memo' => 'TDS u/s 194Q'],
             ];
             if ($bill->round_off_paise > 0) {
                 $lines[] = ['account' => $this->chart->system('round_off'), 'dr' => $bill->round_off_paise];

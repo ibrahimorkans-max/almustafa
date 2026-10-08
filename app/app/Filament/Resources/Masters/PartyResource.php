@@ -18,6 +18,7 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Resources\Resource;
@@ -100,6 +101,9 @@ class PartyResource extends Resource
                     ->afterStateHydrated(fn (TextInput $c, ?Party $record) => $c->state($record?->credit_limit_paise !== null ? Money::paise($record->credit_limit_paise)->toDecimal() : null))
                     ->dehydrated(false),
                 TextInput::make('credit_days')->integer()->minValue(0)->maxValue(365),
+                Toggle::make('tds_194q_exempt')->label('Exempt from TDS u/s 194Q')
+                    ->helperText('Only on the mill\'s tax adviser\'s instruction (e.g. exempt agricultural produce).')
+                    ->visible(fn () => auth()->user()?->can('ledger.post') ?? false),
                 Select::make('status')->options(['active' => 'Active', 'blocked' => 'Blocked'])->default('active')->required(),
                 Textarea::make('notes')->rows(2)->maxLength(2000)->columnSpanFull(),
             ]),

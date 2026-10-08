@@ -11,6 +11,10 @@ use App\Models\Entity;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
 use App\Models\Sales\SalesBill;
+use BaconQrCode\Renderer\Image\SvgImageBackEnd;
+use BaconQrCode\Renderer\ImageRenderer;
+use BaconQrCode\Renderer\RendererStyle\RendererStyle;
+use BaconQrCode\Writer;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 /** Printed tax invoice and gate pass, both carrying a verification code over their frozen data. */
@@ -28,8 +32,29 @@ final class SalesDocuments
         return Pdf::loadView('sales.invoice', [
             'entity' => $entity, 'bill' => $bill->loadMissing(['party', 'product']),
             'words' => self::rupeesInWords($bill->total_paise),
-            'code' => SlipRenderer::verificationCode($bill->id, $bill->only(['number', 'bill_date', 'party_id', 'quantity_kg', 'taxable_paise', 'cgst_paise', 'sgst_paise', 'igst_paise', 'total_paise'])),
+            'code' => self::invoiceCode($bill),
         ])->setPaper('a4')->output();
+    }
+
+    /** QR code as an SVG data URI (for the IRN's signed QR on the invoice PDF). */
+    public static function qrDataUri(string $text): string
+    {
+        $svg = (new Writer(new ImageRenderer(
+            new RendererStyle(140, 1),
+            new SvgImageBackEnd,
+        )))->writeString($text);
+
+        return 'data:image/svg+xml;base64,'.base64_encode($svg);
+    }
+
+    /** Verification code printed on the invoice (HMAC over its frozen key figures). */
+    public static function invoiceCode(SalesBill $bill): string
+    {
+        return SlipRenderer::verificationCode($bill->id, [
+            'number' => $bill->number, 'bill_date' => $bill->bill_date->toDateString(), 'party_id' => $bill->party_id,
+            'quantity_kg' => (string) $bill->quantity_kg, 'taxable_paise' => $bill->taxable_paise, 'cgst_paise' => $bill->cgst_paise,
+            'sgst_paise' => $bill->sgst_paise, 'igst_paise' => $bill->igst_paise, 'total_paise' => $bill->total_paise,
+        ]);
     }
 
     public function gatePassPdf(GateEntry $entry): string

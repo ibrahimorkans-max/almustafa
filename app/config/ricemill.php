@@ -70,6 +70,31 @@ return [
         'cash_limit_per_day_paise' => (int) env('RICEMILL_CASH_LIMIT_PER_DAY_PAISE', 10_000_00),
     ],
 
+    'gst' => [
+        // E-invoicing applies once the mill's turnover crosses the notified threshold.
+        'einvoice_enabled' => (bool) env('RICEMILL_EINVOICE_ENABLED', false),
+        'provider' => env('RICEMILL_EINVOICE_PROVIDER', 'sandbox'),     // sandbox | <gsp adapter>
+        'eway_threshold_paise' => (int) env('RICEMILL_EWAY_THRESHOLD_PAISE', 50_000_00),
+        // Refuse the gate pass for a consignment above the threshold without an e-way bill.
+        'require_eway_for_gate_pass' => (bool) env('RICEMILL_REQUIRE_EWAY_FOR_GATE_PASS', false),
+        // TDS on purchases, s. 194Q (only if last year's turnover exceeded ₹10 crore).
+        'tds_194q_enabled' => (bool) env('RICEMILL_TDS_194Q_ENABLED', false),
+        'tds_194q_threshold_paise' => (int) env('RICEMILL_TDS_194Q_THRESHOLD_PAISE', 50_00_000_00),
+        'tds_194q_rate_bp' => 10,          // 0.1 %
+        'tds_194q_no_pan_rate_bp' => 500,  // 5 % (s. 206AA)
+    ],
+
+    'anomalies' => [
+        'net_weight_z' => 3.5,             // robust z-score vs the vehicle's last trips
+        'min_trips' => 5,
+        'rate_deviation_bp' => 1500,       // purchase rate vs 30-day median
+        'working_hours' => ['06:00', '22:00'],
+        'plate_mismatch_repeat' => 2,      // same vehicle within 30 days
+        'manual_override_repeat' => 3,     // per user within 30 days
+        'approvals_same_party' => 5,       // per approver and party within 7 days
+        'yield_drift_batches' => 3,        // consecutive out-of-range batches of a variety
+    ],
+
     'archive' => [
         // Closed records (saudas, gate entries, batches, requisitions, claims) are archived this long after closing.
         'retention_months' => (int) env('RICEMILL_ARCHIVE_RETENTION_MONTHS', 24),

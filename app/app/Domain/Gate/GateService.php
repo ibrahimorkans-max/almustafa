@@ -7,6 +7,7 @@ namespace App\Domain\Gate;
 use App\Domain\Accounts\PurchaseBillService;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
+use App\Domain\Gst\EInvoiceService;
 use App\Domain\Inventory\StockLedger;
 use App\Domain\Procurement\SaudaService;
 use App\Domain\Sales\SalesBillService;
@@ -409,6 +410,13 @@ final class GateService
             $bill = SalesBill::query()->where('gate_entry_id', $entry->id)->first();
             if ($bill === null || $bill->status !== SalesBill::POSTED) {
                 throw new BusinessRuleViolation('The tax invoice must be posted by accounts before the gate pass.');
+            }
+            $einvoice = app(EInvoiceService::class);
+            if ($einvoice->required($bill) && $bill->einvoice_status !== 'generated') {
+                throw new BusinessRuleViolation('Generate the e-invoice (IRN) before the gate pass.');
+            }
+            if (config('ricemill.gst.require_eway_for_gate_pass') && $einvoice->ewayRequired($bill) && $bill->eway_bill_no === null) {
+                throw new BusinessRuleViolation('This consignment needs an e-way bill before the gate pass.');
             }
             $event = $this->appendEvent($entry, 'gate_pass_issued', [
                 'number' => $this->numbers->next(DocumentNumbers::GATE_PASS),
