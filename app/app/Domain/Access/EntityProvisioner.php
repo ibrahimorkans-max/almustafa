@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Access;
 
+use App\Domain\Accounts\ChartOfAccounts;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
@@ -11,13 +12,14 @@ use App\Models\Role;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Creates an entity together with its default roles and grants, in one transaction.
+ * Creates an entity together with its default roles and grants and its chart of accounts, in one transaction.
  */
 final class EntityProvisioner
 {
     public function __construct(
         private readonly TenantContext $tenant,
         private readonly AuditLogger $audit,
+        private readonly ChartOfAccounts $chart,
     ) {}
 
     /**
@@ -50,6 +52,8 @@ final class EntityProvisioner
 
                 $this->audit->record('role.permissions.granted', $role, null, ['permissions' => $template['permissions']], ['source' => 'template']);
             }
+
+            $this->chart->install($entity->id);
 
             return $entity;
         }));

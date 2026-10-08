@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Gate;
 
+use App\Domain\Accounts\PurchaseBillService;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
 use App\Domain\Inventory\StockLedger;
@@ -42,6 +43,7 @@ final class GateService
         private readonly TareCheck $tareCheck,
         private readonly SaudaService $saudas,
         private readonly StockLedger $stock,
+        private readonly PurchaseBillService $bills,
         private readonly ActorContext $actor,
     ) {}
 
@@ -325,6 +327,7 @@ final class GateService
             }
             if ($entry->direction === 'inbound' && $accepted) {
                 $this->bookReceipt($entry);
+                $this->bills->draftFromSlip($entry);
             }
             $this->project($entry);
 
