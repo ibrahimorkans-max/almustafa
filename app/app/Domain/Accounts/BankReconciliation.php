@@ -142,7 +142,7 @@ final class BankReconciliation
             ->where('dr_paise', $line->credit_paise)->where('cr_paise', $line->debit_paise)
             ->whereBetween('voucher_date', [$from, $to])
             ->whereNotIn('id', BankStatementLine::query()->whereNotNull('voucher_line_id')->select('voucher_line_id'))
-            ->orderBy('voucher_date')->get();
+            ->with('voucher')->orderBy('voucher_date')->get();
     }
 
     private function link(BankStatementLine $line, VoucherLine $voucherLine, string $method): BankStatementLine
@@ -159,7 +159,12 @@ final class BankReconciliation
     {
         $value = trim($value);
         foreach (['d/m/Y', 'd-m-Y', 'Y-m-d', 'd/m/y'] as $format) {
-            $parsed = CarbonImmutable::createFromFormat('!'.$format, $value);
+            try {
+                $parsed = CarbonImmutable::createFromFormat('!'.$format, $value);
+            } catch (\Throwable) {
+                continue;
+            }
+            // Round trip rejects overflowing dates such as 31/02 (which PHP would turn into 03/03).
             if ($parsed !== null && $parsed->format($format) === $value) {
                 return $parsed->toDateString();
             }

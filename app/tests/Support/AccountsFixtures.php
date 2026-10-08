@@ -7,6 +7,7 @@ namespace Tests\Support;
 use App\Domain\Accounts\ChartOfAccounts;
 use App\Domain\Gate\GateService;
 use App\Domain\Procurement\SaudaService;
+use App\Domain\Tenancy\TenantContext;
 use App\Models\Accounts\LedgerAccount;
 use App\Models\Accounts\PurchaseBill;
 use App\Models\Entity;
@@ -87,13 +88,14 @@ final class AccountsFixtures
         $g->markUnloaded($e, godown: $this->inv->silo);
         $g->recordWeighment($e, 'tare', '10230', $this->inv->gate->scale, GateFixtures::readings('10230'), str_repeat('a', 64));
         $g->issueSlip($e);
+        $fresh = $e->fresh();
         Make::reset();
 
-        return $e->fresh();
+        return $fresh;
     }
 
     public function billFor(GateEntry $entry): PurchaseBill
     {
-        return PurchaseBill::query()->where('gate_entry_id', $entry->id)->sole();
+        return app(TenantContext::class)->runInEntity($this->entity->id, fn () => PurchaseBill::query()->where('gate_entry_id', $entry->id)->sole());
     }
 }

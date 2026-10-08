@@ -1,0 +1,39 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Filament\Resources\Accounts\PaymentResource\Pages;
+
+use App\Domain\Accounts\PaymentService;
+use App\Filament\Resources\Accounts\PaymentResource;
+use App\Filament\Resources\ApprovalRequestResource;
+use App\Filament\Support\RequestsVoucherReversal;
+use App\Filament\Support\RunsDomainActions;
+use App\Models\Accounts\Payment;
+use Filament\Actions\Action;
+use Filament\Facades\Filament;
+use Filament\Forms\Components\TextInput;
+use Filament\Resources\Pages\ViewRecord;
+
+class ViewPayment extends ViewRecord
+{
+    use RunsDomainActions;
+
+    protected static string $resource = PaymentResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        $can = fn (string $p) => Filament::auth()->user()?->can($p) ?? false;
+
+        return [
+            Action::make('approval')->label('Open approval')->icon('heroicon-o-shield-check')
+                ->visible(fn (Payment $p) => $p->isOpen() && $p->approval_request_id !== null)
+                ->url(fn (Payment $p) => ApprovalRequestResource::getUrl('view', ['record' => $p->approval_request_id])),
+            Action::make('reference')->label('Record UTR / cheque no.')->icon('heroicon-o-hashtag')
+                ->visible(fn (Payment $p) => $p->status === Payment::APPROVED && $can('payment.create'))
+                ->form([TextInput::make('reference')->required()->maxLength(60)])
+                ->action(fn (Payment $p, array $data) => $this->runDomain(fn () => app(PaymentService::class)->recordReference($p, $data['reference']), 'Reference saved')),
+            RequestsVoucherReversal::action(fn () => $this->record->getAttribute('status') === Payment::APPROVED ? $this->record->getAttribute('voucher_id') : null),
+        ];
+    }
+}

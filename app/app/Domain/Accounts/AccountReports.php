@@ -30,7 +30,7 @@ final class AccountReports
         $lines = [];
         $rows = VoucherLine::query()->where('ledger_account_id', $account->id)
             ->whereBetween('voucher_date', [$from->toDateString(), $to->toDateString()])
-            ->with('voucher')->orderBy('voucher_date')->orderBy('created_at')->orderBy('line_no')->get();
+            ->with('voucher')->orderBy('voucher_date')->orderBy('voucher_id')->orderBy('line_no')->get();
         foreach ($rows as $l) {
             $balance += $l->dr_paise - $l->cr_paise;
             $lines[] = [
@@ -77,7 +77,7 @@ final class AccountReports
     {
         $out = [];
         $lines = VoucherLine::query()->where('voucher_date', $date->toDateString())->with(['voucher', 'account'])
-            ->orderBy('created_at')->orderBy('line_no')->get()->groupBy('voucher_id');
+            ->orderBy('voucher_id')->orderBy('line_no')->get()->groupBy('voucher_id');
         foreach ($lines as $group) {
             $v = $group->first()->voucher;
             $out[] = [

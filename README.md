@@ -50,5 +50,6 @@ cd ../agent && python -m unittest discover -s tests   # gate agent
 | 2 | Masters, sync API, PWA offline shell | **done** — [summary](docs/phase-2-summary.md) · [API](docs/api/openapi.yaml) |
 | 3 | Procurement & sauda, gate entry, weighbridge, lab, gate agent + simulators | **done** — [summary](docs/phase-3-summary.md) · [agent](agent/README.md) |
 | 4 | Inventory, stock ledger, production, by-products | **done** — [summary](docs/phase-4-summary.md) |
-| 5 | Accounts (double-entry, vouchers, payments, bank) | next |
+| 5 | Accounts (double-entry, vouchers, purchase bills, payments, bank, valuation) | **done** — [summary](docs/phase-5-summary.md) |
+| 6 | Sales, dispatch, ANPR | next |
 | 5–10 | see [docs/phase-1-plan.md](docs/phase-1-plan.md) and the project brief | planned |
