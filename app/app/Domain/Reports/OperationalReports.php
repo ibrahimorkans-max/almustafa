@@ -11,6 +11,7 @@ use App\Models\Gate\GateEntry;
 use App\Models\Inventory\StockEntry;
 use App\Models\Production\ProductionBatch;
 use App\Models\Sales\SalesBill;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 
 /**
@@ -34,6 +35,9 @@ final class OperationalReports
         $f = $from->toDateString();
         $t = $to->toDateString();
         $rs = fn (int $p) => number_format($p / 100, 2, '.', '');
+        // Whole IST days, as UTC instants (timestamps are stored in UTC; the query builder does not convert).
+        $start = CarbonImmutable::parse($f, 'Asia/Kolkata')->startOfDay()->utc();
+        $end = CarbonImmutable::parse($t, 'Asia/Kolkata')->endOfDay()->utc();
 
         return match ($report) {
             'purchase_register' => [
@@ -58,7 +62,7 @@ final class OperationalReports
             ],
             'gate_register' => [
                 ['Arrived', 'Entry', 'Vehicle', 'Direction', 'Party', 'Gross kg', 'Tare kg', 'Net kg', 'Payable kg', 'Status', 'Exited', 'Flags'],
-                GateEntry::query()->with('party')->whereBetween('arrived_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+                GateEntry::query()->with('party')->whereBetween('arrived_at', [$start, $end])
                     ->orderBy('arrived_at')->get()
                     ->map(fn (GateEntry $e) => [
                         $e->arrived_at->timezone('Asia/Kolkata')->format('Y-m-d H:i'), $e->number, $e->registration_no, $e->direction,
@@ -68,7 +72,7 @@ final class OperationalReports
             ],
             'stock_movement' => [
                 ['When', 'Product', 'Godown', 'Movement', 'kg', 'Reference'],
-                StockEntry::query()->with(['product', 'godown'])->whereBetween('occurred_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+                StockEntry::query()->with(['product', 'godown'])->whereBetween('occurred_at', [$start, $end])
                     ->orderBy('occurred_at')->get()
                     ->map(fn (StockEntry $s) => [
                         $s->occurred_at->timezone('Asia/Kolkata')->format('Y-m-d H:i'), $s->product->name, $s->godown->name, $s->movement, $s->quantity_kg, $s->note,
@@ -77,7 +81,7 @@ final class OperationalReports
             'production_yield' => [
                 ['Batch', 'Paddy', 'Opened', 'Closed', 'Input kg', 'Output kg', 'Unaccounted kg', 'Unaccounted %', 'Outputs outside standard'],
                 ProductionBatch::query()->with('paddy')->where('status', ProductionBatch::CLOSED)
-                    ->whereBetween('closed_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])->orderBy('closed_at')->get()
+                    ->whereBetween('closed_at', [$start, $end])->orderBy('closed_at')->get()
                     ->map(fn (ProductionBatch $b) => [
                         $b->number, $b->paddy->name, $b->opened_at->toDateString(), $b->closed_at?->toDateString(), $b->input_kg, $b->output_kg,
                         $b->yield_snapshot['unaccounted_kg'] ?? null, number_format(((int) ($b->yield_snapshot['unaccounted_bp'] ?? 0)) / 100, 2),

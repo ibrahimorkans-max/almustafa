@@ -25,6 +25,7 @@
         <tr><th>Bags</th><td>{{ $pass['bag_count'] ?? '—' }}</td></tr>
         <tr><th>Tax invoice</th><td>{{ $pass['invoice_number'] ?? '' }}</td></tr>
         <tr><th>Verification code</th><td class="code">{{ $code }}</td></tr>
+        <tr><th>Check at</th><td>{{ url('/verify') }}</td></tr>
     </table>
 </body>
 </html>

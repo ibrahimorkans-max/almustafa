@@ -34,7 +34,9 @@ final class AnomalyScanner
     /** @return array<string, int> alerts raised per rule */
     public function scan(CarbonInterface $since, ?CarbonInterface $until = null): array
     {
-        $until ??= now();
+        // Stored timestamps are UTC and the query builder does not convert timezones.
+        $since = CarbonImmutable::instance($since)->utc();
+        $until = CarbonImmutable::instance($until ?? now())->utc();
         $raised = [];
         foreach ([
             'weight_outlier' => fn () => $this->weightOutliers($since, $until),
@@ -72,7 +74,7 @@ final class AnomalyScanner
                 continue;
             }
             $history = GateEntry::query()->where('registration_no', $entry->registration_no)->where('direction', $entry->direction)
-                ->whereKeyNot($entry->id)->whereNotNull('net_kg')->where('arrived_at', '<', $entry->arrived_at)
+                ->whereKeyNot($entry->id)->whereNotNull('net_kg')->where('arrived_at', '<=', $entry->arrived_at)
                 ->orderByDesc('arrived_at')->limit(20)->pluck('net_kg')->map(fn ($v) => (float) $v)->all();
             if (count($history) < $minTrips) {
                 continue;

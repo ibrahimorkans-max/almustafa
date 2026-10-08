@@ -10,6 +10,7 @@ use App\Domain\Tenancy\TenantContext;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
 use App\Models\Sales\SalesBill;
+use App\Support\Values\Money;
 
 /**
  * Public check of a printed weighment slip, tax invoice or gate pass: the document number plus the
@@ -33,7 +34,7 @@ final class DocumentVerifier
             if ($bill !== null && hash_equals(SalesDocuments::invoiceCode($bill), $code)) {
                 return ['type' => 'Tax invoice', 'facts' => [
                     'Invoice' => (string) $bill->number, 'Date' => $bill->bill_date->format('d M Y'),
-                    'Quantity (kg)' => (string) $bill->quantity_kg, 'Invoice total (₹)' => number_format($bill->total_paise / 100, 2),
+                    'Quantity (kg)' => (string) $bill->quantity_kg, 'Invoice total' => Money::paise($bill->total_paise)->format(),
                     'Vehicle' => (string) ($bill->snapshot['registration_no'] ?? ''),
                 ]];
             }

@@ -25,8 +25,10 @@ final class DashboardMetrics
     /** @return array{inside: int, arrived_today: int, exited_today: int, received_today_kg: string, dispatched_today_kg: string, received_month_kg: string, dispatched_month_kg: string} */
     public function operations(): array
     {
-        $today = now('Asia/Kolkata')->startOfDay();
-        $month = now('Asia/Kolkata')->startOfMonth();
+        // IST day / month boundaries, as UTC instants (timestamps are stored in UTC and the query
+        // builder does not convert a Carbon's timezone).
+        $today = now('Asia/Kolkata')->startOfDay()->utc();
+        $month = now('Asia/Kolkata')->startOfMonth()->utc();
         $sum = fn (string $movement, $from) => number_format(abs((float) StockEntry::query()->where('movement', $movement)
             ->where('occurred_at', '>=', $from)->sum('quantity_kg')), 0, '.', '');
 

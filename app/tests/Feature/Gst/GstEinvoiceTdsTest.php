@@ -115,6 +115,7 @@ describe('e-invoice and e-way bill', function () {
         $this->f->as($this->f->acc->accountant);
         $bill = $einvoice->ewayBill($bill, 250);
         expect($bill->eway_bill_no)->toHaveLength(12)
+            ->and($bill->fresh()->eway_valid_until->timezone('Asia/Kolkata')->format('H:i'))->toBe('23:59') // stored in UTC, valid to IST midnight
             ->and(EInvoiceEvent::query()->where('kind', 'ewb_generated')->sole()->request)->toMatchArray(['VehNo' => 'HR05AB1234', 'Distance' => 250]);
         expect(fn () => $einvoice->cancel($bill, '2', 'Wrong rate'))->toThrow(BusinessRuleViolation::class, 'e-way bill');
 

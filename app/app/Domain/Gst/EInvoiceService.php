@@ -58,7 +58,7 @@ final class EInvoiceService
         return DB::transaction(function () use ($bill, $result): SalesBill {
             $bill = SalesBill::query()->lockForUpdate()->findOrFail($bill->id);
             $bill->forceFill([
-                'irn' => $result['irn'], 'irn_ack_no' => $result['ack_no'], 'irn_ack_at' => CarbonImmutable::parse($result['ack_at']),
+                'irn' => $result['irn'], 'irn_ack_no' => $result['ack_no'], 'irn_ack_at' => CarbonImmutable::parse($result['ack_at'])->utc(),
                 'irn_signed_qr' => $result['signed_qr'], 'einvoice_status' => 'generated',
             ])->save();
 
@@ -99,7 +99,7 @@ final class EInvoiceService
         }
         $payload = EInvoicePayload::ewayBill($bill, GateEntry::query()->find($bill->gate_entry_id), $distanceKm);
         $result = $this->call($bill, 'ewb_generated', $payload, fn () => $this->provider->generateEwayBill($payload));
-        $bill->forceFill(['eway_bill_no' => $result['eway_bill_no'], 'eway_valid_until' => CarbonImmutable::parse($result['valid_until'])])->save();
+        $bill->forceFill(['eway_bill_no' => $result['eway_bill_no'], 'eway_valid_until' => CarbonImmutable::parse($result['valid_until'])->utc()])->save();
 
         return $bill;
     }

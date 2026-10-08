@@ -63,6 +63,6 @@
         <tr><th colspan="4" class="num">Total</th><th class="num">{{ $m($bill->total_paise) }}</th></tr>
     </table>
     <p><strong>{{ $words }}</strong></p>
-    <p class="muted">Verification code: <span class="code">{{ $code }}</span> · computer-generated from the weighment slip and the confirmed deal.</p>
+    <p class="muted">Verification code: <span class="code">{{ $code }}</span> · computer-generated from the weighment slip and the confirmed deal · check at {{ url('/verify') }}</p>
 </body>
 </html>

@@ -76,7 +76,7 @@ describe('anomaly alerts', function () {
         $this->f->as($this->f->inv->supervisor);
         $entry = app(GateService::class)->arrive(['registration_no' => 'HR05AB1234']);
         $night = CarbonImmutable::now('Asia/Kolkata')->startOfDay()->addHours(2);
-        app(GateService::class)->recordWeighment($entry, 'gross', '20000', $this->f->inv->gate->scale, GateFixtures::readings('20000'), str_repeat('b', 64), $night, strict: false);
+        app(GateService::class)->recordWeighment($entry, 'gross', '20000', $this->f->inv->gate->scale, GateFixtures::readings('20000'), str_repeat('b', 64), $night->utc(), strict: false);
 
         $this->f->as($this->f->acc->owner);
         $counts = app(AnomalyScanner::class)->scan($night->subHour(), now()->addHour());
