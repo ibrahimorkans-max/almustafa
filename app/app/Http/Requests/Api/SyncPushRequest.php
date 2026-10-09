@@ -26,6 +26,12 @@ final class SyncPushRequest extends FormRequest
             'events.*.record_id' => ['nullable', 'uuid'],
             'events.*.base_version' => ['nullable', 'integer', 'min:0'],
             'events.*.payload' => ['present', 'array'],
+            // The device's clock at upload time (boot / app-session id, monotonic ms, wall time), used to date
+            // offline attendance punches independently of the phone's settable clock.
+            'device_clock' => ['nullable', 'array'],
+            'device_clock.boot_id' => ['nullable', 'string', 'max:64'],
+            'device_clock.monotonic_ms' => ['nullable', 'integer', 'min:0'],
+            'device_clock.wall_time' => ['nullable', 'date'],
         ];
     }
 }

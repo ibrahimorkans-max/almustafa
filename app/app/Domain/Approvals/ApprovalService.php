@@ -7,6 +7,7 @@ namespace App\Domain\Approvals;
 use App\Domain\Approvals\Actions\ChangeRolePermissions;
 use App\Domain\Approvals\Actions\CreditOverride;
 use App\Domain\Approvals\Actions\EmployeeBankAccountChange;
+use App\Domain\Approvals\Actions\ManualAttendance;
 use App\Domain\Approvals\Actions\ManualWeighmentOverride;
 use App\Domain\Approvals\Actions\PartyBankAccountChange;
 use App\Domain\Approvals\Actions\PaymentRelease;
@@ -54,6 +55,7 @@ final class ApprovalService
         CreditOverride::KEY => CreditOverride::class,
         RateChange::KEY => RateChange::class,
         EmployeeBankAccountChange::KEY => EmployeeBankAccountChange::class,
+        ManualAttendance::KEY => ManualAttendance::class,
     ];
 
     public function __construct(

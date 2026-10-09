@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Auth\DeviceService;
+use App\Domain\Hr\Attendance\DeviceClock;
 use App\Domain\Sync\SyncRegistry;
 use App\Domain\Sync\SyncService;
 use App\Http\Controllers\Controller;
@@ -42,6 +43,7 @@ final class SyncController extends Controller
     {
         /** @var LoginAccount $account */
         $account = $request->user();
+        app(DeviceClock::class)->set($request->validated('device_clock'));
 
         return response()->json([
             'results' => $sync->push($account, $this->device($request), $request->validated('events')),

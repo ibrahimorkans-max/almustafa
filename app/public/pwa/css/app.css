@@ -124,3 +124,9 @@ button.secondary { background: transparent; color: var(--text); border: 1px soli
 .badge.online { color: var(--primary); }
 .badge.offline, .badge.locked, .badge.wiped, .badge.auth_required { color: var(--danger); }
 .badge.syncing { color: var(--warning); }
+
+/* Attendance camera */
+dialog#camera { border: 1px solid var(--line, #ccc); border-radius: 12px; padding: 16px; max-width: min(92vw, 480px); }
+dialog#camera video { width: 100%; border-radius: 8px; background: #000; transform: scaleX(-1); }
+dialog#camera::backdrop { background: rgb(0 0 0 / 0.5); }
+#attendance .row button { flex: 1; min-height: 48px; }

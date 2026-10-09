@@ -44,13 +44,15 @@ export class SyncEngine {
    *   onChange?: (status: object) => void,
    * }} options
    */
-  constructor({ store, api, accountId, now = () => new Date(), uuid = () => crypto.randomUUID(), onChange = () => {} }) {
+  constructor({ store, api, accountId, now = () => new Date(), uuid = () => crypto.randomUUID(), onChange = () => {}, clock = null }) {
     this.store = store;
     this.api = api;
     this.accountId = accountId;
     this.now = now;
     this.uuid = uuid;
     this.onChange = onChange;
+    // Device clock for the server's time check: () => ({ boot_id, monotonic_ms, wall_time }).
+    this.clock = clock;
     this.state = State.ONLINE;
     this.running = null;
   }
@@ -87,6 +89,45 @@ export class SyncEngine {
     return record;
   }
 
+  /**
+   * Queue an append-only event (no local record), e.g. an attendance punch. Returns the event.
+   * @param {string} type e.g. "attendance.punch"
+   * @param {object} payload
+   */
+  async append(type, payload) {
+    this.assertUsable();
+    const seq = (await this.store.getMeta('client_seq', 0)) + 1;
+    await this.store.setMeta('client_seq', seq);
+    const event = {
+      event_id: this.uuid(), client_seq: seq, occurred_at: this.now().toISOString(), type,
+      record_id: null, base_version: null, payload, account_id: this.accountId,
+    };
+    await this.store.addEvent(event);
+    await this.emit();
+    return event;
+  }
+
+  /**
+   * Keep a file (e.g. the attendance photo) until it is uploaded; events refer to it by its SHA-256,
+   * and the server waits for the file rather than losing the evidence.
+   */
+  async addFile(sha256, mime, base64) {
+    const files = await this.store.getMeta('files', {});
+    files[sha256] = { mime, base64 };
+    await this.store.setMeta('files', files);
+  }
+
+  async uploadFiles() {
+    const files = await this.store.getMeta('files', {});
+    for (const [sha, file] of Object.entries(files)) {
+      const result = await this.api.uploadFile(file.base64, file.mime);
+      if (result.sha256 !== sha) throw new ApiError(500, { error: 'file_hash_mismatch' });
+      const left = await this.store.getMeta('files', {});
+      delete left[sha];
+      await this.store.setMeta('files', left);
+    }
+  }
+
   // ---------------------------------------------------------------- sync
 
   /** Runs one full sync; concurrent calls share the same run. */
@@ -108,6 +149,7 @@ export class SyncEngine {
       await this.store.setMeta('max_offline_hours', boot.max_offline_hours);
       await this.store.setMeta('max_push_events', boot.max_push_events);
       await this.touchServerContact();
+      await this.uploadFiles();
       await this.pushAll(boot.max_push_events || 500);
       await this.pullAll();
       await this.store.setMeta('last_sync_at', this.now().toISOString());
@@ -128,7 +170,7 @@ export class SyncEngine {
         .slice(0, batchSize);
       if (events.length === 0) return;
 
-      const body = await this.api.push(events.map(({ account_id, _held, ...wire }) => wire));
+      const body = await this.api.push(events.map(({ account_id, _held, ...wire }) => wire), this.clock ? this.clock() : undefined);
       await this.touchServerContact();
       let progressed = false;
       for (const result of body.results) {
@@ -151,7 +193,17 @@ export class SyncEngine {
     if (!FINAL.has(result.status)) return false; // "retry": keep it
 
     await this.store.removeEvent(event.event_id);
-    const local = await this.store.getRecord(type, event.record_id);
+    if (result.attendance_status) {
+      // The server's verdict on a punch, in its own words, kept for the employee to see.
+      const verdicts = await this.store.getMeta('punch_results', {});
+      verdicts[event.event_id] = { status: result.attendance_status, messages: result.messages || [] };
+      await this.store.setMeta('punch_results', verdicts);
+      if (result.attendance_status !== 'valid') {
+        await this.addNotice(result.attendance_status === 'rejected' ? 'error' : 'warning',
+          `Attendance ${event.payload.kind}: ${result.attendance_status} — ${(result.messages || []).join('; ')}`, event);
+      }
+    }
+    const local = event.record_id ? await this.store.getRecord(type, event.record_id) : null;
     const stillPending = (await this.store.listEvents()).some((e) => e.record_id === event.record_id);
 
     if (result.status === 'conflict_server_won' && result.record) {

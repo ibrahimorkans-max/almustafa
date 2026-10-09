@@ -7,6 +7,7 @@ namespace App\Domain\Sync;
 use App\Domain\Gate\GateService;
 use App\Domain\Production\ProductionService;
 use App\Domain\Sync\Contracts\SyncHandler;
+use App\Domain\Sync\Handlers\AttendanceHandler;
 use App\Domain\Sync\Handlers\GateHandlers;
 use App\Domain\Sync\Handlers\MasterUpsertHandler;
 use App\Domain\Sync\Handlers\ProductionHandlers;
@@ -86,6 +87,7 @@ final class SyncRegistry
             $handlers = [
                 ...GateHandlers::all($this->container->make(GateService::class)),
                 ...ProductionHandlers::all($this->container->make(ProductionService::class)),
+                $this->container->make(AttendanceHandler::class),
             ];
             foreach ($handlers as $handler) {
                 $this->appendOnly[$handler->type()] = $handler;

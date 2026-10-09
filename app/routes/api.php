@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuditController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\FileController;
@@ -28,6 +29,10 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('sync/wipe-ack', [SyncController::class, 'wipeAck'])->name('sync.wipe-ack');
         Route::post('files', [FileController::class, 'store'])->name('files.store');
         Route::post('gate/barrier', [GateBarrierController::class, 'decide'])->name('gate.barrier');
+
+        Route::get('attendance/me', [AttendanceController::class, 'me'])->name('attendance.me');
+        Route::post('attendance/consent', [AttendanceController::class, 'consent'])->name('attendance.consent');
+        Route::post('attendance/device', [AttendanceController::class, 'requestDevice'])->name('attendance.device');
 
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
         Route::get('auth/me', [AuthController::class, 'me'])->name('auth.me');

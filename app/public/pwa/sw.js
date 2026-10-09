@@ -2,7 +2,7 @@
  * Service worker: caches the app shell so the PWA opens with no network.
  * API calls are never cached — data lives in IndexedDB and moves only through the sync API.
  */
-const VERSION = 'ricemill-pwa-v1';
+const VERSION = 'ricemill-pwa-v2'; // bump on every shell change so phones fetch the new files
 const SHELL = [
   './',
   'index.html',
@@ -10,6 +10,7 @@ const SHELL = [
   'icon.svg',
   'css/app.css',
   'js/app.js',
+  'js/attendance.js',
   'js/api.js',
   'js/idb-store.js',
   'js/store-contract.js',

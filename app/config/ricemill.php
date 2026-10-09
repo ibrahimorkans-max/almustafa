@@ -134,6 +134,32 @@ return [
         'mysql_bin' => env('RICEMILL_MYSQL_BIN', ''),
     ],
 
+    'attendance' => [
+        // The notice employees accept before their first punch. Change the version when the text changes:
+        // everyone is asked again.
+        'notice_version' => '2026-10',
+        'notice' => 'When you mark attendance, this app records your location at that moment and a photo taken with the '
+            .'front camera, together with the phone and time. They are used only to confirm your attendance and are '
+            .'seen only by HR. Your location is not tracked at any other time.',
+        'require_selfie' => (bool) env('RICEMILL_ATTENDANCE_REQUIRE_SELFIE', true),
+        'max_accuracy_m' => (int) env('RICEMILL_ATTENDANCE_MAX_ACCURACY_M', 100),
+        // Device time vs time reconstructed from the monotonic clock.
+        'clock_tolerance_seconds' => 120,
+        // An offline punch uploaded later than this is flagged for review.
+        'late_upload_hours' => 48,
+        // HR phase 3: integrity and sanity checks.
+        // true once staff use the native app: a punch without integrity signals is flagged (the PWA cannot send them).
+        'require_integrity' => (bool) env('RICEMILL_ATTENDANCE_REQUIRE_INTEGRITY', false),
+        'max_speed_kmh' => (int) env('RICEMILL_ATTENDANCE_MAX_SPEED_KMH', 100),
+        'repeated_coordinates_days' => 30,
+        'shared_device_hours' => 12,
+        'device_clock_off_seconds' => 300,
+        'suspicious_accuracy_m' => 1,
+        // Alert when one employee has this many fake-location rejections / integrity flags within 7 days.
+        'alert_mock_rejections' => 3,
+        'alert_integrity_flags' => 5,
+    ],
+
     'archive' => [
         // Closed records (saudas, gate entries, batches, requisitions, claims) are archived this long after closing.
         'retention_months' => (int) env('RICEMILL_ARCHIVE_RETENTION_MONTHS', 24),

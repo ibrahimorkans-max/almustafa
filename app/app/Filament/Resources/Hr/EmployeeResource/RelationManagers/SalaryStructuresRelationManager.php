@@ -55,7 +55,7 @@ class SalaryStructuresRelationManager extends RelationManager
         };
 
         return $table
-            ->modifyQueryUsing(fn (Builder $q) => $q->with('lines.component'))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with('lines.component'))
             ->columns([
                 TextColumn::make('effective_from')->date('d M Y')->sortable(),
                 TextColumn::make('pay_basis')->label('Basis')->formatStateUsing(fn (string $state) => SalaryStructure::BASES[$state] ?? $state),

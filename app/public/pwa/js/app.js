@@ -1,8 +1,9 @@
 /**
- * PWA shell: sign-in, Online/Offline/Syncing badge with unsynced count, and the first
- * offline screen — vehicles at the gate (list + register, works with no network).
+ * PWA shell: sign-in, Online/Offline/Syncing badge with unsynced count, attendance punching for
+ * staff, and vehicles at the gate (list + register) for gate roles — all usable with no network.
  */
 import { Api } from './api.js';
+import { deviceClock, renderAttendance } from './attendance.js';
 import { openIdbStore } from './idb-store.js';
 import { MemoryStore } from './store-contract.js';
 import { ApiError, State, SyncEngine } from './sync-engine.js';
@@ -16,6 +17,8 @@ let store;
 let api;
 let engine = null;
 let timer = null;
+let lastState = null;
+let currentAccount = null;
 
 async function start() {
   try {
@@ -46,7 +49,8 @@ async function start() {
 // ------------------------------------------------------------------ engine
 
 async function startEngine(account) {
-  engine = new SyncEngine({ store, api, accountId: account.id, onChange: onStatus });
+  currentAccount = account;
+  engine = new SyncEngine({ store, api, accountId: account.id, onChange: onStatus, clock: deviceClock });
   if (await engine.offlineTooLong()) {
     engine.state = State.LOCKED;
     return onStatus(await engine.status());
@@ -73,7 +77,12 @@ async function onStatus(status) {
   } else if (document.getElementById('vehicles')) {
     await renderVehicles();
     await renderNotices();
+    // After a completed sync, show the server's verdict on uploaded punches.
+    if (lastState === State.SYNCING && status.state !== State.SYNCING) {
+      await renderAttendance({ store, api, engine, account: currentAccount });
+    }
   }
+  lastState = status.state;
 }
 
 function renderBadge(status) {
@@ -142,6 +151,11 @@ function showMessage(title, text, action) {
 
 async function showMain() {
   mount('tpl-main');
+  const perms = currentAccount?.permissions || [];
+  const gate = ['gate.entry', 'master.view', 'master.manage'].some((p) => perms.includes(p));
+  view.querySelectorAll('.gate-only').forEach((el) => { el.hidden = !gate; });
+  document.getElementById('search').hidden = !gate;
+  await renderAttendance({ store, api, engine, account: currentAccount });
   document.getElementById('sync-now').addEventListener('click', () => engine.sync());
   document.getElementById('search').addEventListener('input', () => renderVehicles());
   document.getElementById('logout').addEventListener('click', async () => {

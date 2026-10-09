@@ -19,7 +19,8 @@ final class FileController extends Controller
         /** @var LoginAccount $account */
         $account = $request->user();
         abort_unless(
-            collect(['gate.entry', 'weighment.capture', 'lab.test', 'master.manage'])->contains(fn ($p) => $account->hasPermission($p)),
+            // hr.attendance.punch: the attendance selfie.
+            collect(['gate.entry', 'weighment.capture', 'lab.test', 'master.manage', 'hr.attendance.punch'])->contains(fn ($p) => $account->hasPermission($p)),
             403,
         );
         // Two forms: multipart field "file" (browsers), or the raw bytes as the request body

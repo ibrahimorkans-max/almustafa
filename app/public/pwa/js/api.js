@@ -42,8 +42,28 @@ export class Api {
     return this.send('GET', '/sync/bootstrap');
   }
 
-  push(events) {
-    return this.send('POST', '/sync/push', { events });
+  push(events, deviceClock) {
+    return this.send('POST', '/sync/push', deviceClock ? { events, device_clock: deviceClock } : { events });
+  }
+
+  /** Upload a kept file (base64) as a browser form; the server answers with its SHA-256. */
+  async uploadFile(base64, mime) {
+    const bytes = Uint8Array.from(atob(base64), (ch) => ch.charCodeAt(0));
+    const form = new FormData();
+    form.append('file', new Blob([bytes], { type: mime }), mime === 'image/png' ? 'photo.png' : 'photo.jpg');
+    return this.send('POST', '/files', form);
+  }
+
+  attendanceMe() {
+    return this.send('GET', '/attendance/me');
+  }
+
+  attendanceConsent(noticeVersion) {
+    return this.send('POST', '/attendance/consent', { notice_version: noticeVersion });
+  }
+
+  attendanceRequestDevice() {
+    return this.send('POST', '/attendance/device', {});
   }
 
   pull(cursor, limit) {
@@ -61,13 +81,15 @@ export class Api {
 
   async send(method, path, json, authenticated = true, retried = false) {
     const headers = { Accept: 'application/json', 'X-Device-Id': await this.deviceUid() };
-    if (json !== undefined) headers['Content-Type'] = 'application/json';
+    const isForm = typeof FormData !== 'undefined' && json instanceof FormData;
+    if (json !== undefined && !isForm) headers['Content-Type'] = 'application/json';
     const tokens = await this.store.getMeta('tokens', null);
     if (authenticated && tokens) headers.Authorization = `Bearer ${tokens.access}`;
 
     let response;
     try {
-      response = await fetch(BASE + path, { method, headers, body: json === undefined ? undefined : JSON.stringify(json), credentials: 'omit' });
+      const requestBody = json === undefined ? undefined : (isForm ? json : JSON.stringify(json));
+      response = await fetch(BASE + path, { method, headers, body: requestBody, credentials: 'omit' });
     } catch (e) {
       throw new NetworkError(String(e));
     }
