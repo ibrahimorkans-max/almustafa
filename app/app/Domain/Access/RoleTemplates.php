@@ -32,6 +32,8 @@ final class RoleTemplates
 
     public const HR_MANAGER = 'HR_MANAGER';
 
+    public const EMPLOYEE = 'EMPLOYEE';
+
     /**
      * @return array<string, array{name: string, global: bool, mfa_required: bool, session_max_minutes: int, permissions: list<string>}>
      */
@@ -40,7 +42,7 @@ final class RoleTemplates
         $all = PermissionCatalog::codes();
         $except = static fn (string ...$excluded): array => array_values(array_diff($all, $excluded));
 
-        return [
+        $templates = [
             self::SUPER_ADMIN => [
                 'name' => 'Super Admin',
                 'global' => true,
@@ -144,7 +146,25 @@ final class RoleTemplates
                     'hr.documents.generate', 'hr.documents.share', 'hr.documents.template.manage',
                 ],
             ],
+            self::EMPLOYEE => [
+                'name' => 'Employee (attendance only)',
+                'global' => false,
+                'mfa_required' => false,
+                'session_max_minutes' => 720,
+                'permissions' => [],
+            ],
         ];
+
+        // Every staff role marks its own attendance (brokers are not employees; Owner / Super Admin
+        // already hold every permission).
+        foreach ($templates as $code => $template) {
+            if (! $template['global'] && ! in_array($code, [self::BROKER, self::OWNER], true)
+                && ! in_array('hr.attendance.punch', $template['permissions'], true)) {
+                $templates[$code]['permissions'][] = 'hr.attendance.punch';
+            }
+        }
+
+        return $templates;
     }
 
     /** @return array{name: string, global: bool, mfa_required: bool, session_max_minutes: int, permissions: list<string>} */

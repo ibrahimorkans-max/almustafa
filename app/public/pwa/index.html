@@ -6,7 +6,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="theme-color" content="#047857">
-  <title>Rice Mill — Gate</title>
+  <title>Rice Mill — Gate and attendance</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/app.css">
@@ -39,7 +39,25 @@
       <button id="logout" type="button" class="secondary">Sign out</button>
     </section>
 
-    <form id="vehicle-form" class="card">
+    <section id="attendance" class="card" hidden>
+      <h2>Attendance</h2>
+      <p class="info muted"></p>
+      <div class="notice" hidden>
+        <p class="text"></p>
+        <button type="button" class="agree">I agree</button>
+      </div>
+      <div class="actions" hidden>
+        <p class="device muted"></p>
+        <button type="button" class="request-device secondary" hidden>Ask HR to approve this phone</button>
+        <div class="row">
+          <button type="button" class="punch-in">Punch in</button>
+          <button type="button" class="punch-out secondary">Punch out</button>
+        </div>
+        <ul id="punches" class="list"></ul>
+      </div>
+    </section>
+
+    <form id="vehicle-form" class="card gate-only">
       <h2>Register vehicle</h2>
       <div class="row">
         <label>Registration no. <input name="registration_no" required maxlength="20" placeholder="HR05AB1234" autocapitalize="characters"></label>
@@ -54,7 +72,7 @@
       <p class="error" role="alert"></p>
     </form>
 
-    <section class="card">
+    <section class="card gate-only">
       <h2>Vehicles <small id="vehicle-count" class="muted"></small></h2>
       <ul id="vehicles" class="list"></ul>
     </section>
@@ -64,6 +82,15 @@
       <ul id="notices" class="list"></ul>
     </section>
   </template>
+
+  <dialog id="camera" aria-label="Take attendance photo">
+    <p>Look at the camera, then press Take photo.</p>
+    <video playsinline muted></video>
+    <div class="row">
+      <button type="button" class="capture">Take photo</button>
+      <button type="button" class="cancel secondary">Cancel</button>
+    </div>
+  </dialog>
 
   <template id="tpl-message">
     <section class="card narrow">

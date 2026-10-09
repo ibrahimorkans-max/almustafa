@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Sync;
 
+use App\Domain\Sync\Contracts\AcceptsLateEvents;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Device;
 use App\Models\LoginAccount;
@@ -119,7 +120,7 @@ final class SyncService
         }
 
         $maxOfflineHours = (int) config('ricemill.sync.max_offline_hours');
-        if ($event->occurredAt->lt($receivedAt->subHours($maxOfflineHours))) {
+        if (! $handler instanceof AcceptsLateEvents && $event->occurredAt->lt($receivedAt->subHours($maxOfflineHours))) {
             $this->conflicts->record($event, ConflictLog::NEEDS_REVIEW, 'older_than_offline_limit', null);
 
             return new SyncOutcome(SyncOutcome::NEEDS_REVIEW, reason: 'older_than_offline_limit');

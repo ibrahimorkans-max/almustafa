@@ -284,3 +284,66 @@ describe('lockdown and maintenance', () => {
     assert.equal(status.unsynced, 1);
   });
 });
+
+describe('attendance punches', () => {
+  /** A server that also takes files and answers attendance punches with a verdict. */
+  function attendanceServer(verdict = { attendance_status: 'valid', reasons: [], messages: [] }) {
+    const s = new FakeServer();
+    s.files = new Map();
+    s.clocks = [];
+    s.uploadFile = async (base64, mime) => {
+      s.guard();
+      const bytes = Uint8Array.from(Buffer.from(base64, 'base64'));
+      const sha = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
+      s.files.set(sha, mime);
+      return { sha256: sha };
+    };
+    const push = s.push.bind(s);
+    s.push = async (events, clock) => {
+      s.guard();
+      s.clocks.push(clock);
+      const punches = events.filter((e) => e.type === 'attendance.punch');
+      for (const p of punches) {
+        if (p.payload.selfie_sha256 && !s.files.has(p.payload.selfie_sha256)) throw new Error('photo must be uploaded before the punch');
+      }
+      const others = events.filter((e) => e.type !== 'attendance.punch');
+      const base = others.length ? (await push(others)).results : [];
+      return { results: [...base, ...punches.map((e) => ({ event_id: e.event_id, client_seq: e.client_seq, status: 'applied', ...verdict }))] };
+    };
+    return s;
+  }
+
+  const photo = Buffer.from('fake-jpeg-bytes').toString('base64');
+
+  it('queues an offline punch with its photo and uploads the photo first, then the punch with the device clock', async () => {
+    server = attendanceServer();
+    engine = new SyncEngine({ store, api: server, accountId: 'acc-1', now: () => clock, uuid: () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`,
+      clock: () => ({ boot_id: 'b1', monotonic_ms: 1234, wall_time: clock.toISOString() }) });
+    server.offline = true;
+    const sha = [...new Uint8Array(await crypto.subtle.digest('SHA-256', Buffer.from('fake-jpeg-bytes')))].map((b) => b.toString(16).padStart(2, '0')).join('');
+    await engine.addFile(sha, 'image/jpeg', photo);
+    await engine.append('attendance.punch', { kind: 'in', device_time: clock.toISOString(), boot_id: 'b1', monotonic_ms: 1000, selfie_sha256: sha });
+
+    let status = await engine.sync();
+    assert.equal(status.state, State.OFFLINE);
+    assert.equal(status.unsynced, 1, 'the punch waits on the phone');
+
+    server.offline = false;
+    status = await engine.sync();
+    assert.equal(status.unsynced, 0);
+    assert.ok(server.files.has(sha), 'photo uploaded');
+    assert.deepEqual(server.clocks.at(-1), { boot_id: 'b1', monotonic_ms: 1234, wall_time: clock.toISOString() });
+    assert.deepEqual(await store.getMeta('files', {}), {}, 'uploaded photos leave the phone queue');
+  });
+
+  it('keeps the verdict and tells the employee when a punch is flagged or rejected', async () => {
+    server = attendanceServer({ attendance_status: 'flagged', reasons: ['outside_geofence'], messages: ['Outside every work site'] });
+    engine = new SyncEngine({ store, api: server, accountId: 'acc-1', now: () => clock, uuid: () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}` });
+    const ev = await engine.append('attendance.punch', { kind: 'out', device_time: clock.toISOString() });
+    await engine.sync();
+    const verdicts = await store.getMeta('punch_results', {});
+    assert.equal(verdicts[ev.event_id].status, 'flagged');
+    const notices = await store.getMeta('notices', []);
+    assert.match(notices[0].message, /Attendance out: flagged — Outside every work site/);
+  });
+});

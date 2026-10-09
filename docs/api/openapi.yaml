@@ -169,6 +169,16 @@ paths:
               required: [events]
               properties:
                 events: { type: array, minItems: 1, maxItems: 500, items: { $ref: '#/components/schemas/SyncEvent' } }
+                device_clock:
+                  description: |
+                    The device's clock at upload time. With it the server dates offline attendance punches from the
+                    monotonic clock (which the user cannot set) and detects a changed phone clock. `boot_id` identifies
+                    the boot (native app) or app session (PWA) in which `monotonic_ms` counts.
+                  type: object
+                  properties:
+                    boot_id: { type: string, maxLength: 64 }
+                    monotonic_ms: { type: integer, minimum: 0 }
+                    wall_time: { type: string, format: date-time }
       responses:
         '200':
           description: One result per event, in client_seq order
@@ -256,6 +266,53 @@ paths:
                   reason: { type: string, examples: [arrival_registered, slip_issued, gate_pass_issued, no_slip, no_gate_pass, blocked_vehicle, no_matching_vehicle] }
                   gate_entry_id: { type: [string, 'null'], format: uuid }
         '403': { description: No gate permission (barrier stays closed) }
+  /attendance/me:
+    get:
+      summary: The employee's attendance set-up and today's punches (needs hr.attendance.punch)
+      description: |
+        `notice` is the text shown before the first punch (location and photo at punch time only, no tracking);
+        a punch counts only after it is accepted (`POST /attendance/consent`). `device.status` is this phone's
+        approval: not_requested | pending | approved | rejected | revoked.
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      responses:
+        '200':
+          description: Set-up (employee null when the login has no employee record)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  employee: { type: [object, 'null'], properties: { id: { type: string }, code: { type: string }, name: { type: string }, status: { type: string } } }
+                  notice: { type: object, properties: { version: { type: string }, text: { type: string }, accepted: { type: boolean } } }
+                  device: { type: object, properties: { status: { type: string } } }
+                  require_selfie: { type: boolean }
+                  sites: { type: array, items: { type: object, properties: { code: { type: string }, name: { type: string }, lat: { type: number }, lng: { type: number }, radius_m: { type: integer } } } }
+                  today: { type: array, items: { type: object, properties: { kind: { type: string }, at: { type: string, format: date-time }, status: { type: string, enum: [valid, flagged, rejected] }, messages: { type: array, items: { type: string } } } } }
+        '403': { description: No hr.attendance.punch }
+  /attendance/consent:
+    post:
+      summary: Accept the attendance notice (stored, append-only)
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [notice_version], properties: { notice_version: { type: string } } } } }
+      responses:
+        '201': { description: Accepted }
+        '422': { description: 'No employee record, or the notice changed (read it again)' }
+  /attendance/device:
+    post:
+      summary: Ask HR to approve this phone for attendance (one approved phone per employee)
+      description: |
+        Punches are then sent as sync events of type `attendance.punch` with payload
+        `{ kind: in|out, device_time, lat, lng, accuracy_m, selfie_sha256, boot_id, monotonic_ms, source: pwa|app, signals }`.
+        Upload the photo first (`POST /files`); a punch whose photo has not arrived answers `retry`. The result carries
+        `attendance_status` (valid | flagged | rejected), `reasons` (codes) and `messages` (plain words).
+        `signals` is the native app's integrity evidence (mock location, root / jailbreak, Play Integrity / App Attest).
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      responses:
+        '201': { description: Request created, content: { application/json: { schema: { type: object, properties: { status: { type: string } } } } } }
+        '200': { description: 'Already pending or approved' }
+        '422': { description: No employee record }
 components:
   securitySchemes:
     bearer: { type: http, scheme: bearer }
