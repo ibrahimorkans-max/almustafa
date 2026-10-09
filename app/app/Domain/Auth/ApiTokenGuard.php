@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Auth;
 
+use App\Domain\Security\Lockdown;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
 use App\Models\LoginAccount;
@@ -35,9 +36,16 @@ final class ApiTokenGuard
 
         $resolved = $this->tokens->authenticate($plain, $request->header('X-Device-Id'));
         if ($resolved === null) {
+            $request->attributes->set('auth_failure', $this->tokens->failureReason($plain));
+
             return null;
         }
         [$account, $session, $device] = $resolved;
+        if (app(Lockdown::class)->blocks($account)) {
+            $request->attributes->set('auth_failure', 'system_locked');
+
+            return null;
+        }
 
         $working = $request->header('X-Entity-Id');
         if ($working !== null) {

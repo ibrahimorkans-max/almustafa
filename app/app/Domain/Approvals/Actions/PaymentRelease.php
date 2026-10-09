@@ -7,6 +7,7 @@ namespace App\Domain\Approvals\Actions;
 use App\Domain\Accounts\PaymentService;
 use App\Domain\Approvals\ApprovalService;
 use App\Domain\Approvals\Contracts\ApprovalAction;
+use App\Domain\Approvals\Contracts\ExplainsCheckerRule;
 use App\Domain\Approvals\Contracts\HandlesRejection;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
 use App\Domain\Shared\BusinessRuleViolation;
@@ -21,7 +22,7 @@ use Illuminate\Validation\ValidationException;
  * configured amount the first approval only moves the payment to "first approved" and raises a
  * stage-2 request, which needs yet another person (neither the requester nor the first approver).
  */
-final class PaymentRelease implements ApprovalAction, HandlesRejection
+final class PaymentRelease implements ApprovalAction, ExplainsCheckerRule, HandlesRejection
 {
     public const KEY = 'payment.release';
 
@@ -45,6 +46,13 @@ final class PaymentRelease implements ApprovalAction, HandlesRejection
         $requester = $request->payload['requester_person_id'] ?? null;
 
         return $requester === null || $requester !== $checker->person_id;
+    }
+
+    public function whyCheckerMayNotDecide(LoginAccount $checker, ApprovalRequest $request): string
+    {
+        return $checker->hasPermission('payment.approve')
+            ? 'The person who entered this payment cannot also release it (second approver needed).'
+            : "Releasing payments needs the 'payment.approve' permission.";
     }
 
     public function validate(array $payload, LoginAccount $maker): array

@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Domain\Procurement\QuoteService;
 use App\Domain\Procurement\SaudaService;
+use App\Domain\Security\Lockdown;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
 use Illuminate\Console\Command;
@@ -21,6 +22,11 @@ final class ProcurementExpireCommand extends Command
     {
         $entities = $tenant->runAsSystem(fn () => Entity::query()->pluck('id'));
         foreach ($entities as $entityId) {
+            if (app(Lockdown::class)->isLocked((string) $entityId)) {
+                $this->warn("{$entityId}: skipped, locked by administrator");
+
+                continue;
+            }
             $tenant->runAsSystem(function () {
                 $quotes = app(QuoteService::class)->expireOverdue();
                 $saudas = app(SaudaService::class)->expireOverdue();

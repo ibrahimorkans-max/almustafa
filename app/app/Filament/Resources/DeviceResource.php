@@ -8,6 +8,8 @@ use App\Domain\Auth\DeviceService;
 use App\Filament\Resources\DeviceResource\Pages;
 use App\Models\Device;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\IconColumn;
@@ -49,6 +51,18 @@ class DeviceResource extends Resource
                 ]),
             ])
             ->actions([
+                Action::make('lost')->label('Mark lost / stolen')->icon('heroicon-o-exclamation-triangle')->color('danger')
+                    ->visible(fn (Device $r) => $r->reported_lost_at === null && $r->status !== Device::STATUS_WIPED && Gate::allows('manage', $r))
+                    ->form([
+                        Textarea::make('reason')->label('What happened')->required()->minLength(5)->maxLength(500),
+                        Toggle::make('sign_out_everywhere')->label('Also sign this user out on all their other devices')->default(true),
+                    ])
+                    ->requiresConfirmation()
+                    ->modalDescription("Phones, PWA and gate PCs erase their local data at their next connection and can do nothing else until then; a browser is signed out. Owners are alerted. Consider resetting the user's password too.")
+                    ->action(function (Device $r, array $data): void {
+                        app(DeviceService::class)->markLost($r, $data['reason'], (bool) $data['sign_out_everywhere']);
+                        Notification::make()->title('Device marked lost. Wipe queued.')->success()->send();
+                    }),
                 Action::make('revoke')->icon('heroicon-o-no-symbol')->color('danger')
                     ->visible(fn (Device $r) => $r->isUsable() && Gate::allows('manage', $r))
                     ->form([Textarea::make('reason')->required()->maxLength(500)])

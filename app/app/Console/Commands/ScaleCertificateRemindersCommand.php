@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Security\Lockdown;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
 use App\Models\Gate\ScaleCertificate;
@@ -28,6 +29,11 @@ final class ScaleCertificateRemindersCommand extends Command
         $entities = $tenant->runAsSystem(fn () => Entity::query()->pluck('id'));
 
         foreach ($entities as $entityId) {
+            if (app(Lockdown::class)->isLocked((string) $entityId)) {
+                $this->warn("{$entityId}: skipped, locked by administrator");
+
+                continue;
+            }
             $tenant->runAsSystem(function () use ($days, $audit): void {
                 // Latest certificate per scale and type: an older expired one that was renewed is not news.
                 $latest = ScaleCertificate::query()->with('scale')->orderByDesc('valid_until')->get()

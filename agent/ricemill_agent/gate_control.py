@@ -14,7 +14,7 @@ import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 
-from .api import ApiClient, ApiError, OfflineError
+from .api import ApiClient, ApiError, OfflineError, stop_reason
 from .drivers.anpr import PlateCamera
 from .drivers.barrier import Barrier
 from .drivers.display import Display
@@ -38,6 +38,10 @@ class GateController:
         "no_matching_vehicle": "STOP-NOT ENTERED",
         "already_inside": "STOP-INSIDE",
         "dispatch_order_not_open": "STOP-ORDER HELD",
+        "system_locked": "SYSTEM LOCKED",
+        "access_disabled": "STOP-CALL ADMIN",
+        "device_revoked": "STOP-CALL ADMIN",
+        "maintenance": "MAINTENANCE",
     }
 
     def __init__(self, store: LocalStore, api: ApiClient | None, camera: PlateCamera | None, barrier: Barrier, display: Display | None = None) -> None:
@@ -82,7 +86,16 @@ class GateController:
                 body["plate"] = plate
             try:
                 decision = self.api.call("POST", "/gate/barrier", body)
-            except (OfflineError, ApiError, OSError, ValueError):
+                self.store.set_meta("stopped", "")
+            except ApiError as e:
+                reason = stop_reason(e)
+                if reason is not None:
+                    # The barrier stays closed and the board says why; the plate read is still queued.
+                    self.store.set_meta("stopped", reason)
+                    self._show(plate, self.STOP_MESSAGES[reason])
+                    return BarrierResult(False, reason, plate, gate_entry_id)
+                decision = None
+            except (OfflineError, OSError, ValueError):
                 decision = None
 
         if decision is None:

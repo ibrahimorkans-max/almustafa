@@ -117,7 +117,7 @@ def main(argv: list[str] | None = None) -> int:
     api = ApiClient(cfg.server_url, Credentials(cfg.username, cfg.password, cfg.device_uid, cfg.signing_secret))
 
     if args.cmd == "status":
-        print(json.dumps({"unsynced": store.unsynced_count(), "cursor": store.get_meta("cursor", "0")}))
+        print(json.dumps({"unsynced": store.unsynced_count(), "cursor": store.get_meta("cursor", "0"), "stopped": store.get_meta("stopped", "") or None}))
         return 0
     if args.cmd == "sync":
         print(json.dumps(SyncWorker(store, api).run().__dict__, default=str))

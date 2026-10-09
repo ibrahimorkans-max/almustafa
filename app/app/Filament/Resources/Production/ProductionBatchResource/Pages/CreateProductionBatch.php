@@ -7,6 +7,8 @@ namespace App\Filament\Resources\Production\ProductionBatchResource\Pages;
 use App\Domain\Production\ProductionService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Production\ProductionBatchResource;
+use App\Models\LoginAccount;
+use App\Models\Masters\Godown;
 use App\Models\Masters\Product;
 use Carbon\CarbonImmutable;
 use Filament\Resources\Pages\CreateRecord;
@@ -17,20 +19,32 @@ class CreateProductionBatch extends CreateRecord
 {
     protected static string $resource = ProductionBatchResource::class;
 
-    protected static ?string $title = 'Open milling batch';
+    protected static ?string $title = 'Create batch';
 
     /** @param  array<string, mixed>  $data */
     protected function handleRecordCreation(array $data): Model
     {
+        $supervisor = filled($data['supervisor_login_account_id'] ?? null) ? LoginAccount::query()->findOrFail($data['supervisor_login_account_id']) : null;
+        $planned = filled($data['planned_kg'] ?? null) ? (string) $data['planned_kg'] : null;
         try {
-            return app(ProductionService::class)->open(
+            if ($data['via_requisition'] ?? false) {
+                return app(ProductionService::class)->open(Product::query()->findOrFail($data['paddy_product_id']), $data['line'] ?? null,
+                    $data['notes'] ?? null, CarbonImmutable::parse($data['opened_at']), $planned, $supervisor);
+            }
+
+            return app(ProductionService::class)->create(
                 Product::query()->findOrFail($data['paddy_product_id']),
-                $data['line'] ?? null,
-                $data['notes'] ?? null,
+                Godown::query()->findOrFail($data['godown_id']),
+                (string) $data['issue_kg'],
                 CarbonImmutable::parse($data['opened_at']),
+                $data['line'] ?? null,
+                $planned,
+                $supervisor,
+                $data['notes'] ?? null,
             );
         } catch (BusinessRuleViolation $e) {
-            throw ValidationException::withMessages(['data.paddy_product_id' => $e->getMessage()]);
+            // e.g. "Not enough Paddy PR-126 in Silo 1: 1,200 kg available, 5,000 kg requested."
+            throw ValidationException::withMessages([str_contains($e->getMessage(), 'Not enough') ? 'data.issue_kg' : 'data.paddy_product_id' => $e->getMessage()]);
         }
     }
 

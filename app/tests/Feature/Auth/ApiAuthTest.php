@@ -75,6 +75,7 @@ describe('login', function () {
 
         foreach (range(1, 5) as $i) {
             $this->postJson('/api/v1/auth/login', ['password' => "wrong-{$i}"] + loginBody($gate))->assertStatus(401);
+            $this->travel(10)->seconds(); // past the progressive delay after the 3rd and 4th failure
         }
 
         $this->postJson('/api/v1/auth/login', loginBody($gate))->assertStatus(401);
@@ -97,8 +98,10 @@ describe('login', function () {
     });
 
     it('refuses disabled accounts and suspended entities', function () {
-        $disabled = Make::account($this->entity, 'GATE_OPERATOR', ['status' => 'disabled']);
-        $this->postJson('/api/v1/auth/login', loginBody($disabled))->assertStatus(401);
+        $disabled = Make::account($this->entity, 'GATE_OPERATOR', ['status' => 'suspended']);
+        // Right password on a suspended account: told plainly (and only then).
+        $this->postJson('/api/v1/auth/login', loginBody($disabled))->assertStatus(403)->assertJson(['error' => 'access_disabled']);
+        $this->postJson('/api/v1/auth/login', ['password' => 'Wrong-password-1!'] + loginBody($disabled))->assertStatus(401);
 
         $other = Make::entity('SUS');
         $gate = Make::account($other, 'GATE_OPERATOR');

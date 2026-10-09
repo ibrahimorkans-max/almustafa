@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-from .api import ApiClient, ApiError, OfflineError
+from .api import ApiClient, ApiError, OfflineError, stop_reason
 from .queue import LocalStore
 
 log = logging.getLogger(__name__)
@@ -40,11 +40,18 @@ class SyncWorker:
             self._upload_files(report)
             self._push(report, int(boot.get("max_push_events", 500)))
             self._pull(report)
+            self.store.set_meta("stopped", "")
         except OfflineError as e:
             report.state = "offline"
             report.problems.append(str(e))
         except ApiError as e:
-            if e.status == 403 and e.body.get("error") == "wipe_required":
+            reason = stop_reason(e)
+            if reason is not None:
+                # Lockdown / maintenance / access withdrawn: keep every queued reading for later.
+                self.store.set_meta("stopped", reason)
+                report.state = "locked" if reason == "system_locked" else reason
+                report.problems.append(str(e.body.get("message") or reason))
+            elif e.status == 403 and e.body.get("error") == "wipe_required":
                 self.store.wipe()
                 try:
                     self.api.wipe_ack()

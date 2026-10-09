@@ -6,12 +6,14 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\ChangePassword;
+use App\Filament\Pages\DuressPin;
 use App\Filament\Pages\SwitchContext;
 use App\Filament\Pages\TwoFactor;
 use App\Filament\Widgets\MoneyOverview;
 use App\Filament\Widgets\OperationsOverview;
 use App\Filament\Widgets\StockOverview;
 use App\Http\Middleware\EnsureWebAuthSession;
+use App\Http\Middleware\RequireWorkingEntityForCreate;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -54,6 +56,8 @@ class AdminPanelProvider extends PanelProvider
                     ->url(fn () => TwoFactor::getUrl()),
                 MenuItem::make()->label('Change password')->icon('heroicon-o-key')
                     ->url(fn () => ChangePassword::getUrl()),
+                MenuItem::make()->label('Duress PIN')->icon('heroicon-o-exclamation-triangle')
+                    ->url(fn () => DuressPin::getUrl())->visible(fn () => DuressPin::canAccess()),
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -69,6 +73,7 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
                 EnsureWebAuthSession::class,
+                RequireWorkingEntityForCreate::class,
             ], isPersistent: true);
     }
 }

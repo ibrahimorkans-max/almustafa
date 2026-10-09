@@ -24,6 +24,13 @@ final class AuthenticationFailed extends RuntimeException
 
     public const SESSION_INVALID = 'session_invalid';
 
+    public const ACCESS_DISABLED = 'access_disabled';
+
+    public const SYSTEM_LOCKED = 'system_locked';
+
+    /** Neutral ending (used for the duress PIN): says nothing about why. */
+    public const SIGNED_OUT = 'signed_out';
+
     public function __construct(
         public readonly string $publicCode,
         public readonly string $reason,
@@ -45,6 +52,9 @@ final class AuthenticationFailed extends RuntimeException
             self::DEVICE_PENDING_APPROVAL => 'This device needs approval by another Super Admin before it can be used.',
             self::NETWORK_NOT_ALLOWED => 'Sign-in is not allowed from this network.',
             self::SESSION_INVALID => 'Your session has ended. Please sign in again.',
+            self::ACCESS_DISABLED => 'Access disabled, contact your administrator.',
+            self::SYSTEM_LOCKED => 'System locked by administrator.',
+            self::SIGNED_OUT => 'Signed out. Please try again later.',
             default => 'These credentials do not match our records, or the account is locked.',
         };
     }

@@ -14,8 +14,11 @@ use App\Domain\Gst\EInvoiceProvider;
 use App\Domain\Gst\SandboxEInvoiceProvider;
 use App\Domain\Ops\OpsAlerts;
 use App\Domain\Sync\SyncRegistry;
+use App\Domain\Tenancy\Exceptions\MissingTenantContext;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Pages\SwitchContext;
 use App\Http\Middleware\EnsureWebAuthSession;
+use App\Http\Middleware\RequireWorkingEntityForCreate;
 use App\Models\Accounts;
 use App\Models\Alert;
 use App\Models\AuthSession;
@@ -35,6 +38,8 @@ use App\Models\Production;
 use App\Models\Sales\DispatchOrder;
 use App\Models\Sales\SalesBill;
 use App\Policies;
+use Filament\Notifications\Actions\Action as NotificationAction;
+use Filament\Notifications\Notification;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Events\ScheduledTaskFailed;
@@ -51,6 +56,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use PragmaRX\Google2FA\Google2FA;
+use Throwable;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -77,6 +83,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerRateLimits();
         $this->registerQueueContextReset();
         $this->registerOpsAlerts();
+        $this->registerFriendlyContextErrors();
 
         Password::defaults(fn () => Password::min((int) config('ricemill.auth.password_min_length'))
             ->letters()->mixedCase()->numbers()->symbols());
@@ -183,6 +190,22 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(JobProcessing::class, $reset);
         Event::listen(JobProcessed::class, $reset);
+    }
+
+    /**
+     * A button pressed by a Super Admin in "All firms" mode that has to write into one firm explains
+     * itself instead of showing an error page. Nothing is written; the rule itself stays.
+     */
+    private function registerFriendlyContextErrors(): void
+    {
+        \Livewire\on('exception', function ($component, Throwable $e, callable $stopPropagation): void {
+            if ($e instanceof MissingTenantContext) {
+                Notification::make()->title(RequireWorkingEntityForCreate::MESSAGE)->warning()->persistent()
+                    ->actions([NotificationAction::make('switch')->label('Switch entity')->url(SwitchContext::getUrl())])
+                    ->send();
+                $stopPropagation();
+            }
+        });
     }
 
     /** A failed scheduled task or queued job alerts the Super Admins / owners (ops monitoring). */

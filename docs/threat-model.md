@@ -121,6 +121,18 @@ admin rights · operator of the server/DB · thief of a phone or gate PC.
 | Gate PC config copied | Agent secrets DPAPI-protected (bound to the PC / Windows account) | A local admin on the gate PC can still decrypt |
 | Bad release | Preflight, pre-deploy backup, health check with automatic code rollback; manual deploys behind a reviewer | Schema rollback is a restore |
 
+## Access security add-on
+
+| Threat | Controls | Remaining |
+|---|---|---|
+| Former or untrusted staff keep access | Suspend / revoke ends every session and token at once; plain message after the right password only; attempts logged; access review lists dormant and never-used accounts | Periodic review is a people process |
+| Ongoing attack or insider misuse | Emergency lockdown (system or entity) with 2FA re-authentication; only Super Admins can sign in; work for the locked scope pauses; owners told | A compromised Super Admin is not stopped by a lockdown — that relies on trusted devices, IP allow-list and anchored audit |
+| Coercion of an owner or accountant | Duress PIN: neutral sign-out, silent alert with time / IP / device, flag, optional suspension and device wipe; never fake data | The person must remember to use it; alert delivery depends on mail / in-app (SMS when a provider is set) |
+| Lost or stolen phone, tablet, gate PC | Mark lost → wipe at next connection, nothing else allowed meanwhile; user signed out elsewhere; offline lock after 72 h; local data encrypted | A device that never reconnects keeps its encrypted data |
+| Password guessing | Progressive delay, 15-minute lock, admin unlock after 3 lockouts in 24 h, owners alerted; nginx rate limits; burst alert | — |
+| Super Admin blocked by misconfiguration | Probe test over every screen; "All entities" mode explains instead of failing; intentional rules (self-approval, locked periods, finalised records) stated on screen | — |
+| Maintenance used to hide activity | Windows are audited (who, when, message); bypass token stored only as a hash; health and verification stay up | — |
+
 ## Trust boundaries
 Browser/PWA ↔ Nginx (TLS) ↔ PHP-FPM ↔ PostgreSQL/Redis · Gate agent ↔ API (signed requests, ph. 3) ·
 Agent ↔ hardware (serial/IO, local only).

@@ -256,3 +256,31 @@ describe('validation mirror', () => {
     assert.ok(!isValidVehicleNumber('NOTAPLATE'));
   });
 });
+
+describe('lockdown and maintenance', () => {
+  it('keeps the outbox through maintenance (503) and shows the server message', async () => {
+    await engine.upsert('vehicle', null, { registration_no: 'HR05AB1234', vehicle_type: 'truck' });
+    server.guard = () => { throw new ApiError(503, { error: 'maintenance', message: 'Updating the system, back at 6 PM.' }); };
+
+    const status = await engine.sync();
+    assert.equal(status.state, State.OFFLINE);
+    assert.equal(status.unsynced, 1, 'nothing is lost during maintenance');
+    assert.equal(status.serverMessage, 'Updating the system, back at 6 PM.');
+
+    delete server.guard;
+    const after = await engine.sync();
+    assert.equal(after.state, State.ONLINE);
+    assert.equal(after.unsynced, 0);
+    assert.equal(after.serverMessage, null);
+  });
+
+  it('shows "System locked by administrator" and keeps the outbox during a lockdown', async () => {
+    await engine.upsert('vehicle', null, { registration_no: 'HR05AB1234', vehicle_type: 'truck' });
+    server.guard = () => { throw new ApiError(401, { error: 'unauthenticated', reason: 'system_locked', message: 'System locked by administrator.' }); };
+
+    const status = await engine.sync();
+    assert.equal(status.state, State.AUTH_REQUIRED);
+    assert.equal(status.serverMessage, 'System locked by administrator.');
+    assert.equal(status.unsynced, 1);
+  });
+});

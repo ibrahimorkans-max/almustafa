@@ -67,7 +67,7 @@ it('shows stock in hand grouped by category', function () {
 it('runs a batch from the screens: open, requisition, logs, correction, close', function () {
     signInP4($this, $this->f->supervisor);
     Livewire::test(CreateProductionBatch::class)
-        ->fillForm(['paddy_product_id' => $this->f->paddy->id, 'line' => 'Line A', 'opened_at' => now()->subHours(3)->format('Y-m-d H:i')])
+        ->fillForm(['paddy_product_id' => $this->f->paddy->id, 'via_requisition' => true, 'line' => 'Line A', 'opened_at' => now()->subHours(3)->format('Y-m-d H:i')])
         ->call('create')->assertHasNoFormErrors();
     $batch = ProductionBatch::query()->sole();
 

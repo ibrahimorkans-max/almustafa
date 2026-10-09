@@ -111,6 +111,7 @@ export class SyncEngine {
       await this.pushAll(boot.max_push_events || 500);
       await this.pullAll();
       await this.store.setMeta('last_sync_at', this.now().toISOString());
+      await this.store.setMeta('server_message', null);
       this.state = State.ONLINE;
     } catch (error) {
       await this.handleError(error);
@@ -198,6 +199,10 @@ export class SyncEngine {
       }
       return;
     }
+    // Lockdown, maintenance or withdrawn access: show the server's own words; the outbox is kept.
+    if (error instanceof ApiError && (error.status === 401 || error.status === 503)) {
+      await this.store.setMeta('server_message', error.body.message || null);
+    }
     if (error instanceof ApiError && error.status === 401) {
       this.state = State.AUTH_REQUIRED;
       return;
@@ -247,6 +252,7 @@ export class SyncEngine {
       unsynced: events.filter((e) => e.account_id === this.accountId).length,
       held: events.filter((e) => e._held).length,
       lastSyncAt: await this.store.getMeta('last_sync_at', null),
+      serverMessage: await this.store.getMeta('server_message', null),
     };
   }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Archive\ArchiveService;
+use App\Domain\Security\Lockdown;
 use App\Domain\Tenancy\TenantContext;
 use Illuminate\Console\Command;
 
@@ -16,6 +17,11 @@ final class ArchiveRunCommand extends Command
 
     public function handle(ArchiveService $archive, TenantContext $tenant): int
     {
+        if (app(Lockdown::class)->activeLocks() !== []) {
+            $this->warn('Skipped: a lockdown is active. Archiving runs again after it is lifted.');
+
+            return self::SUCCESS;
+        }
         $months = (int) ($this->option('months') ?? config('ricemill.archive.retention_months'));
         $cutoff = now()->subMonths(max(1, $months));
         $counts = $tenant->runAsSystem(fn () => $archive->run($cutoff, (bool) $this->option('dry-run')));

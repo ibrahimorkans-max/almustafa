@@ -31,7 +31,7 @@ final class AuthController extends Controller
 {
     public function login(LoginRequest $request, LoginService $login, TokenService $tokens, AuditLogger $audit): JsonResponse
     {
-        $account = $login->verifyPassword($request->string('username')->toString(), $request->string('password')->toString(), $request->ip());
+        $account = $login->verifyPassword($request->string('username')->toString(), $request->string('password')->toString(), $request->ip(), $request->header('X-Device-Id') ?? $request->input('device_uid'));
 
         if ($account->must_change_password) {
             $audit->record('auth.login.blocked', $account, meta: ['reason' => 'password_change_required']);

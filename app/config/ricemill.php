@@ -30,6 +30,19 @@ return [
         'hsts' => (bool) env('RICEMILL_HSTS', true),
         // Key for searchable hashes of encrypted identifiers (GSTIN, PAN, bank account). Empty = derived from APP_KEY.
         'blind_index_key' => env('RICEMILL_BLIND_INDEX_KEY', ''),
+        // Who else hears about lockdowns, duress sign-ins and lost devices (comma-separated).
+        'contact_emails' => env('RICEMILL_SECURITY_CONTACT_EMAILS', ''),
+        'contact_sms' => env('RICEMILL_SECURITY_CONTACT_SMS', ''),
+        'sms_log_channel' => env('RICEMILL_SECURITY_SMS_LOG_CHANNEL', 'stack'),
+        // Roles that may set a duress PIN.
+        'duress_roles' => ['SUPER_ADMIN', 'OWNER', 'ACCOUNTANT'],
+        // Failed sign-ins: progressive delay (seconds) from this many failures on; after this many
+        // temporary lockouts within 24 h the account stays locked until an administrator unlocks it.
+        'progressive_delay_after' => 3,
+        'max_progressive_delay_seconds' => 8,
+        'lockouts_before_admin_unlock' => 3,
+        // Access review: accounts without a sign-in for this long are "dormant".
+        'dormant_days' => (int) env('RICEMILL_DORMANT_DAYS', 30),
     ],
 
     'sync' => [
