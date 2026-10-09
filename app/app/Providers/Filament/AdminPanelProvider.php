@@ -44,6 +44,10 @@ class AdminPanelProvider extends PanelProvider
             ->darkModeBrandLogo(asset(config('ricemill.brand.logo_wide_dark')))
             ->brandLogoHeight('3rem')
             ->favicon(asset(config('ricemill.brand.favicon')))
+            // Narrower than Filament's 20rem default; can be collapsed to icons on desktop.
+            ->sidebarWidth('15rem')
+            ->collapsedSidebarWidth('4.5rem')
+            ->sidebarCollapsibleOnDesktop()
             ->login(Login::class)
             ->authGuard('web')
             ->databaseNotifications()

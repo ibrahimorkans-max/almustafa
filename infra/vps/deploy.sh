@@ -45,8 +45,8 @@ log "dependencies"
 (cd "$RELEASE/app" && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress) \
   || fail "composer install failed"
 
-log "preflight (any FAIL blocks the deploy)"
-artisan "$RELEASE" ricemill:preflight || fail "preflight failed; nothing was changed"
+log "preflight (any FAIL blocks the deploy; new migrations are expected at this point)"
+artisan "$RELEASE" ricemill:preflight --before-migrate || fail "preflight failed; nothing was changed"
 
 if [[ -n "$PREVIOUS" ]]; then
   log "backup before migrating"
@@ -55,6 +55,9 @@ fi
 
 log "migrate"
 artisan "$RELEASE" migrate --force || fail "migration failed; the previous release is still live"
+
+log "preflight after migrating (row-level security on the new tables, nothing pending)"
+artisan "$RELEASE" ricemill:preflight || fail "preflight after migrating failed; the previous release is still live"
 
 log "caches"
 artisan "$RELEASE" optimize

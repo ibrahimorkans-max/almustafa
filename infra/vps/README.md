@@ -1,5 +1,7 @@
 # Production on a VPS (Ubuntu 24.04, e.g. Hostinger KVM)
 
+For the mill-specific steps (creating Al Mustafa Rice Mills, NTN / STRN, tax settings, master data) see [docs/deployment-checklist.md](../../docs/deployment-checklist.md).
+
 Supported production target: one VPS with nginx, PHP 8.3-FPM, PostgreSQL, Supervisor and cron. Docker (in `../`) is
 for development.
 
@@ -48,7 +50,7 @@ Repository secrets / `production` environment:
 Give the `production` environment a required reviewer. The workflow refuses commits whose CI is not green.
 
 `deploy.sh` clones the exact commit into `/srv/ricemill/releases/<time>`, links shared storage and the secrets file,
-installs dependencies, runs **`ricemill:preflight` (any FAIL stops here)**, takes a backup, migrates, builds caches,
+installs dependencies, runs **`ricemill:preflight --before-migrate` (any FAIL stops here)**, takes a backup, migrates, runs the full preflight again, builds caches,
 switches the `current` symlink atomically, reloads PHP-FPM and the workers, and checks `/health`. If the new release is
 unhealthy, the code is switched back automatically. The last 5 releases are kept.
 

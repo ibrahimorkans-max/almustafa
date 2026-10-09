@@ -56,8 +56,9 @@ class DemoMastersSeeder extends Seeder
             return; // already seeded
         }
 
-        $exempt = TaxRate::query()->create(['name' => 'Exempt (demo: unbranded rice and paddy)', 'sales_tax_rate_bp' => 0, 'exempt' => true]);
-        $standard = TaxRate::query()->create(['name' => 'Standard 18% (demo)', 'sales_tax_rate_bp' => 1800]);
+        // The two default rates every new mill gets (EntityProvisioner); demo use: rice and paddy exempt, packed goods standard.
+        $exempt = TaxRate::query()->where('name', TaxRate::DEFAULTS[0][0])->firstOrFail();
+        $standard = TaxRate::query()->where('name', TaxRate::DEFAULTS[1][0])->firstOrFail();
 
         $brand = Brand::query()->create(['code' => 'ALMUSTAFA', 'name' => 'Al Mustafa Basmati']);
 

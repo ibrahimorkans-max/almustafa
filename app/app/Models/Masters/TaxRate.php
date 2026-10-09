@@ -23,6 +23,9 @@ class TaxRate extends MasterModel
     /** Highest rate accepted (25 %), to catch typing mistakes; the standard rate is set by the Finance Act. */
     public const MAX_RATE_BP = 2500;
 
+    /** Installed for every new mill: [name, rate bp, exempt]. The tax adviser adjusts or adds rates. */
+    public const DEFAULTS = [['Exempt (Sixth Schedule)', 0, true], ['Standard 18%', 1800, false]];
+
     protected $fillable = ['name', 'sales_tax_rate_bp', 'exempt', 'status'];
 
     protected function casts(): array

@@ -18,7 +18,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: intl, bcmath, pdo_pgsql, pdo_mysql, sodium
+          extensions: intl, bcmath, pdo_pgsql, pdo_mysql, sodium, gd, mbstring, zip
           coverage: none
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: vendor/bin/pint --test
@@ -80,7 +80,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: intl, bcmath, pdo_pgsql, sodium
+          extensions: intl, bcmath, pdo_pgsql, sodium, gd, mbstring, zip
           coverage: none
       - name: Create non-superuser application role (superusers bypass RLS)
         env:
@@ -123,7 +123,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: intl, bcmath, pdo_mysql, sodium
+          extensions: intl, bcmath, pdo_mysql, sodium, gd, mbstring, zip
           coverage: none
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: echo "APP_KEY=base64:$(openssl rand -base64 32)" > .env.testing

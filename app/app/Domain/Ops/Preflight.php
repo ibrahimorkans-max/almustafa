@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Ops;
 
 use App\Domain\Ops\Backup\BackupCrypto;
+use App\Domain\Tenancy\TenantContext;
+use App\Models\Entity;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Process;
 use Throwable;
@@ -22,8 +24,11 @@ final class Preflight
      */
     private const INSTALLATION_TABLES = ['system_locks'];
 
-    /** @return list<array{check: string, level: 'error'|'warning', ok: bool, detail: string}> */
-    public function run(): array
+    /**
+     * @param  bool  $beforeMigrate  deploy step before `migrate`: migrations still to run are expected, not a failure
+     * @return list<array{check: string, level: 'error'|'warning', ok: bool, detail: string}>
+     */
+    public function run(bool $beforeMigrate = false): array
     {
         $out = [];
         $add = function (string $check, string $level, bool $ok, string $detail) use (&$out): void {
@@ -69,7 +74,11 @@ final class Preflight
             }
         }
         $pending = $this->pendingMigrations();
-        $add('All migrations have run', 'error', $pending === 0, $pending === 0 ? 'ok' : "{$pending} pending");
+        if ($beforeMigrate) {
+            $add('Migrations to run in this deploy', 'warning', true, $pending === 0 ? 'none' : "{$pending} pending (run next)");
+        } else {
+            $add('All migrations have run', 'error', $pending === 0, $pending === 0 ? 'ok' : "{$pending} pending");
+        }
 
         // Backups
         try {
@@ -85,12 +94,28 @@ final class Preflight
         $add("{$tool} is available", 'error', $this->toolWorks($driver === 'pgsql' ? 'pg' : 'mysql', $tool), 'install the client tools or set RICEMILL_PG_BIN / RICEMILL_MYSQL_BIN');
 
         // Server
-        foreach (['sodium', 'zip', 'bcmath', 'intl', 'gd', 'pdo_pgsql'] as $ext) {
+        foreach (['sodium', 'zip', 'bcmath', 'intl', 'gd', 'mbstring', 'pdo_pgsql'] as $ext) {
             $add("PHP extension {$ext}", 'error', extension_loaded($ext), extension_loaded($ext) ? 'loaded' : 'missing');
         }
         $add('OPcache is on', 'warning', function_exists('opcache_get_status') && (bool) ini_get('opcache.enable'), 'opcache.enable=1');
         foreach ([storage_path(), base_path('bootstrap/cache')] as $dir) {
             $add('Writable: '.basename($dir), 'error', is_writable($dir), $dir);
+        }
+
+        // Printed documents and branding
+        $brand = config('ricemill.brand');
+        $files = [$brand['logo_wide'], $brand['logo_wide_dark'], $brand['favicon'], 'images/brand/logo-wide-print.png', 'images/brand/icon-192.png', 'images/brand/icon-512.png'];
+        $missing = array_values(array_filter($files, fn (string $f) => ! is_file(public_path($f))));
+        $add('Logo and icon files present', 'error', $missing === [], $missing === [] ? 'public/images/brand' : 'missing: '.implode(', ', $missing));
+        $pdfTmp = storage_path('framework/cache');
+        $add('PDF engine can write its cache', 'error', is_dir($pdfTmp) && is_writable($pdfTmp), $pdfTmp);
+        $add('PDF fonts present (Urdu: Lateef)', 'error', is_file(base_path('vendor/mpdf/mpdf/ttfonts/LateefRegOT.ttf')), 'vendor/mpdf/mpdf/ttfonts');
+        try {
+            $mills = app(TenantContext::class)->runAsSystem(fn () => Entity::query()->get());
+            $noNtn = $mills->filter(fn (Entity $e) => blank($e->ntn))->pluck('code')->all();
+            $add('Mill NTN entered (printed on invoices)', 'warning', $mills->isNotEmpty() && $noNtn === [], $mills->isEmpty() ? 'no mill set up yet' : ($noNtn === [] ? 'ok' : 'Entities without NTN: '.implode(', ', $noNtn)));
+        } catch (Throwable) {
+            $add('Mill NTN entered (printed on invoices)', 'warning', false, 'entities could not be read');
         }
         $free = @disk_free_space(storage_path());
         $total = @disk_total_space(storage_path());
