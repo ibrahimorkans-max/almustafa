@@ -42,7 +42,7 @@ class SiteResource extends Resource
             TextInput::make('latitude')->required()->numeric()->minValue(-90)->maxValue(90)->helperText('e.g. 29.7891234 (from Google Maps: long-press the spot)'),
             TextInput::make('longitude')->required()->numeric()->minValue(-180)->maxValue(180),
             TextInput::make('radius_m')->label('Radius (m)')->required()->integer()->minValue(20)->maxValue(5000)->default(150),
-            Repeater::make('time_windows')->label('Working hours (IST) — leave empty for any time')->columnSpanFull()->columns(3)
+            Repeater::make('time_windows')->label('Working hours (PKT) — leave empty for any time')->columnSpanFull()->columns(3)
                 ->defaultItems(0)
                 ->schema([
                     CheckboxList::make('days')->options(self::DAYS)->columns(7)->required()->columnSpanFull(),

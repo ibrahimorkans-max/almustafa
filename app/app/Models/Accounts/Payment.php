@@ -29,7 +29,7 @@ use Illuminate\Support\Carbon;
  * @property int $amount_paise
  * @property Carbon $payment_date
  * @property string|null $party_bank_account_id
- * @property array{holder: string, ifsc: string, last4: string, bank_name: string|null}|null $payee
+ * @property array{holder: string, bank_code: string|null, last4: string, bank_name: string|null}|null $payee
  * @property string|null $payee_account_number
  * @property string $status
  * @property string|null $approval_request_id
@@ -51,9 +51,9 @@ class Payment extends Model
     use HasUuids;
     use TracksCreator;
 
-    public const MODES = ['neft' => 'NEFT', 'rtgs' => 'RTGS', 'upi' => 'UPI', 'cheque' => 'Cheque', 'cash' => 'Cash'];
+    public const MODES = ['ibft' => 'IBFT (online transfer)', 'rtgs' => 'RTGS (PRISM)', 'raast' => 'Raast', 'cheque' => 'Cheque', 'pay_order' => 'Pay order', 'cash' => 'Cash'];
 
-    public const BANK_MODES = ['neft', 'rtgs', 'upi'];
+    public const BANK_MODES = ['ibft', 'rtgs', 'raast'];
 
     public const PENDING = 'pending';
 

@@ -25,10 +25,10 @@ final class DashboardMetrics
     /** @return array{inside: int, arrived_today: int, exited_today: int, received_today_kg: string, dispatched_today_kg: string, received_month_kg: string, dispatched_month_kg: string} */
     public function operations(): array
     {
-        // IST day / month boundaries, as UTC instants (timestamps are stored in UTC and the query
+        // PKT day / month boundaries, as UTC instants (timestamps are stored in UTC and the query
         // builder does not convert a Carbon's timezone).
-        $today = now('Asia/Kolkata')->startOfDay()->utc();
-        $month = now('Asia/Kolkata')->startOfMonth()->utc();
+        $today = now('Asia/Karachi')->startOfDay()->utc();
+        $month = now('Asia/Karachi')->startOfMonth()->utc();
         $sum = fn (string $movement, $from) => number_format(abs((float) StockEntry::query()->where('movement', $movement)
             ->where('occurred_at', '>=', $from)->sum('quantity_kg')), 0, '.', '');
 
@@ -56,7 +56,7 @@ final class DashboardMetrics
     /** @return array{receivable: int, receivable_overdue: int, payable: int, payable_due_7d: int} */
     public function money(): array
     {
-        $now = now('Asia/Kolkata');
+        $now = now('Asia/Karachi');
         $in = $this->reports->receivablesAgeing($now);
         $out = $this->reports->payablesAgeing($now);
         $week = $now->copy()->addDays(7)->toDateString();

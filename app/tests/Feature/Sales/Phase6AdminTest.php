@@ -56,14 +56,14 @@ it('keeps sales and purchase saudas on their own screens', function () {
     signInP6($this, $this->f->acc->owner);
     Livewire::test(CreateSalesSauda::class)
         ->fillForm([
-            'party_id' => $this->f->localBuyer->id, 'product_id' => $this->f->inv->rice->id, 'quantity_quintal' => '200',
+            'party_id' => $this->f->multanBuyer->id, 'product_id' => $this->f->inv->rice->id, 'quantity_maund' => '200',
             'rate_rupees' => '4100', 'tolerance_percent' => '5', 'payment_days' => 15,
             'delivery_from' => now()->toDateString(), 'delivery_to' => now()->addDays(10)->toDateString(),
         ])
         ->call('create')->assertHasNoFormErrors();
 
     $sauda = Sauda::query()->latest('created_at')->orderByDesc('id')->first();
-    expect($sauda->direction)->toBe('sale')->and($sauda->number)->toContain('/S/')->and($sauda->rate_paise_per_quintal)->toBe(410000);
+    expect($sauda->direction)->toBe('sale')->and($sauda->number)->toContain('/S/')->and($sauda->rate_paise_per_maund)->toBe(410000);
     Livewire::test(ListSalesSaudas::class)->assertCanSeeTableRecords([$sauda])->assertCanNotSeeTableRecords([$this->f->acc->sauda]);
 });
 
@@ -75,7 +75,7 @@ it('runs a dispatch from order to gate pass through the screens', function () {
     $order = DispatchOrder::query()->sole();
 
     Livewire::test(ViewDispatchOrder::class, ['record' => $order->id])
-        ->callAction('arrived', ['registration_no' => 'hr05ab1234'])->assertRedirect();
+        ->callAction('arrived', ['registration_no' => 'mna211234'])->assertRedirect();
     $entry = GateEntry::query()->sole();
     expect($entry->dispatch_order_id)->toBe($order->id);
 
@@ -84,7 +84,7 @@ it('runs a dispatch from order to gate pass through the screens', function () {
         ->callAction('loaded', ['bag_count' => null])->assertNotified('Marked loaded');
     app(GateService::class)->recordWeighment($entry, 'gross', '19050', $this->f->inv->gate->scale, GateFixtures::readings('19050'), str_repeat('b', 64));
     Livewire::test(ViewGateEntry::class, ['record' => $entry->id])->callAction('slip')->assertNotified('Slip issued');
-    Livewire::test(ViewGateEntry::class, ['record' => $entry->id])->callAction('gatePass')->assertNotified('The tax invoice must be posted by accounts before the gate pass.');
+    Livewire::test(ViewGateEntry::class, ['record' => $entry->id])->callAction('gatePass')->assertNotified('The invoice must be posted by accounts before the gate pass.');
 
     signInP6($this, $this->f->acc->accountant);
     $bill = SalesBill::query()->sole();
@@ -106,10 +106,10 @@ it('records a receipt against an invoice and shows receivables', function () {
     signInP6($this, $this->f->acc->accountant);
     Livewire::test(ListVouchers::class)
         ->callAction('receipt', [
-            'party_id' => $this->f->delhiBuyer->id, 'into' => $this->f->acc->bank->id, 'amount' => '100000',
+            'party_id' => $this->f->karachiBuyer->id, 'into' => $this->f->acc->bank->id, 'amount' => '100000',
             'date' => now()->toDateString(), 'invoices' => [$bill->id],
         ])->assertHasNoActionErrors()->assertNotified();
 
     expect(ReceiptAllocation::query()->sole()->amount_paise)->toBe(10_000_000);
-    Livewire::test(AccountsReports::class)->set('data.report', 'receivables')->assertSee($bill->number)->assertSee('3,22,100.00');
+    Livewire::test(AccountsReports::class)->set('data.report', 'receivables')->assertSee($bill->number)->assertSee('322,100.00');
 });

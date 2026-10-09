@@ -10,14 +10,14 @@ use Stringable;
 
 /**
  * A weight held in the base unit, kilograms, with 3 decimals (gram precision), as a decimal string.
- * All arithmetic uses bcmath — never floats. Display conversion to quintal (100 kg) and tonne (1000 kg).
+ * All arithmetic uses bcmath — never floats. Display conversion to maund (40 kg, the trade unit in Pakistan), quintal (100 kg) and tonne (1000 kg).
  */
 final readonly class Weight implements JsonSerializable, Stringable
 {
     public const SCALE = 3;
 
     /** kilograms per unit */
-    public const UNITS = ['kg' => '1', 'quintal' => '100', 'ton' => '1000'];
+    public const UNITS = ['kg' => '1', 'maund' => '40', 'quintal' => '100', 'ton' => '1000'];
 
     private function __construct(public string $kg) {}
 

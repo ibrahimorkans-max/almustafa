@@ -25,7 +25,7 @@ final class LeaveController extends Controller
         if ($employee === null) {
             return response()->json(['employee' => null, 'message' => 'This login is not linked to an employee record.']);
         }
-        $year = (int) now('Asia/Kolkata')->year;
+        $year = (int) now('Asia/Karachi')->year;
 
         return response()->json([
             'year' => $year,
@@ -57,7 +57,7 @@ final class LeaveController extends Controller
             return response()->json(['error' => 'not_allowed', 'message' => $employee === null ? 'This login is not linked to an employee record.' : 'Unknown leave type.'], 422);
         }
         try {
-            $r = $leave->request($employee, $type, CarbonImmutable::parse($data['from'], 'Asia/Kolkata'), CarbonImmutable::parse($data['to'], 'Asia/Kolkata'),
+            $r = $leave->request($employee, $type, CarbonImmutable::parse($data['from'], 'Asia/Karachi'), CarbonImmutable::parse($data['to'], 'Asia/Karachi'),
                 $data['half_day'] ?? 'none', $data['reason']);
         } catch (BusinessRuleViolation $e) {
             return response()->json(['error' => 'not_allowed', 'message' => $e->getMessage()], 422);

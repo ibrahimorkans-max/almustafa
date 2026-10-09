@@ -10,6 +10,7 @@ use App\Filament\Resources\Accounts\LedgerAccountResource\Pages;
 use App\Filament\Support\Units;
 use App\Models\Accounts\AccountGroup;
 use App\Models\Accounts\LedgerAccount;
+use App\Support\Values\PakistanIds;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
@@ -47,11 +48,10 @@ class LedgerAccountResource extends Resource
                 ->options(fn () => AccountGroup::query()->orderBy('sort')->pluck('name', 'id')),
             TextInput::make('code')->required()->maxLength(40)->regex('/^[A-Za-z0-9._-]+$/')->disabledOn('edit'),
             TextInput::make('name')->required()->maxLength(160),
-            TextInput::make('bank_account_number')->label('Account number')->regex('/^\d{6,18}$/')
+            TextInput::make('bank_account_number')->label('IBAN')->maxLength(34)->placeholder('PK36 SCBL 0000 0011 2345 6702')
+                ->rule(fn () => fn (string $a, mixed $v, \Closure $fail) => $v && ! PakistanIds::isValidIban((string) PakistanIds::normalizeIban((string) $v)) ? $fail('The IBAN is not valid (PK and 22 characters; check digits).') : null)
                 ->visible(fn (Get $get) => $get('kind') === 'bank')->required(fn (Get $get) => $get('kind') === 'bank')
                 ->visibleOn('create'),
-            TextInput::make('bank_ifsc')->label('IFSC')->regex('/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/')
-                ->visible(fn (Get $get) => $get('kind') === 'bank')->required(fn (Get $get) => $get('kind') === 'bank'),
             TextInput::make('bank_name')->maxLength(120)->visible(fn (Get $get) => $get('kind') === 'bank'),
             Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
         ]);

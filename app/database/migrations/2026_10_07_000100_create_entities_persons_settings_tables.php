@@ -13,10 +13,11 @@ return new class extends Migration
             $table->string('code', 20)->unique();
             $table->string('name');
             $table->string('legal_name')->nullable();
-            // Encrypted casts (ciphertext); never queried directly.
-            $table->text('gstin')->nullable();
-            $table->text('pan')->nullable();
-            $table->char('state_code', 2)->nullable();
+            // Encrypted casts (ciphertext); never queried directly. NTN (income tax), STRN (sales tax, only if registered).
+            $table->text('ntn')->nullable();
+            $table->text('strn')->nullable();
+            $table->string('province', 40)->nullable();
+            $table->string('phone', 40)->nullable();
             $table->text('address')->nullable();
             $table->string('status', 16)->default('active');
             $table->uuid('created_by')->nullable();

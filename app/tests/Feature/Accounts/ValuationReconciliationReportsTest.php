@@ -30,7 +30,7 @@ beforeEach(function () {
 function releasePayment(object $t, int $paise): Payment
 {
     $t->f->as($t->f->accountant);
-    $p = app(PaymentService::class)->request($t->f->inv->gate->seller, 'neft', $t->f->bank, $paise, now(), [$t->bill->id => $paise]);
+    $p = app(PaymentService::class)->request($t->f->inv->gate->seller, 'ibft', $t->f->bank, $paise, now(), [$t->bill->id => $paise]);
     app(ApprovalService::class)->approve(ApprovalRequest::query()->findOrFail($p->approval_request_id), $t->f->owner);
     $t->f->as($t->f->accountant);
 
@@ -68,16 +68,16 @@ it('carries cost through milling: by-products at realisable value, the rest to r
         ->and($valuation->averageOf($this->f->inv->paddy->id))->toBe('2423.1557');
 });
 
-it('matches statement lines to payments by UTR and amount, and skips re-imported rows', function () {
+it('matches statement lines to payments by transaction reference and amount, and skips re-imported rows', function () {
     $p1 = releasePayment($this, 20_000_000);
     $p2 = releasePayment($this, 10_000_000);
-    app(PaymentService::class)->recordReference($p1, 'utr0001');
+    app(PaymentService::class)->recordReference($p1, 'txn0001');
     app(ManualVouchers::class)->receipt($this->f->inv->gate->seller, $this->f->bank, 5_000_00, now(), 'Advance returned');
 
-    $today = now('Asia/Kolkata')->format('d/m/Y');
+    $today = now('Asia/Karachi')->format('d/m/Y');
     $csv = "Date,Description,Reference,Debit,Credit\n"
-        ."{$today},NEFT UTR0001 RAM SINGH,,\"2,00,000.00\",\n"
-        ."{$today},NEFT RAM SINGH,,\"1,00,000.00\",\n"
+        ."{$today},IBFT TXN0001 RAM SINGH,,\"200,000.00\",\n"
+        ."{$today},IBFT RAM SINGH,,\"100,000.00\",\n"
         ."{$today},BY CLG RAM SINGH,,,5000.00\n"
         ."{$today},BANK CHARGES,,17.70,\n";
     $recon = app(BankReconciliation::class);

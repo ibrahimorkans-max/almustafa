@@ -47,7 +47,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $net_kg
  * @property string|null $deduction_kg
  * @property string|null $payable_kg
- * @property int|null $rate_cut_paise_per_quintal
+ * @property int|null $rate_cut_paise_per_maund
  * @property Carbon $arrived_at
  * @property Carbon|null $exited_at
  * @property int $version
@@ -82,7 +82,7 @@ class GateEntry extends Model
     ];
 
     /** @var list<string> */
-    protected array $auditIgnored = ['status', 'flags', 'gross_kg', 'tare_kg', 'net_kg', 'deduction_kg', 'payable_kg', 'rate_cut_paise_per_quintal', 'exited_at'];
+    protected array $auditIgnored = ['status', 'flags', 'gross_kg', 'tare_kg', 'net_kg', 'deduction_kg', 'payable_kg', 'rate_cut_paise_per_maund', 'exited_at'];
 
     protected function casts(): array
     {
@@ -94,7 +94,7 @@ class GateEntry extends Model
             'net_kg' => 'decimal:3',
             'deduction_kg' => 'decimal:3',
             'payable_kg' => 'decimal:3',
-            'rate_cut_paise_per_quintal' => 'integer',
+            'rate_cut_paise_per_maund' => 'integer',
             'arrived_at' => 'datetime',
             'exited_at' => 'datetime',
             'archived_at' => 'datetime',

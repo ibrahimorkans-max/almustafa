@@ -66,21 +66,21 @@ it('describes the contract in bootstrap', function () {
 
 it('creates a record offline-first with the client UUID and serves it on pull', function () {
     $id = (string) Str::uuid();
-    [$result] = pushEvents($this, syncEvent($this, 'vehicle.upsert', $id, ['registration_no' => 'hr 05 ab 1234', 'vehicle_type' => 'truck']));
+    [$result] = pushEvents($this, syncEvent($this, 'vehicle.upsert', $id, ['registration_no' => 'mna 21 1234', 'vehicle_type' => 'truck']));
 
     expect($result)->toMatchArray(['status' => 'applied', 'version' => 1])
-        ->and(serverVehicle($id)->registration_no)->toBe('HR05AB1234');
+        ->and(serverVehicle($id)->registration_no)->toBe('MNA211234');
 
     $feed = pullChanges($this);
     expect($feed['changes'])->toHaveCount(1)
         ->and($feed['changes'][0])->toMatchArray(['type' => 'vehicle', 'op' => 'upsert', 'id' => $id, 'version' => 1])
-        ->and($feed['changes'][0]['data']['registration_no'])->toBe('HR05AB1234')
+        ->and($feed['changes'][0]['data']['registration_no'])->toBe('MNA211234')
         ->and(pullChanges($this, $feed['next_cursor'])['changes'])->toBe([]);
 });
 
 it('is idempotent: a re-sent event returns the stored result and changes nothing', function () {
     $id = (string) Str::uuid();
-    $ev = syncEvent($this, 'vehicle.upsert', $id, ['registration_no' => 'HR05AB1234', 'vehicle_type' => 'truck']);
+    $ev = syncEvent($this, 'vehicle.upsert', $id, ['registration_no' => 'MNA211234', 'vehicle_type' => 'truck']);
 
     $first = pushEvents($this, $ev)[0];
     $again = pushEvents($this, $ev)[0];
@@ -92,9 +92,9 @@ it('is idempotent: a re-sent event returns the stored result and changes nothing
 });
 
 it('rejects a client_seq already used by another event of the device', function () {
-    $a = syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => 'HR05AB1111', 'vehicle_type' => 'truck']);
+    $a = syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => 'MNA211111', 'vehicle_type' => 'truck']);
     pushEvents($this, $a);
-    $old = ['client_seq' => 1] + syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => 'HR05AB2222', 'vehicle_type' => 'truck']);
+    $old = ['client_seq' => 1] + syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => 'MNA212222', 'vehicle_type' => 'truck']);
 
     expect(pushEvents($this, $old)[0])->toMatchArray(['status' => 'rejected', 'reason' => 'client_seq_reused']);
 });
@@ -103,7 +103,7 @@ it('rejects invalid data with field errors, unknown types and forbidden writes',
     [$invalid, $unknown, $forbidden] = pushEvents($this,
         syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => 'NOT A PLATE', 'vehicle_type' => 'truck']),
         syncEvent($this, 'spaceship.upsert', (string) Str::uuid(), []),
-        syncEvent($this, 'party.upsert', (string) Str::uuid(), ['code' => 'P1', 'name' => 'X', 'gst_registration_type' => 'unregistered']),
+        syncEvent($this, 'party.upsert', (string) Str::uuid(), ['code' => 'P1', 'name' => 'X']),
     );
 
     expect($invalid)->toMatchArray(['status' => 'rejected', 'reason' => 'validation_failed'])
@@ -114,7 +114,7 @@ it('rejects invalid data with field errors, unknown types and forbidden writes',
 
 it('applies an update made on the current version', function () {
     $id = (string) Str::uuid();
-    pushEvents($this, syncEvent($this, 'vehicle.upsert', $id, ['registration_no' => 'HR05AB1234', 'vehicle_type' => 'truck']));
+    pushEvents($this, syncEvent($this, 'vehicle.upsert', $id, ['registration_no' => 'MNA211234', 'vehicle_type' => 'truck']));
     [$r] = pushEvents($this, syncEvent($this, 'vehicle.upsert', $id, ['capacity_kg' => '25000.500'], baseVersion: 1));
 
     expect($r)->toMatchArray(['status' => 'applied', 'version' => 2])
@@ -125,7 +125,7 @@ it('applies an update made on the current version', function () {
 describe('conflicts', function () {
     beforeEach(function () {
         $this->id = (string) Str::uuid();
-        pushEvents($this, syncEvent($this, 'vehicle.upsert', $this->id, ['registration_no' => 'HR05AB1234', 'vehicle_type' => 'truck']));
+        pushEvents($this, syncEvent($this, 'vehicle.upsert', $this->id, ['registration_no' => 'MNA211234', 'vehicle_type' => 'truck']));
         // Someone edits on the server meanwhile → version 2.
         $this->travel(1)->minutes();
         Make::system(function () {
@@ -167,8 +167,8 @@ describe('conflicts', function () {
 
 describe('supervisor review queue', function () {
     it('sends a duplicate registration number to review instead of failing silently', function () {
-        pushEvents($this, syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => 'HR05AB1234', 'vehicle_type' => 'truck']));
-        [$r] = pushEvents($this, syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => 'HR-05-AB-1234', 'vehicle_type' => 'truck']));
+        pushEvents($this, syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => 'MNA211234', 'vehicle_type' => 'truck']));
+        [$r] = pushEvents($this, syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => 'MNA-21-1234', 'vehicle_type' => 'truck']));
 
         expect($r)->toMatchArray(['status' => 'needs_review', 'reason' => 'duplicate_value'])
             ->and(Make::system(fn () => SyncConflict::query()->where('review_status', 'open')->count()))->toBe(1)
@@ -178,7 +178,7 @@ describe('supervisor review queue', function () {
 
     it('sends edits of a record archived on the server to review', function () {
         $id = (string) Str::uuid();
-        pushEvents($this, syncEvent($this, 'vehicle.upsert', $id, ['registration_no' => 'HR05AB1234', 'vehicle_type' => 'truck']));
+        pushEvents($this, syncEvent($this, 'vehicle.upsert', $id, ['registration_no' => 'MNA211234', 'vehicle_type' => 'truck']));
         Make::system(function () use ($id) {
             app(AuthContextBinder::class)->bind($this->gate);
             serverVehicle($id)->forceFill(['archived_at' => now()])->save();
@@ -190,7 +190,7 @@ describe('supervisor review queue', function () {
     });
 
     it('sends events older than the offline limit to review', function () {
-        [$r] = pushEvents($this, syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => 'HR05AB1234', 'vehicle_type' => 'truck'], occurredAt: now()->subHours(80)->toIso8601ZuluString()));
+        [$r] = pushEvents($this, syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => 'MNA211234', 'vehicle_type' => 'truck'], occurredAt: now()->subHours(80)->toIso8601ZuluString()));
 
         expect($r)->toMatchArray(['status' => 'needs_review', 'reason' => 'older_than_offline_limit'])
             ->and(Make::system(fn () => Vehicle::query()->count()))->toBe(0);
@@ -237,7 +237,7 @@ describe('pull', function () {
         $ids = [];
         foreach (range(1, 5) as $i) {
             $ids[] = $id = (string) Str::uuid();
-            pushEvents($this, syncEvent($this, 'vehicle.upsert', $id, ['registration_no' => "HR05AB100{$i}", 'vehicle_type' => 'truck']));
+            pushEvents($this, syncEvent($this, 'vehicle.upsert', $id, ['registration_no' => "MNA21100{$i}", 'vehicle_type' => 'truck']));
         }
         pushEvents($this, syncEvent($this, 'vehicle.upsert', $ids[0], ['vehicle_type' => 'tempo'], baseVersion: 1));
 
@@ -252,7 +252,7 @@ describe('pull', function () {
 
     it('tells devices to drop archived records', function () {
         $id = (string) Str::uuid();
-        pushEvents($this, syncEvent($this, 'vehicle.upsert', $id, ['registration_no' => 'HR05AB1234', 'vehicle_type' => 'truck']));
+        pushEvents($this, syncEvent($this, 'vehicle.upsert', $id, ['registration_no' => 'MNA211234', 'vehicle_type' => 'truck']));
         $cursor = pullChanges($this)['next_cursor'];
         Make::system(function () use ($id) {
             app(AuthContextBinder::class)->bind($this->gate);
@@ -270,8 +270,8 @@ describe('pull', function () {
             app(AuthContextBinder::class)->bind(Make::account($this->entity, 'OWNER'));
 
             return Party::query()->create([
-                'code' => 'V1', 'name' => 'Sharma Traders', 'is_vendor' => true,
-                'gst_registration_type' => 'regular', 'gstin' => '27AAPFU0939F1ZV',
+                'code' => 'V1', 'name' => 'Lodhran Traders', 'is_vendor' => true,
+                'strn' => '3277876543210', 'cnic' => '3620312345671',
             ]);
         });
         Make::reset();
@@ -281,9 +281,9 @@ describe('pull', function () {
         $asAccountant = collect(pullChanges($this, 0, Make::apiHeaders(Make::apiTokens($accountant, 'acc-device-0001-abcd'), 'acc-device-0001-abcd'))['changes'])
             ->firstWhere('id', $party->id)['data'];
 
-        expect($asGate['gstin'])->toBe('27AAPFU0939F1ZV')
-            ->and($asGate['pan'])->toBe('******939F')
-            ->and($asAccountant['pan'])->toBe('AAPFU0939F');
+        expect($asGate['strn'])->toBe('3277876543210')
+            ->and($asGate['cnic'])->toBe('*********5671')
+            ->and($asAccountant['cnic'])->toBe('3620312345671');
     });
 
     it('never serves another entity\'s changes, and cannot overwrite them by guessing an id', function () {
@@ -293,20 +293,20 @@ describe('pull', function () {
         $id = (string) Str::uuid();
         $this->withHeaders($otherHeaders)->postJson('/api/v1/sync/push', ['events' => [
             ['event_id' => (string) Str::uuid(), 'client_seq' => 1, 'occurred_at' => now()->toIso8601ZuluString(), 'type' => 'vehicle.upsert',
-                'record_id' => $id, 'payload' => ['registration_no' => 'PB10XY9999', 'vehicle_type' => 'truck']],
+                'record_id' => $id, 'payload' => ['registration_no' => 'BKX9999', 'vehicle_type' => 'truck']],
         ]])->assertOk();
 
         expect(pullChanges($this)['changes'])->toBe([]);
 
-        [$r] = pushEvents($this, syncEvent($this, 'vehicle.upsert', $id, ['registration_no' => 'HR05AB1234', 'vehicle_type' => 'truck']));
+        [$r] = pushEvents($this, syncEvent($this, 'vehicle.upsert', $id, ['registration_no' => 'MNA211234', 'vehicle_type' => 'truck']));
         expect($r['status'])->toBeIn(['needs_review', 'rejected'])
-            ->and(serverVehicle($id)->registration_no)->toBe('PB10XY9999')
+            ->and(serverVehicle($id)->registration_no)->toBe('BKX9999')
             ->and(serverVehicle($id)->entity_id)->toBe($other->id);
     });
 
     it('numbers the feed without gaps', function () {
         foreach (range(1, 3) as $i) {
-            pushEvents($this, syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => "HR05AB200{$i}", 'vehicle_type' => 'truck']));
+            pushEvents($this, syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => "MNA21200{$i}", 'vehicle_type' => 'truck']));
         }
         $seqs = Make::system(fn () => DB::table('sync_changes')->where('entity_id', $this->entity->id)->orderBy('seq')->pluck('seq')->map(fn ($s) => (int) $s)->all());
 
@@ -329,7 +329,7 @@ describe('remote wipe', function () {
 });
 
 it('keeps the sync log append-only', function () {
-    pushEvents($this, syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => 'HR05AB1234', 'vehicle_type' => 'truck']));
+    pushEvents($this, syncEvent($this, 'vehicle.upsert', (string) Str::uuid(), ['registration_no' => 'MNA211234', 'vehicle_type' => 'truck']));
 
     expect(fn () => Make::system(fn () => DB::transaction(fn () => DB::table('sync_events')->update(['status' => 'applied']))))
         ->toThrow(QueryException::class, 'append-only')

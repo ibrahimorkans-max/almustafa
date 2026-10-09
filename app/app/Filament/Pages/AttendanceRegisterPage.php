@@ -40,7 +40,7 @@ class AttendanceRegisterPage extends Page
 
     public function mount(): void
     {
-        $this->month = now('Asia/Kolkata')->format('Y-m');
+        $this->month = now('Asia/Karachi')->format('Y-m');
     }
 
     /** @return array<string, string> */
@@ -52,7 +52,7 @@ class AttendanceRegisterPage extends Page
     /** @return array{month: string, dates: list<string>, rows: list<array<string, mixed>>} */
     public function register(): array
     {
-        $month = preg_match('/^\d{4}-\d{2}$/', $this->month) ? $this->month : now('Asia/Kolkata')->format('Y-m');
+        $month = preg_match('/^\d{4}-\d{2}$/', $this->month) ? $this->month : now('Asia/Karachi')->format('Y-m');
 
         return app(AttendanceRegister::class)->month($month, $this->department ?: null);
     }

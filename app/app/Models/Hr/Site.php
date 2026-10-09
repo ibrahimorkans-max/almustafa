@@ -45,14 +45,14 @@ class Site extends Model
         return ['latitude' => 'decimal:7', 'longitude' => 'decimal:7', 'radius_m' => 'integer', 'time_windows' => 'array', 'version' => 'integer'];
     }
 
-    /** Within the configured hours (IST)? No windows = any time. Days are ISO 1 (Mon) … 7 (Sun). */
+    /** Within the configured hours (PKT)? No windows = any time. Days are ISO 1 (Mon) … 7 (Sun). */
     public function isOpenAt(CarbonInterface $moment): bool
     {
         $windows = $this->time_windows ?? [];
         if ($windows === []) {
             return true;
         }
-        $local = $moment->copy()->setTimezone('Asia/Kolkata');
+        $local = $moment->copy()->setTimezone('Asia/Karachi');
         $hm = $local->format('H:i');
         foreach ($windows as $w) {
             if (! in_array($local->isoWeekday(), array_map('intval', $w['days'] ?? []), true)) {

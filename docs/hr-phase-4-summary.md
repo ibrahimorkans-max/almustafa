@@ -24,7 +24,7 @@ Plan: [hr-phase-4-plan.md](hr-phase-4-plan.md). API: [api/openapi.yaml](api/open
   * **Biometric import:** formats, header, unknown code, bad date, in-file duplicate, inferred directions, file hash, re-import adds nothing, permission.
   * **Leave API:** me, store, overlap 422, withdraw.
   * **Screens:** role access to leave / shifts / holidays / leave types / register; leave entered by HR and approved by a supervisor; the import wizard; the Leave tab and balance adjustment; creating a night shift; the register with codes and its CSV export.
-* **Full suites:** see below. Larastan, Pint and the OpenAPI contract test are clean.
+* **Full suites:** PostgreSQL 575 passed, 1 skipped; MariaDB 564 passed, 12 skipped (PostgreSQL-only tests). Larastan, Pint and the OpenAPI contract test are clean.
 
 ## Caught before release
 * **Year end:** the "already closed" check also matched the carry-forward that arrives in the *next* year. Next year's closing would therefore have been skipped, and its leave never lapsed or carried. It now looks only at outgoing entries, and a test closes two years in a row.

@@ -28,8 +28,8 @@ class CreateLeaveRequest extends CreateRecord
             return app(LeaveService::class)->request(
                 Employee::query()->findOrFail($data['employee_id']),
                 LeaveType::query()->findOrFail($data['leave_type_id']),
-                CarbonImmutable::parse($data['from_date'], 'Asia/Kolkata'),
-                CarbonImmutable::parse($data['to_date'], 'Asia/Kolkata'),
+                CarbonImmutable::parse($data['from_date'], 'Asia/Karachi'),
+                CarbonImmutable::parse($data['to_date'], 'Asia/Karachi'),
                 (string) $data['half_day'],
                 (string) $data['reason'],
             );

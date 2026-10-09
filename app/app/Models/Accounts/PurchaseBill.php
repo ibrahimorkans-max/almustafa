@@ -33,15 +33,16 @@ use Illuminate\Support\Carbon;
  * @property Carbon $bill_date
  * @property Carbon $due_date
  * @property string $payable_kg
- * @property int $rate_paise_per_quintal
+ * @property int $rate_paise_per_maund
  * @property int $gross_paise
  * @property int $rate_cut_paise
  * @property int $brokerage_paise
  * @property int $round_off_paise
  * @property int $net_paise
- * @property int $tds_paise
- * @property int $tds_rate_bp
- * @property int $tds_base_paise
+ * @property int $wht_paise
+ * @property int $wht_rate_bp
+ * @property int $wht_base_paise
+ * @property bool $wht_filer
  * @property string $status
  * @property string|null $voucher_id
  * @property array<string, mixed> $snapshot
@@ -71,7 +72,7 @@ class PurchaseBill extends Model
 
     protected $fillable = [
         'gate_entry_id', 'sauda_id', 'party_id', 'broker_party_id', 'product_id', 'bill_date', 'due_date', 'payable_kg',
-        'rate_paise_per_quintal', 'gross_paise', 'rate_cut_paise', 'brokerage_paise', 'round_off_paise', 'net_paise', 'snapshot',
+        'rate_paise_per_maund', 'gross_paise', 'rate_cut_paise', 'brokerage_paise', 'round_off_paise', 'net_paise', 'snapshot',
     ];
 
     /** @var array<string, mixed> */
@@ -80,10 +81,10 @@ class PurchaseBill extends Model
     protected function casts(): array
     {
         return [
-            'bill_date' => 'date', 'due_date' => 'date', 'payable_kg' => 'decimal:3', 'rate_paise_per_quintal' => 'integer',
+            'bill_date' => 'date', 'due_date' => 'date', 'payable_kg' => 'decimal:3', 'rate_paise_per_maund' => 'integer',
             'gross_paise' => 'integer', 'rate_cut_paise' => 'integer', 'brokerage_paise' => 'integer', 'round_off_paise' => 'integer',
             'net_paise' => 'integer', 'snapshot' => 'array', 'posted_at' => 'datetime', 'version' => 'integer',
-            'tds_paise' => 'integer', 'tds_rate_bp' => 'integer', 'tds_base_paise' => 'integer',
+            'wht_paise' => 'integer', 'wht_rate_bp' => 'integer', 'wht_base_paise' => 'integer', 'wht_filer' => 'boolean',
         ];
     }
 

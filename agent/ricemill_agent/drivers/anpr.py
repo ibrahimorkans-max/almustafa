@@ -24,7 +24,7 @@ class PlateCamera(Protocol):
 
 
 class HttpAnprCamera:  # pragma: no cover - needs a camera
-    """Camera returning JSON such as {"plate": "HR05AB1234", "confidence": 0.97} at `result_url`,
+    """Camera returning JSON such as {"plate": "MNA211234", "confidence": 0.97} at `result_url`,
     and a JPEG at `snapshot_url`."""
 
     def __init__(self, result_url: str, snapshot_url: str | None = None, timeout: float = 5.0) -> None:

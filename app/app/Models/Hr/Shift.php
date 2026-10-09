@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * A working shift (IST). A shift whose end is earlier than its start crosses midnight and belongs
+ * A working shift (PKT). A shift whose end is earlier than its start crosses midnight and belongs
  * to the day it starts.
  *
  * @property string $id
@@ -59,13 +59,13 @@ class Shift extends Model
     }
 
     /**
-     * Scheduled start and end (IST) of the shift that starts on the given date.
+     * Scheduled start and end (PKT) of the shift that starts on the given date.
      *
      * @return array{0: CarbonImmutable, 1: CarbonImmutable}
      */
     public function windowFor(CarbonImmutable $date): array
     {
-        $day = $date->setTimezone('Asia/Kolkata')->startOfDay();
+        $day = $date->setTimezone('Asia/Karachi')->startOfDay();
         [$sh, $sm] = array_map('intval', explode(':', $this->start_time));
         [$eh, $em] = array_map('intval', explode(':', $this->end_time));
         $start = $day->setTime($sh, $sm);
@@ -80,13 +80,13 @@ class Shift extends Model
     /** Length of the shift in minutes (without break). */
     public function scheduledMinutes(): int
     {
-        [$start, $end] = $this->windowFor(CarbonImmutable::parse('2026-01-05', 'Asia/Kolkata'));
+        [$start, $end] = $this->windowFor(CarbonImmutable::parse('2026-01-05', 'Asia/Karachi'));
 
         return (int) $start->diffInMinutes($end, true) - $this->break_minutes;
     }
 
     public function isWeeklyOff(CarbonImmutable $date): bool
     {
-        return in_array($date->setTimezone('Asia/Kolkata')->isoWeekday(), array_map('intval', $this->weekly_offs ?? []), true);
+        return in_array($date->setTimezone('Asia/Karachi')->isoWeekday(), array_map('intval', $this->weekly_offs ?? []), true);
     }
 }

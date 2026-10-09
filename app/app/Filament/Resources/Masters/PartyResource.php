@@ -9,18 +9,18 @@ use App\Filament\Resources\Masters\PartyResource\Pages;
 use App\Filament\Resources\Masters\PartyResource\RelationManagers\BankAccountsRelationManager;
 use App\Models\Masters\Party;
 use App\Support\BlindIndex;
-use App\Support\Values\IndianIds;
 use App\Support\Values\Money;
+use App\Support\Values\PakistanIds;
 use Closure;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
-use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
@@ -62,47 +62,54 @@ class PartyResource extends Resource
             ]),
             Section::make('Contact')->columns(3)->schema([
                 TextInput::make('contact_person')->maxLength(120),
-                TextInput::make('phone')->tel()->maxLength(16)
-                    ->rule(fn () => fn (string $a, mixed $v, Closure $fail) => $v && ! IndianIds::normalizeMobile((string) $v) ? $fail('Enter a 10-digit Indian mobile number.') : null),
+                TextInput::make('phone')->tel()->maxLength(16)->placeholder('0300-1234567')
+                    ->rule(fn () => fn (string $a, mixed $v, Closure $fail) => $v && ! PakistanIds::normalizeMobile((string) $v) ? $fail('Enter a Pakistani mobile number, e.g. 0300-1234567.') : null),
                 TextInput::make('email')->email()->maxLength(160),
                 Textarea::make('address')->rows(2)->maxLength(500)->columnSpan(2),
                 TextInput::make('city')->maxLength(80),
-                TextInput::make('state_code')->label('State code')->regex('/^\d{2}$/')->helperText('Filled from GSTIN if empty.'),
-                TextInput::make('pincode')->regex('/^[1-9]\d{5}$/'),
+                Select::make('province')->options(array_combine(PakistanIds::PROVINCES, PakistanIds::PROVINCES))->default('Punjab'),
             ]),
             Section::make('Tax & credit')->columns(3)->schema([
-                Select::make('gst_registration_type')->label('GST registration')->live()->required()->default('unregistered')
-                    ->options(['regular' => 'Regular', 'composition' => 'Composition', 'unregistered' => 'Unregistered', 'consumer' => 'Consumer']),
-                TextInput::make('gstin')->label('GSTIN')->maxLength(15)
-                    ->required(fn (Get $get) => in_array($get('gst_registration_type'), ['regular', 'composition'], true))
+                TextInput::make('ntn')->label('NTN')->maxLength(20)->placeholder('1234567-8')
+                    ->formatStateUsing(fn (?string $state) => PakistanIds::formatNtn($state))
+                    ->rule(fn () => fn (string $a, mixed $v, Closure $fail) => $v && ! PakistanIds::isValidNtn((string) PakistanIds::digits((string) $v))
+                        ? $fail('The NTN must be 7 digits and the check digit (1234567-8), or a 13-digit CNIC.') : null)
+                    ->helperText('Printed on invoices. Stored encrypted.'),
+                TextInput::make('strn')->label('STRN (sales tax)')->maxLength(20)
                     ->rule(fn (?Party $record) => function (string $a, mixed $value, Closure $fail) use ($record): void {
-                        $gstin = IndianIds::normalizeGstin((string) $value);
-                        if ($gstin === null) {
+                        $strn = PakistanIds::digits((string) $value);
+                        if ($strn === null) {
                             return;
                         }
-                        if (! IndianIds::isValidGstin($gstin)) {
-                            $fail('The GSTIN is not valid (format or check digit).');
+                        if (! PakistanIds::isValidStrn($strn)) {
+                            $fail('The STRN must have 13 digits.');
 
                             return;
                         }
-                        $taken = Party::query()->withArchived()->where('gstin_index', BlindIndex::of($gstin, 'gstin'))
+                        $taken = Party::query()->withArchived()->where('strn_index', BlindIndex::of($strn, 'strn'))
                             ->when($record, fn (Builder $q) => $q->whereKeyNot($record->getKey()))->exists();
                         if ($taken) {
-                            $fail('Another party already has this GSTIN.');
+                            $fail('Another party already has this STRN.');
                         }
                     })
-                    ->helperText('Stored encrypted.'),
-                TextInput::make('pan')->label('PAN')->maxLength(10)
-                    ->rule(fn () => fn (string $a, mixed $v, Closure $fail) => $v && ! IndianIds::isValidPan(strtoupper((string) $v)) ? $fail('The PAN is not valid.') : null)
-                    ->helperText('Taken from GSTIN if empty. Stored encrypted.')
-                    // PAN stays hidden in the form for users who may not see it.
+                    ->helperText('Empty = not registered for sales tax (further tax may apply on sales). Stored encrypted.'),
+                TextInput::make('cnic')->label('CNIC')->maxLength(15)->placeholder('35202-1234567-1')
+                    ->formatStateUsing(fn (?string $state) => PakistanIds::formatCnic($state))
+                    ->rule(fn () => fn (string $a, mixed $v, Closure $fail) => $v && ! PakistanIds::isValidCnic((string) PakistanIds::digits((string) $v))
+                        ? $fail('The CNIC must have 13 digits (35202-1234567-1).') : null)
+                    ->helperText('For individuals (farmers, arhtis). Stored encrypted.')
+                    // The CNIC stays hidden in the form for users who may not see it.
                     ->visible(fn () => Filament::auth()->user()?->can('bank.view') ?? false),
-                TextInput::make('credit_limit_rupees')->label('Credit limit (₹)')->regex('/^\d{1,13}(\.\d{1,2})?$/')
+                Select::make('atl_status')->label('FBR Active Taxpayer List')->default('unknown')->required()
+                    ->options(['active' => 'Active (filer)', 'inactive' => 'Not on the list (non-filer)', 'unknown' => 'Not checked yet (treated as non-filer)'])
+                    ->helperText('Check the NTN / CNIC on FBR\'s ATL; the withholding rate depends on it.'),
+                DatePicker::make('atl_checked_on')->label('ATL checked on')->maxDate(now()),
+                TextInput::make('credit_limit_rupees')->label('Credit limit (Rs)')->regex('/^\d{1,13}(\.\d{1,2})?$/')
                     ->afterStateHydrated(fn (TextInput $c, ?Party $record) => $c->state($record?->credit_limit_paise !== null ? Money::paise($record->credit_limit_paise)->toDecimal() : null))
                     ->dehydrated(false),
                 TextInput::make('credit_days')->integer()->minValue(0)->maxValue(365),
-                Toggle::make('tds_194q_exempt')->label('Exempt from TDS u/s 194Q')
-                    ->helperText('Only on the mill\'s tax adviser\'s instruction (e.g. exempt agricultural produce).')
+                Toggle::make('wht_exempt')->label('No withholding tax u/s 153')
+                    ->helperText('Only on the tax adviser\'s instruction, e.g. a grower selling their own produce or an exemption certificate.')
                     ->visible(fn () => auth()->user()?->can('ledger.post') ?? false),
                 Select::make('status')->options(['active' => 'Active', 'blocked' => 'Blocked'])->default('active')->required(),
                 Textarea::make('notes')->rows(2)->maxLength(2000)->columnSpanFull(),
@@ -136,7 +143,12 @@ class PartyResource extends Resource
                 TextColumn::make('name')->searchable()->sortable()->description(fn (Party $r) => implode(' · ', $r->roleLabels())),
                 TextColumn::make('city')->placeholder('—'),
                 TextColumn::make('phone')->placeholder('—'),
-                TextColumn::make('gst_registration_type')->label('GST')->badge(),
+                TextColumn::make('tax_registration')->label('Sales tax')->badge()
+                    ->color(fn (string $state) => $state === 'registered' ? 'success' : 'gray'),
+                TextColumn::make('atl_status')->label('ATL')->badge()
+                    ->color(fn (string $state) => match ($state) {
+                        'active' => 'success', 'inactive' => 'danger', default => 'warning'
+                    }),
                 TextColumn::make('status')->badge()->color(fn (string $state) => $state === 'active' ? 'success' : 'danger'),
                 static::updatedColumn(),
             ])

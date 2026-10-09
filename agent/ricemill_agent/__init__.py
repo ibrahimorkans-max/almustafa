@@ -1,4 +1,4 @@
-"""Rice Mill ERP gate agent.
+"""Al Mustafa Rice Mills ERP gate agent.
 
 The only component that touches gate hardware (weighbridge indicator, camera; ANPR, boom
 barrier and display board in phase 6). Works offline with an encrypted local queue and talks

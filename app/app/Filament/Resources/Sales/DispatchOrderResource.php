@@ -55,7 +55,7 @@ class DispatchOrderResource extends Resource
             Select::make('sauda_id')->label('Sales sauda')->required()->searchable()
                 ->options(fn () => Sauda::query()->where('direction', 'sale')->whereIn('status', [Sauda::STATUS_CONFIRMED, Sauda::STATUS_IN_DELIVERY])
                     ->with(['party', 'product'])->get()
-                    ->mapWithKeys(fn (Sauda $s) => [$s->id => "{$s->number} — {$s->party->name} · {$s->product->name} · {$s->remaining()->in('quintal', 2)} qtl left"])),
+                    ->mapWithKeys(fn (Sauda $s) => [$s->id => "{$s->number} — {$s->party->name} · {$s->product->name} · {$s->remaining()->in('maund', 2)} maund left"])),
             Select::make('godown_id')->label('Load from godown')->required()->options(fn () => RequisitionResource::godownOptions()),
             TextInput::make('quantity_kg')->label('Quantity (kg)')->required()->regex(Units::DECIMAL_3),
             TextInput::make('bag_count')->label('Bags (packed rice)')->integer()->minValue(1),
@@ -72,8 +72,8 @@ class DispatchOrderResource extends Resource
                 TextColumn::make('number')->searchable(),
                 TextColumn::make('party.name')->label('Buyer')->searchable(),
                 TextColumn::make('product.name')->label('Product'),
-                TextColumn::make('quantity_kg')->label('Quantity (qtl)')->alignEnd()->formatStateUsing(fn (string $state) => Units::kgToQuintal($state)),
-                TextColumn::make('estimated_value_paise')->label('Value incl. GST')->alignEnd()->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
+                TextColumn::make('quantity_kg')->label('Quantity (maund)')->alignEnd()->formatStateUsing(fn (string $state) => Units::kgToMaund($state)),
+                TextColumn::make('estimated_value_paise')->label('Value incl. tax')->alignEnd()->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
                 TextColumn::make('status')->badge()->color(fn (string $state) => self::statusColor($state))
                     ->formatStateUsing(fn (string $state) => self::STATUS_LABELS[$state] ?? $state),
                 TextColumn::make('gateEntry.registration_no')->label('Vehicle')->placeholder('—'),
@@ -97,7 +97,7 @@ class DispatchOrderResource extends Resource
                 TextEntry::make('godown.name')->label('Load from'),
                 TextEntry::make('quantity_kg')->label('Quantity (kg)')->fontFamily('mono'),
                 TextEntry::make('bags')->label('Bags')->state(fn (DispatchOrder $r) => $r->bag_count ? "{$r->bag_count} × {$r->bag_weight_kg} kg" : '—'),
-                TextEntry::make('estimated_value_paise')->label('Value incl. GST')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
+                TextEntry::make('estimated_value_paise')->label('Value incl. tax')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
                 TextEntry::make('gateEntry.number')->label('Gate entry')->placeholder('—'),
                 TextEntry::make('note')->placeholder('—')->columnSpanFull(),
             ]),

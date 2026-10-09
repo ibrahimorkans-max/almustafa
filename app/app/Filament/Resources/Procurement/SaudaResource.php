@@ -67,7 +67,7 @@ class SaudaResource extends Resource
     }
 
     /**
-     * Form for creating deals. Quantities in quintal, rates in ₹ per quintal.
+     * Form for creating deals. Quantities in maund (40 kg), rates in Rs per maund.
      * (Filament injects relationship-query closure arguments by NAME: they must be called $query.)
      */
     public static function form(Form $form): Form
@@ -82,10 +82,10 @@ class SaudaResource extends Resource
                     ->relationship('product', 'name', fn (Builder $query) => $query->where('category', 'paddy')),
             ]),
             Section::make('Terms')->columns(3)->schema([
-                TextInput::make('quantity_quintal')->label('Quantity (quintal)')->required()->regex(Units::DECIMAL_3),
-                TextInput::make('rate_rupees')->label('Rate (₹ per quintal)')->required()->regex(Units::DECIMAL_2),
+                TextInput::make('quantity_maund')->label('Quantity (maund)')->required()->regex(Units::DECIMAL_3),
+                TextInput::make('rate_rupees')->label('Rate (Rs per maund)')->required()->regex(Units::DECIMAL_2),
                 TextInput::make('tolerance_percent')->label('Delivery tolerance (± %)')->default('5')->regex(Units::DECIMAL_2),
-                TextInput::make('brokerage_rupees')->label('Brokerage (₹ per quintal)')->default('0')->regex(Units::DECIMAL_2),
+                TextInput::make('brokerage_rupees')->label('Brokerage (Rs per maund)')->default('0')->regex(Units::DECIMAL_2),
                 TextInput::make('moisture_max_percent')->label('Max moisture (%)')->default('17')->regex(Units::DECIMAL_2),
                 TextInput::make('payment_days')->integer()->minValue(0)->maxValue(365)->default(0),
                 DatePicker::make('delivery_from')->required(),
@@ -104,10 +104,10 @@ class SaudaResource extends Resource
             'party_id' => $data['party_id'],
             'broker_party_id' => $data['broker_party_id'] ?? null,
             'product_id' => $data['product_id'],
-            'quantity_kg' => Units::quintalToKg((string) $data['quantity_quintal']),
-            'rate_paise_per_quintal' => Units::rupeesToPaise((string) $data['rate_rupees']),
+            'quantity_kg' => Units::maundToKg((string) $data['quantity_maund']),
+            'rate_paise_per_maund' => Units::rupeesToPaise((string) $data['rate_rupees']),
             'tolerance_bp' => Units::percentToBp((string) ($data['tolerance_percent'] ?? '5')) ?? 500,
-            'brokerage_paise_per_quintal' => Units::rupeesToPaise((string) ($data['brokerage_rupees'] ?? '0')),
+            'brokerage_paise_per_maund' => Units::rupeesToPaise((string) ($data['brokerage_rupees'] ?? '0')),
             'quality_terms' => ['moisture_max_bp' => Units::percentToBp((string) ($data['moisture_max_percent'] ?? '17'))],
             'payment_days' => (int) ($data['payment_days'] ?? 0),
             'delivery_from' => $data['delivery_from'],
@@ -123,9 +123,9 @@ class SaudaResource extends Resource
                 TextColumn::make('party.name')->label('Seller')->searchable(),
                 TextColumn::make('broker.name')->label('Broker')->placeholder('—'),
                 TextColumn::make('product.name')->label('Product'),
-                TextColumn::make('quantity_kg')->label('Qty (qtl)')->formatStateUsing(fn (string $state) => Units::kgToQuintal($state))->alignEnd(),
-                TextColumn::make('rate_paise_per_quintal')->label('Rate / qtl')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state))->alignEnd(),
-                TextColumn::make('delivered_kg')->label('Delivered (qtl)')->formatStateUsing(fn (string $state) => Units::kgToQuintal($state))->alignEnd(),
+                TextColumn::make('quantity_kg')->label('Qty (maund)')->formatStateUsing(fn (string $state) => Units::kgToMaund($state))->alignEnd(),
+                TextColumn::make('rate_paise_per_maund')->label('Rate / maund')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state))->alignEnd(),
+                TextColumn::make('delivered_kg')->label('Delivered (maund)')->formatStateUsing(fn (string $state) => Units::kgToMaund($state))->alignEnd(),
                 TextColumn::make('status')->badge()->color(fn (string $state) => static::statusColor($state)),
                 TextColumn::make('delivery_to')->label('Deliver by')->date()->sortable(),
             ])
@@ -146,11 +146,11 @@ class SaudaResource extends Resource
                 TextEntry::make('party.name')->label('Seller'),
                 TextEntry::make('broker.name')->label('Broker')->placeholder('—'),
                 TextEntry::make('product.name')->label('Product'),
-                TextEntry::make('quantity_kg')->label('Quantity')->formatStateUsing(fn (string $state) => Units::kgToQuintal($state).' qtl'),
-                TextEntry::make('rate_paise_per_quintal')->label('Rate')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state).' / qtl'),
+                TextEntry::make('quantity_kg')->label('Quantity')->formatStateUsing(fn (string $state) => Units::kgToMaund($state).' maund'),
+                TextEntry::make('rate_paise_per_maund')->label('Rate')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state).' / maund'),
                 TextEntry::make('tolerance_bp')->label('Tolerance')->formatStateUsing(fn (int $state) => '± '.Units::bpToPercent($state)),
-                TextEntry::make('brokerage_paise_per_quintal')->label('Brokerage')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state).' / qtl'),
-                TextEntry::make('delivered_kg')->label('Delivered')->formatStateUsing(fn (string $state) => Units::kgToQuintal($state).' qtl'),
+                TextEntry::make('brokerage_paise_per_maund')->label('Brokerage')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state).' / maund'),
+                TextEntry::make('delivered_kg')->label('Delivered')->formatStateUsing(fn (string $state) => Units::kgToMaund($state).' maund'),
                 TextEntry::make('delivery_from')->date(),
                 TextEntry::make('delivery_to')->date(),
                 TextEntry::make('payment_days'),

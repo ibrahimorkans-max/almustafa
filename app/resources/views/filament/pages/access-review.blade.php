@@ -17,7 +17,7 @@
                     <thead>
                         <tr class="border-b border-gray-200 dark:border-gray-700">
                             <th class="p-2">User</th><th class="p-2">Role</th><th class="p-2">Status</th><th class="p-2">2FA</th>
-                            <th class="p-2">Last sign-in (IST)</th><th class="p-2">Attention</th><th class="p-2 text-right">Permissions</th>
+                            <th class="p-2">Last sign-in (PKT)</th><th class="p-2">Attention</th><th class="p-2 text-right">Permissions</th>
                         </tr>
                     </thead>
                     <tbody>

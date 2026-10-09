@@ -38,7 +38,7 @@ class LeaveLedgerRelationManager extends RelationManager
     {
         /** @var Employee $employee */
         $employee = $this->getOwnerRecord();
-        $year = (int) now('Asia/Kolkata')->year;
+        $year = (int) now('Asia/Karachi')->year;
         $parts = LeaveType::query()->where('paid', true)->orderBy('code')->get()
             ->map(fn (LeaveType $t) => "{$t->code} ".app(LeaveService::class)->balance($employee, $t, $year));
 
@@ -51,7 +51,7 @@ class LeaveLedgerRelationManager extends RelationManager
             ->heading(fn () => $this->balancesText())
             ->modifyQueryUsing(fn (Builder $query) => $query->with('leaveType'))
             ->columns([
-                TextColumn::make('created_at')->label('When')->dateTime('d M Y H:i', 'Asia/Kolkata'),
+                TextColumn::make('created_at')->label('When')->dateTime('d M Y H:i', 'Asia/Karachi'),
                 TextColumn::make('year'),
                 TextColumn::make('leaveType.code')->label('Type')->badge(),
                 TextColumn::make('kind'),
@@ -70,7 +70,7 @@ class LeaveLedgerRelationManager extends RelationManager
                     ->form([
                         Select::make('leave_type_id')->label('Leave type')->required()
                             ->options(fn () => LeaveType::query()->where('paid', true)->orderBy('code')->pluck('name', 'id')),
-                        TextInput::make('year')->required()->integer()->default((int) now('Asia/Kolkata')->year),
+                        TextInput::make('year')->required()->integer()->default((int) now('Asia/Karachi')->year),
                         Select::make('kind')->options(['opening' => 'Opening balance', 'accrual' => 'Accrual (earned)', 'adjustment' => 'Correction (+ or −)'])->required(),
                         TextInput::make('days')->required()->regex('/^-?\d{1,3}(\.[05])?$/')->helperText('Whole or half days, e.g. 7 or 1.5'),
                         Textarea::make('note')->required()->maxLength(500),

@@ -49,8 +49,8 @@ class StockBalanceResource extends Resource
                 TextColumn::make('godown.name')->label('Godown'),
                 TextColumn::make('quantity_kg')->label('Quantity (kg)')->alignEnd()->fontFamily('mono')->sortable()
                     ->color(fn (string $state) => bccomp($state, '0', 3) === 0 ? 'gray' : null),
-                TextColumn::make('quintal')->label('Quintal')->alignEnd()
-                    ->state(fn (StockBalance $record) => Units::kgToQuintal($record->quantity_kg)),
+                TextColumn::make('maund')->label('Maund')->alignEnd()
+                    ->state(fn (StockBalance $record) => Units::kgToMaund($record->quantity_kg)),
                 TextColumn::make('updated_at')->label('Last movement')->dateTime('d M Y H:i')->sortable(),
             ])
             ->groups([

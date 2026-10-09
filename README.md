@@ -1,6 +1,8 @@
-# Rice Mill ERP
+# Al Mustafa Rice Mills — ERP
 
-Secure, offline-capable, multi-mill ERP for rice mills in India.
+Secure, offline-capable ERP for Al Mustafa Rice Mills, Adda Permat, 1 km Shujabad Road, Lodhran (Punjab, Pakistan) · 0300-6834588.
+Pakistan rules: PKT, July–June tax year, Rs, maund (40 kg), NTN / STRN / CNIC / IBAN, sales tax and withholding u/s 153.
+Printed slips, invoices, vouchers and statements carry the mill's letterhead in English with Urdu headings.
 Laravel 12 · PHP 8.3 · PostgreSQL 17 (row-level security) · Filament 3 · Pest.
 
 **Non-negotiables:** true records only (no altered or second set of figures, ever), append-only
@@ -51,8 +53,8 @@ cd ../agent && python -m unittest discover -s tests   # gate agent
 | 3 | Procurement & sauda, gate entry, weighbridge, lab, gate agent + simulators | **done** — [summary](docs/phase-3-summary.md) · [agent](agent/README.md) |
 | 4 | Inventory, stock ledger, production, by-products | **done** — [summary](docs/phase-4-summary.md) |
 | 5 | Accounts (double-entry, vouchers, purchase bills, payments, bank, valuation) | **done** — [summary](docs/phase-5-summary.md) |
-| 6 | Sales, dispatch, GST invoices, ANPR / barrier / display | **done** — [summary](docs/phase-6-summary.md) |
+| 6 | Sales, dispatch, invoices, ANPR / barrier / display | **done** — [summary](docs/phase-6-summary.md) |
 | 7 | Claims (credit / debit notes), pricing with confidential margin, archive | **done** — [summary](docs/phase-7-summary.md) |
-| 8 | GST returns, e-invoice / e-way bill, TDS 194Q, reports, dashboard, anomaly alerts, document verification | **done** — [summary](docs/phase-8-summary.md) |
+| 8 | Tax registers, reports, dashboard, anomaly alerts, document verification (Indian GST parts replaced: see [Pakistan localisation](docs/pakistan-localisation-summary.md)) | **done** — [summary](docs/phase-8-summary.md) |
 | 9 | Hardening, backups, monitoring, deployment | next |
 | 5–10 | see [docs/phase-1-plan.md](docs/phase-1-plan.md) and the project brief | planned |

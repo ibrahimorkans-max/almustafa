@@ -30,8 +30,8 @@ final class AttendanceCalculator
     public function period(Employee $employee, CarbonImmutable $from, CarbonImmutable $to): array
     {
         $shift = $employee->shift ?? self::defaultShift();
-        $from = $from->setTimezone('Asia/Kolkata')->startOfDay();
-        $to = $to->setTimezone('Asia/Kolkata')->startOfDay();
+        $from = $from->setTimezone('Asia/Karachi')->startOfDay();
+        $to = $to->setTimezone('Asia/Karachi')->startOfDay();
 
         $holidays = Holiday::query()->whereBetween('date', [$from->toDateString(), $to->toDateString()])->get()
             ->keyBy(fn (Holiday $h) => $h->date->toDateString());
@@ -42,9 +42,9 @@ final class AttendanceCalculator
             ->orderBy('occurred_at')->get()
             ->filter(fn (AttendanceLog $l) => $l->finalStatus() === AttendanceLog::VALID)->values();
 
-        $joined = CarbonImmutable::parse($employee->joining_date->toDateString(), 'Asia/Kolkata');
-        $left = $employee->exited_on !== null ? CarbonImmutable::parse($employee->exited_on->toDateString(), 'Asia/Kolkata') : null;
-        $today = CarbonImmutable::now('Asia/Kolkata')->startOfDay();
+        $joined = CarbonImmutable::parse($employee->joining_date->toDateString(), 'Asia/Karachi');
+        $left = $employee->exited_on !== null ? CarbonImmutable::parse($employee->exited_on->toDateString(), 'Asia/Karachi') : null;
+        $today = CarbonImmutable::now('Asia/Karachi')->startOfDay();
 
         $days = [];
         $totals = ['present' => 0.0, 'paid_leave' => 0.0, 'unpaid_leave' => 0.0, 'absent' => 0.0, 'holidays' => 0, 'weekly_offs' => 0,
@@ -75,12 +75,12 @@ final class AttendanceCalculator
             $leaveShare = $leave === null ? 0.0 : ($leave->half_day === 'none' ? 1.0 : 0.5);
 
             if ($in !== null) {
-                $row['first_in'] = $in->occurred_at->setTimezone('Asia/Kolkata')->format('H:i');
+                $row['first_in'] = $in->occurred_at->setTimezone('Asia/Karachi')->format('H:i');
                 $late = (int) $start->diffInMinutes($in->occurred_at, false);
                 $row['late_minutes'] = $late > $shift->grace_late_minutes ? $late : 0;
             }
             if ($in !== null && $out !== null) {
-                $row['last_out'] = $out->occurred_at->setTimezone('Asia/Kolkata')->format('H:i');
+                $row['last_out'] = $out->occurred_at->setTimezone('Asia/Karachi')->format('H:i');
                 $raw = (int) $in->occurred_at->diffInMinutes($out->occurred_at, true);
                 // The break is taken out only of a full day; a morning-only half day has no lunch break in it.
                 $worked = $raw > $shift->full_day_minutes ? max($shift->full_day_minutes, $raw - $shift->break_minutes) : $raw;

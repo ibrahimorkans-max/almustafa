@@ -56,15 +56,15 @@ unhealthy, the code is switched back automatically. The last 5 releases are kept
 | What | Where / how |
 |---|---|
 | Health for an uptime monitor | `https://<domain>/health` (200 ok / 503 degraded; no secrets) |
-| Backups | nightly 01:30 IST → `/srv/ricemill/shared/storage/backups` + off-site; keeps 14 daily, 8 weekly, 12 monthly |
-| Restore drill | Sundays 04:00 IST into `ricemill_drill`, runs the audit, books and stock verifiers; `php artisan backup:verify` by hand |
+| Backups | nightly 01:30 PKT → `/srv/ricemill/shared/storage/backups` + off-site; keeps 14 daily, 8 weekly, 12 monthly |
+| Restore drill | Sundays 04:00 PKT into `ricemill_drill`, runs the audit, books and stock verifiers; `php artisan backup:verify` by hand |
 | Alerts | failed tasks, failed jobs, failed restore drill, failed-login bursts → in-app alerts to Super Admins and owners |
 | Logs | `/srv/ricemill/shared/storage/logs` (daily, 30 days), `/var/log/nginx/ricemill-*.log` |
 | Readiness | `php artisan ricemill:preflight` |
 
 ## 6. Restoring for real (disaster recovery)
 1. New server: provision as above, put the **same** `RICEMILL_BACKUP_KEY` and `APP_KEY` into `/etc/ricemill/ricemill.env`
-   (`APP_KEY` decrypts GSTIN / PAN / 2FA secrets inside the data).
+   (`APP_KEY` decrypts NTN / CNIC / STRN / IBAN / 2FA secrets inside the data).
 2. Copy the latest `.rmbak` from the off-site bucket into `/srv/ricemill/shared/storage/backups`.
 3. `php artisan backup:verify <file>` — proves the file restores and verifies (into `ricemill_drill`).
 4. Decrypt and restore into the live database during a maintenance window:

@@ -36,7 +36,7 @@ class GodownResource extends Resource
             TextInput::make('name')->required()->maxLength(120),
             Select::make('type')->options(array_combine(Godown::TYPES, array_map('ucfirst', Godown::TYPES)))->default('godown')->required(),
             TextInput::make('capacity_kg')->label('Capacity (kg)')->regex('/^\d{1,12}(\.\d{1,3})?$/')
-                ->helperText('Stored in kilograms. 1 quintal = 100 kg, 1 ton = 1000 kg.'),
+                ->helperText('Stored in kilograms. 1 maund = 40 kg, 1 ton = 1000 kg.'),
             Textarea::make('address')->rows(2)->maxLength(500),
             Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
         ]);

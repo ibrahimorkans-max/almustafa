@@ -47,7 +47,7 @@ class ViewClaim extends ViewRecord
                 ->visible(fn (Claim $c) => $c->status === Claim::APPROVED && $can('ledger.post'))
                 ->requiresConfirmation()
                 ->modalDescription(fn (Claim $c) => $c->document_type === Claim::SALES
-                    ? 'Posts a credit note to the buyer (GST reversed in the invoice proportion).'
+                    ? 'Posts a credit note to the buyer (sales tax reversed in the invoice proportion).'
                     : 'Posts a debit note to the supplier.')
                 ->action(fn (Claim $c) => $this->runDomain(fn () => $service()->settle($c), 'Note posted')),
             ActionGroup::make([

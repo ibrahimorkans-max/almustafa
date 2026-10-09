@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Rice Mill ERP — device API (auth + sync)
+  title: Al Mustafa Rice Mills ERP — device API (auth + sync)
   version: "1.0.0"
   description: |
     One contract for the PWA, the Flutter app and the gate hardware agent.

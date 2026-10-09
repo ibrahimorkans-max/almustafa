@@ -47,7 +47,7 @@ class HolidayResource extends Resource
             ])
             ->defaultSort('date')
             ->filters([Filter::make('upcoming')->label('From today')->toggle()->default()
-                ->query(fn (Builder $query) => $query->where('date', '>=', now('Asia/Kolkata')->toDateString()))])
+                ->query(fn (Builder $query) => $query->where('date', '>=', now('Asia/Karachi')->toDateString()))])
             ->actions([EditAction::make()]);
     }
 

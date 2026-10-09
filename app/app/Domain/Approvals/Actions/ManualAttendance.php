@@ -63,7 +63,7 @@ final class ManualAttendance implements ApprovalAction, ExplainsCheckerRule
         if ($employee->person_id === $maker->person_id) {
             throw ValidationException::withMessages(['employee_id' => 'You cannot enter your own attendance.']);
         }
-        $at = CarbonImmutable::parse((string) $data['at'], 'Asia/Kolkata');
+        $at = CarbonImmutable::parse((string) $data['at'], 'Asia/Karachi');
         if ($at->isFuture()) {
             throw ValidationException::withMessages(['at' => 'Attendance cannot be entered for a future time.']);
         }
@@ -73,7 +73,7 @@ final class ManualAttendance implements ApprovalAction, ExplainsCheckerRule
 
         return [
             'employee_id' => $employee->id, 'employee' => "{$employee->code} {$employee->name()}",
-            'kind' => $data['kind'], 'at' => $at->utc()->toIso8601String(), 'at_ist' => $at->timezone('Asia/Kolkata')->format('d M Y H:i'),
+            'kind' => $data['kind'], 'at' => $at->utc()->toIso8601String(), 'at_ist' => $at->timezone('Asia/Karachi')->format('d M Y H:i'),
             'reason' => trim($data['reason']),
         ];
     }

@@ -16,7 +16,7 @@ use Ramsey\Uuid\Uuid;
 use Throwable;
 
 /**
- * Punches exported from a biometric machine or the gate PC, as CSV: employee code, date-time (IST),
+ * Punches exported from a biometric machine or the gate PC, as CSV: employee code, date-time (PKT),
  * optional direction (in / out). Previewed first; imported as punches of source "import" with the file
  * kept in the private store. A row is identified by employee and time, so importing the same file (or an
  * overlapping export) twice adds nothing. Missing directions are worked out from the order of the day's
@@ -151,7 +151,7 @@ final class AttendanceImport
     {
         foreach (self::FORMATS as $format) {
             try {
-                $at = CarbonImmutable::createFromFormat($format, $value, 'Asia/Kolkata');
+                $at = CarbonImmutable::createFromFormat($format, $value, 'Asia/Karachi');
             } catch (Throwable) {
                 continue;
             }

@@ -58,7 +58,7 @@ final class Books
             throw new BusinessRuleViolation(sprintf('Debits (%d paise) and credits (%d paise) do not match.', $dr, $cr));
         }
         $this->periods->assertOpen($date);
-        $day = CarbonImmutable::instance($date)->setTimezone('Asia/Kolkata')->startOfDay();
+        $day = CarbonImmutable::instance($date)->setTimezone('Asia/Karachi')->startOfDay();
 
         return DB::transaction(function () use ($type, $day, $lines, $narration, $source, $dr): Voucher {
             $now = now();

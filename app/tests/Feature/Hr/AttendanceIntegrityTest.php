@@ -123,7 +123,7 @@ describe('phone integrity signals', function () {
 });
 
 describe('server-side sanity checks', function () {
-    it('flags impossible travel between two punches (Karnal to Delhi in 20 minutes)', function () {
+    it('flags impossible travel between two punches (about 120 km in 20 minutes)', function () {
         intPunch($this, [], CarbonImmutable::now()->subMinutes(20));
         $log = intPunch($this, ['kind' => 'out', 'lat' => 28.6139, 'lng' => 77.2090]);
         expect($log->reasons)->toContain('impossible_travel')->and($log->reasons)->toContain('outside_geofence');
@@ -210,7 +210,7 @@ describe('manual attendance', function () {
     it('is created only after a different person approves, as a manual punch linked to the request', function () {
         app(AuthContextBinder::class)->bind($this->f->hr);
         $req = app(ApprovalService::class)->submit(ManualAttendance::KEY, [
-            'employee_id' => $this->employee->id, 'kind' => 'in', 'at' => now('Asia/Kolkata')->subHours(3)->format('Y-m-d H:i'),
+            'employee_id' => $this->employee->id, 'kind' => 'in', 'at' => now('Asia/Karachi')->subHours(3)->format('Y-m-d H:i'),
             'reason' => 'Phone battery dead at the Nilokheri buying point',
         ], 'Manual attendance', 'battery');
         expect(AttendanceLog::query()->count())->toBe(0)
@@ -222,25 +222,25 @@ describe('manual attendance', function () {
         expect($done->status)->toBe(ApprovalRequest::STATUS_EXECUTED)
             ->and($log->source)->toBe('manual')->and($log->approval_request_id)->toBe($req->id)
             ->and($log->reasonTexts())->toBe(['Entered manually (approved by a second person)'])
-            ->and($log->occurred_at->timezone('Asia/Kolkata')->format('H:i'))->toBe(now('Asia/Kolkata')->subHours(3)->format('H:i'));
+            ->and($log->occurred_at->timezone('Asia/Karachi')->format('H:i'))->toBe(now('Asia/Karachi')->subHours(3)->format('H:i'));
     });
 
     it('refuses future times, own attendance and missing reasons', function () {
         app(AuthContextBinder::class)->bind($this->f->hr);
         $svc = app(ApprovalService::class);
         $base = ['employee_id' => $this->employee->id, 'kind' => 'in', 'reason' => 'Forgot the phone at home'];
-        expect(fn () => $svc->submit(ManualAttendance::KEY, ['at' => now('Asia/Kolkata')->addHour()->format('Y-m-d H:i')] + $base, 'x'))->toThrow(ValidationException::class)
-            ->and(fn () => $svc->submit(ManualAttendance::KEY, ['at' => now('Asia/Kolkata')->subHour()->format('Y-m-d H:i'), 'reason' => 'x'] + $base, 'x'))->toThrow(ValidationException::class);
+        expect(fn () => $svc->submit(ManualAttendance::KEY, ['at' => now('Asia/Karachi')->addHour()->format('Y-m-d H:i')] + $base, 'x'))->toThrow(ValidationException::class)
+            ->and(fn () => $svc->submit(ManualAttendance::KEY, ['at' => now('Asia/Karachi')->subHour()->format('Y-m-d H:i'), 'reason' => 'x'] + $base, 'x'))->toThrow(ValidationException::class);
         $hrEmployee = $this->f->employee(['person_id' => $this->f->hr->person_id, 'full_name' => null]);
         app(AuthContextBinder::class)->bind($this->f->hr);
-        expect(fn () => $svc->submit(ManualAttendance::KEY, ['employee_id' => $hrEmployee->id, 'at' => now('Asia/Kolkata')->subHour()->format('Y-m-d H:i')] + $base, 'x'))
+        expect(fn () => $svc->submit(ManualAttendance::KEY, ['employee_id' => $hrEmployee->id, 'at' => now('Asia/Karachi')->subHour()->format('Y-m-d H:i')] + $base, 'x'))
             ->toThrow(ValidationException::class);
     });
 
     it('is requested from the attendance screen', function () {
         intSignIn($this, $this->f->hr);
         Livewire::test(ListAttendanceLogs::class)->callAction('manual', [
-            'employee_id' => $this->employee->id, 'kind' => 'out', 'at' => now('Asia/Kolkata')->subHour()->format('Y-m-d H:i'), 'reason' => 'No network at the godown',
+            'employee_id' => $this->employee->id, 'kind' => 'out', 'at' => now('Asia/Karachi')->subHour()->format('Y-m-d H:i'), 'reason' => 'No network at the godown',
         ])->assertNotified('Sent for approval.');
         expect(ApprovalRequest::query()->where('action', ManualAttendance::KEY)->count())->toBe(1);
     });

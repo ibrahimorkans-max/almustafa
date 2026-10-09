@@ -21,7 +21,7 @@ final class AttendanceRegister
      */
     public function month(string $month, ?string $departmentId = null): array
     {
-        $from = CarbonImmutable::parse($month.'-01', 'Asia/Kolkata')->startOfMonth();
+        $from = CarbonImmutable::parse($month.'-01', 'Asia/Karachi')->startOfMonth();
         $to = $from->endOfMonth()->startOfDay();
         $dates = [];
         for ($d = $from; $d->lessThanOrEqualTo($to); $d = $d->addDay()) {

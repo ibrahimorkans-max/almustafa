@@ -30,8 +30,8 @@ class CreateEmployee extends CreateRecord
     public static function fieldFor(string $message): string
     {
         return 'data.'.match (true) {
-            str_contains($message, 'Aadhaar') => 'aadhaar',
-            str_contains($message, 'PAN') => 'pan',
+            str_contains($message, 'CNIC') => 'cnic',
+            str_contains($message, 'NTN') => 'ntn',
             str_contains($message, 'birth') => 'date_of_birth',
             str_contains($message, 'Notice') => 'notice_period_days',
             str_contains($message, 'joining') => 'joining_date',

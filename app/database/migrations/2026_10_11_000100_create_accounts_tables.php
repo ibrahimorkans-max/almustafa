@@ -48,7 +48,7 @@ return new class extends Migration
             // Mill bank accounts (kind = bank): number encrypted + blind index, shown masked.
             $table->text('bank_account_number')->nullable();
             $table->string('bank_account_last4', 4)->nullable();
-            $table->string('bank_ifsc', 11)->nullable();
+            $table->string('bank_code', 4)->nullable();      // from the IBAN, e.g. MEZN
             $table->string('bank_name', 120)->nullable();
             $table->string('status', 16)->default('active');
             $table->uuid('created_by')->nullable();
@@ -117,7 +117,7 @@ return new class extends Migration
             $table->date('bill_date');
             $table->date('due_date');
             $table->decimal('payable_kg', 15, 3);
-            $table->unsignedBigInteger('rate_paise_per_quintal');
+            $table->unsignedBigInteger('rate_paise_per_maund');
             $table->unsignedBigInteger('gross_paise');       // payable kg × rate
             $table->unsignedBigInteger('rate_cut_paise')->default(0);
             $table->unsignedBigInteger('brokerage_paise')->default(0);
@@ -154,12 +154,12 @@ return new class extends Migration
             $table->foreignUuid('entity_id')->constrained('entities');
             $table->string('number', 40);
             $table->foreignUuid('party_id')->constrained('parties');
-            $table->string('mode', 8);                       // neft | rtgs | cheque | upi | cash
+            $table->string('mode', 10);                      // ibft | rtgs | raast | cheque | pay_order | cash
             $table->foreignUuid('from_ledger_id')->constrained('ledger_accounts');
             $table->unsignedBigInteger('amount_paise');
             $table->date('payment_date');
             $table->foreignUuid('party_bank_account_id')->nullable()->constrained('party_bank_accounts');
-            $table->json('payee')->nullable();                // frozen holder / IFSC / last4 (number stays encrypted below)
+            $table->json('payee')->nullable();                // frozen holder / bank code / last4 (number stays encrypted below)
             $table->text('payee_account_number')->nullable(); // encrypted
             $table->string('status', 20)->default('pending'); // pending | first_approved | approved | rejected | cancelled
             $table->uuid('approval_request_id')->nullable();

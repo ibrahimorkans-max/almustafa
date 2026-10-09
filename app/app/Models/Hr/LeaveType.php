@@ -36,9 +36,10 @@ class LeaveType extends Model
      * Establishments / Factories Act rules: [code, name, paid, annual days, carry forward, max carry].
      */
     public const DEFAULTS = [
-        ['CL', 'Casual leave', true, '7.0', false, '0.0'],
-        ['SL', 'Sick leave', true, '7.0', false, '0.0'],
-        ['EL', 'Earned leave', true, '12.0', true, '30.0'],
+        // Factories Act 1934 / Punjab Shops and Establishments Ordinance 1969 (examples; the owner confirms them).
+        ['CL', 'Casual leave', true, '10.0', false, '0.0'],
+        ['SL', 'Sick leave', true, '16.0', false, '0.0'],
+        ['EL', 'Annual (earned) leave', true, '14.0', true, '28.0'],
         ['LWP', 'Leave without pay', false, '0.0', false, '0.0'],
     ];
 

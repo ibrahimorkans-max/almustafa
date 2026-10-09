@@ -17,7 +17,7 @@ final class DeductionCalculator
     /**
      * @param  array<string, int>  $measurements  parameter => basis points (moisture => 1850)
      * @param  iterable<DeductionRule>  $rules
-     * @return array{deduction_kg: string, rate_cut_paise_per_quintal: int, reject: bool, lines: list<array<string, mixed>>}
+     * @return array{deduction_kg: string, rate_cut_paise_per_maund: int, reject: bool, lines: list<array<string, mixed>>}
      */
     public function calculate(string $netKg, ?int $bagCount, array $measurements, iterable $rules): array
     {
@@ -67,11 +67,11 @@ final class DeductionCalculator
                 $deduction = $deduction->plus($kg);
                 $lines[] = ['parameter' => $rule->parameter, 'method' => 'excess_weight', 'value_bp' => $value, 'free_bp' => $rule->free_limit_bp, 'deduction_kg' => $kg->kg];
             } elseif ($rule->method === 'rate_cut') {
-                // factor paise/quintal per full 1 % (100 bp) above the free limit
+                // factor paisa/maund per full 1 % (100 bp) above the free limit
                 $points = intdiv($excess, 100);
                 $cut = $points * $rule->factor;
                 $rateCut += $cut;
-                $lines[] = ['parameter' => $rule->parameter, 'method' => 'rate_cut', 'value_bp' => $value, 'free_bp' => $rule->free_limit_bp, 'rate_cut_paise_per_quintal' => $cut];
+                $lines[] = ['parameter' => $rule->parameter, 'method' => 'rate_cut', 'value_bp' => $value, 'free_bp' => $rule->free_limit_bp, 'rate_cut_paise_per_maund' => $cut];
             }
         }
 
@@ -81,7 +81,7 @@ final class DeductionCalculator
 
         return [
             'deduction_kg' => $deduction->kg,
-            'rate_cut_paise_per_quintal' => $rateCut,
+            'rate_cut_paise_per_maund' => $rateCut,
             'reject' => $reject,
             'lines' => $lines,
         ];

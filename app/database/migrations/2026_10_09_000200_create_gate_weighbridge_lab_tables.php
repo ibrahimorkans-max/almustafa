@@ -66,7 +66,7 @@ return new class extends Migration
             // moisture | foreign_matter | broken | damaged | immature | chalky | bags
             $table->string('parameter', 20);
             // excess_weight: deduct (value - free) × factor % of net weight
-            // rate_cut: cut factor paise/quintal per 1 % above free
+            // rate_cut: cut factor paisa/maund per 1 % above free
             // per_bag: deduct factor grams per bag
             $table->string('method', 16);
             $table->unsignedInteger('free_limit_bp')->default(0);
@@ -102,7 +102,7 @@ return new class extends Migration
             $table->decimal('net_kg', 15, 3)->nullable();
             $table->decimal('deduction_kg', 15, 3)->nullable();
             $table->decimal('payable_kg', 15, 3)->nullable();
-            $table->unsignedBigInteger('rate_cut_paise_per_quintal')->nullable();
+            $table->unsignedBigInteger('rate_cut_paise_per_maund')->nullable();
             $table->dateTime('arrived_at', 3);
             $table->dateTime('exited_at', 3)->nullable();
             $table->uuid('created_by')->nullable();

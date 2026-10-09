@@ -145,7 +145,7 @@ it('enforces sync read/write rights per role', function (string $role) {
     $result = $this->withHeaders($headers)->postJson('/api/v1/sync/push', ['events' => [[
         'event_id' => (string) Str::uuid(), 'client_seq' => 1, 'occurred_at' => now()->toIso8601ZuluString(),
         'type' => 'party.upsert', 'record_id' => (string) Str::uuid(),
-        'payload' => ['code' => 'P'.random_int(100, 999), 'name' => 'X', 'gst_registration_type' => 'unregistered'],
+        'payload' => ['code' => 'P'.random_int(100, 999), 'name' => 'X'],
     ]]])->assertOk()->json('results.0.status');
 
     expect($result)->toBe($has('master.manage') ? 'applied' : 'rejected', "{$role} pushes a party");

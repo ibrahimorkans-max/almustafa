@@ -80,7 +80,7 @@ class ViewEmployee extends ViewRecord
                                 ->helperText(fn (Get $get) => $c->code === 'BASIC' ? match ($get('pay_basis')) {
                                     'daily' => 'Daily rate', 'piece_rate' => 'Rate per unit', default => 'Per month',
                                 } : null),
-                            TextInput::make("unit.{$c->code}")->label('Unit (bag, quintal…)')->maxLength(20)
+                            TextInput::make("unit.{$c->code}")->label('Unit (bag, maund…)')->maxLength(20)
                                 ->visible(fn (Get $get) => $get('pay_basis') === 'piece_rate' && $c->kind === SalaryComponent::EARNING),
                         ])->all()),
                     Textarea::make('reason')->required()->minLength(3)->maxLength(500)->placeholder('Joining / annual increment / correction'),
@@ -101,9 +101,8 @@ class ViewEmployee extends ViewRecord
                 ->modalDescription('Goes to approval: someone who approves payroll must confirm it before salary is paid there.')
                 ->form([
                     TextInput::make('account_holder')->required()->maxLength(120)->default(fn (Employee $record) => $record->name()),
-                    TextInput::make('account_number')->required()->regex('/^\d{9,18}$/')->autocomplete('off'),
-                    TextInput::make('ifsc')->label('IFSC')->required()->maxLength(11),
-                    TextInput::make('bank_name')->maxLength(120),
+                    TextInput::make('account_number')->label('IBAN')->required()->maxLength(34)->placeholder('PK36 SCBL 0000 0011 2345 6702')->autocomplete('off'),
+                    TextInput::make('bank_name')->maxLength(120)->placeholder('e.g. HBL, Meezan Bank'),
                 ])
                 ->action(fn (Employee $record, array $data) => $this->attempt(function () use ($record, $data): void {
                     app(ApprovalService::class)->submit(EmployeeBankAccountChange::KEY, ['employee_id' => $record->id] + $data,

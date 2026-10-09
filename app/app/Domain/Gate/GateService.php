@@ -7,7 +7,6 @@ namespace App\Domain\Gate;
 use App\Domain\Accounts\PurchaseBillService;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
-use App\Domain\Gst\EInvoiceService;
 use App\Domain\Inventory\StockLedger;
 use App\Domain\Procurement\SaudaService;
 use App\Domain\Sales\SalesBillService;
@@ -24,7 +23,7 @@ use App\Models\Masters\Vehicle;
 use App\Models\Procurement\Sauda;
 use App\Models\Sales\DispatchOrder;
 use App\Models\Sales\SalesBill;
-use App\Support\Values\IndianIds;
+use App\Support\Values\PakistanIds;
 use App\Support\Values\Weight;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -61,7 +60,7 @@ final class GateService
         $occurredAt ??= now();
 
         return DB::transaction(function () use ($data, $id, $occurredAt): GateEntry {
-            $registration = IndianIds::normalizeVehicleNumber((string) $data['registration_no']);
+            $registration = PakistanIds::normalizeVehicleNumber((string) $data['registration_no']);
             $vehicle = Vehicle::query()->where('registration_no', $registration)->first();
             $flags = [];
             if ($vehicle === null) {
@@ -344,7 +343,7 @@ final class GateService
             $snapshot = [
                 'gross_kg' => $entry->gross_kg, 'tare_kg' => $entry->tare_kg, 'net_kg' => $entry->net_kg,
                 'deduction_kg' => $entry->deduction_kg, 'payable_kg' => $entry->payable_kg,
-                'rate_cut_paise_per_quintal' => $entry->rate_cut_paise_per_quintal, 'lab_accepted' => $accepted,
+                'rate_cut_paise_per_maund' => $entry->rate_cut_paise_per_maund, 'lab_accepted' => $accepted,
                 'flags' => $entry->flags ?? [],
             ];
             $event = $this->appendEvent($entry, 'slip_issued', $snapshot, now(), $strict);
@@ -409,14 +408,7 @@ final class GateService
             }
             $bill = SalesBill::query()->where('gate_entry_id', $entry->id)->first();
             if ($bill === null || $bill->status !== SalesBill::POSTED) {
-                throw new BusinessRuleViolation('The tax invoice must be posted by accounts before the gate pass.');
-            }
-            $einvoice = app(EInvoiceService::class);
-            if ($einvoice->required($bill) && $bill->einvoice_status !== 'generated') {
-                throw new BusinessRuleViolation('Generate the e-invoice (IRN) before the gate pass.');
-            }
-            if (config('ricemill.gst.require_eway_for_gate_pass') && $einvoice->ewayRequired($bill) && $bill->eway_bill_no === null) {
-                throw new BusinessRuleViolation('This consignment needs an e-way bill before the gate pass.');
+                throw new BusinessRuleViolation('The invoice must be posted by accounts before the gate pass.');
             }
             $event = $this->appendEvent($entry, 'gate_pass_issued', [
                 'number' => $this->numbers->next(DocumentNumbers::GATE_PASS),
@@ -491,7 +483,7 @@ final class GateService
         $decision = $events->whereIn('event', ['lab_accepted', 'lab_rejected'])->last();
         $entry->deduction_kg = null;
         $entry->payable_kg = $entry->net_kg;
-        $entry->rate_cut_paise_per_quintal = null;
+        $entry->rate_cut_paise_per_maund = null;
         if ($decision !== null && $decision->event === 'lab_accepted' && $entry->net_kg !== null && bccomp($entry->net_kg, '0', 3) > 0) {
             /** @var list<array<string, mixed>> $frozen rules as they were when the decision was taken */
             $frozen = (array) ($decision->data['rules'] ?? []);
@@ -499,7 +491,7 @@ final class GateService
             $result = $this->deductions->calculate($entry->net_kg, $entry->bag_count, $decision->data['measurements'] ?? [], $rules);
             $entry->deduction_kg = $result['deduction_kg'];
             $entry->payable_kg = Weight::kg($entry->net_kg)->minus(Weight::kg($result['deduction_kg']))->kg;
-            $entry->rate_cut_paise_per_quintal = $result['rate_cut_paise_per_quintal'];
+            $entry->rate_cut_paise_per_maund = $result['rate_cut_paise_per_maund'];
         }
 
         // Status: cancelled / furthest step reached along the flow / lab_rejected.

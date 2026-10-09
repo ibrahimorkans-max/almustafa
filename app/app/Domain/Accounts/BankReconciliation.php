@@ -80,7 +80,7 @@ final class BankReconciliation
     }
 
     /**
-     * Same amount on the same side within a few days; a payment UTR / cheque number found in the
+     * Same amount on the same side within a few days; a payment transaction ID / cheque number found in the
      * statement wins over date proximity. Ambiguous lines are left for a person.
      */
     public function autoMatch(LedgerAccount $bank): int

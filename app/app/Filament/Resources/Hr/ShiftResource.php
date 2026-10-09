@@ -34,7 +34,7 @@ class ShiftResource extends Resource
                 ->unique(ignoreRecord: true, modifyRuleUsing: fn ($rule) => HrScope::inEntity($rule)),
             TextInput::make('name')->required()->maxLength(120),
             Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
-            TextInput::make('start_time')->label('Start (HH:MM, IST)')->required()->regex($hhmm)->default('09:00'),
+            TextInput::make('start_time')->label('Start (HH:MM, PKT)')->required()->regex($hhmm)->default('09:00'),
             TextInput::make('end_time')->label('End (HH:MM)')->required()->regex($hhmm)->default('18:00')
                 ->helperText('Earlier than the start = night shift ending the next morning'),
             TextInput::make('break_minutes')->label('Break (min)')->required()->integer()->minValue(0)->maxValue(240)->default(60),

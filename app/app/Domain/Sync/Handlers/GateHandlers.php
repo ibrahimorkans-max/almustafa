@@ -17,7 +17,7 @@ use App\Models\Gate\Scale;
 use App\Models\Gate\Weighment;
 use App\Models\LoginAccount;
 use App\Models\Masters\Godown;
-use App\Support\Values\IndianIds;
+use App\Support\Values\PakistanIds;
 use Closure;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -42,7 +42,7 @@ final class GateHandlers
                     return new SyncOutcome(SyncOutcome::APPLIED, ['note' => 'already recorded']);
                 }
                 $v = Validator::make($e->payload, [
-                    'registration_no' => ['required', 'string', 'max:20', fn (string $a, mixed $val, Closure $fail) => IndianIds::isValidVehicleNumber(IndianIds::normalizeVehicleNumber((string) $val)) ? null : $fail('Invalid registration number.')],
+                    'registration_no' => ['required', 'string', 'max:20', fn (string $a, mixed $val, Closure $fail) => PakistanIds::isValidVehicleNumber(PakistanIds::normalizeVehicleNumber((string) $val)) ? null : $fail('Invalid registration number.')],
                     'direction' => ['sometimes', Rule::in(['inbound', 'outbound'])],
                     'purpose' => ['sometimes', Rule::in(['paddy_purchase', 'dispatch', 'other'])],
                     'party_id' => ['nullable', 'uuid'],

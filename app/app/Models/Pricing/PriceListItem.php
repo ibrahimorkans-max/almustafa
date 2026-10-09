@@ -21,7 +21,7 @@ use Illuminate\Support\Carbon;
  * @property string $entity_id
  * @property string $price_list_id
  * @property string $product_id
- * @property int $rate_paise_per_quintal
+ * @property int $rate_paise_per_maund
  * @property string|null $supersedes_id
  * @property string|null $approval_request_id
  * @property string|null $reason
@@ -36,11 +36,11 @@ class PriceListItem extends Model
     use HasUuids;
     use TracksCreator;
 
-    protected $fillable = ['entity_id', 'price_list_id', 'product_id', 'rate_paise_per_quintal', 'supersedes_id', 'approval_request_id', 'reason', 'created_at'];
+    protected $fillable = ['entity_id', 'price_list_id', 'product_id', 'rate_paise_per_maund', 'supersedes_id', 'approval_request_id', 'reason', 'created_at'];
 
     protected function casts(): array
     {
-        return ['rate_paise_per_quintal' => 'integer', 'created_at' => 'datetime'];
+        return ['rate_paise_per_maund' => 'integer', 'created_at' => 'datetime'];
     }
 
     /** @return BelongsTo<Product, $this> */

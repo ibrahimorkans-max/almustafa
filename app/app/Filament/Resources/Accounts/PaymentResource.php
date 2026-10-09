@@ -80,7 +80,7 @@ class PaymentResource extends Resource
         return $form->columns(2)->schema([
             Select::make('party_id')->label('Pay to')->required()->searchable()->live()
                 ->options(fn () => Party::query()->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
-            Select::make('mode')->options(Payment::MODES)->default('neft')->required()->live(),
+            Select::make('mode')->options(Payment::MODES)->default('ibft')->required()->live(),
             Select::make('from_ledger_id')->label('From')->required()
                 ->options(fn (Get $get) => LedgerAccount::query()->where('status', 'active')
                     ->where('kind', $get('mode') === 'cash' ? 'cash' : 'bank')->orderBy('name')->get()
@@ -106,10 +106,10 @@ class PaymentResource extends Resource
                 TextColumn::make('party.name')->label('Party')->searchable(),
                 TextColumn::make('mode')->formatStateUsing(fn (string $state) => Payment::MODES[$state] ?? $state),
                 TextColumn::make('amount_paise')->label('Amount')->alignEnd()->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
-                TextColumn::make('payee')->label('Into')->state(fn (Payment $r) => $r->payee ? "{$r->payee['ifsc']} …{$r->payee['last4']}" : '—'),
+                TextColumn::make('payee')->label('Into')->state(fn (Payment $r) => $r->payee ? "{$r->payee['bank_code']} …{$r->payee['last4']}" : '—'),
                 TextColumn::make('status')->badge()->color(fn (string $state) => self::statusColor($state))
                     ->formatStateUsing(fn (string $state) => self::STATUS_LABELS[$state] ?? $state),
-                TextColumn::make('reference')->label('UTR / cheque')->placeholder('—'),
+                TextColumn::make('reference')->label('Transaction / cheque')->placeholder('—'),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([SelectFilter::make('status')->options(self::STATUS_LABELS)])
@@ -128,9 +128,9 @@ class PaymentResource extends Resource
                 TextEntry::make('mode')->formatStateUsing(fn (string $state) => Payment::MODES[$state] ?? $state),
                 TextEntry::make('fromLedger.name')->label('From'),
                 TextEntry::make('payment_date')->date('d M Y'),
-                TextEntry::make('reference')->label('UTR / cheque')->placeholder('—'),
+                TextEntry::make('reference')->label('Transaction ID / cheque')->placeholder('—'),
                 TextEntry::make('payee_view')->label('Paid into (frozen)')->columnSpanFull()
-                    ->state(fn (Payment $r) => $r->payee ? "{$r->payee['holder']} · {$r->payee['bank_name']} · IFSC {$r->payee['ifsc']} · a/c …{$r->payee['last4']}" : 'Cash'),
+                    ->state(fn (Payment $r) => $r->payee ? "{$r->payee['holder']} · {$r->payee['bank_name']} · {$r->payee['bank_code']} · a/c …{$r->payee['last4']}" : 'Cash'),
                 TextEntry::make('narration')->placeholder('—')->columnSpanFull(),
             ]),
             Section::make('Against bills')->schema([

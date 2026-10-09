@@ -7,7 +7,7 @@
         <form wire:submit="search" class="flex flex-wrap items-end gap-3">
             <label class="flex-1">
                 <span class="text-sm font-medium">Number, vehicle or party</span>
-                <x-filament::input.wrapper><x-filament::input type="text" wire:model="term" placeholder="e.g. KNL/G/2024-25/0012 or HR05AB1234" /></x-filament::input.wrapper>
+                <x-filament::input.wrapper><x-filament::input type="text" wire:model="term" placeholder="e.g. AMR/G/2026-27/0012 or MNA211234" /></x-filament::input.wrapper>
             </label>
             <label>
                 <span class="text-sm font-medium">Type</span>

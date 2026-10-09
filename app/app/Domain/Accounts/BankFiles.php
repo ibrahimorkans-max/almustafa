@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
  */
 final class BankFiles
 {
-    public const HEADER = ['Payment ref', 'Mode', 'Amount', 'Beneficiary name', 'Beneficiary account', 'IFSC', 'Debit account', 'Narration'];
+    public const HEADER = ['Payment ref', 'Mode', 'Amount', 'Beneficiary name', 'Beneficiary IBAN', 'Bank code', 'Debit IBAN', 'Narration'];
 
     public function __construct(
         private readonly DocumentNumbers $numbers,
@@ -72,7 +72,7 @@ final class BankFiles
                 number_format($p->amount_paise / 100, 2, '.', ''),
                 self::safe($p->payee['holder'] ?? $p->party->name),
                 $p->payee_account_number,
-                $p->payee['ifsc'] ?? '',
+                $p->payee['bank_code'] ?? '',
                 $bank->bank_account_number,
                 self::safe(mb_substr("{$p->number} {$p->party->name}", 0, 30)),
             ], escape: '');

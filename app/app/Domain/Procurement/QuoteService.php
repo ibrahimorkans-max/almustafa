@@ -25,7 +25,7 @@ final class QuoteService
         private readonly ActorContext $actor,
     ) {}
 
-    /** @param  array<string, mixed>  $offer  party_id, product_id, quantity_kg, rate_paise_per_quintal, … */
+    /** @param  array<string, mixed>  $offer  party_id, product_id, quantity_kg, rate_paise_per_maund, … */
     public function submit(array $offer, string $by, ?string $note = null): Quote
     {
         $this->require('quote.manage');
@@ -40,18 +40,18 @@ final class QuoteService
         });
     }
 
-    public function counter(Quote $quote, string $quantityKg, int $ratePaisePerQuintal, string $by, ?string $note = null): Quote
+    public function counter(Quote $quote, string $quantityKg, int $ratePaisePerMaund, string $by, ?string $note = null): Quote
     {
         $this->require('quote.manage');
 
-        return DB::transaction(function () use ($quote, $quantityKg, $ratePaisePerQuintal, $by, $note): Quote {
+        return DB::transaction(function () use ($quote, $quantityKg, $ratePaisePerMaund, $by, $note): Quote {
             $quote = $this->lockOpen($quote);
             if ($quote->last_offer_by === $by) {
                 throw new BusinessRuleViolation('Wait for the other side to respond before making another offer.');
             }
             $quote->current_revision++;
             $quote->quantity_kg = $quantityKg;
-            $quote->rate_paise_per_quintal = $ratePaisePerQuintal;
+            $quote->rate_paise_per_maund = $ratePaisePerMaund;
             $quote->last_offer_by = $by;
             $quote->status = Quote::STATUS_COUNTERED;
             $quote->save();
@@ -143,7 +143,7 @@ final class QuoteService
             'revision' => $revision,
             'offered_by' => $by,
             'quantity_kg' => $quote->quantity_kg,
-            'rate_paise_per_quintal' => $quote->rate_paise_per_quintal,
+            'rate_paise_per_maund' => $quote->rate_paise_per_maund,
             'terms' => $terms,
             'note' => $note,
             'created_at' => now(),

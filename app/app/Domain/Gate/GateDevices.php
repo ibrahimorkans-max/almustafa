@@ -10,7 +10,7 @@ use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Gate\GateDeviceEvent;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
-use App\Support\Values\IndianIds;
+use App\Support\Values\PakistanIds;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -37,7 +37,7 @@ final class GateDevices
     public function plateRead(string $plate, ?int $confidenceBp, ?string $photoSha256, ?GateEntry $entry, CarbonInterface $at, ?string $id = null): array
     {
         $this->require();
-        $normalized = IndianIds::normalizeVehicleNumber($plate);
+        $normalized = PakistanIds::normalizeVehicleNumber($plate);
 
         return DB::transaction(function () use ($normalized, $confidenceBp, $photoSha256, $entry, $at, $id): array {
             $entry ??= $this->openEntryFor($normalized);

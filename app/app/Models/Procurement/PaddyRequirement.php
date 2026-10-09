@@ -23,7 +23,7 @@ use Illuminate\Support\Carbon;
  * @property string $number
  * @property string $product_id
  * @property string $quantity_kg
- * @property int|null $target_rate_paise_per_quintal
+ * @property int|null $target_rate_paise_per_maund
  * @property array<string, int>|null $quality_spec
  * @property Carbon|null $delivery_from
  * @property Carbon|null $delivery_to
@@ -49,7 +49,7 @@ class PaddyRequirement extends Model
     public const STATUS_CLOSED = 'closed';
 
     protected $fillable = [
-        'number', 'product_id', 'quantity_kg', 'target_rate_paise_per_quintal', 'quality_spec',
+        'number', 'product_id', 'quantity_kg', 'target_rate_paise_per_maund', 'quality_spec',
         'delivery_from', 'delivery_to', 'notes',
     ];
 
@@ -60,7 +60,7 @@ class PaddyRequirement extends Model
     {
         return [
             'quantity_kg' => 'decimal:3',
-            'target_rate_paise_per_quintal' => 'integer',
+            'target_rate_paise_per_maund' => 'integer',
             'quality_spec' => 'array',
             'delivery_from' => 'date',
             'delivery_to' => 'date',

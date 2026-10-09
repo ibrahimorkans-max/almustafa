@@ -46,40 +46,40 @@ it('opens the HR screens for HR, owners, accountants and supervisors only', func
 
 it('adds an employee from the form and shows identifiers masked', function () {
     hrSignIn($this, $this->f->hr);
-    $aadhaar = HrFixtures::aadhaar(4242);
+    $cnic = HrFixtures::cnic(4242);
     Livewire::test(CreateEmployee::class)->fillForm([
-        'full_name' => 'Gurpreet Singh', 'phone' => '9876543210', 'employment_type' => 'contract',
+        'full_name' => 'Ghulam Rasool', 'phone' => '0301-2345678', 'employment_type' => 'contract',
         'department_id' => Department::query()->where('code', 'GATE')->value('id'),
-        'joining_date' => '2026-06-01', 'aadhaar' => $aadhaar, 'pan' => 'ABCPS1234K', 'date_of_birth' => '1988-02-01',
+        'joining_date' => '2026-06-01', 'cnic' => $cnic, 'ntn' => '1234567-8', 'date_of_birth' => '1988-02-01',
     ])->call('create')->assertHasNoFormErrors();
 
     $e = Employee::query()->sole();
     $this->get("/admin/hr/employees/{$e->id}")->assertOk()
-        ->assertSee('Gurpreet Singh')->assertSee('XXXX XXXX '.substr($aadhaar, -4))->assertSee('XXXXXX234K')
-        ->assertDontSee($aadhaar);
+        ->assertSee('Ghulam Rasool')->assertSee('XXXXX-XXXX'.substr($cnic, -4, 3).'-'.substr($cnic, -1))->assertSee('XXXX5678')
+        ->assertDontSee($cnic);
 });
 
-it('reports a bad Aadhaar on the field', function () {
+it('reports a bad CNIC on the field', function () {
     hrSignIn($this, $this->f->hr);
     Livewire::test(CreateEmployee::class)->fillForm([
-        'full_name' => 'Xavier Y', 'employment_type' => 'permanent', 'joining_date' => '2026-06-01', 'aadhaar' => '234567890123',
-    ])->call('create')->assertHasFormErrors(['aadhaar']);
+        'full_name' => 'Xavier Y', 'employment_type' => 'permanent', 'joining_date' => '2026-06-01', 'cnic' => '9234567890123',
+    ])->call('create')->assertHasFormErrors(['cnic']);
 });
 
-it('keeps the stored Aadhaar when the edit form leaves it empty', function () {
+it('keeps the stored CNIC when the edit form leaves it empty', function () {
     $e = $this->f->employee();
-    $last4 = $e->aadhaar_last4;
+    $last4 = $e->cnic_last4;
     hrSignIn($this, $this->f->hr);
     Livewire::test(EditEmployee::class, ['record' => $e->id])
-        ->assertFormSet(['aadhaar' => null, 'full_name' => 'Ramesh Kumar'])
-        ->fillForm(['emergency_contact_phone' => '9800011111'])->call('save')->assertHasNoFormErrors();
-    expect($e->fresh()->aadhaar_last4)->toBe($last4)->and($e->fresh()->emergency_contact_phone)->toBe('9800011111');
+        ->assertFormSet(['cnic' => null, 'full_name' => 'Muhammad Iqbal'])
+        ->fillForm(['emergency_contact_phone' => '03009800111'])->call('save')->assertHasNoFormErrors();
+    expect($e->fresh()->cnic_last4)->toBe($last4)->and($e->fresh()->emergency_contact_phone)->toBe('03009800111');
 });
 
 it('reveals a value on the page for HR and records it; the button is not offered without the permission', function () {
     $e = $this->f->employee();
     hrSignIn($this, $this->f->hr);
-    Livewire::test(ViewEmployee::class, ['record' => $e->id])->call('reveal', 'pan')->assertSet('revealed.pan', $e->pan)->assertSee($e->pan);
+    Livewire::test(ViewEmployee::class, ['record' => $e->id])->call('reveal', 'ntn')->assertSet('revealed.ntn', $e->ntn)->assertSee($e->ntn);
     expect(Make::system(fn () => AuditLog::query()->where('action', 'hr.employee.sensitive_revealed')->count()))->toBe(1);
 });
 
@@ -109,7 +109,7 @@ it('records salary, documents, notice and exit from the employee page', function
     $page()->callAction('exit', ['exited_on' => '2026-10-31'])->assertNotified();
     expect($e->fresh()->status)->toBe('on_notice'); // clearance still open → refused with the list of open items
 
-    $page()->callAction('bank', ['account_holder' => 'Ramesh Kumar', 'account_number' => '123456789012', 'ifsc' => 'SBIN0001234'])
+    $page()->callAction('bank', ['account_holder' => 'Muhammad Iqbal', 'account_number' => 'PK36SCBL0000001123456702', 'bank_name' => 'Standard Chartered'])
         ->assertNotified('Sent for approval.');
     expect($e->fresh()->bank_account_last4)->toBeNull();
 });

@@ -41,7 +41,7 @@ final class RateChange implements ApprovalAction
         $data = Validator::make($payload, [
             'price_list_id' => ['required', 'uuid'],
             'product_id' => ['required', 'uuid'],
-            'rate_paise_per_quintal' => ['required', 'integer', 'min:1'],
+            'rate_paise_per_maund' => ['required', 'integer', 'min:1'],
             'reason' => ['required', 'string', 'min:5', 'max:1000'],
         ])->validate();
         if (! PriceList::query()->whereKey($data['price_list_id'])->exists() || ! Product::query()->whereKey($data['product_id'])->exists()) {
@@ -56,7 +56,7 @@ final class RateChange implements ApprovalAction
         $p = $request->payload;
         $list = PriceList::query()->find($p['price_list_id']) ?? throw new ApprovalDenied('Price list not found.');
         $product = Product::query()->find($p['product_id']) ?? throw new ApprovalDenied('Product not found.');
-        $item = $this->pricing->applyRate($list, $product, (int) $p['rate_paise_per_quintal'], (string) $p['reason'], $request->id);
+        $item = $this->pricing->applyRate($list, $product, (int) $p['rate_paise_per_maund'], (string) $p['reason'], $request->id);
 
         return ['price_list_item_id' => $item->id];
     }

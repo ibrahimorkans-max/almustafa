@@ -31,7 +31,7 @@ class OperationsOverview extends StatsOverviewWidget
         $metrics = app(DashboardMetrics::class);
         $ops = $metrics->operations();
         $attention = $metrics->attention($me);
-        $q = fn (string $kg) => number_format(((float) $kg) / 100, 1).' qtl';
+        $q = fn (string $kg) => number_format(((float) $kg) / 40, 1).' maund';
 
         return [
             Stat::make('Vehicles inside', (string) $ops['inside'])

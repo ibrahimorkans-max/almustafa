@@ -19,7 +19,7 @@ use Illuminate\Support\Carbon;
  * @property int $revision
  * @property string $offered_by
  * @property string $quantity_kg
- * @property int $rate_paise_per_quintal
+ * @property int $rate_paise_per_maund
  * @property array<string, mixed>|null $terms
  * @property string|null $note
  * @property string|null $created_by
@@ -32,13 +32,13 @@ class QuoteRevision extends Model
     use HasUuids;
     use TracksCreator;
 
-    protected $fillable = ['entity_id', 'quote_id', 'revision', 'offered_by', 'quantity_kg', 'rate_paise_per_quintal', 'terms', 'note', 'created_at'];
+    protected $fillable = ['entity_id', 'quote_id', 'revision', 'offered_by', 'quantity_kg', 'rate_paise_per_maund', 'terms', 'note', 'created_at'];
 
     protected function casts(): array
     {
         return [
             'quantity_kg' => 'decimal:3',
-            'rate_paise_per_quintal' => 'integer',
+            'rate_paise_per_maund' => 'integer',
             'revision' => 'integer',
             'terms' => 'array',
             'created_at' => 'datetime',

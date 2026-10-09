@@ -11,7 +11,7 @@ use App\Models\ApprovalRequest;
 use App\Models\LoginAccount;
 use App\Models\Masters\Party;
 use App\Models\Masters\PartyBankAccount;
-use App\Support\Values\IndianIds;
+use App\Support\Values\PakistanIds;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -21,7 +21,7 @@ use Illuminate\Validation\ValidationException;
  * Add / change / deactivate a party's bank account — always maker-checker, because a
  * swapped vendor account number is the classic way to divert payments.
  *
- * The account number and UPI id are stored ENCRYPTED inside the request payload, so neither
+ * The IBAN and Raast id are stored ENCRYPTED inside the request payload, so neither
  * approval_requests nor the audit log ever holds them in plain text.
  */
 final class PartyBankAccountChange implements ApprovalAction
@@ -54,11 +54,11 @@ final class PartyBankAccountChange implements ApprovalAction
             'party_id' => ['required', 'uuid'],
             'bank_account_id' => [$op === 'add' ? 'prohibited' : 'required', 'nullable', 'uuid'],
             'account_holder' => [$op === 'deactivate' ? 'nullable' : 'required', 'string', 'max:160'],
-            'account_number' => [$op === 'deactivate' ? 'nullable' : 'required', 'regex:/^\d{9,18}$/'],
-            'ifsc' => [$op === 'deactivate' ? 'nullable' : 'required', fn ($a, $value, $fail) => IndianIds::isValidIfsc(strtoupper((string) $value)) ? null : $fail('Invalid IFSC code.')],
+            'account_number' => [$op === 'deactivate' ? 'nullable' : 'required',
+                fn ($a, $value, $fail) => PakistanIds::isValidIban((string) PakistanIds::normalizeIban((string) $value)) ? null : $fail('Enter the IBAN (PK and 22 characters); its check digits do not match.')],
             'bank_name' => ['nullable', 'string', 'max:120'],
             'branch' => ['nullable', 'string', 'max:120'],
-            'upi_id' => ['nullable', 'regex:/^[\w.\-]{2,256}@[a-zA-Z]{2,64}$/'],
+            'raast_id' => ['nullable', 'regex:/^(\+92|0)?3\d{9}$/'],
             'is_primary' => ['sometimes', 'boolean'],
         ]);
         $data = $v->validate();
@@ -68,7 +68,7 @@ final class PartyBankAccountChange implements ApprovalAction
             throw ValidationException::withMessages(['bank_account_id' => 'Bank account not found for this party.']);
         }
 
-        $number = $data['account_number'] ?? null;
+        $number = PakistanIds::normalizeIban($data['account_number'] ?? null);
 
         return [
             'op' => $op,
@@ -78,10 +78,10 @@ final class PartyBankAccountChange implements ApprovalAction
             'account_holder' => $data['account_holder'] ?? null,
             'account_number_encrypted' => $number !== null ? Crypt::encryptString($number) : null,
             'account_number_masked' => $number !== null ? 'XXXX'.substr($number, -4) : null,
-            'ifsc' => isset($data['ifsc']) ? strtoupper((string) $data['ifsc']) : null,
+            'bank_code' => $number !== null ? PakistanIds::bankCodeOfIban($number) : null,
             'bank_name' => $data['bank_name'] ?? null,
             'branch' => $data['branch'] ?? null,
-            'upi_id_encrypted' => isset($data['upi_id']) ? Crypt::encryptString((string) $data['upi_id']) : null,
+            'raast_id_encrypted' => isset($data['raast_id']) ? Crypt::encryptString((string) $data['raast_id']) : null,
             'is_primary' => (bool) ($data['is_primary'] ?? false),
         ];
     }
@@ -107,10 +107,9 @@ final class PartyBankAccountChange implements ApprovalAction
         $account->fill([
             'account_holder' => $p['account_holder'],
             'account_number' => Crypt::decryptString((string) $p['account_number_encrypted']),
-            'ifsc' => $p['ifsc'],
             'bank_name' => $p['bank_name'],
             'branch' => $p['branch'],
-            'upi_id' => $p['upi_id_encrypted'] !== null ? Crypt::decryptString((string) $p['upi_id_encrypted']) : null,
+            'raast_id' => $p['raast_id_encrypted'] !== null ? Crypt::decryptString((string) $p['raast_id_encrypted']) : null,
             'is_primary' => $p['is_primary'],
         ]);
         $account->approval_request_id = $request->id;
@@ -123,7 +122,7 @@ final class PartyBankAccountChange implements ApprovalAction
         $account->save();
 
         $this->audit->record('party.bank_account.'.$p['op'], $party, meta: [
-            'bank_account_id' => $account->id, 'account' => $account->maskedNumber(), 'ifsc' => $account->ifsc,
+            'bank_account_id' => $account->id, 'account' => $account->maskedNumber(), 'bank_code' => $account->bank_code,
             'approval_request_id' => $request->id,
         ]);
 

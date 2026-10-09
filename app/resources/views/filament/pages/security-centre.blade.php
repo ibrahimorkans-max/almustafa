@@ -10,7 +10,7 @@
                 @foreach ($locks as $lock)
                     <li class="rounded-lg border border-danger-300 bg-danger-50 p-3 text-sm dark:border-danger-700 dark:bg-danger-950">
                         <strong>{{ $lock->where }}</strong> locked by {{ $lock->by ?? 'unknown' }}
-                        since {{ \Carbon\CarbonImmutable::parse($lock->locked_at, 'UTC')->timezone('Asia/Kolkata')->format('d M Y H:i') }} IST.
+                        since {{ \Carbon\CarbonImmutable::parse($lock->locked_at, 'UTC')->timezone('Asia/Karachi')->format('d M Y H:i') }} PKT.
                         <div class="mt-1 text-gray-700 dark:text-gray-300">Reason: {{ $lock->reason }}</div>
                     </li>
                 @endforeach
@@ -29,8 +29,8 @@
                     <li class="rounded-lg border border-warning-300 bg-warning-50 p-3 text-sm dark:border-warning-700 dark:bg-warning-950">
                         <strong>{{ $w->message }}</strong>
                         <div class="mt-1 text-gray-700 dark:text-gray-300">
-                            {{ \Carbon\CarbonImmutable::parse($w->starts_at, 'UTC')->timezone('Asia/Kolkata')->format('d M H:i') }}
-                            – {{ \Carbon\CarbonImmutable::parse($w->ends_at, 'UTC')->timezone('Asia/Kolkata')->format('d M H:i') }} IST
+                            {{ \Carbon\CarbonImmutable::parse($w->starts_at, 'UTC')->timezone('Asia/Karachi')->format('d M H:i') }}
+                            – {{ \Carbon\CarbonImmutable::parse($w->ends_at, 'UTC')->timezone('Asia/Karachi')->format('d M H:i') }} PKT
                         </div>
                     </li>
                 @endforeach

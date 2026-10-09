@@ -28,7 +28,7 @@ final class DispatchService
 {
     public function __construct(
         private readonly CreditControl $credit,
-        private readonly GstCalculator $gst,
+        private readonly SalesTaxCalculator $tax,
         private readonly StockLedger $stock,
         private readonly DocumentNumbers $numbers,
         private readonly ActorContext $actor,
@@ -102,14 +102,12 @@ final class DispatchService
         });
     }
 
-    /** Invoice value incl. GST for the credit check. */
+    /** Invoice value incl. sales tax for the credit check. */
     private function estimate(Sauda $sauda, Party $party, Product $product, string $kg): int
     {
-        $supplier = Entity::query()->whereKey($sauda->entity_id)->value('state_code') ?? '';
-        $place = GstCalculator::stateOfGstin($party->gstin) ?? $party->state_code ?? $supplier;
-        $rate = (int) ($product->taxRate->gst_rate_bp ?? 0);
+        $terms = SalesTaxCalculator::terms(Entity::query()->find($sauda->entity_id), $product, $party);
 
-        return $this->gst->calculate($kg, (int) $sauda->rate_paise_per_quintal, $rate, (string) $supplier, (string) $place)['total_paise'];
+        return $this->tax->calculate($kg, (int) $sauda->rate_paise_per_maund, $terms['tax_rate_bp'], $terms['further_tax_rate_bp'])['total_paise'];
     }
 
     private function require(string $permission): void

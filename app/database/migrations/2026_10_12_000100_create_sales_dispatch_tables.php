@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Sales and dispatch: dispatch orders, GST sales bills, receipt allocations, and the gate
+ * Sales and dispatch: dispatch orders, sales tax invoices, receipt allocations, and the gate
  * hardware log (number-plate reads, barrier decisions). The hardware log is append-only.
  */
 return new class extends Migration
@@ -28,7 +28,7 @@ return new class extends Migration
             $table->decimal('quantity_kg', 15, 3);
             $table->unsignedInteger('bag_count')->nullable();
             $table->decimal('bag_weight_kg', 8, 3)->nullable();
-            $table->unsignedBigInteger('estimated_value_paise');   // incl. GST, for the credit check
+            $table->unsignedBigInteger('estimated_value_paise');   // incl. sales tax, for the credit check
             // pending_credit | open | loading | dispatched | cancelled
             $table->string('status', 16)->default('open');
             $table->uuid('credit_override_request_id')->nullable();
@@ -48,7 +48,7 @@ return new class extends Migration
         Schema::create('sales_bills', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('entity_id')->constrained('entities');
-            $table->string('number', 40)->nullable();        // GST invoice number, assigned when posted
+            $table->string('number', 40)->nullable();        // invoice number, assigned when posted
             $table->foreignUuid('gate_entry_id')->constrained('gate_entries');
             $table->foreignUuid('dispatch_order_id')->constrained('dispatch_orders');
             $table->foreignUuid('sauda_id')->constrained('saudas');
@@ -57,16 +57,19 @@ return new class extends Migration
             $table->date('bill_date');
             $table->date('due_date');
             $table->decimal('quantity_kg', 15, 3);
-            $table->unsignedBigInteger('rate_paise_per_quintal');
-            $table->string('hsn_code', 8)->nullable();
-            $table->unsignedInteger('gst_rate_bp')->default(0);
-            $table->string('supplier_state', 2)->nullable();
-            $table->string('place_of_supply', 2)->nullable();
-            $table->string('buyer_gstin', 15)->nullable();
-            $table->unsignedBigInteger('taxable_paise');
-            $table->unsignedBigInteger('cgst_paise')->default(0);
-            $table->unsignedBigInteger('sgst_paise')->default(0);
-            $table->unsignedBigInteger('igst_paise')->default(0);
+            $table->unsignedBigInteger('rate_paise_per_maund');
+            // sales_tax = the mill has an STRN (Sales Tax Invoice); commercial = plain invoice, no tax lines.
+            $table->string('invoice_type', 12)->default('commercial');
+            $table->string('pct_code', 12)->nullable();
+            $table->unsignedInteger('tax_rate_bp')->default(0);
+            $table->boolean('tax_exempt')->default(false);
+            $table->unsignedInteger('further_tax_rate_bp')->default(0);   // s. 3(1A): supply to an unregistered buyer
+            $table->string('seller_strn', 13)->nullable();
+            $table->string('buyer_strn', 13)->nullable();
+            $table->string('buyer_ntn', 13)->nullable();
+            $table->unsignedBigInteger('taxable_paise');                  // value excluding sales tax
+            $table->unsignedBigInteger('sales_tax_paise')->default(0);
+            $table->unsignedBigInteger('further_tax_paise')->default(0);
             $table->bigInteger('round_off_paise')->default(0);
             $table->unsignedBigInteger('total_paise');
             $table->string('status', 12)->default('draft'); // draft | posted | cancelled

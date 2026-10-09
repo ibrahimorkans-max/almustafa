@@ -112,9 +112,9 @@ beforeEach(() => {
 describe('offline writes', () => {
   it('saves locally first and counts unsynced events', async () => {
     server.offline = true;
-    const v = await engine.upsert('vehicle', null, { registration_no: 'HR05AB1234', vehicle_type: 'truck' });
+    const v = await engine.upsert('vehicle', null, { registration_no: 'MNA211234', vehicle_type: 'truck' });
 
-    assert.equal((await store.getRecord('vehicle', v.id)).registration_no, 'HR05AB1234');
+    assert.equal((await store.getRecord('vehicle', v.id)).registration_no, 'MNA211234');
     assert.equal((await engine.status()).unsynced, 1);
 
     const status = await engine.sync();
@@ -124,7 +124,7 @@ describe('offline writes', () => {
 
   it('uploads in client_seq order in batches once online, then pulls', async () => {
     server.offline = true;
-    for (const reg of ['HR05AB0001', 'HR05AB0002', 'HR05AB0003']) {
+    for (const reg of ['MNA210001', 'MNA210002', 'MNA210003']) {
       await engine.upsert('vehicle', null, { registration_no: reg, vehicle_type: 'truck' });
     }
     server.offline = false;
@@ -140,7 +140,7 @@ describe('offline writes', () => {
   });
 
   it('sends base_version for edits of synced records', async () => {
-    const v = await engine.upsert('vehicle', null, { registration_no: 'HR05AB1234', vehicle_type: 'truck' });
+    const v = await engine.upsert('vehicle', null, { registration_no: 'MNA211234', vehicle_type: 'truck' });
     await engine.sync();
     await engine.upsert('vehicle', v.id, { vehicle_type: 'tempo' });
 
@@ -152,8 +152,8 @@ describe('offline writes', () => {
 
 describe('reliability', () => {
   it('resends after a dropped connection without duplicating (idempotent event ids)', async () => {
-    await engine.upsert('vehicle', null, { registration_no: 'HR05AB0001', vehicle_type: 'truck' });
-    await engine.upsert('vehicle', null, { registration_no: 'HR05AB0002', vehicle_type: 'truck' });
+    await engine.upsert('vehicle', null, { registration_no: 'MNA210001', vehicle_type: 'truck' });
+    await engine.upsert('vehicle', null, { registration_no: 'MNA210002', vehicle_type: 'truck' });
     server.failNextPushAfter = 1; // server applies the first event, then the connection drops
 
     assert.equal((await engine.sync()).state, State.OFFLINE);
@@ -166,7 +166,7 @@ describe('reliability', () => {
   });
 
   it('keeps local unsynced edits when the server sends an older state', async () => {
-    const v = await engine.upsert('vehicle', null, { registration_no: 'HR05AB1234', vehicle_type: 'truck' });
+    const v = await engine.upsert('vehicle', null, { registration_no: 'MNA211234', vehicle_type: 'truck' });
     await engine.sync();
     server.offline = true;
     await engine.upsert('vehicle', v.id, { vehicle_type: 'tempo' });
@@ -178,7 +178,7 @@ describe('reliability', () => {
   });
 
   it('drops archived records from local storage', async () => {
-    const v = await engine.upsert('vehicle', null, { registration_no: 'HR05AB1234', vehicle_type: 'truck' });
+    const v = await engine.upsert('vehicle', null, { registration_no: 'MNA211234', vehicle_type: 'truck' });
     await engine.sync();
     server.serverArchive('vehicle', v.id);
 
@@ -197,7 +197,7 @@ describe('reliability', () => {
 
   it('holds online-only actions without blocking the queue', async () => {
     await engine.upsert('payment', null, { big: true });
-    await engine.upsert('vehicle', null, { registration_no: 'HR05AB1234', vehicle_type: 'truck' });
+    await engine.upsert('vehicle', null, { registration_no: 'MNA211234', vehicle_type: 'truck' });
 
     const status = await engine.sync();
     assert.equal(status.held, 1);
@@ -208,7 +208,7 @@ describe('reliability', () => {
 
 describe('security', () => {
   it('wipes everything and acknowledges when the server orders a remote wipe', async () => {
-    await engine.upsert('vehicle', null, { registration_no: 'HR05AB1234', vehicle_type: 'truck' });
+    await engine.upsert('vehicle', null, { registration_no: 'MNA211234', vehicle_type: 'truck' });
     await store.setMeta('tokens', { access: 'rma_x', refresh: 'rmr_x' });
     server.wipe = true;
 
@@ -221,7 +221,7 @@ describe('security', () => {
   });
 
   it('asks for sign-in on 401 but keeps unsynced work', async () => {
-    await engine.upsert('vehicle', null, { registration_no: 'HR05AB1234', vehicle_type: 'truck' });
+    await engine.upsert('vehicle', null, { registration_no: 'MNA211234', vehicle_type: 'truck' });
     server.unauthorized = true;
 
     const status = await engine.sync();
@@ -250,16 +250,17 @@ describe('security', () => {
 
 describe('validation mirror', () => {
   it('matches the server rules for vehicle numbers', () => {
-    assert.equal(normalizeVehicleNumber('hr 05 ab-1234'), 'HR05AB1234');
-    assert.ok(isValidVehicleNumber('HR05AB1234'));
-    assert.ok(isValidVehicleNumber('22BH1234AA'));
+    assert.equal(normalizeVehicleNumber('mna 21-1234'), 'MNA211234');
+    assert.ok(isValidVehicleNumber('MNA211234'));
+    assert.ok(isValidVehicleNumber('LES1234'));
     assert.ok(!isValidVehicleNumber('NOTAPLATE'));
+    assert.ok(!isValidVehicleNumber('1234LES'));
   });
 });
 
 describe('lockdown and maintenance', () => {
   it('keeps the outbox through maintenance (503) and shows the server message', async () => {
-    await engine.upsert('vehicle', null, { registration_no: 'HR05AB1234', vehicle_type: 'truck' });
+    await engine.upsert('vehicle', null, { registration_no: 'MNA211234', vehicle_type: 'truck' });
     server.guard = () => { throw new ApiError(503, { error: 'maintenance', message: 'Updating the system, back at 6 PM.' }); };
 
     const status = await engine.sync();
@@ -275,7 +276,7 @@ describe('lockdown and maintenance', () => {
   });
 
   it('shows "System locked by administrator" and keeps the outbox during a lockdown', async () => {
-    await engine.upsert('vehicle', null, { registration_no: 'HR05AB1234', vehicle_type: 'truck' });
+    await engine.upsert('vehicle', null, { registration_no: 'MNA211234', vehicle_type: 'truck' });
     server.guard = () => { throw new ApiError(401, { error: 'unauthenticated', reason: 'system_locked', message: 'System locked by administrator.' }); };
 
     const status = await engine.sync();

@@ -20,7 +20,7 @@ return new class extends Migration
             $table->foreignUuid('entity_id')->constrained('entities');
             $table->string('code', 20);
             $table->string('name', 120);
-            $table->string('start_time', 5);                     // HH:MM IST
+            $table->string('start_time', 5);                     // HH:MM PKT
             $table->string('end_time', 5);                       // earlier than start = crosses midnight
             $table->unsignedSmallInteger('break_minutes')->default(30);
             $table->unsignedSmallInteger('grace_late_minutes')->default(10);

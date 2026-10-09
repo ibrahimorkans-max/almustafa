@@ -20,12 +20,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $code
  * @property string $name
  * @property string|null $legal_name
- * @property string|null $gstin
- * @property string|null $pan
- * @property string|null $state_code
+ * @property string|null $ntn
+ * @property string|null $strn
+ * @property string|null $province
+ * @property string|null $phone
  * @property string|null $address
  * @property string|null $city
- * @property string|null $pincode
+ * @property string|null $postal_code
  * @property string $status
  * @property int $version
  */
@@ -40,10 +41,10 @@ class Entity extends Model
 
     public const STATUS_SUSPENDED = 'suspended';
 
-    protected $fillable = ['code', 'name', 'legal_name', 'gstin', 'pan', 'state_code', 'address', 'city', 'pincode', 'status'];
+    protected $fillable = ['code', 'name', 'legal_name', 'ntn', 'strn', 'province', 'phone', 'address', 'city', 'postal_code', 'status'];
 
     /** @var list<string> */
-    protected array $auditMasked = ['gstin', 'pan'];
+    protected array $auditMasked = ['ntn', 'strn'];
 
     protected static function booted(): void
     {
@@ -63,8 +64,8 @@ class Entity extends Model
     protected function casts(): array
     {
         return [
-            'gstin' => 'encrypted',
-            'pan' => 'encrypted',
+            'ntn' => 'encrypted',
+            'strn' => 'encrypted',
             'version' => 'integer',
         ];
     }

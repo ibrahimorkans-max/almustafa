@@ -53,7 +53,7 @@ final class SecurityNotifier
             ->merge(self::list((string) config('ricemill.security.contact_emails')))->unique()->values();
         foreach ($emails as $email) {
             try {
-                Mail::raw("{$title}\n\n{$body}\n\nTime: ".now()->timezone('Asia/Kolkata')->format('d M Y H:i:s').' IST',
+                Mail::raw("{$title}\n\n{$body}\n\nTime: ".now()->timezone('Asia/Karachi')->format('d M Y H:i:s').' PKT',
                     fn ($m) => $m->to($email)->subject('[Rice Mill ERP security] '.$title));
             } catch (Throwable $e) {
                 Log::critical('Security e-mail failed', ['title' => $title, 'error' => $e->getMessage()]);

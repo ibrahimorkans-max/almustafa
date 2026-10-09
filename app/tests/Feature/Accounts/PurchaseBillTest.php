@@ -25,14 +25,16 @@ beforeEach(function () {
 it('computes bill amounts in paise with half-up rounding', function () {
     $calc = new PurchaseBillCalculator;
 
-    expect($calc->calculate('14781.250', 250000, 1000, 1000, true))->toBe([
+    // Rates are per maund (40 kg): 14,781.25 kg = 369.53125 maund × Rs 1,000.
+    expect($calc->calculate('14781.250', 100000, 400, 400, true))->toBe([
         'gross_paise' => 36_953_125, 'rate_cut_paise' => 147_813, 'brokerage_paise' => 147_813,
         'round_off_paise' => -12, 'net_paise' => 36_805_300,
     ])
-        ->and($calc->calculate('100', 250000, 0, 0, false)['net_paise'])->toBe(250_000)
-        ->and(PurchaseBillCalculator::perQuintal('0.001', 150000))->toBe(2)   // 1.5 paise → 2 (half-up)
-        ->and(PurchaseBillCalculator::perQuintal('0.001', 140000))->toBe(1)   // 1.4 paise → 1
-        ->and($calc->calculate('10.010', 123456, 0, 0, true)['round_off_paise'])->toBe(42); // 12,357.9 paise → 12,358 → ₹124
+        ->and($calc->calculate('100', 100000, 0, 0, false)['net_paise'])->toBe(250_000)   // 2.5 maund × Rs 1,000
+        ->and(PurchaseBillCalculator::perMaund('0.001', 60000))->toBe(2)   // 1.5 paisa → 2 (half-up)
+        ->and(PurchaseBillCalculator::perMaund('0.001', 56000))->toBe(1)   // 1.4 paisa → 1
+        ->and(PurchaseBillCalculator::perMaund('40', 485000))->toBe(485000) // exactly one maund
+        ->and($calc->calculate('10.010', 49382, 0, 0, true)['round_off_paise'])->toBe(42); // 12,357.8 paisa → 12,358 → Rs 124
 });
 
 it('drafts the bill from the slip and the frozen sauda terms when the slip is issued', function () {
@@ -40,7 +42,7 @@ it('drafts the bill from the slip and the frozen sauda terms when the slip is is
 
     expect($bill->status)->toBe('draft')
         ->and($bill->payable_kg)->toBe('14781.250')
-        ->and($bill->rate_paise_per_quintal)->toBe(250000)
+        ->and($bill->rate_paise_per_maund)->toBe(100000)
         ->and($bill->gross_paise)->toBe(36_953_125)
         ->and($bill->rate_cut_paise)->toBe(147_813)
         ->and($bill->brokerage_paise)->toBe(147_813)
@@ -105,7 +107,7 @@ it('reverses a posted bill only through a second person, keeping the original vo
 it('does not bill rejected lots or slips without a sauda', function () {
     $this->f->as($this->f->inv->supervisor);
     $g = app(GateService::class);
-    $e = $g->arrive(['registration_no' => 'HR05AB1234', 'party_id' => $this->f->inv->gate->seller->id]);
+    $e = $g->arrive(['registration_no' => 'MNA211234', 'party_id' => $this->f->inv->gate->seller->id]);
     $g->recordWeighment($e, 'gross', '20000', $this->f->inv->gate->scale, GateFixtures::readings('20000'), str_repeat('b', 64));
     $g->recordLabTest($e, ['moisture_bp' => 1600]);
     $g->decideLab($e, true);

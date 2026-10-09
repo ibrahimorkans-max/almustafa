@@ -2,6 +2,22 @@
 
 return [
 
+    // Business identity printed on screens, slips, invoices and reports. The mill entity's own address,
+    // phone, NTN and STRN (Entities) take precedence on documents; these are the fall-backs and the brand.
+    'brand' => [
+        'name' => env('RICEMILL_BRAND_NAME', 'Al Mustafa Rice Mills'),
+        'name_ur' => env('RICEMILL_BRAND_NAME_UR', 'المصطفیٰ رائس ملز'),
+        'address' => env('RICEMILL_BRAND_ADDRESS', 'Adda Permat, 1 km Shujabad Road, Lodhran, Punjab'),
+        'phone' => env('RICEMILL_BRAND_PHONE', '0300-6834588'),
+        'logo_wide' => 'images/brand/logo-wide.png',
+        'logo_wide_dark' => 'images/brand/logo-wide-dark.png',
+        'logo_mark' => 'images/brand/logo-mark.png',
+        'emblem' => 'images/brand/emblem.png',
+        'favicon' => 'images/brand/favicon-32.png',
+        'green' => '#0B4F2C',
+        'gold' => '#D99A0E',
+    ],
+
     'auth' => [
         // Consecutive failed logins (password or 2FA) before the account is locked.
         'max_failed_attempts' => (int) env('RICEMILL_MAX_FAILED_ATTEMPTS', 5),
@@ -17,7 +33,7 @@ return [
 
         'recovery_codes' => 10,
         'password_min_length' => 12,
-        'mfa_issuer' => env('RICEMILL_MFA_ISSUER', env('APP_NAME', 'Rice Mill ERP')),
+        'mfa_issuer' => env('RICEMILL_MFA_ISSUER', env('APP_NAME', 'Al Mustafa Rice Mills')),
     ],
 
     'security' => [
@@ -28,7 +44,7 @@ return [
         // First-ever Super Admin device is trusted automatically (installation only; set false afterwards).
         'bootstrap_trust_first_device' => (bool) env('RICEMILL_BOOTSTRAP_TRUST_FIRST_DEVICE', false),
         'hsts' => (bool) env('RICEMILL_HSTS', true),
-        // Key for searchable hashes of encrypted identifiers (GSTIN, PAN, bank account). Empty = derived from APP_KEY.
+        // Key for searchable hashes of encrypted identifiers (NTN, CNIC, STRN, IBAN). Empty = derived from APP_KEY.
         'blind_index_key' => env('RICEMILL_BLIND_INDEX_KEY', ''),
         // Who else hears about lockdowns, duress sign-ins and lost devices (comma-separated).
         'contact_emails' => env('RICEMILL_SECURITY_CONTACT_EMAILS', ''),
@@ -77,24 +93,26 @@ return [
     'accounts' => [
         // Round the amount owed on each purchase bill to the rupee (difference to "Round off").
         'round_bills_to_rupee' => (bool) env('RICEMILL_ROUND_BILLS_TO_RUPEE', true),
-        // Payments above this need a second, different approver (paise; default ₹5,00,000).
+        // Payments above this need a second, different approver (paisa; default Rs 500,000).
         'second_approval_above_paise' => (int) env('RICEMILL_SECOND_APPROVAL_ABOVE_PAISE', 500_000_00),
-        // Income-tax s. 40A(3): cash paid to one person in one day above this is not allowed (paise).
-        'cash_limit_per_day_paise' => (int) env('RICEMILL_CASH_LIMIT_PER_DAY_PAISE', 10_000_00),
+        // Income Tax Ordinance 2001, s. 21(l): an expense paid in cash above Rs 250,000 is not deductible,
+        // so cash to one person in one day is refused above this (paisa). Pay through the bank instead.
+        'cash_limit_per_day_paise' => (int) env('RICEMILL_CASH_LIMIT_PER_DAY_PAISE', 250_000_00),
     ],
 
-    'gst' => [
-        // E-invoicing applies once the mill's turnover crosses the notified threshold.
-        'einvoice_enabled' => (bool) env('RICEMILL_EINVOICE_ENABLED', false),
-        'provider' => env('RICEMILL_EINVOICE_PROVIDER', 'sandbox'),     // sandbox | <gsp adapter>
-        'eway_threshold_paise' => (int) env('RICEMILL_EWAY_THRESHOLD_PAISE', 50_000_00),
-        // Refuse the gate pass for a consignment above the threshold without an e-way bill.
-        'require_eway_for_gate_pass' => (bool) env('RICEMILL_REQUIRE_EWAY_FOR_GATE_PASS', false),
-        // TDS on purchases, s. 194Q (only if last year's turnover exceeded ₹10 crore).
-        'tds_194q_enabled' => (bool) env('RICEMILL_TDS_194Q_ENABLED', false),
-        'tds_194q_threshold_paise' => (int) env('RICEMILL_TDS_194Q_THRESHOLD_PAISE', 50_00_000_00),
-        'tds_194q_rate_bp' => 10,          // 0.1 %
-        'tds_194q_no_pan_rate_bp' => 500,  // 5 % (s. 206AA)
+    // Pakistan tax settings. The rates change with each Finance Act: the mill's tax adviser must confirm
+    // them before use. Sales tax applies only when the mill's STRN is filled in (Entities).
+    'tax' => [
+        // Further tax (Sales Tax Act 1990, s. 3(1A)) on taxable supplies to a buyer without an STRN.
+        'further_tax_enabled' => (bool) env('RICEMILL_FURTHER_TAX_ENABLED', true),
+        'further_tax_rate_bp' => (int) env('RICEMILL_FURTHER_TAX_RATE_BP', 400),
+        // Withholding income tax on payments for goods (Income Tax Ordinance 2001, s. 153(1)(a)), deducted from
+        // the supplier's bill when the mill is a withholding agent. Non-filers (not on the Active Taxpayer List)
+        // suffer the higher rate. No deduction while a supplier's payments in the tax year stay under the threshold.
+        'wht_enabled' => (bool) env('RICEMILL_WHT_ENABLED', false),
+        'wht_threshold_paise' => (int) env('RICEMILL_WHT_THRESHOLD_PAISE', 75_000_00),
+        'wht_rate_filer_bp' => (int) env('RICEMILL_WHT_RATE_FILER_BP', 550),
+        'wht_rate_non_filer_bp' => (int) env('RICEMILL_WHT_RATE_NON_FILER_BP', 1100),
     ],
 
     'anomalies' => [

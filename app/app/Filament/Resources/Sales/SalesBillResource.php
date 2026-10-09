@@ -21,7 +21,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
-/** GST tax invoices drafted from outbound slips. Amounts are computed, never typed. */
+/** Sales tax invoices drafted from outbound slips. Amounts are computed, never typed. */
 class SalesBillResource extends Resource
 {
     protected static ?string $model = SalesBill::class;
@@ -63,10 +63,10 @@ class SalesBillResource extends Resource
                 TextColumn::make('number')->label('Invoice')->placeholder('draft')->searchable(),
                 TextColumn::make('party.name')->label('Buyer')->searchable(),
                 TextColumn::make('gateEntry.registration_no')->label('Vehicle'),
-                TextColumn::make('quantity_kg')->label('Qty (qtl)')->alignEnd()->formatStateUsing(fn (string $state) => Units::kgToQuintal($state)),
-                TextColumn::make('taxable_paise')->label('Taxable')->alignEnd()->formatStateUsing($rs),
-                TextColumn::make('tax')->label('GST')->alignEnd()
-                    ->state(fn (SalesBill $r) => Units::paiseToRupees($r->cgst_paise + $r->sgst_paise + $r->igst_paise).($r->igst_paise > 0 ? ' IGST' : ' C+S')),
+                TextColumn::make('quantity_kg')->label('Qty (maund)')->alignEnd()->formatStateUsing(fn (string $state) => Units::kgToMaund($state)),
+                TextColumn::make('taxable_paise')->label('Value excl. tax')->alignEnd()->formatStateUsing($rs),
+                TextColumn::make('tax')->label('Sales tax')->alignEnd()
+                    ->state(fn (SalesBill $r) => $r->isSalesTaxInvoice() ? Units::paiseToRupees($r->taxTotal()) : '—'),
                 TextColumn::make('total_paise')->label('Total')->alignEnd()->formatStateUsing($rs),
                 TextColumn::make('status')->badge()->color(fn (string $state) => self::statusColor($state)),
             ])
@@ -84,38 +84,29 @@ class SalesBillResource extends Resource
                 TextEntry::make('status')->badge()->color(fn (string $state) => self::statusColor($state)),
                 TextEntry::make('number')->label('Invoice no.')->placeholder('assigned when posted'),
                 TextEntry::make('party.name')->label('Buyer'),
-                TextEntry::make('buyer_gstin')->label('Buyer GSTIN')->placeholder('Unregistered'),
+                TextEntry::make('buyer_strn')->label('Buyer STRN')->placeholder('Unregistered'),
                 TextEntry::make('bill_date')->date('d M Y'),
                 TextEntry::make('due_date')->date('d M Y'),
-                TextEntry::make('place_of_supply')->label('Place of supply (state)'),
+                TextEntry::make('invoice_type')->label('Type')
+                    ->formatStateUsing(fn (string $state) => $state === 'sales_tax' ? 'Sales tax invoice' : 'Invoice (mill not sales-tax registered)'),
                 TextEntry::make('gateEntry.number')->label('Weighment slip'),
             ]),
             Section::make('Amounts')->columns(4)->schema([
                 TextEntry::make('quantity_kg')->label('Net weight (kg)')->fontFamily('mono'),
-                TextEntry::make('rate_paise_per_quintal')->label('Rate / qtl')->formatStateUsing($rs),
-                TextEntry::make('hsn_code')->label('HSN')->placeholder('—'),
-                TextEntry::make('gst_rate_bp')->label('GST rate')->formatStateUsing(fn (int $state) => Units::bpToPercent($state)),
-                TextEntry::make('taxable_paise')->label('Taxable value')->formatStateUsing($rs),
-                TextEntry::make('cgst_paise')->label('CGST')->formatStateUsing($rs),
-                TextEntry::make('sgst_paise')->label('SGST')->formatStateUsing($rs),
-                TextEntry::make('igst_paise')->label('IGST')->formatStateUsing($rs),
+                TextEntry::make('rate_paise_per_maund')->label('Rate / maund')->formatStateUsing($rs),
+                TextEntry::make('pct_code')->label('PCT code')->placeholder('—'),
+                TextEntry::make('tax_rate_bp')->label('Sales tax rate')
+                    ->formatStateUsing(fn (int $state, SalesBill $record) => $record->tax_exempt ? 'Exempt' : Units::bpToPercent($state)),
+                TextEntry::make('taxable_paise')->label('Value excluding tax')->formatStateUsing($rs),
+                TextEntry::make('sales_tax_paise')->label('Sales tax')->formatStateUsing($rs),
+                TextEntry::make('further_tax_paise')->label('Further tax (unregistered buyer)')->formatStateUsing($rs),
                 TextEntry::make('round_off_paise')->label('Round off')->formatStateUsing(fn (int $state) => ($state < 0 ? '− ' : '').Units::paiseToRupees(abs($state))),
                 TextEntry::make('total_paise')->label('Invoice total')->formatStateUsing($rs)->weight('bold'),
                 TextEntry::make('outstanding')->label('Outstanding')
                     ->state(fn (SalesBill $record) => Units::paiseToRupees(app(SalesBillService::class)->outstanding($record))),
                 TextEntry::make('note')->placeholder('—'),
             ]),
-            Section::make('E-invoice / e-way bill')->columns(4)
-                ->visible(fn (SalesBill $r) => $r->irn !== null)
-                ->schema([
-                    TextEntry::make('einvoice_status')->label('E-invoice')->badge()->color(fn (?string $state) => $state === 'generated' ? 'success' : 'danger'),
-                    TextEntry::make('irn_ack_no')->label('Ack no.'),
-                    TextEntry::make('irn_ack_at')->label('Ack date')->dateTime('d M Y H:i'),
-                    TextEntry::make('eway_bill_no')->label('E-way bill')->placeholder('—')
-                        ->suffix(fn (SalesBill $r) => $r->eway_valid_until ? ' (valid until '.$r->eway_valid_until->timezone('Asia/Kolkata')->format('d M H:i').')' : ''),
-                    TextEntry::make('irn')->label('IRN')->fontFamily('mono')->columnSpanFull(),
-                ]),
-            self::marginSection(fn (SalesBill $r) => [$r->product, $r->rate_paise_per_quintal]),
+            self::marginSection(fn (SalesBill $r) => [$r->product, $r->rate_paise_per_maund]),
         ]);
     }
 
@@ -136,10 +127,10 @@ class SalesBillResource extends Resource
         return Section::make('Cost and margin (confidential)')->columns(3)
             ->visible(fn () => Filament::auth()->user()?->can('pricing.margin.view') ?? false)
             ->schema([
-                TextEntry::make('margin_cost')->label('Cost / qtl (weighted average)')
-                    ->state(fn ($record) => Units::paiseToRupees($margin($record)['cost_paise_per_quintal'] ?? null)),
-                TextEntry::make('margin_value')->label('Margin / qtl')
-                    ->state(fn ($record) => Units::paiseToRupees($margin($record)['margin_paise_per_quintal'] ?? null)),
+                TextEntry::make('margin_cost')->label('Cost / maund (weighted average)')
+                    ->state(fn ($record) => Units::paiseToRupees($margin($record)['cost_paise_per_maund'] ?? null)),
+                TextEntry::make('margin_value')->label('Margin / maund')
+                    ->state(fn ($record) => Units::paiseToRupees($margin($record)['margin_paise_per_maund'] ?? null)),
                 TextEntry::make('margin_pct')->label('Margin %')
                     ->state(fn ($record) => Units::bpToPercent($margin($record)['margin_bp'] ?? null)),
             ]);

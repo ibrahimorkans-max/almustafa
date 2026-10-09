@@ -14,6 +14,7 @@ use App\Models\Accounts\VoucherLine;
 use App\Models\ApprovalRequest;
 use App\Models\AuditLog;
 use App\Models\Masters\PartyBankAccount;
+use App\Support\Values\PakistanIds;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\AccountsFixtures;
 use Tests\Support\Make;
@@ -27,7 +28,7 @@ beforeEach(function () {
     $this->seller = $this->f->inv->gate->seller;
 });
 
-function requestPayment(object $t, int $paise, array $alloc = [], string $mode = 'neft', $from = null): Payment
+function requestPayment(object $t, int $paise, array $alloc = [], string $mode = 'ibft', $from = null): Payment
 {
     $t->f->as($t->f->accountant);
 
@@ -38,7 +39,7 @@ it('pays a bill to the approved bank account after a different person releases i
     $payment = requestPayment($this, 36_805_300, [$this->bill->id => 36_805_300]);
 
     expect($payment->status)->toBe('pending')
-        ->and($payment->payee)->toMatchArray(['holder' => 'RAM SINGH', 'ifsc' => 'PUNB0123400', 'last4' => '0123'])
+        ->and($payment->payee)->toMatchArray(['holder' => 'RAM SINGH', 'bank_code' => 'HABB', 'last4' => '1234'])
         ->and($payment->number)->toContain('/PMT/');
     $request = ApprovalRequest::query()->findOrFail($payment->approval_request_id);
     expect(app(ApprovalService::class)->canDecide($this->f->accountant, $request))->toBeFalse();
@@ -59,10 +60,10 @@ it('pays a bill to the approved bank account after a different person releases i
 
 it('freezes the payee: a later bank-account change does not redirect the payment', function () {
     $payment = requestPayment($this, 10_000_00, [$this->bill->id => 10_000_00]);
-    $this->f->sellerBank->forceFill(['account_number' => '9999999999999', 'ifsc' => 'HDFC0000001'])->save();
+    $this->f->sellerBank->forceFill(['account_number' => PakistanIds::ibanFor('MEZN', '0000009999999999')])->save();
 
-    expect($payment->fresh()->payee_account_number)->toBe('1234567890123')
-        ->and($payment->fresh()->payee['ifsc'])->toBe('PUNB0123400');
+    expect($payment->fresh()->payee_account_number)->toBe(PakistanIds::ibanFor('HABB', '0012345678901234'))
+        ->and($payment->fresh()->payee['bank_code'])->toBe('HABB');
 });
 
 it('refuses bank payments without an approved account, over-payment and over-allocation', function () {
@@ -79,11 +80,11 @@ it('refuses bank payments without an approved account, over-payment and over-all
 });
 
 it('needs two different approvers above the limit', function () {
-    config(['ricemill.accounts.second_approval_above_paise' => 1_00_000_00]); // ₹1,00,000
+    config(['ricemill.accounts.second_approval_above_paise' => 1_00_000_00]); // Rs 100,000
     // Requested by an owner (who could approve payments in general) to prove the requester is excluded.
     $third = Make::account($this->f->entity, 'OWNER');
     $this->f->as($this->f->owner2);
-    $payment = app(PaymentService::class)->request($this->seller, 'neft', $this->f->bank, 36_805_300, now(), [$this->bill->id => 36_805_300]);
+    $payment = app(PaymentService::class)->request($this->seller, 'ibft', $this->f->bank, 36_805_300, now(), [$this->bill->id => 36_805_300]);
     $approvals = app(ApprovalService::class);
 
     $result = $approvals->approve(ApprovalRequest::query()->findOrFail($payment->approval_request_id), $this->f->owner);
@@ -99,13 +100,13 @@ it('needs two different approvers above the limit', function () {
     expect($payment->fresh()->status)->toBe('approved')->and($payment->fresh()->voucher_id)->not->toBeNull();
 });
 
-it('limits cash to one person per day (s. 40A(3))', function () {
+it('limits cash to one person per day (s. 21(l))', function () {
     $cash = app(ChartOfAccounts::class)->system('cash');
-    requestPayment($this, 6_000_00, mode: 'cash', from: $cash);
+    requestPayment($this, 150_000_00, mode: 'cash', from: $cash);
 
-    expect(fn () => requestPayment($this, 4_000_01, mode: 'cash', from: $cash))->toThrow(BusinessRuleViolation::class, '40A(3)');
+    expect(fn () => requestPayment($this, 100_000_01, mode: 'cash', from: $cash))->toThrow(BusinessRuleViolation::class, '21(l)');
     expect(fn () => requestPayment($this, 100_00, mode: 'cash'))->toThrow(BusinessRuleViolation::class, 'cash ledger');
-    expect(fn () => requestPayment($this, 100_00, mode: 'neft', from: $cash))->toThrow(BusinessRuleViolation::class, 'bank accounts');
+    expect(fn () => requestPayment($this, 100_00, mode: 'ibft', from: $cash))->toThrow(BusinessRuleViolation::class, 'bank accounts');
 });
 
 it('frees the bill again when a payment is rejected', function () {
@@ -131,11 +132,11 @@ it('builds a bank file once per payment, audits downloads and detects edits', fu
     $rows = array_map('str_getcsv', explode("\n", trim($csv)));
     expect($file->payment_count)->toBe(2)->and($file->total_paise)->toBe(36_805_300)
         ->and($rows[0])->toBe(BankFiles::HEADER)
-        ->and($rows[1])->toMatchArray([1 => 'NEFT', 2 => '200000.00', 3 => 'RAM SINGH', 4 => '1234567890123', 5 => 'PUNB0123400', 6 => '30012345678'])
+        ->and($rows[1])->toMatchArray([1 => 'IBFT', 2 => '200000.00', 3 => 'RAM SINGH', 4 => PakistanIds::ibanFor('HABB', '0012345678901234'), 5 => 'HABB', 6 => 'PK36SCBL0000001123456702'])
         ->and(AuditLog::query()->where('action', 'bank_file.downloaded')->count())->toBe(1);
 
     // Someone edits a frozen payee in the database: the file no longer matches what was approved.
-    DB::table('payments')->where('bank_file_id', $file->id)->limit(1)->update(['payee' => json_encode(['holder' => 'MALLORY', 'ifsc' => 'PUNB0123400', 'last4' => '0123', 'bank_name' => null])]);
+    DB::table('payments')->where('bank_file_id', $file->id)->limit(1)->update(['payee' => json_encode(['holder' => 'MALLORY', 'bank_code' => 'HABB', 'last4' => '1234', 'bank_name' => null])]);
     expect(fn () => $files->csv($file->fresh()))->toThrow(BusinessRuleViolation::class, 'no longer matches');
 
     $this->f->as($this->f->inv->supervisor);

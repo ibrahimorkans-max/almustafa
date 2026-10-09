@@ -1,3 +1,3 @@
-# Rice Mill ERP scheduler: backups, verifications, heartbeats, alerts (task times inside the app are IST).
+# Al Mustafa Rice Mills ERP scheduler: backups, verifications, heartbeats, alerts (task times inside the app are PKT).
 SHELL=/bin/bash
 * * * * * ricemill cd /srv/ricemill/current/app && /usr/bin/php artisan schedule:run >> /dev/null 2>&1

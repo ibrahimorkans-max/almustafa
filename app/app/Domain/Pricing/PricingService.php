@@ -45,30 +45,30 @@ final class PricingService
         return PriceList::query()->create(['name' => $name, 'valid_from' => $validFrom->toDateString(), 'valid_to' => $validTo?->toDateString()]);
     }
 
-    public function requestRate(PriceList $list, Product $product, int $ratePaisePerQuintal, string $reason): ApprovalRequest
+    public function requestRate(PriceList $list, Product $product, int $ratePaisePerMaund, string $reason): ApprovalRequest
     {
         $this->require('pricing.rate.edit');
-        if ($ratePaisePerQuintal <= 0) {
+        if ($ratePaisePerMaund <= 0) {
             throw new BusinessRuleViolation('The rate must be more than zero.');
         }
         $current = $this->currentItem($list, $product);
 
         return app(ApprovalService::class)->submit(RateChange::KEY, [
-            'price_list_id' => $list->id, 'product_id' => $product->id, 'rate_paise_per_quintal' => $ratePaisePerQuintal, 'reason' => $reason,
-        ], sprintf('Rate %s: %s → %s per qtl', $product->name, $current ? Money::paise($current->rate_paise_per_quintal)->format() : 'new',
-            Money::paise($ratePaisePerQuintal)->format()), $reason);
+            'price_list_id' => $list->id, 'product_id' => $product->id, 'rate_paise_per_maund' => $ratePaisePerMaund, 'reason' => $reason,
+        ], sprintf('Rate %s: %s → %s per maund', $product->name, $current ? Money::paise($current->rate_paise_per_maund)->format() : 'new',
+            Money::paise($ratePaisePerMaund)->format()), $reason);
     }
 
     /** Called only by an approved RateChange. */
-    public function applyRate(PriceList $list, Product $product, int $ratePaisePerQuintal, string $reason, string $approvalRequestId): PriceListItem
+    public function applyRate(PriceList $list, Product $product, int $ratePaisePerMaund, string $reason, string $approvalRequestId): PriceListItem
     {
-        return DB::transaction(function () use ($list, $product, $ratePaisePerQuintal, $reason, $approvalRequestId): PriceListItem {
+        return DB::transaction(function () use ($list, $product, $ratePaisePerMaund, $reason, $approvalRequestId): PriceListItem {
             PriceList::query()->whereKey($list->id)->lockForUpdate()->first();
             $current = $this->currentItem($list, $product);
 
             return PriceListItem::query()->create([
                 'entity_id' => $list->entity_id, 'price_list_id' => $list->id, 'product_id' => $product->id,
-                'rate_paise_per_quintal' => $ratePaisePerQuintal, 'supersedes_id' => $current?->id,
+                'rate_paise_per_maund' => $ratePaisePerMaund, 'supersedes_id' => $current?->id,
                 'approval_request_id' => $approvalRequestId, 'reason' => $reason, 'created_at' => now(),
             ]);
         });
@@ -80,15 +80,15 @@ final class PricingService
             ->orderByDesc('created_at')->orderByDesc('id')->first();
     }
 
-    /** List rate for a product on a date (the active list valid that day), in paise per quintal. */
+    /** List rate for a product on a date (the active list valid that day), in paisa per maund. */
     public function listRate(Product $product, ?CarbonInterface $on = null): ?int
     {
-        $day = CarbonImmutable::instance($on ?? now())->setTimezone('Asia/Kolkata')->toDateString();
+        $day = CarbonImmutable::instance($on ?? now())->setTimezone('Asia/Karachi')->toDateString();
         $list = PriceList::query()->where('status', 'active')->where('valid_from', '<=', $day)
             ->where(fn ($q) => $q->whereNull('valid_to')->orWhere('valid_to', '>=', $day))
             ->orderByDesc('valid_from')->first();
 
-        return $list ? $this->currentItem($list, $product)?->rate_paise_per_quintal : null;
+        return $list ? $this->currentItem($list, $product)?->rate_paise_per_maund : null;
     }
 
     public function setMarkup(string $category, int $markupBp): MarkupSetting
@@ -107,21 +107,21 @@ final class PricingService
     /**
      * Cost and margin for one selling rate — or null when the viewer may not see them.
      *
-     * @return array{cost_paise_per_quintal: int, margin_paise_per_quintal: int, margin_bp: int|null, suggested_paise_per_quintal: int|null}|null
+     * @return array{cost_paise_per_maund: int, margin_paise_per_maund: int, margin_bp: int|null, suggested_paise_per_maund: int|null}|null
      */
-    public function margin(?LoginAccount $viewer, Product $product, int $ratePaisePerQuintal): ?array
+    public function margin(?LoginAccount $viewer, Product $product, int $ratePaisePerMaund): ?array
     {
         if ($viewer === null || ! $viewer->hasPermission('pricing.margin.view')) {
             return null;
         }
-        $cost = (int) bcadd(bcmul($this->valuation->averageOf($product->id), '100', 4), '0.5', 0);
+        $cost = (int) bcadd(bcmul($this->valuation->averageOf($product->id), '40', 4), '0.5', 0);
         $markup = MarkupSetting::query()->where('category', $product->category)->value('markup_bp');
 
         return [
-            'cost_paise_per_quintal' => $cost,
-            'margin_paise_per_quintal' => $ratePaisePerQuintal - $cost,
-            'margin_bp' => $ratePaisePerQuintal > 0 ? intdiv(($ratePaisePerQuintal - $cost) * 10000, $ratePaisePerQuintal) : null,
-            'suggested_paise_per_quintal' => $markup === null || $cost === 0 ? null : intdiv($cost * (10000 + (int) $markup) + 5000, 10000),
+            'cost_paise_per_maund' => $cost,
+            'margin_paise_per_maund' => $ratePaisePerMaund - $cost,
+            'margin_bp' => $ratePaisePerMaund > 0 ? intdiv(($ratePaisePerMaund - $cost) * 10000, $ratePaisePerMaund) : null,
+            'suggested_paise_per_maund' => $markup === null || $cost === 0 ? null : intdiv($cost * (10000 + (int) $markup) + 5000, 10000),
         ];
     }
 

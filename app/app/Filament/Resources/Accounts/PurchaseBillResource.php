@@ -56,7 +56,7 @@ class PurchaseBillResource extends Resource
                 TextColumn::make('party.name')->label('Party')->searchable(),
                 TextColumn::make('gateEntry.number')->label('Slip'),
                 TextColumn::make('sauda.number')->label('Sauda'),
-                TextColumn::make('payable_kg')->label('Payable (qtl)')->alignEnd()->formatStateUsing(fn (string $state) => Units::kgToQuintal($state)),
+                TextColumn::make('payable_kg')->label('Payable (maund)')->alignEnd()->formatStateUsing(fn (string $state) => Units::kgToMaund($state)),
                 TextColumn::make('net_paise')->label('Amount')->alignEnd()->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
                 TextColumn::make('due_date')->label('Due')->date('d M Y')->sortable(),
                 TextColumn::make('status')->badge()->color(fn (string $state) => self::statusColor($state)),
@@ -83,15 +83,15 @@ class PurchaseBillResource extends Resource
             ]),
             Section::make('Computation (from the frozen slip and sauda terms)')->columns(4)->schema([
                 TextEntry::make('payable_kg')->label('Payable weight (kg)')->fontFamily('mono'),
-                TextEntry::make('rate_paise_per_quintal')->label('Rate / qtl')->formatStateUsing($rupees),
+                TextEntry::make('rate_paise_per_maund')->label('Rate / maund')->formatStateUsing($rupees),
                 TextEntry::make('gross_paise')->label('Gross')->formatStateUsing($rupees),
                 TextEntry::make('rate_cut_paise')->label('Quality rate cut')->formatStateUsing($rupees),
                 TextEntry::make('round_off_paise')->label('Round off')->formatStateUsing(fn (int $state) => ($state < 0 ? '− ' : '').Units::paiseToRupees(abs($state))),
                 TextEntry::make('net_paise')->label('Owed to party')->formatStateUsing($rupees)->weight('bold'),
                 TextEntry::make('brokerage_paise')->label('Brokerage (to broker)')->formatStateUsing($rupees),
-                TextEntry::make('tds_paise')->label('TDS u/s 194Q (withheld)')
+                TextEntry::make('wht_paise')->label('Income tax withheld u/s 153')
                     ->formatStateUsing(fn (int $state, PurchaseBill $record) => $state > 0
-                        ? Units::paiseToRupees($state).' ('.Units::bpToPercent($record->tds_rate_bp).' of '.Units::paiseToRupees($record->tds_base_paise).')'
+                        ? Units::paiseToRupees($state).' ('.Units::bpToPercent($record->wht_rate_bp).' of '.Units::paiseToRupees($record->wht_base_paise).', '.($record->wht_filer ? 'filer' : 'non-filer').')'
                         : ($record->status === PurchaseBill::DRAFT ? 'worked out on posting' : '—')),
                 TextEntry::make('outstanding')->label('Outstanding')
                     ->state(fn (PurchaseBill $record) => Units::paiseToRupees(app(PurchaseBillService::class)->outstanding($record))),

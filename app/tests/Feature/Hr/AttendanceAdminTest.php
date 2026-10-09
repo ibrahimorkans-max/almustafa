@@ -60,16 +60,16 @@ it('records a site with its geofence and working hours', function () {
     ])->assertHasNoActionErrors();
     $site = Site::query()->where('code', 'GODOWN2')->sole();
     expect($site->radius_m)->toBe(120)
-        ->and($site->isOpenAt(CarbonImmutable::parse('2026-10-12 07:00', 'Asia/Kolkata')))->toBeTrue()   // Monday
-        ->and($site->isOpenAt(CarbonImmutable::parse('2026-10-11 07:00', 'Asia/Kolkata')))->toBeFalse()  // Sunday
-        ->and($site->isOpenAt(CarbonImmutable::parse('2026-10-12 21:00', 'Asia/Kolkata')))->toBeFalse();
+        ->and($site->isOpenAt(CarbonImmutable::parse('2026-10-12 07:00', 'Asia/Karachi')))->toBeTrue()   // Monday
+        ->and($site->isOpenAt(CarbonImmutable::parse('2026-10-11 07:00', 'Asia/Karachi')))->toBeFalse()  // Sunday
+        ->and($site->isOpenAt(CarbonImmutable::parse('2026-10-12 21:00', 'Asia/Karachi')))->toBeFalse();
 });
 
 it('handles night-shift windows that cross midnight', function () {
     $site = new Site(['time_windows' => [['days' => [1, 2, 3, 4, 5, 6, 7], 'from' => '20:00', 'to' => '06:00']]]);
-    expect($site->isOpenAt(CarbonImmutable::parse('2026-10-12 23:30', 'Asia/Kolkata')))->toBeTrue()
-        ->and($site->isOpenAt(CarbonImmutable::parse('2026-10-13 05:30', 'Asia/Kolkata')))->toBeTrue()
-        ->and($site->isOpenAt(CarbonImmutable::parse('2026-10-13 12:00', 'Asia/Kolkata')))->toBeFalse();
+    expect($site->isOpenAt(CarbonImmutable::parse('2026-10-12 23:30', 'Asia/Karachi')))->toBeTrue()
+        ->and($site->isOpenAt(CarbonImmutable::parse('2026-10-13 05:30', 'Asia/Karachi')))->toBeTrue()
+        ->and($site->isOpenAt(CarbonImmutable::parse('2026-10-13 12:00', 'Asia/Karachi')))->toBeFalse();
 });
 
 it('approves a phone from the devices screen and lists it as approved', function () {
@@ -102,14 +102,14 @@ it('shows each punch with its verdict in plain words, and the evidence on the pu
         ->assertSee('none sent (browser)');
 });
 
-it('filters punches by status and by IST day', function () {
+it('filters punches by status and by PKT day', function () {
     $this->f->as($this->login);
     AttendanceConsent::query()->create(['employee_id' => $this->employee->id, 'login_account_id' => $this->login->id,
         'notice_version' => (string) config('ricemill.attendance.notice_version'), 'accepted_at' => now()]);
     $svc = app(AttendanceService::class);
-    // 00:30 IST on 6 Oct is still 5 Oct in UTC: the day filter must use IST.
-    $svc->punch($this->login, null, (string) Str::uuid(), CarbonImmutable::parse('2026-10-06 00:30', 'Asia/Kolkata'), ['kind' => 'in'], 'pwa');
-    $svc->punch($this->login, null, (string) Str::uuid(), CarbonImmutable::parse('2026-10-05 18:00', 'Asia/Kolkata'), ['kind' => 'out'], 'pwa');
+    // 00:30 PKT on 6 Oct is still 5 Oct in UTC: the day filter must use PKT.
+    $svc->punch($this->login, null, (string) Str::uuid(), CarbonImmutable::parse('2026-10-06 00:30', 'Asia/Karachi'), ['kind' => 'in'], 'pwa');
+    $svc->punch($this->login, null, (string) Str::uuid(), CarbonImmutable::parse('2026-10-05 18:00', 'Asia/Karachi'), ['kind' => 'out'], 'pwa');
     [$late, $early] = [AttendanceLog::query()->where('kind', 'in')->sole(), AttendanceLog::query()->where('kind', 'out')->sole()];
 
     attSignIn($this, $this->f->hr);

@@ -1,7 +1,7 @@
 [project]
 name = "ricemill-agent"
 version = "0.3.0"
-description = "Gate hardware agent for Rice Mill ERP: weighbridge indicator, camera, offline queue, signed sync"
+description = "Gate hardware agent for Al Mustafa Rice Mills ERP: weighbridge indicator, camera, offline queue, signed sync"
 requires-python = ">=3.12"
 dependencies = [
     "cryptography>=43",

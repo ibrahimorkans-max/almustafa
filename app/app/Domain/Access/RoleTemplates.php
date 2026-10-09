@@ -82,7 +82,7 @@ final class RoleTemplates
                     'master.view', 'master.manage',
                     'deal.view', 'quote.view', 'stock.view', 'sales.view', 'claim.view',
                     'ledger.view', 'ledger.post', 'voucher.reverse', 'payment.create', 'bank.view',
-                    'pricing.view', 'dashboard.view', 'report.view', 'report.gst', 'archive.search',
+                    'pricing.view', 'dashboard.view', 'report.view', 'report.tax', 'archive.search',
                     'hr.employee.view', 'hr.salary.view', 'hr.payroll.approve', 'hr.documents.generate',
                 ],
             ],

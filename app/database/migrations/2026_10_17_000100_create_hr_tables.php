@@ -60,17 +60,17 @@ return new class extends Migration
             $table->string('emergency_contact_name', 120)->nullable();
             $table->string('emergency_contact_phone', 20)->nullable();
             // Identifiers: encrypted value + keyed hash (uniqueness / search) + last 4 for masked display.
-            $table->text('aadhaar')->nullable();
-            $table->char('aadhaar_index', 64)->nullable();
-            $table->char('aadhaar_last4', 4)->nullable();
-            $table->text('pan')->nullable();
-            $table->char('pan_index', 64)->nullable();
-            $table->char('pan_last4', 4)->nullable();
+            $table->text('cnic')->nullable();
+            $table->char('cnic_index', 64)->nullable();
+            $table->char('cnic_last4', 4)->nullable();
+            $table->text('ntn')->nullable();
+            $table->char('ntn_index', 64)->nullable();
+            $table->char('ntn_last4', 4)->nullable();
             // Salary account: set and changed only through maker-checker (EmployeeBankAccountChange).
             $table->text('bank_account_number')->nullable();
             $table->char('bank_account_index', 64)->nullable();
             $table->char('bank_account_last4', 4)->nullable();
-            $table->string('bank_ifsc', 11)->nullable();
+            $table->string('bank_code', 4)->nullable();               // from the IBAN, e.g. HABB
             $table->string('bank_name', 120)->nullable();
             $table->string('bank_account_holder', 120)->nullable();
             $table->uuid('bank_approval_request_id')->nullable();
@@ -85,8 +85,8 @@ return new class extends Migration
             $table->dateTime('archived_at')->nullable();
             $table->timestamps();
             $table->unique(['entity_id', 'code']);
-            $table->unique(['entity_id', 'aadhaar_index']);
-            $table->unique(['entity_id', 'pan_index']);
+            $table->unique(['entity_id', 'cnic_index']);
+            $table->unique(['entity_id', 'ntn_index']);
             $table->index(['entity_id', 'status']);
             $table->index(['person_id']);
         });
@@ -95,7 +95,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('entity_id')->constrained('entities');
             $table->foreignUuid('employee_id')->constrained('employees');
-            $table->string('kind', 20);                          // aadhaar | pan | id_proof | contract | bank_proof | photo | other
+            $table->string('kind', 20);                          // cnic | ntn | id_proof | contract | bank_proof | photo | other
             $table->string('title', 160);
             $table->foreignUuid('file_id')->constrained('stored_files');
             $table->date('valid_until')->nullable();

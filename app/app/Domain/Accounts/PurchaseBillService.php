@@ -49,13 +49,13 @@ final class PurchaseBillService
         }
 
         $payableKg = (string) $slip->data['payable_kg'];
-        $cutPerQuintal = (int) ($slip->data['rate_cut_paise_per_quintal'] ?? 0);
-        $brokerage = $sauda->broker_party_id !== null ? (int) $sauda->brokerage_paise_per_quintal : 0;
+        $cutPerMaund = (int) ($slip->data['rate_cut_paise_per_maund'] ?? 0);
+        $brokerage = $sauda->broker_party_id !== null ? (int) $sauda->brokerage_paise_per_maund : 0;
         $amounts = $this->calculator->calculate(
-            $payableKg, (int) $sauda->rate_paise_per_quintal, $cutPerQuintal, $brokerage,
+            $payableKg, (int) $sauda->rate_paise_per_maund, $cutPerMaund, $brokerage,
             (bool) config('ricemill.accounts.round_bills_to_rupee'),
         );
-        $billDate = CarbonImmutable::instance($slip->occurred_at)->setTimezone('Asia/Kolkata')->startOfDay();
+        $billDate = CarbonImmutable::instance($slip->occurred_at)->setTimezone('Asia/Karachi')->startOfDay();
 
         return PurchaseBill::query()->create([
             'gate_entry_id' => $entry->id,
@@ -66,11 +66,11 @@ final class PurchaseBillService
             'bill_date' => $billDate->toDateString(),
             'due_date' => $billDate->addDays((int) $sauda->payment_days)->toDateString(),
             'payable_kg' => $payableKg,
-            'rate_paise_per_quintal' => (int) $sauda->rate_paise_per_quintal,
+            'rate_paise_per_maund' => (int) $sauda->rate_paise_per_maund,
             'snapshot' => [
                 'slip' => $slip->data, 'gate_entry_number' => $entry->number, 'registration_no' => $entry->registration_no,
-                'sauda_number' => $sauda->number, 'rate_paise_per_quintal' => (int) $sauda->rate_paise_per_quintal,
-                'rate_cut_paise_per_quintal' => $cutPerQuintal, 'brokerage_paise_per_quintal' => $brokerage,
+                'sauda_number' => $sauda->number, 'rate_paise_per_maund' => (int) $sauda->rate_paise_per_maund,
+                'rate_cut_paise_per_maund' => $cutPerMaund, 'brokerage_paise_per_maund' => $brokerage,
             ],
         ] + $amounts);
     }
@@ -85,18 +85,19 @@ final class PurchaseBillService
             $party = Party::query()->findOrFail($bill->party_id);
             $memo = "{$bill->snapshot['gate_entry_number']} · {$bill->snapshot['sauda_number']} · {$bill->payable_kg} kg";
 
-            // TDS (s. 194Q) is fixed at posting, from the seller's posted purchases of the year so far;
-            // it is withheld from what the supplier is paid.
-            $tds = app(Tds194Q::class)->forBill($bill, $party);
-            if ($tds['tds_paise'] > 0) {
-                $bill->forceFill($tds + ['net_paise' => $bill->net_paise - $tds['tds_paise']]);
+            // Withholding tax (s. 153) is fixed at posting, from the supplier's posted purchases of the tax year
+            // so far and their filer status that day; it is withheld from what the supplier is paid.
+            $wht = app(WithholdingTax::class)->forBill($bill, $party);
+            $bill->forceFill(['wht_filer' => $wht['wht_filer']]);
+            if ($wht['wht_paise'] > 0) {
+                $bill->forceFill($wht + ['net_paise' => $bill->net_paise - $wht['wht_paise']]);
             }
 
             $lines = [
                 ['account' => $this->chart->system('purchase_paddy'), 'dr' => $bill->gross_paise, 'memo' => $memo],
                 ['account' => $this->chart->system('rate_cut'), 'cr' => $bill->rate_cut_paise, 'memo' => 'Quality rate cut'],
                 ['account' => $this->chart->partyLedger($party), 'cr' => $bill->net_paise, 'bill_id' => $bill->id, 'memo' => $memo],
-                ['account' => $this->chart->system('tds_194q'), 'cr' => $bill->tds_paise, 'memo' => 'TDS u/s 194Q'],
+                ['account' => $this->chart->system('wht_payable'), 'cr' => $bill->wht_paise, 'memo' => 'Income tax withheld u/s 153'],
             ];
             if ($bill->round_off_paise > 0) {
                 $lines[] = ['account' => $this->chart->system('round_off'), 'dr' => $bill->round_off_paise];

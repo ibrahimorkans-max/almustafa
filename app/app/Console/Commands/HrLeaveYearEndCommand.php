@@ -18,7 +18,7 @@ final class HrLeaveYearEndCommand extends Command
     public function handle(TenantContext $tenant): int
     {
         $year = (int) $this->argument('year');
-        if ($year < 2000 || $year >= (int) now('Asia/Kolkata')->year) {
+        if ($year < 2000 || $year >= (int) now('Asia/Karachi')->year) {
             $this->error('Run it for a year that has ended.');
 
             return self::FAILURE;

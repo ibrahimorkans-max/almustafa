@@ -27,7 +27,7 @@ final class SalaryStructureService
 
     /**
      * @param  array<string, int>  $amountsPaise  component code => amount in paise (per month / per day / per unit)
-     * @param  array<string, string>  $units  component code => unit for piece-rate lines (bag, quintal, ...)
+     * @param  array<string, string>  $units  component code => unit for piece-rate lines (bag, maund, ...)
      */
     public function create(Employee $employee, CarbonImmutable $effectiveFrom, string $payBasis, array $amountsPaise, string $reason, array $units = []): SalaryStructure
     {
@@ -69,7 +69,7 @@ final class SalaryStructureService
             throw new BusinessRuleViolation($payBasis === 'daily' ? 'Enter the daily rate as Basic.' : 'Enter the monthly Basic.');
         }
         if ($payBasis === 'piece_rate' && $earnings->keys()->diff(array_keys(array_filter($units)))->isNotEmpty()) {
-            throw new BusinessRuleViolation('For piece rate, give the unit (bag, quintal, ...) of every earning.');
+            throw new BusinessRuleViolation('For piece rate, give the unit (bag, maund, ...) of every earning.');
         }
 
         return DB::transaction(function () use ($employee, $effectiveFrom, $payBasis, $amounts, $components, $reason, $units): SalaryStructure {

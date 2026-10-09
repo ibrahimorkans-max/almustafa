@@ -42,7 +42,7 @@ class SyncConflictResource extends Resource
     public static function reasonLabels(): array
     {
         return [
-            'duplicate_value' => 'Duplicate code / number / GSTIN',
+            'duplicate_value' => 'Duplicate code / number / STRN',
             'archived_on_server' => 'Record was archived on the server',
             'older_than_offline_limit' => 'Device was offline too long',
             'version_mismatch' => 'Edited on two devices at once',
@@ -84,7 +84,7 @@ class SyncConflictResource extends Resource
             Section::make('Data')->columns(2)->schema([
                 KeyValueEntry::make('client_payload')->label('From device')->state(fn (SyncConflict $r) => $kv($r->client_payload)),
                 KeyValueEntry::make('server_snapshot')->label('On server at the time')->state(fn (SyncConflict $r) => $kv(
-                    collect($r->server_snapshot ?? [])->except(['gstin', 'pan', 'gstin_index', 'pan_index'])->all(),
+                    collect($r->server_snapshot ?? [])->except(['strn', 'ntn', 'cnic', 'strn_index', 'ntn_index', 'cnic_index'])->all(),
                 )),
             ]),
             Section::make('Review')->columns(3)->visible(fn (SyncConflict $r) => $r->reviewed_at !== null)->schema([

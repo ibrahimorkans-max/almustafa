@@ -44,20 +44,20 @@ beforeEach(function () {
 
 function lv(string $d): CarbonImmutable
 {
-    return CarbonImmutable::parse($d, 'Asia/Kolkata');
+    return CarbonImmutable::parse($d, 'Asia/Karachi');
 }
 
 describe('leave requests and balances', function () {
     it('counts only working days, approves against the balance and records it in the ledger', function () {
-        Holiday::query()->create(['date' => '2026-11-10', 'name' => 'Diwali', 'kind' => 'festival']);
-        // Mon 9 – Sun 15 Nov: Tue 10 is a holiday, Sun 15 the weekly off → 5 days.
-        $r = $this->svc->request($this->e, $this->cl, lv('2026-11-09'), lv('2026-11-15'), 'none', 'Diwali at home');
-        expect((string) $r->days)->toBe('5.0');
+        Holiday::query()->create(['date' => '2026-11-10', 'name' => 'Local fair', 'kind' => 'local']);
+        // Mon 9 – Sun 15 Nov: Mon 9 is Iqbal Day (pre-filled), Tue 10 a local holiday, Sun 15 the weekly off → 4 days.
+        $r = $this->svc->request($this->e, $this->cl, lv('2026-11-09'), lv('2026-11-15'), 'none', 'Family wedding');
+        expect((string) $r->days)->toBe('4.0');
 
         $this->f->as($this->f->supervisor);
         $this->svc->approve($r, 'Enjoy');
-        expect($this->svc->balance($this->e, $this->cl, 2026))->toBe('2.0')
-            ->and(LeaveLedgerEntry::query()->where('kind', 'taken')->value('days'))->toBe('-5.0');
+        expect($this->svc->balance($this->e, $this->cl, 2026))->toBe('3.0')
+            ->and(LeaveLedgerEntry::query()->where('kind', 'taken')->value('days'))->toBe('-4.0');
     });
 
     it('refuses more paid leave than the balance, but leave without pay needs none', function () {
@@ -108,12 +108,12 @@ describe('leave requests and balances', function () {
         // EL: lapse 10 + carry out + carry in; CL: lapse 3 → 4 entries.
         expect($this->svc->yearEnd(2025))->toBe(4)->and($this->svc->yearEnd(2025))->toBe(0);
         expect($this->svc->balance($this->e, $this->el, 2025))->toBe('0.0')
-            ->and($this->svc->balance($this->e, $this->el, 2026))->toBe('30.0')          // carried, limit 30
+            ->and($this->svc->balance($this->e, $this->el, 2026))->toBe('28.0')          // carried, limit 28
             ->and($this->svc->balance($this->e, $this->cl, 2025))->toBe('0.0')           // CL lapses
             ->and($this->svc->balance($this->e, $this->cl, 2026))->toBe('7.0');
         // The carried-in days must not make 2026 look already closed.
         expect($this->svc->yearEnd(2026))->toBe(3)
-            ->and($this->svc->balance($this->e, $this->el, 2027))->toBe('30.0')
+            ->and($this->svc->balance($this->e, $this->el, 2027))->toBe('28.0')
             ->and($this->svc->balance($this->e, $this->cl, 2027))->toBe('0.0');
         $this->artisan('hr:leave-year-end 2025')->assertSuccessful();
         $this->artisan('hr:leave-year-end 2099')->assertFailed();

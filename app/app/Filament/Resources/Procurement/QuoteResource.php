@@ -49,8 +49,8 @@ class QuoteResource extends Resource
                 ->relationship('broker', 'name', fn (Builder $query) => $query->where('is_broker', true)),
             Select::make('product_id')->label('Product')->required()->preload()
                 ->relationship('product', 'name', fn (Builder $query) => $query->where('category', 'paddy')),
-            TextInput::make('quantity_quintal')->label('Quantity (quintal)')->required()->regex(Units::DECIMAL_3),
-            TextInput::make('rate_rupees')->label('Rate (₹ per quintal)')->required()->regex(Units::DECIMAL_2),
+            TextInput::make('quantity_maund')->label('Quantity (maund)')->required()->regex(Units::DECIMAL_3),
+            TextInput::make('rate_rupees')->label('Rate (Rs per maund)')->required()->regex(Units::DECIMAL_2),
             DateTimePicker::make('valid_until'),
             Textarea::make('note')->maxLength(1000)->columnSpanFull(),
         ]);
@@ -63,8 +63,8 @@ class QuoteResource extends Resource
                 TextColumn::make('number')->searchable(),
                 TextColumn::make('party.name')->label('Seller')->searchable(),
                 TextColumn::make('broker.name')->label('Broker')->placeholder('—'),
-                TextColumn::make('quantity_kg')->label('Qty (qtl)')->formatStateUsing(fn (string $state) => Units::kgToQuintal($state))->alignEnd(),
-                TextColumn::make('rate_paise_per_quintal')->label('Latest rate / qtl')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state))->alignEnd(),
+                TextColumn::make('quantity_kg')->label('Qty (maund)')->formatStateUsing(fn (string $state) => Units::kgToMaund($state))->alignEnd(),
+                TextColumn::make('rate_paise_per_maund')->label('Latest rate / maund')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state))->alignEnd(),
                 TextColumn::make('last_offer_by')->label('Last offer by')->badge(),
                 TextColumn::make('current_revision')->label('Rev.'),
                 TextColumn::make('status')->badge()->color(fn (string $state) => match ($state) {
@@ -94,8 +94,8 @@ class QuoteResource extends Resource
                 RepeatableEntry::make('revisions')->hiddenLabel()->columns(5)->schema([
                     TextEntry::make('revision')->label('#'),
                     TextEntry::make('offered_by')->label('By')->badge(),
-                    TextEntry::make('quantity_kg')->label('Qty (qtl)')->formatStateUsing(fn (string $state) => Units::kgToQuintal($state)),
-                    TextEntry::make('rate_paise_per_quintal')->label('Rate / qtl')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
+                    TextEntry::make('quantity_kg')->label('Qty (maund)')->formatStateUsing(fn (string $state) => Units::kgToMaund($state)),
+                    TextEntry::make('rate_paise_per_maund')->label('Rate / maund')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
                     TextEntry::make('created_at')->label('When')->dateTime(),
                     TextEntry::make('note')->columnSpanFull()->placeholder('—'),
                 ]),

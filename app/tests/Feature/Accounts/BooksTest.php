@@ -107,13 +107,13 @@ it('keeps bank and cash out of journals', function () {
 });
 
 it('locks a finished month and reopens it only with a second person', function () {
-    $lastMonth = now('Asia/Kolkata')->subMonthNoOverflow();
+    $lastMonth = now('Asia/Karachi')->subMonthNoOverflow();
     bindAs($this->owner);
     app(PeriodLocks::class)->lock($lastMonth->format('Y-m'));
 
     expect(fn () => $this->books->post('journal', $lastMonth, [['account' => $this->cash, 'dr' => 1], ['account' => $this->capital, 'cr' => 1]]))
         ->toThrow(BusinessRuleViolation::class, 'locked');
-    expect(fn () => app(PeriodLocks::class)->lock(now('Asia/Kolkata')->format('Y-m')))->toThrow(BusinessRuleViolation::class, 'finished month');
+    expect(fn () => app(PeriodLocks::class)->lock(now('Asia/Karachi')->format('Y-m')))->toThrow(BusinessRuleViolation::class, 'finished month');
     bindAs($this->accountant);
     expect(fn () => app(PeriodLocks::class)->lock($lastMonth->format('Y-m')))->toThrow(BusinessRuleViolation::class, 'period.lock');
 

@@ -27,7 +27,7 @@ beforeEach(function () {
 function pastTrip(object $t, string $netKg, int $daysAgo): void
 {
     $t->f->as($t->f->acc->owner);
-    $e = new GateEntry(['direction' => 'inbound', 'purpose' => 'paddy_purchase', 'registration_no' => 'HR05AB1234', 'arrived_at' => now()->subDays($daysAgo)]);
+    $e = new GateEntry(['direction' => 'inbound', 'purpose' => 'paddy_purchase', 'registration_no' => 'MNA211234', 'arrived_at' => now()->subDays($daysAgo)]);
     $e->forceFill(['number' => 'H-'.$daysAgo, 'status' => 'exited', 'net_kg' => $netKg, 'flags' => []])->save();
 }
 
@@ -43,7 +43,7 @@ describe('anomaly alerts', function () {
         // A truck that suddenly carries 2,000 kg more than ever.
         $this->f->as($this->f->inv->supervisor);
         $g = app(GateService::class);
-        $e = $g->arrive(['registration_no' => 'HR05AB1234', 'sauda_id' => $this->f->acc->sauda->id, 'bag_count' => 400]);
+        $e = $g->arrive(['registration_no' => 'MNA211234', 'sauda_id' => $this->f->acc->sauda->id, 'bag_count' => 400]);
         $g->recordWeighment($e, 'gross', '27480', $this->f->inv->gate->scale, GateFixtures::readings('27480'), str_repeat('a', 64));
         $g->recordLabTest($e, ['moisture_bp' => 1600]);
         $g->decideLab($e, true);
@@ -64,18 +64,18 @@ describe('anomaly alerts', function () {
 
     it('flags a purchase rate far from the 30-day median and weighments at night', function () {
         $this->f->as($this->f->acc->owner);
-        foreach ([250000, 252000, 248000] as $i => $rate) {
+        foreach ([100000, 100800, 99200] as $i => $rate) {
             $s = new Sauda(['direction' => 'purchase', 'party_id' => $this->f->inv->gate->seller->id, 'product_id' => $this->f->inv->paddy->id,
-                'quantity_kg' => '10000', 'rate_paise_per_quintal' => $rate, 'delivery_from' => now()->toDateString(), 'delivery_to' => now()->toDateString()]);
+                'quantity_kg' => '10000', 'rate_paise_per_maund' => $rate, 'delivery_from' => now()->toDateString(), 'delivery_to' => now()->toDateString()]);
             $s->forceFill(['number' => "P-OLD-{$i}", 'status' => 'completed', 'approved_at' => now()->subDays(10 + $i)])->save();
         }
         $high = new Sauda(['direction' => 'purchase', 'party_id' => $this->f->inv->gate->seller->id, 'product_id' => $this->f->inv->paddy->id,
-            'quantity_kg' => '10000', 'rate_paise_per_quintal' => 300000, 'delivery_from' => now()->toDateString(), 'delivery_to' => now()->toDateString()]);
+            'quantity_kg' => '10000', 'rate_paise_per_maund' => 120000, 'delivery_from' => now()->toDateString(), 'delivery_to' => now()->toDateString()]);
         $high->forceFill(['number' => 'P-HIGH', 'status' => 'confirmed', 'approved_at' => now()->subHour()])->save();
 
         $this->f->as($this->f->inv->supervisor);
-        $entry = app(GateService::class)->arrive(['registration_no' => 'HR05AB1234']);
-        $night = CarbonImmutable::now('Asia/Kolkata')->startOfDay()->addHours(2);
+        $entry = app(GateService::class)->arrive(['registration_no' => 'MNA211234']);
+        $night = CarbonImmutable::now('Asia/Karachi')->startOfDay()->addHours(2);
         app(GateService::class)->recordWeighment($entry, 'gross', '20000', $this->f->inv->gate->scale, GateFixtures::readings('20000'), str_repeat('b', 64), $night->utc(), strict: false);
 
         $this->f->as($this->f->acc->owner);
@@ -102,7 +102,7 @@ describe('reports and verification', function () {
         $entry = $this->f->loadAndWeigh($this->f->order());
         $this->f->as($this->f->acc->accountant);
         $bill = app(SalesBillService::class)->post($this->f->billFor($entry));
-        $this->f->delhiBuyer->forceFill(['name' => '=HYPERLINK("http://evil")'])->save();
+        $this->f->karachiBuyer->forceFill(['name' => '=HYPERLINK("http://evil")'])->save();
 
         [$cols, $rows] = app(OperationalReports::class)->run('sales_register', now()->subDay(), now());
         expect($cols[1])->toBe('Invoice')->and($rows)->toHaveCount(1)->and($rows[0][1])->toBe($bill->number)->and($rows[0][12])->toBe('422100.00');
@@ -125,7 +125,7 @@ describe('reports and verification', function () {
         app('auth')->forgetGuards();
 
         $this->get('/verify?'.http_build_query(['doc' => $bill->number, 'code' => $invoiceCode]))
-            ->assertOk()->assertSee('Genuine tax invoice')->assertSee('4,22,100.00')->assertDontSee($this->f->delhiBuyer->name);
+            ->assertOk()->assertSee('Genuine sales tax invoice')->assertSee('422,100.00')->assertDontSee($this->f->karachiBuyer->name);
         $this->get('/verify?'.http_build_query(['doc' => $entry->number, 'code' => SlipRenderer::verificationCode($entry->id, $slip->data)]))
             ->assertOk()->assertSee('Genuine weighment slip')->assertSee('10050.000');
         $this->get('/verify?'.http_build_query(['doc' => $pass->data['number'], 'code' => SlipRenderer::verificationCode($entry->id, $pass->data)]))

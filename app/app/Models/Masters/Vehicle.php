@@ -6,7 +6,7 @@ namespace App\Models\Masters;
 
 use App\Domain\Tenancy\TenantContext;
 use App\Models\LoginAccount;
-use App\Support\Values\IndianIds;
+use App\Support\Values\PakistanIds;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Validation\Rule;
 
@@ -44,7 +44,7 @@ class Vehicle extends MasterModel
         parent::booted();
 
         static::saving(function (Vehicle $vehicle): void {
-            $vehicle->registration_no = IndianIds::normalizeVehicleNumber($vehicle->registration_no);
+            $vehicle->registration_no = PakistanIds::normalizeVehicleNumber($vehicle->registration_no);
         });
     }
 
@@ -67,8 +67,8 @@ class Vehicle extends MasterModel
         return [
             'registration_no' => [
                 'required', 'string', 'max:20',
-                fn (string $attr, mixed $value, \Closure $fail) => IndianIds::isValidVehicleNumber(IndianIds::normalizeVehicleNumber((string) $value))
-                    ? null : $fail('Not a valid Indian registration number (e.g. HR05AB1234 or 22BH1234AA).'),
+                fn (string $attr, mixed $value, \Closure $fail) => PakistanIds::isValidVehicleNumber(PakistanIds::normalizeVehicleNumber((string) $value))
+                    ? null : $fail('Not a valid Pakistani registration number (e.g. MNA-21-1234, LES-1234).'),
             ],
             'vehicle_type' => ['required', Rule::in(self::TYPES)],
             'owner_party_id' => ['nullable', 'uuid', Rule::exists('parties', 'id')->where('entity_id', $entity)],

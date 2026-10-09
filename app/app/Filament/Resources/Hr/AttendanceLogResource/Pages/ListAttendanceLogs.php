@@ -50,7 +50,7 @@ class ListAttendanceLogs extends ListRecords
             Action::make('import')->label('Import from biometric file')->icon('heroicon-o-arrow-up-tray')->color('gray')
                 ->visible($canOverride)
                 ->steps([
-                    Step::make('File')->description('CSV: employee code, date-time (IST), in / out (optional)')->schema([
+                    Step::make('File')->description('CSV: employee code, date-time (PKT), in / out (optional)')->schema([
                         FileUpload::make('file')->required()->storeFiles(false)->acceptedFileTypes(['text/csv', 'text/plain', 'application/vnd.ms-excel'])->maxSize(5120),
                     ])->afterValidation(function (Get $get, Set $set) use ($read): void {
                         $p = app(AttendanceImport::class)->preview($read($get('file')));
@@ -87,8 +87,8 @@ class ListAttendanceLogs extends ListRecords
                         ->options(fn () => Employee::query()->with('person')->where('status', '!=', Employee::EXITED)->orderBy('code')->get()
                             ->mapWithKeys(fn (Employee $e) => [$e->id => "{$e->code} {$e->name()}"])->all()),
                     Select::make('kind')->options(['in' => 'In', 'out' => 'Out'])->required(),
-                    // Entered and read as IST wall time (the approval action converts it once; future times are refused there).
-                    DateTimePicker::make('at')->label('Time (IST)')->required()->seconds(false),
+                    // Entered and read as PKT wall time (the approval action converts it once; future times are refused there).
+                    DateTimePicker::make('at')->label('Time (PKT)')->required()->seconds(false),
                     Textarea::make('reason')->required()->minLength(5)->maxLength(500),
                 ])
                 ->action(function (array $data): void {

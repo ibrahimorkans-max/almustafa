@@ -40,7 +40,7 @@ class EmployeeDocument extends Model
     use TracksCreator;
 
     public const KINDS = [
-        'aadhaar' => 'Aadhaar card', 'pan' => 'PAN card', 'id_proof' => 'Other ID proof', 'contract' => 'Contract / appointment letter',
+        'cnic' => 'CNIC (copy)', 'ntn' => 'NTN certificate', 'id_proof' => 'Other ID proof', 'contract' => 'Contract / appointment letter',
         'bank_proof' => 'Bank proof (cheque / passbook)', 'photo' => 'Photo', 'other' => 'Other',
     ];
 

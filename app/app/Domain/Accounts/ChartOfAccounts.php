@@ -50,12 +50,11 @@ final class ChartOfAccounts
         'capital' => ['CAPITAL', 'Proprietor / partners capital', 'CAPITAL', 'system'],
         'sales_rice' => ['SAL-RICE', 'Sales – Rice', 'SALES_ACCOUNTS', 'system'],
         'sales_byproduct' => ['SAL-BYPRODUCT', 'Sales – By-products', 'SALES_ACCOUNTS', 'system'],
-        'output_cgst' => ['GST-OUT-CGST', 'Output CGST', 'DUTIES_TAXES', 'system'],
-        'output_sgst' => ['GST-OUT-SGST', 'Output SGST', 'DUTIES_TAXES', 'system'],
-        'output_igst' => ['GST-OUT-IGST', 'Output IGST', 'DUTIES_TAXES', 'system'],
+        'output_sales_tax' => ['ST-OUTPUT', 'Output sales tax', 'DUTIES_TAXES', 'system'],
+        'further_tax' => ['ST-FURTHER', 'Further sales tax (s. 3(1A))', 'DUTIES_TAXES', 'system'],
         'sales_claims' => ['SAL-CLAIMS', 'Sales claims & allowances', 'SALES_ACCOUNTS', 'system'],
         'purchase_claims' => ['PUR-CLAIMS', 'Purchase claims recovered', 'PURCHASE_ACCOUNTS', 'system'],
-        'tds_194q' => ['TDS-194Q', 'TDS payable (s. 194Q)', 'DUTIES_TAXES', 'system'],
+        'wht_payable' => ['WHT-153', 'Income tax withheld payable (s. 153)', 'DUTIES_TAXES', 'system'],
     ];
 
     public function __construct(private readonly TenantContext $tenant) {}

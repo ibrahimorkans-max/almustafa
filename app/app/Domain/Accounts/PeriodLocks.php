@@ -20,7 +20,7 @@ final class PeriodLocks
 
     public static function periodOf(CarbonInterface $date): string
     {
-        return CarbonImmutable::instance($date)->setTimezone('Asia/Kolkata')->format('Y-m');
+        return CarbonImmutable::instance($date)->setTimezone('Asia/Karachi')->format('Y-m');
     }
 
     public function isLocked(CarbonInterface $date): bool
@@ -31,7 +31,7 @@ final class PeriodLocks
     public function assertOpen(CarbonInterface $date): void
     {
         if ($this->isLocked($date)) {
-            throw new BusinessRuleViolation(sprintf('The books for %s are locked.', CarbonImmutable::instance($date)->setTimezone('Asia/Kolkata')->format('M Y')));
+            throw new BusinessRuleViolation(sprintf('The books for %s are locked.', CarbonImmutable::instance($date)->setTimezone('Asia/Karachi')->format('M Y')));
         }
     }
 
@@ -43,7 +43,7 @@ final class PeriodLocks
         if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $period)) {
             throw new BusinessRuleViolation('Period must look like 2026-09.');
         }
-        if ($period >= now('Asia/Kolkata')->format('Y-m')) {
+        if ($period >= now('Asia/Karachi')->format('Y-m')) {
             throw new BusinessRuleViolation('Only a finished month can be locked.');
         }
 

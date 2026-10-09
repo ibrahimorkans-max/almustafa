@@ -25,7 +25,7 @@ beforeEach(function () {
 /** A punch as stored after the phase 2/3 checks (default: valid). */
 function wkPunch(object $t, string $kind, string $istTime, string $status = 'valid'): AttendanceLog
 {
-    $at = CarbonImmutable::parse($istTime, 'Asia/Kolkata');
+    $at = CarbonImmutable::parse($istTime, 'Asia/Karachi');
 
     return AttendanceLog::query()->create([
         'employee_id' => $t->e->id, 'kind' => $kind, 'source' => 'app', 'occurred_at' => $at->utc()->format('Y-m-d H:i:s.v'),
@@ -36,7 +36,7 @@ function wkPunch(object $t, string $kind, string $istTime, string $status = 'val
 
 function wkDays(object $t, string $from, string $to): array
 {
-    $r = app(AttendanceCalculator::class)->period($t->e->fresh(), CarbonImmutable::parse($from, 'Asia/Kolkata'), CarbonImmutable::parse($to, 'Asia/Kolkata'));
+    $r = app(AttendanceCalculator::class)->period($t->e->fresh(), CarbonImmutable::parse($from, 'Asia/Karachi'), CarbonImmutable::parse($to, 'Asia/Karachi'));
 
     return ['days' => collect($r['days'])->keyBy('date')->all(), 'totals' => $r['totals']];
 }
@@ -114,7 +114,7 @@ it('combines a half-day leave with a half day worked, and notes work on holidays
 
 it('leaves out days before joining and the future', function () {
     $this->e->forceFill(['joining_date' => '2026-09-09'])->save();
-    $d = wkDays($this, '2026-09-08', now('Asia/Kolkata')->addDays(2)->toDateString())['days'];
+    $d = wkDays($this, '2026-09-08', now('Asia/Karachi')->addDays(2)->toDateString())['days'];
     expect($d['2026-09-08']['notes'])->toContain('not_employed')
         ->and(end($d)['notes'])->toContain('future')
         ->and(end($d)['code'])->toBe('—');
