@@ -26,6 +26,7 @@ use App\Models\Claims\Claim;
 use App\Models\Gate\DeductionRule;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\Scale;
+use App\Models\Hr;
 use App\Models\Inventory;
 use App\Models\LoginAccount;
 use App\Models\Masters;
@@ -135,6 +136,12 @@ class AppServiceProvider extends ServiceProvider
             Claim::class => Policies\Phase7\ClaimPolicy::class,
             PriceList::class => Policies\Phase7\PriceListPolicy::class,
             MarkupSetting::class => Policies\Phase7\MarkupSettingPolicy::class,
+            Hr\Employee::class => Policies\Hr\EmployeePolicy::class,
+            Hr\Department::class => Policies\Hr\HrMasterPolicy::class,
+            Hr\Designation::class => Policies\Hr\HrMasterPolicy::class,
+            Hr\SalaryComponent::class => Policies\Hr\SalaryComponentPolicy::class,
+            Hr\SalaryStructure::class => Policies\Hr\SalaryStructurePolicy::class,
+            Hr\EmployeeDocument::class => Policies\Hr\EmployeeDocumentPolicy::class,
         ] as $model => $policy) {
             Gate::policy($model, $policy);
         }

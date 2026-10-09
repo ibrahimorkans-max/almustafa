@@ -6,6 +6,7 @@ namespace App\Domain\Access;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Tenancy\TenantContext;
+use App\Models\Entity;
 use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Support\Facades\DB;
@@ -53,6 +54,7 @@ final class AccessCatalogSync
                 if ($known !== []) {
                     $this->grantNewPermissionsToEntityRoles(array_values(array_diff(PermissionCatalog::codes(), $known)));
                 }
+                $this->createMissingTemplateRoles();
             });
         });
     }
@@ -84,6 +86,31 @@ final class AccessCatalogSync
                 $role->flushPermissionCache();
                 app(AuditLogger::class)->record('role.permissions.granted', $role, null, ['permissions' => $grant], ['source' => 'catalog_upgrade']);
             });
+    }
+
+    /**
+     * A role template added by a release (e.g. HR Manager) is created, with its template grants, in
+     * every entity that does not have it yet. Existing roles are never touched here.
+     */
+    private function createMissingTemplateRoles(): void
+    {
+        $have = Role::query()->whereNotNull('entity_id')->get(['entity_id', 'code'])
+            ->groupBy('entity_id')->map(fn ($roles) => $roles->pluck('code')->all());
+
+        foreach (Entity::query()->pluck('id') as $entityId) {
+            foreach (array_diff(RoleTemplates::entityRoleCodes(), $have[$entityId] ?? []) as $code) {
+                $template = RoleTemplates::get($code);
+                $role = Role::query()->create([
+                    'entity_id' => $entityId, 'code' => $code, 'name' => $template['name'], 'is_system' => true,
+                    'is_super_admin' => false, 'mfa_required' => $template['mfa_required'],
+                    'session_max_minutes' => $template['session_max_minutes'],
+                ]);
+                DB::table('role_permissions')->insert(array_map(fn (string $permission) => [
+                    'role_id' => $role->id, 'permission_code' => $permission, 'entity_id' => $entityId, 'created_at' => now(),
+                ], $template['permissions']));
+                app(AuditLogger::class)->record('role.permissions.granted', $role, null, ['permissions' => $template['permissions']], ['source' => 'catalog_upgrade_new_role']);
+            }
+        }
     }
 
     public function superAdminRole(): Role

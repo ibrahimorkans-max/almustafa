@@ -91,6 +91,11 @@ final class AuditLogger
             return $subject->getKey();
         }
 
-        return $subject?->getAttribute('entity_id') ?? $this->tenant->entityId();
+        // Models without an entity_id column (persons are shared across entities) go to the current entity's chain.
+        if ($subject !== null && array_key_exists('entity_id', $subject->getAttributes())) {
+            return $subject->getAttribute('entity_id') ?? $this->tenant->entityId();
+        }
+
+        return $this->tenant->entityId();
     }
 }
