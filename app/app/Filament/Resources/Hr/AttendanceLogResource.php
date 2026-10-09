@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Hr;
 
 use App\Filament\Resources\Hr\AttendanceLogResource\Pages;
 use App\Models\Hr\AttendanceLog;
+use App\Models\Hr\AttendanceReview;
 use App\Models\Hr\Employee;
 use App\Models\StoredFile;
 use Carbon\CarbonImmutable;
@@ -55,13 +56,16 @@ class AttendanceLogResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['employee.person', 'site']))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['employee.person', 'site', 'reviews']))
             ->columns([
                 TextColumn::make('occurred_at')->label('Time (IST)')->dateTime('d M Y H:i', 'Asia/Kolkata')->sortable(),
                 TextColumn::make('employee.code')->label('Employee')->searchable(),
                 TextColumn::make('employee.person.full_name')->label('Name'),
                 TextColumn::make('kind')->badge()->color(fn (string $state) => $state === 'in' ? 'info' : 'gray'),
-                TextColumn::make('status')->badge()->color(fn (string $state) => static::statusColor($state)),
+                TextColumn::make('status')->label('Server verdict')->badge()->color(fn (string $state) => static::statusColor($state)),
+                TextColumn::make('final')->label('Final')->badge()
+                    ->state(fn (AttendanceLog $r) => $r->status === AttendanceLog::FLAGGED && $r->reviews->isEmpty() ? 'awaiting review' : $r->finalStatus())
+                    ->color(fn (string $state) => $state === 'awaiting review' ? 'warning' : static::statusColor($state)),
                 TextColumn::make('reasons')->label('Why')->wrap()
                     ->formatStateUsing(fn ($state, AttendanceLog $r) => implode('; ', $r->reasonTexts()) ?: '—'),
                 TextColumn::make('site.name')->label('Site')->placeholder('—'),
@@ -69,7 +73,9 @@ class AttendanceLogResource extends Resource
             ])
             ->defaultSort('occurred_at', 'desc')
             ->filters([
-                SelectFilter::make('status')->options(['valid' => 'Valid', 'flagged' => 'Flagged', 'rejected' => 'Rejected']),
+                SelectFilter::make('status')->label('Server verdict')->options(['valid' => 'Valid', 'flagged' => 'Flagged', 'rejected' => 'Rejected']),
+                Filter::make('awaiting')->label('Awaiting review')->toggle()
+                    ->query(fn (Builder $query) => AttendanceLog::whereAwaitingReview($query)),
                 SelectFilter::make('kind')->options(['in' => 'In', 'out' => 'Out']),
                 SelectFilter::make('employee_id')->label('Employee')->searchable()
                     ->options(fn () => Employee::query()->with('person')->orderBy('code')->get()
@@ -116,6 +122,16 @@ class AttendanceLogResource extends Resource
                 TextEntry::make('source'),
                 TextEntry::make('signals')->label('Phone integrity signals')->placeholder('none sent (browser)')
                     ->state(fn (AttendanceLog $r) => $r->signals ? json_encode($r->signals, JSON_UNESCAPED_SLASHES) : null),
+                TextEntry::make('ip')->label('Uploaded from IP')->placeholder('—'),
+            ]),
+            Section::make('Review')->visible(fn (AttendanceLog $r) => $r->status === AttendanceLog::FLAGGED || $r->reviews()->exists())->schema([
+                TextEntry::make('final')->label('Final status')->badge()
+                    ->state(fn (AttendanceLog $r) => $r->status === AttendanceLog::FLAGGED && ! $r->reviews()->exists() ? 'awaiting review' : $r->finalStatus())
+                    ->color(fn (string $state) => $state === 'awaiting review' ? 'warning' : static::statusColor($state)),
+                TextEntry::make('review_history')->label('Decisions (latest counts)')->listWithLineBreaks()->placeholder('none yet')
+                    ->state(fn (AttendanceLog $r) => $r->reviews()->with('reviewer')->get()->map(fn (AttendanceReview $v) => sprintf('%s IST · %s · %s — %s',
+                        $v->reviewed_at->timezone('Asia/Kolkata')->format('d M Y H:i'), $v->decision === 'accept' ? 'accepted' : 'rejected',
+                        $v->reviewer->username ?? '?', $v->reason))->all()),
             ]),
         ]);
     }

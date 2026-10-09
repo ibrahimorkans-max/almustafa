@@ -11,7 +11,6 @@ use App\Models\Device;
 use App\Models\Hr\AttendanceLog;
 use App\Models\Hr\EmployeeDevice;
 use App\Models\Hr\Site;
-use App\Models\LoginAccount;
 use App\Models\StoredFile;
 use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
@@ -233,5 +232,4 @@ it('grants punching to every staff role but not to brokers, and creates the Empl
     }
     expect(Make::account($this->f->entity, 'BROKER')->hasPermission('hr.attendance.punch'))->toBeFalse()
         ->and(Make::system(fn () => StoredFile::query()->count()))->toBe(0);
-    expect(LoginAccount::class)->toBeString();
 });

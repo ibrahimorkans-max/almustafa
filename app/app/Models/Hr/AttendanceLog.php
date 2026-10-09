@@ -6,9 +6,11 @@ namespace App\Models\Hr;
 
 use App\Domain\Tenancy\BelongsToEntity;
 use App\Support\Eloquent\AppendOnly;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -36,6 +38,8 @@ use Illuminate\Support\Carbon;
  * @property string $status valid|flagged|rejected
  * @property list<string> $reasons
  * @property array<string, mixed>|null $signals
+ * @property string|null $ip
+ * @property string|null $approval_request_id
  * @property Carbon $created_at
  * @property-read Employee $employee
  * @property-read Site|null $site
@@ -68,12 +72,28 @@ class AttendanceLog extends Model
         'no_selfie' => 'No photo was taken',
         'sequence' => 'Two punches of the same kind in a row',
         'late_upload' => 'Uploaded much later than it was taken',
+        // Phone integrity (native app signals)
+        'mock_location' => 'The phone reported a fake (mock / simulated) location',
+        'mock_apps_enabled' => 'A fake-location app is enabled on the phone',
+        'rooted_device' => 'The phone is rooted or jailbroken',
+        'hooking_detected' => 'Tampering tools were detected on the phone',
+        'emulator' => 'The punch came from an emulator, not a real phone',
+        'integrity_failed' => 'The phone failed the Google / Apple integrity check',
+        'integrity_unverified' => 'The phone\'s integrity check could not be verified',
+        'integrity_unknown' => 'No phone integrity information was sent',
+        // Server-side sanity checks
+        'impossible_travel' => 'Too far from the previous punch for the time between them',
+        'repeated_coordinates' => 'Exactly the same position as an earlier punch (real GPS always varies)',
+        'suspicious_accuracy' => 'Location accuracy reported as unrealistically perfect',
+        'shared_device' => 'The same phone punched for another employee shortly before',
+        'device_clock_off' => 'The phone clock differs from the server clock',
+        'manual_entry' => 'Entered manually (approved by a second person)',
     ];
 
     protected $fillable = [
         'employee_id', 'kind', 'source', 'occurred_at', 'received_at', 'estimated_at', 'time_check', 'latitude', 'longitude',
         'accuracy_m', 'site_id', 'distance_m', 'selfie_sha256', 'device_id', 'login_account_id', 'client_event_id',
-        'status', 'reasons', 'signals', 'created_at',
+        'status', 'reasons', 'signals', 'ip', 'approval_request_id', 'created_at',
     ];
 
     protected function casts(): array
@@ -89,6 +109,51 @@ class AttendanceLog extends Model
     public function reasonTexts(): array
     {
         return array_values(array_map(fn (string $r) => self::REASONS[$r] ?? $r, $this->reasons ?? []));
+    }
+
+    /** @return HasMany<AttendanceReview, $this> */
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(AttendanceReview::class)->orderBy('reviewed_at')->orderBy('id');
+    }
+
+    public function latestReview(): ?AttendanceReview
+    {
+        if ($this->relationLoaded('reviews')) {
+            /** @var AttendanceReview|null */
+            return $this->reviews->sortBy([['reviewed_at', 'desc'], ['id', 'desc']])->first();
+        }
+
+        return $this->reviews()->reorder()->orderByDesc('reviewed_at')->orderByDesc('id')->first();
+    }
+
+    /** What counts: the latest review decision, else the server's verdict. */
+    public function finalStatus(): string
+    {
+        $review = $this->latestReview();
+
+        return $review === null ? $this->status : ($review->decision === AttendanceReview::ACCEPT ? self::VALID : self::REJECTED);
+    }
+
+    /**
+     * Flagged punches nobody has decided yet.
+     *
+     * @param  Builder<AttendanceLog>  $query
+     */
+    public function scopeAwaitingReview(Builder $query): void
+    {
+        self::whereAwaitingReview($query);
+    }
+
+    /**
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $query
+     */
+    public static function whereAwaitingReview(Builder $query): void
+    {
+        $query->where('attendance_logs.status', self::FLAGGED)
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('attendance_reviews')->whereColumn('attendance_reviews.attendance_log_id', 'attendance_logs.id'));
     }
 
     /** @return BelongsTo<Employee, $this> */

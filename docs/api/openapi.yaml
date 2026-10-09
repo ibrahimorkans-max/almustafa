@@ -307,7 +307,12 @@ paths:
         `{ kind: in|out, device_time, lat, lng, accuracy_m, selfie_sha256, boot_id, monotonic_ms, source: pwa|app, signals }`.
         Upload the photo first (`POST /files`); a punch whose photo has not arrived answers `retry`. The result carries
         `attendance_status` (valid | flagged | rejected), `reasons` (codes) and `messages` (plain words).
-        `signals` is the native app's integrity evidence (mock location, root / jailbreak, Play Integrity / App Attest).
+        `signals` is the native app's integrity evidence:
+        `{ platform: android|ios, mock_location, mock_apps_enabled, rooted, jailbroken, hooking, emulator, integrity_token }`.
+        Android: `mock_location` from `Location.isMock` / `isFromMockProvider`; `integrity_token` = Play Integrity verdict token.
+        iOS: `mock_location` from `CLLocationSourceInformation.isSimulatedBySoftware`; `integrity_token` = App Attest assertion.
+        A location the phone reports as simulated is rejected; the other signals flag the punch for review. The server also
+        checks impossible travel, exactly repeated coordinates, perfect accuracy, one phone for several employees and clock drift.
       parameters: [{ $ref: '#/components/parameters/DeviceId' }]
       responses:
         '201': { description: Request created, content: { application/json: { schema: { type: object, properties: { status: { type: string } } } } } }

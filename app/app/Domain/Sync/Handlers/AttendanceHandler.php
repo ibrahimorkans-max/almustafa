@@ -6,6 +6,7 @@ namespace App\Domain\Sync\Handlers;
 
 use App\Domain\Auth\ActorContext;
 use App\Domain\Files\FileStore;
+use App\Domain\Hr\Attendance\AttendanceReviewService;
 use App\Domain\Hr\Attendance\AttendanceService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Sync\Contracts\AcceptsLateEvents;
@@ -13,6 +14,7 @@ use App\Domain\Sync\Contracts\SyncHandler;
 use App\Domain\Sync\SyncEvent;
 use App\Domain\Sync\SyncOutcome;
 use App\Models\Device;
+use App\Models\Hr\AttendanceLog;
 use App\Models\LoginAccount;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Validator;
@@ -80,6 +82,9 @@ final class AttendanceHandler implements AcceptsLateEvents, SyncHandler
             );
         } catch (BusinessRuleViolation $e) {
             return new SyncOutcome(SyncOutcome::REJECTED, ['message' => $e->getMessage()], 'business_rule');
+        }
+        if ($log->status !== AttendanceLog::VALID) {
+            app(AttendanceReviewService::class)->alertOnRepeats($log->employee);
         }
 
         // The punch is recorded either way; the verdict travels back to the phone in plain words.

@@ -4,10 +4,60 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Hr\AttendanceLogResource\Pages;
 
+use App\Domain\Approvals\Actions\ManualAttendance;
+use App\Domain\Approvals\ApprovalService;
+use App\Domain\Approvals\Exceptions\ApprovalDenied;
 use App\Filament\Resources\Hr\AttendanceLogResource;
+use App\Models\Hr\Employee;
+use App\Models\LoginAccount;
+use Filament\Actions\Action;
+use Filament\Facades\Filament;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Validation\ValidationException;
 
 class ListAttendanceLogs extends ListRecords
 {
     protected static string $resource = AttendanceLogResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('manual')->label('Request manual attendance')->icon('heroicon-o-pencil-square')
+                ->visible(function (): bool {
+                    $user = Filament::auth()->user();
+
+                    return $user instanceof LoginAccount && $user->hasPermission('hr.attendance.override');
+                })
+                ->modalDescription('For a forgotten phone, no network at a remote point, or to correct a rejected punch. It counts only after a different person approves it.')
+                ->form([
+                    Select::make('employee_id')->label('Employee')->required()->searchable()
+                        ->options(fn () => Employee::query()->with('person')->where('status', '!=', Employee::EXITED)->orderBy('code')->get()
+                            ->mapWithKeys(fn (Employee $e) => [$e->id => "{$e->code} {$e->name()}"])->all()),
+                    Select::make('kind')->options(['in' => 'In', 'out' => 'Out'])->required(),
+                    // Entered and read as IST wall time (the approval action converts it once; future times are refused there).
+                    DateTimePicker::make('at')->label('Time (IST)')->required()->seconds(false),
+                    Textarea::make('reason')->required()->minLength(5)->maxLength(500),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        $employee = Employee::query()->with('person')->findOrFail($data['employee_id']);
+                        app(ApprovalService::class)->submit(ManualAttendance::KEY, $data,
+                            "Manual attendance {$data['kind']} for {$employee->code} {$employee->name()}", $data['reason']);
+                    } catch (ApprovalDenied $e) {
+                        Notification::make()->title($e->getMessage())->danger()->send();
+
+                        return;
+                    } catch (ValidationException $e) {
+                        Notification::make()->title(collect($e->errors())->flatten()->first() ?? 'Check the entries.')->danger()->send();
+
+                        return;
+                    }
+                    Notification::make()->title('Sent for approval.')->body('The punch is created when a different person approves it.')->success()->send();
+                }),
+        ];
+    }
 }

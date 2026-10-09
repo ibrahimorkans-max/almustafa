@@ -99,7 +99,7 @@ final class RoleTemplates
                     'stock.view', 'requisition.create', 'requisition.approve',
                     'sales.view', 'dispatch.manage', 'gatepass.issue',
                     'claim.view', 'claim.manage', 'dashboard.view', 'report.view',
-                    'hr.employee.view',
+                    'hr.employee.view', 'hr.attendance.review',
                 ],
             ],
             self::INVENTORY_MANAGER => [
@@ -142,7 +142,7 @@ final class RoleTemplates
                 'permissions' => [
                     'entity.view', 'approval.view', 'master.view', 'dashboard.view',
                     'hr.employee.view', 'hr.employee.edit', 'hr.employee.sensitive.view',
-                    'hr.salary.view', 'hr.salary.edit', 'hr.payroll.run', 'hr.attendance.override',
+                    'hr.salary.view', 'hr.salary.edit', 'hr.payroll.run', 'hr.attendance.override', 'hr.attendance.review',
                     'hr.documents.generate', 'hr.documents.share', 'hr.documents.template.manage',
                 ],
             ],

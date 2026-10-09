@@ -28,6 +28,7 @@ final class AttendanceService
         private readonly ActorContext $actor,
         private readonly AuditLogger $audit,
         private readonly DeviceClock $clock,
+        private readonly AttendanceIntegrity $integrity,
     ) {}
 
     /** The active employee record of a login (same person, same entity), if any. */
@@ -193,6 +194,12 @@ final class AttendanceService
             $flag[] = 'no_selfie';
         }
 
+        // Fake-location / tampering evidence from the phone, then the server's own sanity checks.
+        $signals = is_array($p['signals'] ?? null) ? $p['signals'] : null;
+        $integrity = $this->integrity->signals($signals);
+        array_push($reject, ...$integrity['reject']);
+        array_push($flag, ...$integrity['flag'], ...$this->integrity->sanity($employee->id, $device?->id, $lat, $lng, $accuracy, $estimated ?? $occurredAt));
+
         $last = AttendanceLog::query()->where('employee_id', $employee->id)->where('status', '!=', AttendanceLog::REJECTED)
             ->where('occurred_at', '<', $occurredAt->utc()->format('Y-m-d H:i:s.v'))->orderByDesc('occurred_at')->first();
         if ($last !== null && $last->kind === $kind && $last->occurred_at->isSameDay($occurredAt)) {
@@ -208,8 +215,9 @@ final class AttendanceService
             'latitude' => $lat, 'longitude' => $lng, 'accuracy_m' => $accuracy,
             'site_id' => $site?->id, 'distance_m' => $distance, 'selfie_sha256' => $selfie,
             'device_id' => $device?->id, 'login_account_id' => $account->id, 'client_event_id' => $eventId,
-            'status' => $status, 'reasons' => [...$reject, ...$flag],
-            'signals' => is_array($p['signals'] ?? null) ? $p['signals'] : null,
+            'status' => $status, 'reasons' => array_values(array_unique([...$reject, ...$flag])),
+            'signals' => $signals !== null ? $signals + $integrity['evidence'] : null,
+            'ip' => $this->actor->ip(),
             'created_at' => $now->utc()->format('Y-m-d H:i:s.v'),
         ]);
     }

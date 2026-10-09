@@ -13,6 +13,8 @@ use App\Domain\Auth\TenantAwareUserProvider;
 use App\Domain\Gst\EInvoiceProvider;
 use App\Domain\Gst\SandboxEInvoiceProvider;
 use App\Domain\Hr\Attendance\DeviceClock;
+use App\Domain\Hr\Attendance\IntegrityVerifier;
+use App\Domain\Hr\Attendance\UnconfiguredIntegrityVerifier;
 use App\Domain\Ops\OpsAlerts;
 use App\Domain\Sync\SyncRegistry;
 use App\Domain\Tenancy\Exceptions\MissingTenantContext;
@@ -71,6 +73,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(DeviceClock::class);
         $this->app->singleton(Google2FA::class);
         // E-invoice / e-way bill: sandbox until the mill's GSP adapter and credentials are configured.
+        // Play Integrity / App Attest verification needs the mill's own credentials; until then: "unverified".
+        $this->app->bindIf(IntegrityVerifier::class, UnconfiguredIntegrityVerifier::class);
         $this->app->bind(EInvoiceProvider::class, fn () => match (config('ricemill.gst.provider')) {
             'sandbox' => new SandboxEInvoiceProvider,
             default => throw new \RuntimeException('Unknown e-invoice provider '.config('ricemill.gst.provider').'; add its adapter first.'),

@@ -102,6 +102,7 @@ final class PermissionCatalog
         'hr.payroll.approve' => ['hr', 'Approve payroll runs and employee bank account changes (checker)'],
         'hr.attendance.override' => ['hr', 'Request manual attendance and corrections'],
         'hr.attendance.punch' => ['hr', 'Mark own attendance from own approved phone'],
+        'hr.attendance.review' => ['hr', 'Accept or reject flagged attendance punches (with a reason)'],
         'hr.documents.generate' => ['hr', 'Generate payslips and HR documents'],
         'hr.documents.share' => ['hr', 'Share HR documents (email, link, WhatsApp)'],
         'hr.documents.template.manage' => ['hr', 'Manage HR document templates'],
