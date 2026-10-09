@@ -24,3 +24,5 @@ Schedule::command('backup:run')->dailyAt('01:30')->timezone('Asia/Kolkata')->wit
 Schedule::command('backup:verify')->weeklyOn(0, '04:00')->timezone('Asia/Kolkata')->withoutOverlapping();
 Schedule::call(fn () => app(OpsAlerts::class)->checkFailedLoginBurst())->everyFiveMinutes()->name('ops:failed-login-burst');
 Schedule::command('hr:document-expiry')->dailyAt('07:30')->timezone('Asia/Kolkata')->withoutOverlapping();
+// 1 January (IST): close the year that just ended for leave balances.
+Schedule::command('hr:leave-year-end '.(now('Asia/Kolkata')->year - 1))->yearlyOn(1, 1, '00:30')->timezone('Asia/Kolkata')->withoutOverlapping();

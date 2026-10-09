@@ -13,6 +13,7 @@ use App\Models\Hr\ClearanceItem;
 use App\Models\Hr\Department;
 use App\Models\Hr\Designation;
 use App\Models\Hr\Employee;
+use App\Models\Hr\Shift;
 use App\Models\LoginAccount;
 use App\Models\Person;
 use App\Support\BlindIndex;
@@ -206,7 +207,7 @@ final class EmployeeService
         if ($existing === null && empty($data['joining_date'])) {
             throw new BusinessRuleViolation('Enter the joining date.');
         }
-        foreach (['department_id' => Department::class, 'designation_id' => Designation::class] as $key => $model) {
+        foreach (['department_id' => Department::class, 'designation_id' => Designation::class, 'shift_id' => Shift::class] as $key => $model) {
             if (! empty($data[$key]) && ! $model::query()->whereKey($data[$key])->exists()) {
                 throw new BusinessRuleViolation('Unknown '.str_replace('_id', '', $key).'.');
             }

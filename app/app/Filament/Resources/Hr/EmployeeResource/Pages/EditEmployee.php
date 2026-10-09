@@ -32,7 +32,7 @@ class EditEmployee extends EditRecord
 
         return [
             'full_name' => $e->person->full_name, 'phone' => $e->person->phone, 'email' => $e->person->email,
-            'department_id' => $e->department_id, 'designation_id' => $e->designation_id,
+            'department_id' => $e->department_id, 'designation_id' => $e->designation_id, 'shift_id' => $e->shift_id,
             'employment_type' => $e->employment_type, 'joining_date' => $e->joining_date->toDateString(),
             'notice_period_days' => $e->notice_period_days,
             'emergency_contact_name' => $e->emergency_contact_name, 'emergency_contact_phone' => $e->emergency_contact_phone,

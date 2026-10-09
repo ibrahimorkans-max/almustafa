@@ -35,6 +35,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $photo_file_id
  * @property string|null $department_id
  * @property string|null $designation_id
+ * @property string|null $shift_id
  * @property string $employment_type
  * @property string $status
  * @property Carbon $joining_date
@@ -65,6 +66,7 @@ use Illuminate\Support\Carbon;
  * @property-read Person $person
  * @property-read Department|null $department
  * @property-read Designation|null $designation
+ * @property-read Shift|null $shift
  * @property-read StoredFile|null $photo
  * @property-read Collection<int, EmployeeDocument> $documents
  * @property-read Collection<int, SalaryStructure> $salaryStructures
@@ -87,7 +89,7 @@ class Employee extends Model
     public const EXITED = 'exited';
 
     protected $fillable = [
-        'person_id', 'photo_file_id', 'department_id', 'designation_id', 'employment_type', 'joining_date', 'date_of_birth',
+        'person_id', 'photo_file_id', 'department_id', 'designation_id', 'shift_id', 'employment_type', 'joining_date', 'date_of_birth',
         'address', 'emergency_contact_name', 'emergency_contact_phone', 'aadhaar', 'pan', 'notice_period_days',
     ];
 
@@ -209,6 +211,12 @@ class Employee extends Model
         return $this->belongsTo(Designation::class);
     }
 
+    /** @return BelongsTo<Shift, $this> */
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(Shift::class);
+    }
+
     /** @return BelongsTo<StoredFile, $this> */
     public function photo(): BelongsTo
     {
@@ -225,6 +233,12 @@ class Employee extends Model
     public function salaryStructures(): HasMany
     {
         return $this->hasMany(SalaryStructure::class);
+    }
+
+    /** @return HasMany<LeaveLedgerEntry, $this> */
+    public function leaveLedger(): HasMany
+    {
+        return $this->hasMany(LeaveLedgerEntry::class);
     }
 
     /** @return HasMany<ClearanceItem, $this> */

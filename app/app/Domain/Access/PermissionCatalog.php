@@ -103,6 +103,8 @@ final class PermissionCatalog
         'hr.attendance.override' => ['hr', 'Request manual attendance and corrections'],
         'hr.attendance.punch' => ['hr', 'Mark own attendance from own approved phone'],
         'hr.attendance.review' => ['hr', 'Accept or reject flagged attendance punches (with a reason)'],
+        'hr.leave.request' => ['hr', 'Request own leave'],
+        'hr.leave.approve' => ['hr', 'Approve, refuse or cancel leave of others'],
         'hr.documents.generate' => ['hr', 'Generate payslips and HR documents'],
         'hr.documents.share' => ['hr', 'Share HR documents (email, link, WhatsApp)'],
         'hr.documents.template.manage' => ['hr', 'Manage HR document templates'],

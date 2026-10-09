@@ -10,6 +10,7 @@ use App\Filament\Support\ArchivedFilter;
 use App\Models\Hr\Department;
 use App\Models\Hr\Designation;
 use App\Models\Hr\Employee;
+use App\Models\Hr\Shift;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
@@ -63,6 +64,9 @@ class EmployeeResource extends Resource
                 Select::make('designation_id')->label('Designation')
                     ->options(fn () => Designation::query()->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
                 Select::make('employment_type')->options(Employee::TYPES)->required(),
+                Select::make('shift_id')->label('Shift')
+                    ->options(fn () => Shift::query()->where('status', 'active')->orderBy('code')->get()
+                        ->mapWithKeys(fn (Shift $s) => [$s->id => "{$s->name} ({$s->start_time}–{$s->end_time})"])->all()),
                 DatePicker::make('joining_date')->required()->disabledOn('edit')->maxDate(now()->addMonths(3)),
                 TextInput::make('notice_period_days')->label('Notice period (days)')->numeric()->minValue(0)->maxValue(180)->default(30),
             ]),
@@ -121,6 +125,7 @@ class EmployeeResource extends Resource
                 TextEntry::make('employment_type')->label('Type')->formatStateUsing(fn (string $state) => Employee::TYPES[$state] ?? $state),
                 TextEntry::make('department.name')->label('Department')->placeholder('—'),
                 TextEntry::make('designation.name')->label('Designation')->placeholder('—'),
+                TextEntry::make('shift.name')->label('Shift')->placeholder('default 09:00–18:00'),
                 TextEntry::make('joining_date')->date('d M Y'),
                 TextEntry::make('notice_period_days')->label('Notice period')->suffix(' days'),
                 TextEntry::make('person.phone')->label('Phone')->placeholder('—'),
@@ -165,6 +170,7 @@ class EmployeeResource extends Resource
             RelationManagers\DocumentsRelationManager::class,
             RelationManagers\SalaryStructuresRelationManager::class,
             RelationManagers\ClearanceItemsRelationManager::class,
+            RelationManagers\LeaveLedgerRelationManager::class,
         ];
     }
 

@@ -152,6 +152,11 @@ class AppServiceProvider extends ServiceProvider
             Hr\AttendanceLog::class => Policies\Hr\EmployeeDocumentPolicy::class,
             Hr\EmployeeDevice::class => Policies\Hr\EmployeeDocumentPolicy::class,
             Hr\Site::class => Policies\Hr\HrMasterPolicy::class,
+            Hr\Shift::class => Policies\Hr\HrMasterPolicy::class,
+            Hr\Holiday::class => Policies\Hr\HrMasterPolicy::class,
+            Hr\LeaveType::class => Policies\Hr\HrMasterPolicy::class,
+            Hr\LeaveRequest::class => Policies\Hr\LeaveRequestPolicy::class,
+            Hr\LeaveLedgerEntry::class => Policies\Hr\EmployeeDocumentPolicy::class,
         ] as $model => $policy) {
             Gate::policy($model, $policy);
         }

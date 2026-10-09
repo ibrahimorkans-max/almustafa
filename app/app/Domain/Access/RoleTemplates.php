@@ -99,7 +99,7 @@ final class RoleTemplates
                     'stock.view', 'requisition.create', 'requisition.approve',
                     'sales.view', 'dispatch.manage', 'gatepass.issue',
                     'claim.view', 'claim.manage', 'dashboard.view', 'report.view',
-                    'hr.employee.view', 'hr.attendance.review',
+                    'hr.employee.view', 'hr.attendance.review', 'hr.leave.approve',
                 ],
             ],
             self::INVENTORY_MANAGER => [
@@ -142,7 +142,7 @@ final class RoleTemplates
                 'permissions' => [
                     'entity.view', 'approval.view', 'master.view', 'dashboard.view',
                     'hr.employee.view', 'hr.employee.edit', 'hr.employee.sensitive.view',
-                    'hr.salary.view', 'hr.salary.edit', 'hr.payroll.run', 'hr.attendance.override', 'hr.attendance.review',
+                    'hr.salary.view', 'hr.salary.edit', 'hr.payroll.run', 'hr.attendance.override', 'hr.attendance.review', 'hr.leave.approve',
                     'hr.documents.generate', 'hr.documents.share', 'hr.documents.template.manage',
                 ],
             ],
@@ -155,12 +155,16 @@ final class RoleTemplates
             ],
         ];
 
-        // Every staff role marks its own attendance (brokers are not employees; Owner / Super Admin
+        // Every staff role marks its own attendance and asks for its own leave (brokers are not employees; Owner / Super Admin
         // already hold every permission).
         foreach ($templates as $code => $template) {
-            if (! $template['global'] && ! in_array($code, [self::BROKER, self::OWNER], true)
-                && ! in_array('hr.attendance.punch', $template['permissions'], true)) {
-                $templates[$code]['permissions'][] = 'hr.attendance.punch';
+            if ($template['global'] || in_array($code, [self::BROKER, self::OWNER], true)) {
+                continue;
+            }
+            foreach (['hr.attendance.punch', 'hr.leave.request'] as $own) {
+                if (! in_array($own, $templates[$code]['permissions'], true)) {
+                    $templates[$code]['permissions'][] = $own;
+                }
             }
         }
 

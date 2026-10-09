@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AuditController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\FileController;
 use App\Http\Controllers\Api\V1\GateBarrierController;
+use App\Http\Controllers\Api\V1\LeaveController;
 use App\Http\Controllers\Api\V1\SessionController;
 use App\Http\Controllers\Api\V1\SyncController;
 use App\Http\Middleware\EnforceRemoteWipe;
@@ -33,6 +34,10 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::get('attendance/me', [AttendanceController::class, 'me'])->name('attendance.me');
         Route::post('attendance/consent', [AttendanceController::class, 'consent'])->name('attendance.consent');
         Route::post('attendance/device', [AttendanceController::class, 'requestDevice'])->name('attendance.device');
+
+        Route::get('leave/me', [LeaveController::class, 'me'])->name('leave.me');
+        Route::post('leave/requests', [LeaveController::class, 'store'])->name('leave.store');
+        Route::post('leave/requests/{leaveRequest}/withdraw', [LeaveController::class, 'withdraw'])->whereUuid('leaveRequest')->name('leave.withdraw');
 
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
         Route::get('auth/me', [AuthController::class, 'me'])->name('auth.me');
