@@ -26,6 +26,8 @@ use Illuminate\Support\Carbon;
  * @property string $number
  * @property string $paddy_product_id
  * @property string|null $line
+ * @property string|null $planned_kg
+ * @property string|null $supervisor_login_account_id
  * @property string $status
  * @property Carbon $opened_at
  * @property Carbon|null $closed_at
@@ -35,6 +37,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $notes
  * @property int $version
  * @property-read Product $paddy
+ * @property-read LoginAccount|null $supervisor
  */
 class ProductionBatch extends Model
 {
@@ -62,7 +65,7 @@ class ProductionBatch extends Model
         ];
     }
 
-    protected $fillable = ['number', 'paddy_product_id', 'line', 'opened_at', 'notes'];
+    protected $fillable = ['number', 'paddy_product_id', 'line', 'planned_kg', 'supervisor_login_account_id', 'opened_at', 'notes'];
 
     /** @var array<string, mixed> */
     protected $attributes = ['status' => self::OPEN, 'input_kg' => '0.000', 'output_kg' => '0.000'];
@@ -81,6 +84,12 @@ class ProductionBatch extends Model
     public function isOpen(): bool
     {
         return $this->status === self::OPEN;
+    }
+
+    /** @return BelongsTo<LoginAccount, $this> */
+    public function supervisor(): BelongsTo
+    {
+        return $this->belongsTo(LoginAccount::class, 'supervisor_login_account_id');
     }
 
     /** @return BelongsTo<Product, $this> */

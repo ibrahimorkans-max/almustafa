@@ -15,6 +15,13 @@ use Throwable;
  */
 final class Preflight
 {
+    /**
+     * Installation-level tables that name an entity but must be readable from every firm's requests:
+     * a whole-system lock (entity_id NULL) has to be visible to everyone, which a firm-scoped
+     * row-level policy would hide. They hold no business data and change only through audited services.
+     */
+    private const INSTALLATION_TABLES = ['system_locks'];
+
     /** @return list<array{check: string, level: 'error'|'warning', ok: bool, detail: string}> */
     public function run(): array
     {
@@ -51,9 +58,10 @@ final class Preflight
                 $role = DB::selectOne('select rolsuper, rolbypassrls from pg_roles where rolname = current_user');
                 $add('App login cannot bypass row-level security', 'error', $role !== null && ! $role->rolsuper && ! $role->rolbypassrls,
                     $role === null ? 'unknown role' : ($role->rolsuper ? 'login is a superuser' : ($role->rolbypassrls ? 'login has BYPASSRLS' : 'ok')));
-                $noRls = DB::select("select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+                $noRls = array_values(array_filter(DB::select("select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
                     join information_schema.columns k on k.table_schema = n.nspname and k.table_name = c.relname and k.column_name = 'entity_id'
-                    where n.nspname = current_schema() and c.relkind = 'r' and not (c.relrowsecurity and c.relforcerowsecurity)");
+                    where n.nspname = current_schema() and c.relkind = 'r' and not (c.relrowsecurity and c.relforcerowsecurity)"),
+                    fn (object $r) => ! in_array($r->relname, self::INSTALLATION_TABLES, true)));
                 $add('Row-level security forced on every tenant table', 'error', $noRls === [],
                     $noRls === [] ? 'ok' : 'missing on: '.implode(', ', array_map(fn ($r) => $r->relname, array_slice($noRls, 0, 8))));
             } catch (Throwable $e) {

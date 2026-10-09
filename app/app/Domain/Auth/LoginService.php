@@ -6,6 +6,9 @@ namespace App\Domain\Auth;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\Exceptions\AuthenticationFailed;
+use App\Domain\Security\DuressService;
+use App\Domain\Security\Lockdown;
+use App\Domain\Security\SecurityNotifier;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\AuthSession;
 use App\Models\LoginAccount;
@@ -45,7 +48,7 @@ final class LoginService
     ) {}
 
     /** @throws AuthenticationFailed */
-    public function verifyPassword(string $username, string $password, ?string $ip): LoginAccount
+    public function verifyPassword(string $username, string $password, ?string $ip, ?string $deviceUid = null): LoginAccount
     {
         $username = mb_strtolower(trim($username));
 
@@ -67,10 +70,17 @@ final class LoginService
         $this->binder->bind($account);
         $this->actor->clear();
 
+        // Duress PIN typed instead of the password: alert silently, end everything, neutral message.
+        if ($account->duress_pin_hash !== null && app(DuressService::class)->matches($account, $password)) {
+            app(DuressService::class)->trigger($account, $ip, $deviceUid, request()->userAgent());
+
+            throw new AuthenticationFailed(AuthenticationFailed::SIGNED_OUT, 'duress', 401);
+        }
+
         if ($account->isLocked()) {
             $this->blocked($account, 'locked');
         }
-        if (! $account->isActive()) {
+        if (! $account->isActive() && ! $account->isAccessWithdrawn()) {
             $this->blocked($account, 'account_'.$account->status);
         }
         if (! $account->isSuperAdmin() && ! $account->entity->isActive()) {
@@ -81,6 +91,21 @@ final class LoginService
             $this->registerFailure($account, 'bad_password');
 
             throw AuthenticationFailed::credentials('bad_password');
+        }
+
+        // Only after the right password: a suspended / revoked person is told plainly, and nothing else.
+        if ($account->isAccessWithdrawn()) {
+            $this->audit->record('auth.login.blocked', $account, meta: [
+                'reason' => 'account_'.$account->status, 'ip' => $ip, 'device_uid' => $deviceUid, 'at' => now()->utc()->toIso8601String(),
+            ]);
+
+            throw new AuthenticationFailed(AuthenticationFailed::ACCESS_DISABLED, 'account_'.$account->status, 403);
+        }
+
+        if (app(Lockdown::class)->blocks($account)) {
+            $this->audit->record('auth.login.blocked', $account, meta: ['reason' => 'lockdown', 'ip' => $ip, 'device_uid' => $deviceUid]);
+
+            throw new AuthenticationFailed(AuthenticationFailed::SYSTEM_LOCKED, 'lockdown', 423);
         }
 
         if (Hash::needsRehash($account->password)) {
@@ -150,14 +175,42 @@ final class LoginService
         $max = (int) config('ricemill.auth.max_failed_attempts');
         $lock = $attempts >= $max;
 
+        // Progressive delay before the lockout: 2 s, 4 s, … (capped), so guessing gets slow at once.
+        $delayFrom = (int) config('ricemill.security.progressive_delay_after');
+        $delay = ! $lock && $attempts >= $delayFrom
+            ? min(2 ** ($attempts - $delayFrom + 1), (int) config('ricemill.security.max_progressive_delay_seconds')) : 0;
+
+        $lockouts = $account->lockouts_24h;
+        $needsAdmin = $account->needs_admin_unlock;
+        if ($lock) {
+            $recent = $account->last_lockout_at !== null && $account->last_lockout_at->gt(now()->subDay());
+            $lockouts = $recent ? $lockouts + 1 : 1;
+            $needsAdmin = $lockouts >= (int) config('ricemill.security.lockouts_before_admin_unlock');
+        }
+
         $account->forceFill([
             'failed_attempts' => $lock ? 0 : $attempts,
-            'locked_until' => $lock ? now()->addMinutes((int) config('ricemill.auth.lockout_minutes')) : $account->locked_until,
+            'locked_until' => match (true) {
+                $lock => now()->addMinutes((int) config('ricemill.auth.lockout_minutes')),
+                $delay > 0 => now()->addSeconds($delay),
+                default => $account->locked_until,
+            },
+            'lockouts_24h' => $lockouts,
+            'last_lockout_at' => $lock ? now() : $account->last_lockout_at,
+            'needs_admin_unlock' => $needsAdmin,
         ])->save();
 
-        $this->audit->record('auth.login.failed', $account, meta: ['reason' => $reason, 'attempt' => $attempts]);
+        $this->audit->record('auth.login.failed', $account, meta: ['reason' => $reason, 'attempt' => $attempts, 'delay_seconds' => $delay]);
         if ($lock) {
-            $this->audit->record('auth.account.locked', $account, meta: ['minutes' => (int) config('ricemill.auth.lockout_minutes')]);
+            $this->audit->record('auth.account.locked', $account, meta: [
+                'minutes' => (int) config('ricemill.auth.lockout_minutes'), 'lockouts_24h' => $lockouts, 'needs_admin_unlock' => $needsAdmin,
+            ]);
+            app(SecurityNotifier::class)->owners($account->entity_id,
+                "Account locked after failed sign-ins: {$account->username}",
+                $needsAdmin
+                    ? "{$account->username} was locked {$lockouts} times within 24 hours. It now stays locked until an administrator unlocks it (Users → Unlock)."
+                    : "{$account->username} is locked for ".config('ricemill.auth.lockout_minutes').' minutes after '.$max.' wrong attempts.',
+                includeSuperAdmins: $account->isSuperAdmin());
         }
     }
 

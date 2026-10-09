@@ -15,12 +15,16 @@ use App\Domain\Approvals\Actions\StockAdjustment;
 use App\Domain\Approvals\Actions\TrustDevice;
 use App\Domain\Approvals\Actions\VoucherReversal;
 use App\Domain\Approvals\Contracts\ApprovalAction;
+use App\Domain\Approvals\Contracts\ExplainsCheckerRule;
 use App\Domain\Approvals\Contracts\HandlesRejection;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
+use App\Filament\Resources\ApprovalRequestResource;
 use App\Models\ApprovalRequest;
 use App\Models\LoginAccount;
+use Filament\Notifications\Actions\Action as NotificationAction;
+use Filament\Notifications\Notification;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -114,10 +118,38 @@ final class ApprovalService
 
     public function canDecide(LoginAccount $checker, ApprovalRequest $request): bool
     {
-        return $request->isPending()
-            && $checker->hasPermission('approval.decide')
-            && $checker->person_id !== $request->maker_person_id
-            && $this->action($request->action)->checkerMayDecide($checker, $request);
+        return $this->decisionBlocker($checker, $request) === null;
+    }
+
+    /**
+     * Why this account may not approve / reject the request, in words for the screen; null = it may.
+     * The same rules are enforced on approve() and reject(); they apply to Super Admins too.
+     */
+    public function decisionBlocker(LoginAccount $checker, ApprovalRequest $request): ?string
+    {
+        if ($request->status !== ApprovalRequest::STATUS_PENDING) {
+            return "This request is already {$request->status}; decided requests cannot be changed.";
+        }
+        if ($request->expires_at !== null && $request->expires_at->isPast()) {
+            return 'This request has expired; ask for it to be raised again.';
+        }
+        if ($checker->person_id === $request->maker_person_id) {
+            return 'You cannot approve your own request. Another person with approval rights must decide it (maker-checker).';
+        }
+        if ($checker->hasPendingSecuritySetup()) {
+            return 'Finish your account setup first (password change / two-factor sign-in); until then your account has no permissions.';
+        }
+        if (! $checker->hasPermission('approval.decide')) {
+            return "Approving needs the 'approval.decide' permission, which your role does not have.";
+        }
+        $action = $this->action($request->action);
+        if (! $action->checkerMayDecide($checker, $request)) {
+            return $action instanceof ExplainsCheckerRule
+                ? $action->whyCheckerMayNotDecide($checker, $request)
+                : 'Your role is not allowed to decide this kind of request.';
+        }
+
+        return null;
     }
 
     public function approve(ApprovalRequest $request, LoginAccount $checker, ?string $note = null): ApprovalRequest
@@ -149,6 +181,7 @@ final class ApprovalService
                 $this->notifyClosed($request);
             }
             $this->audit->record('approval.'.$request->status, $request, meta: ['result' => $request->result, 'error' => $request->error]);
+            $this->notifyRequester($request);
 
             return $request;
         });
@@ -165,6 +198,7 @@ final class ApprovalService
             $request->save();
             $this->notifyClosed($request);
             $this->audit->record('approval.rejected', $request, meta: ['note' => $note]);
+            $this->notifyRequester($request);
 
             return $request;
         });
@@ -208,15 +242,26 @@ final class ApprovalService
 
     private function assertCanDecide(LoginAccount $checker, ApprovalRequest $request): void
     {
-        if (! $checker->hasPermission('approval.decide')) {
-            throw new ApprovalDenied("You need 'approval.decide' to approve or reject requests.");
+        $blocker = $this->decisionBlocker($checker, $request);
+        if ($blocker !== null) {
+            throw new ApprovalDenied($blocker);
         }
-        if ($checker->person_id === $request->maker_person_id) {
-            throw new ApprovalDenied('The requester cannot decide their own request (maker-checker).');
+    }
+
+    /** Tells the requester (every login of that person in the request's firm) how it ended. */
+    private function notifyRequester(ApprovalRequest $request): void
+    {
+        $recipients = LoginAccount::query()->where('person_id', $request->maker_person_id)
+            ->where('status', LoginAccount::STATUS_ACTIVE)->get();
+        if ($recipients->isEmpty()) {
+            return;
         }
-        if (! $this->action($request->action)->checkerMayDecide($checker, $request)) {
-            throw new ApprovalDenied('You are not allowed to decide this kind of request.');
-        }
+        $by = $request->checker_login_account_id ? LoginAccount::query()->whereKey($request->checker_login_account_id)->value('username') : null;
+        $n = Notification::make()
+            ->title("Your request was {$request->status}: ".mb_substr($request->summary, 0, 120))
+            ->body(trim(($by ? "Decided by {$by}. " : '').($request->decision_note ?? '').($request->error ? " Error: {$request->error}" : '')))
+            ->actions([NotificationAction::make('open')->label('Open')->url(ApprovalRequestResource::getUrl('view', ['record' => $request], panel: 'admin'))]);
+        (in_array($request->status, [ApprovalRequest::STATUS_EXECUTED], true) ? $n->success() : $n->danger())->sendToDatabase($recipients);
     }
 
     private function decide(ApprovalRequest $request, LoginAccount $checker, ?string $note): void

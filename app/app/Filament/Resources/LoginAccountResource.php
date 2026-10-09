@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Auth\AccountStatusService;
 use App\Domain\Auth\MfaService;
 use App\Domain\Auth\SessionService;
+use App\Domain\Security\DuressService;
+use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Filament\Resources\LoginAccountResource\Pages;
 use App\Filament\Resources\LoginAccountResource\RelationManagers\IpAllowlistRelationManager;
@@ -114,31 +117,51 @@ class LoginAccountResource extends Resource
                 IconColumn::make('mfa_confirmed_at')->label('2FA')->boolean()
                     ->getStateUsing(fn (LoginAccount $r) => $r->mfa_confirmed_at !== null),
                 TextColumn::make('locked_until')->label('Locked until')->dateTime()->placeholder('—'),
+                TextColumn::make('duress_flagged_at')->label('Duress alert')->dateTime()->color('danger')->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('last_login_at')->dateTime()->sortable()->placeholder('never'),
             ])
             ->defaultSort('username')
             ->filters([
-                SelectFilter::make('status')->options(['active' => 'Active', 'disabled' => 'Disabled']),
+                SelectFilter::make('status')->options(['active' => 'Active', 'suspended' => 'Suspended', 'revoked' => 'Revoked']),
                 SelectFilter::make('role_id')->label('Role')->relationship('role', 'name'),
             ])
             ->actions([
                 EditAction::make(),
                 ActionGroup::make([
-                    Action::make('disable')->icon('heroicon-o-no-symbol')->color('danger')
+                    Action::make('suspend')->icon('heroicon-o-pause-circle')->color('warning')
                         ->visible(fn (LoginAccount $r) => $r->isActive() && static::canManageSecurity($r))
-                        ->form([Textarea::make('reason')->required()->maxLength(500)])
+                        ->modalDescription('Signs the user out everywhere at once (browser, phone, gate PC). They see "Access disabled, contact your administrator" until reinstated.')
+                        ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(500)])
                         ->requiresConfirmation()
-                        ->action(fn (LoginAccount $r, array $data) => static::setStatus($r, LoginAccount::STATUS_DISABLED, $data['reason'])),
-                    Action::make('enable')->icon('heroicon-o-check-circle')->color('success')
-                        ->visible(fn (LoginAccount $r) => ! $r->isActive() && static::canManageSecurity($r))
-                        ->form([Textarea::make('reason')->required()->maxLength(500)])
-                        ->action(fn (LoginAccount $r, array $data) => static::setStatus($r, LoginAccount::STATUS_ACTIVE, $data['reason'])),
+                        ->action(fn (LoginAccount $r, array $data) => static::changeAccess($r, 'suspend', $data['reason'])),
+                    Action::make('revoke')->label('Revoke for good')->icon('heroicon-o-no-symbol')->color('danger')
+                        ->visible(fn (LoginAccount $r) => $r->status !== LoginAccount::STATUS_REVOKED && static::canManageSecurity($r))
+                        ->modalDescription('Permanent: the account can never be used again (history is kept). Use when the person has left.')
+                        ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(500)])
+                        ->requiresConfirmation()
+                        ->action(fn (LoginAccount $r, array $data) => static::changeAccess($r, 'revoke', $data['reason'])),
+                    Action::make('reinstate')->icon('heroicon-o-check-circle')->color('success')
+                        ->visible(fn (LoginAccount $r) => $r->status === LoginAccount::STATUS_SUSPENDED && static::canManageSecurity($r))
+                        ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(500)])
+                        ->action(fn (LoginAccount $r, array $data) => static::changeAccess($r, 'reinstate', $data['reason'])),
                     Action::make('unlock')->icon('heroicon-o-lock-open')
                         ->visible(fn (LoginAccount $r) => $r->isLocked() && static::canManageSecurity($r))
                         ->requiresConfirmation()
+                        ->modalDescription(fn (LoginAccount $r) => $r->needs_admin_unlock
+                            ? "Locked {$r->lockouts_24h} times within 24 hours — check with the person that it was really them before unlocking."
+                            : null)
                         ->action(function (LoginAccount $r): void {
-                            $r->forceFill(['locked_until' => null, 'failed_attempts' => 0])->save();
+                            $r->forceFill(['locked_until' => null, 'failed_attempts' => 0, 'needs_admin_unlock' => false, 'lockouts_24h' => 0])->save();
                             app(AuditLogger::class)->record('auth.account.unlocked', $r);
+                        }),
+                    Action::make('clearDuress')->label('Clear duress alert')->icon('heroicon-o-exclamation-triangle')->color('danger')
+                        ->visible(fn (LoginAccount $r) => $r->duress_flagged_at !== null && static::canManageSecurity($r))
+                        ->modalDescription('Only after you have spoken to the person (by phone or in person) and re-verified who they are. Reinstate the account separately if it was suspended.')
+                        ->form([Textarea::make('note')->label('How the person was reached and verified')->required()->minLength(10)->maxLength(1000)])
+                        ->action(function (LoginAccount $r, array $data): void {
+                            app(DuressService::class)->clearFlag($r, $data['note']);
+                            Notification::make()->title('Duress alert cleared.')->success()->send();
                         }),
                     Action::make('resetPassword')->label('Reset password')->icon('heroicon-o-key')
                         ->visible(fn (LoginAccount $r) => static::canManageSecurity($r))
@@ -176,16 +199,18 @@ class LoginAccountResource extends Resource
         return Gate::allows('manageSecurity', $record);
     }
 
-    protected static function setStatus(LoginAccount $record, string $status, string $reason): void
+    /** @param  'suspend'|'revoke'|'reinstate'  $change */
+    protected static function changeAccess(LoginAccount $record, string $change, string $reason): void
     {
-        DB::transaction(function () use ($record, $status, $reason): void {
-            $record->status = $status;
-            $record->save();
-            if ($status !== LoginAccount::STATUS_ACTIVE) {
-                app(SessionService::class)->revokeAllFor($record, 'account_disabled');
-            }
-            app(AuditLogger::class)->record('auth.account.'.$status, $record, meta: ['reason' => $reason]);
-        });
+        try {
+            $account = app(AccountStatusService::class)->{$change}($record, $reason);
+        } catch (BusinessRuleViolation $e) {
+            Notification::make()->title($e->getMessage())->danger()->send();
+
+            return;
+        }
+        Notification::make()->title("{$account->username} is now {$account->status}.")
+            ->body($account->isActive() ? null : 'All of their sessions and devices were signed out.')->success()->send();
     }
 
     public static function getRelations(): array

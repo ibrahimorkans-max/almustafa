@@ -125,3 +125,18 @@ class GateControlTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GateLockdownTest(unittest.TestCase):
+    def test_keeps_the_barrier_closed_and_shows_the_lock(self) -> None:
+        server = BarrierServer(decision={"error": "unauthenticated", "reason": "system_locked"}, status=401)
+        store, gate, barrier, display = setup(server)
+
+        result = gate.request_passage("in")
+
+        self.assertFalse(result.opened)
+        self.assertEqual(result.reason, "system_locked")
+        self.assertEqual(barrier.commands, [])
+        self.assertEqual(display.current, ("HR05AB1234", "SYSTEM LOCKED"))
+        self.assertEqual(store.get_meta("stopped"), "system_locked")
+        self.assertEqual(store.unsynced_count(), 1, "the plate read is still queued")

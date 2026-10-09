@@ -8,7 +8,9 @@ use App\Domain\Approvals\Actions\TrustDevice;
 use App\Domain\Approvals\ApprovalService;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\Exceptions\AuthenticationFailed;
+use App\Domain\Security\SecurityNotifier;
 use App\Models\ApprovalRequest;
+use App\Models\AuthSession;
 use App\Models\Device;
 use App\Models\LoginAccount;
 use Illuminate\Support\Facades\DB;
@@ -88,6 +90,37 @@ final class DeviceService
             $device->save();
             $this->audit->record('device.wipe_requested', $device, meta: ['reason' => $reason]);
         });
+    }
+
+    /**
+     * Lost or stolen: phones, PWA and gate PCs get a wipe of their encrypted local data at their next
+     * sync (until then every API call answers wipe_required, so no data can be read through it); a
+     * browser-only device is revoked. Optionally the user is signed out on every other device too.
+     */
+    public function markLost(Device $device, string $reason, bool $signOutEverywhere): void
+    {
+        DB::transaction(function () use ($device, $reason, $signOutEverywhere): void {
+            $device->forceFill(['reported_lost_at' => now()])->save();
+            if (in_array($device->platform, ['android', 'ios', 'pwa', 'agent'], true) && $device->status === Device::STATUS_ACTIVE) {
+                $this->requestWipe($device, 'reported lost: '.$reason);
+            } elseif ($device->isUsable()) {
+                $this->revoke($device, 'reported lost: '.$reason);
+            }
+            $others = 0;
+            if ($signOutEverywhere) {
+                $sessions = AuthSession::query()->where('login_account_id', $device->login_account_id)
+                    ->whereNull('revoked_at')->where('device_id', '!=', $device->id)->get();
+                $sessions->each(fn (AuthSession $s) => $this->sessions->revoke($s, 'device_lost'));
+                $others = $sessions->count();
+            }
+            $this->audit->record('device.reported_lost', $device, meta: ['reason' => $reason, 'other_sessions_ended' => $others]);
+        });
+
+        $owner = $device->loginAccount;
+        app(SecurityNotifier::class)->owners($device->entity_id, 'Device reported lost: '.($device->name ?? $device->device_uid),
+            'Device of '.($owner->username ?? 'unknown').' reported lost by '.(app(ActorContext::class)->account()->username ?? 'system')
+            .". Reason: {$reason}. Its local data will be wiped at its next sync."
+            .($signOutEverywhere ? ' The user was signed out on all other devices.' : ''));
     }
 
     /** Called by the device after it erased its local data. Ends all its sessions. */

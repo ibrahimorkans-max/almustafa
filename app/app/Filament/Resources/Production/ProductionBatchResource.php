@@ -4,17 +4,25 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Production;
 
+use App\Domain\Inventory\StockLedger;
 use App\Domain\Production\ProductionService;
+use App\Filament\Resources\Inventory\RequisitionResource;
 use App\Filament\Resources\Production\ProductionBatchResource\Pages;
 use App\Filament\Support\ArchivedFilter;
 use App\Filament\Support\Units;
+use App\Models\LoginAccount;
+use App\Models\Masters\Godown;
+use App\Models\Masters\Product;
 use App\Models\Production\ProductionBatch;
 use App\Models\Production\ProductionLog;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
@@ -45,12 +53,42 @@ class ProductionBatchResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            Select::make('paddy_product_id')->label('Paddy')->required()->preload()
+            Placeholder::make('number')->label('Batch number')->content('Given automatically when the batch is created'),
+            Select::make('paddy_product_id')->label('Paddy (variety)')->required()->preload()->live()
                 ->relationship('paddy', 'name', fn (Builder $query) => $query->where('category', 'paddy')->where('status', 'active')),
-            TextInput::make('line')->label('Line / plant')->maxLength(60),
-            DateTimePicker::make('opened_at')->label('Started')->default(now())->seconds(false)->required(),
+            Toggle::make('via_requisition')->label('Paddy will come through a stores requisition')->live()->columnSpanFull()
+                ->helperText('Off: the paddy below is issued from the godown now. On: the batch opens empty and the stores issue paddy against an approved requisition.'),
+            Select::make('godown_id')->label('Issue paddy from')->live()
+                ->required(fn (Get $get) => ! $get('via_requisition'))->hidden(fn (Get $get) => (bool) $get('via_requisition'))
+                ->options(fn () => RequisitionResource::godownOptions())
+                ->helperText(fn (Get $get) => static::availableText($get('paddy_product_id'), $get('godown_id'))),
+            TextInput::make('issue_kg')->label('Paddy issued to production now (kg)')->regex(Units::DECIMAL_3)
+                ->required(fn (Get $get) => ! $get('via_requisition'))->hidden(fn (Get $get) => (bool) $get('via_requisition'))
+                ->helperText('Posted to the stock ledger as an issue to production. More paddy can be issued later from the batch.'),
+            TextInput::make('planned_kg')->label('Planned paddy for the batch (kg)')->regex(Units::DECIMAL_3),
+            TextInput::make('line')->label('Mill line / unit')->maxLength(60),
+            Select::make('supervisor_login_account_id')->label('Supervisor')->searchable()
+                ->options(fn () => LoginAccount::query()->with(['person', 'role'])->where('status', LoginAccount::STATUS_ACTIVE)->get()
+                    ->filter(fn (LoginAccount $a) => $a->hasPermission('production.log') || $a->hasPermission('batch.manage'))
+                    ->mapWithKeys(fn (LoginAccount $a) => [$a->id => ($a->person->full_name ?? $a->username).' ('.$a->role->name.')'])),
+            DateTimePicker::make('opened_at')->label('Start time')->default(now())->seconds(false)->required()->maxDate(now()->addMinutes(5)),
             Textarea::make('notes')->maxLength(2000)->columnSpanFull(),
         ]);
+    }
+
+    /** Honest stock figure for the chosen paddy and godown, so the issue is not a guess. */
+    public static function availableText(?string $productId, ?string $godownId): ?string
+    {
+        if (! $productId || ! $godownId) {
+            return null;
+        }
+        $product = Product::query()->find($productId);
+        $godown = Godown::query()->find($godownId);
+        if ($product === null || $godown === null) {
+            return null;
+        }
+
+        return 'In stock here: '.Units::kgToQuintal(app(StockLedger::class)->balance($product, $godown)->kg).' qtl';
     }
 
     public static function table(Table $table): Table
@@ -86,6 +124,8 @@ class ProductionBatchResource extends Resource
                 TextEntry::make('status')->badge()->color(fn (string $state) => $state === 'open' ? 'warning' : 'success'),
                 TextEntry::make('paddy.name')->label('Paddy'),
                 TextEntry::make('line')->placeholder('—'),
+                TextEntry::make('planned_kg')->label('Planned paddy (kg)')->fontFamily('mono')->placeholder('—'),
+                TextEntry::make('supervisor.username')->label('Supervisor')->placeholder('—'),
                 TextEntry::make('opened_at')->label('Started')->dateTime('d M Y H:i'),
                 TextEntry::make('closed_at')->label('Closed')->dateTime('d M Y H:i')->placeholder('—'),
                 TextEntry::make('input_kg')->label('Paddy in (kg)')->fontFamily('mono'),

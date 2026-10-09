@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $wipe_requested_at
  * @property string|null $wipe_requested_by
  * @property Carbon|null $wiped_at
+ * @property Carbon|null $reported_lost_at
  * @property string|null $signing_secret
  * @property-read LoginAccount $loginAccount
  */
@@ -66,6 +67,7 @@ class Device extends Model
             'last_seen_at' => 'datetime',
             'wipe_requested_at' => 'datetime',
             'wiped_at' => 'datetime',
+            'reported_lost_at' => 'datetime',
             'signing_secret' => 'encrypted',
             'version' => 'integer',
         ];

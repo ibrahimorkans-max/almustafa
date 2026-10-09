@@ -7,11 +7,13 @@ namespace App\Http\Middleware;
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Auth\IpAllowlistPolicy;
 use App\Domain\Auth\SessionService;
+use App\Domain\Security\Lockdown;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\AuthSession;
 use App\Models\LoginAccount;
 use Closure;
 use Filament\Facades\Filament;
+use Filament\Notifications\Notification;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -58,6 +60,15 @@ final class EnsureWebAuthSession
         $working = $account->isSuperAdmin() ? $request->session()->get(self::WORKING_ENTITY_KEY) : null;
         $this->binder->bind($account, $ownSession ? $session : null, $ownSession ? $session->device_id : null, $working);
 
+        if (! $account->isActive()) {
+            return $this->endSession($request, $ownSession ? $session : null, 'account_'.$account->status,
+                $account->isAccessWithdrawn() ? 'Access disabled, contact your administrator.' : null);
+        }
+
+        if (app(Lockdown::class)->blocks($account)) {
+            return $this->endSession($request, $ownSession ? $session : null, 'lockdown', Lockdown::MESSAGE);
+        }
+
         $idle = (int) config('ricemill.auth.web_idle_minutes');
         if (! $ownSession || ! $this->sessions->isUsable($session, $idle)) {
             return $this->endSession($request, $ownSession ? $session : null, 'expired_or_revoked');
@@ -85,7 +96,7 @@ final class EnsureWebAuthSession
         return $next($request);
     }
 
-    private function endSession(Request $request, ?AuthSession $session, string $reason): Response
+    private function endSession(Request $request, ?AuthSession $session, string $reason, ?string $message = null): Response
     {
         if ($session !== null && $session->revoked_at === null) {
             $this->sessions->revoke($session, $reason);
@@ -94,6 +105,9 @@ final class EnsureWebAuthSession
         Filament::auth()->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+        if ($message !== null) {
+            Notification::make()->title($message)->danger()->persistent()->send();
+        }
 
         return redirect()->to(Filament::getLoginUrl());
     }

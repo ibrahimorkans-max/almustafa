@@ -19,6 +19,21 @@ class ApiError(Exception):
         self.body = body
 
 
+# Server answers that mean "stop and tell the operator", not "sign in again".
+STOP_REASONS = {"system_locked", "access_disabled", "device_revoked", "maintenance"}
+
+
+def stop_reason(error: "ApiError") -> str | None:
+    """The reason when the server has stopped this agent on purpose (lockdown, account or device withdrawn)."""
+    for key in ("reason", "error"):
+        value = error.body.get(key)
+        if value in STOP_REASONS:
+            return str(value)
+    if error.status == 503:
+        return "maintenance"
+    return None
+
+
 class OfflineError(Exception):
     """The server could not be reached (network down, DNS, timeout)."""
 
@@ -111,6 +126,8 @@ class ApiClient:
         try:
             return self._send(method, path, json_body, raw=raw, content_type=content_type)
         except ApiError as e:
+            if stop_reason(e) is not None:
+                raise
             if e.status == 401 and e.body.get("error") not in {"signature_invalid", "nonce_reused", "signature_missing_or_expired"}:
                 if not self._refresh():
                     self.login()

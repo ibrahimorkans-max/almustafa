@@ -90,7 +90,7 @@ class Login extends BaseLogin
 
         try {
             if (! $this->awaitingCode) {
-                $account = $login->verifyPassword((string) $data['username'], (string) $data['password'], request()->ip());
+                $account = $login->verifyPassword((string) $data['username'], (string) $data['password'], request()->ip(), (string) request()->cookie(self::DEVICE_COOKIE) ?: null);
                 $this->assertPanelAccess($account);
 
                 if ($login->mfaStep($account) === LoginService::MFA_CHALLENGE) {

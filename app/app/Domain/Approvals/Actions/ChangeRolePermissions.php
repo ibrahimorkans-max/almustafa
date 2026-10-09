@@ -6,6 +6,7 @@ namespace App\Domain\Approvals\Actions;
 
 use App\Domain\Access\PermissionCatalog;
 use App\Domain\Approvals\Contracts\ApprovalAction;
+use App\Domain\Approvals\Contracts\ExplainsCheckerRule;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
 use App\Domain\Audit\AuditLogger;
 use App\Models\ApprovalRequest;
@@ -21,7 +22,7 @@ use Illuminate\Validation\ValidationException;
  *  - the global Super Admin role can only be changed with a Super Admin as checker;
  *  - a non-Super-Admin maker or checker can only grant permissions they hold themselves.
  */
-final class ChangeRolePermissions implements ApprovalAction
+final class ChangeRolePermissions implements ApprovalAction, ExplainsCheckerRule
 {
     public const KEY = 'role.permissions.change';
 
@@ -65,6 +66,20 @@ final class ChangeRolePermissions implements ApprovalAction
             'before' => $role->permissionCodes(),
             'permissions' => $permissions,
         ];
+    }
+
+    public function whyCheckerMayNotDecide(LoginAccount $checker, ApprovalRequest $request): string
+    {
+        $role = Role::query()->find($request->payload['role_id'] ?? null);
+        if ($role === null) {
+            return 'The role in this request no longer exists.';
+        }
+        if ($role->is_super_admin && ! $checker->isSuperAdmin()) {
+            return 'Only another Super Admin can decide changes to the Super Admin role.';
+        }
+
+        return 'You can only grant permissions you hold yourself: '
+            .implode(', ', $this->beyondOwnGrants($checker, $role, (array) ($request->payload['permissions'] ?? []))).'.';
     }
 
     public function checkerMayDecide(LoginAccount $checker, ApprovalRequest $request): bool

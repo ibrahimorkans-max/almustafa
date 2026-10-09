@@ -144,7 +144,7 @@ describe('PostgreSQL row-level security', function () {
     it('does not let a raw update or delete touch another entity', function () {
         app(TenantContext::class)->enterEntity($this->a->id);
 
-        $updated = DB::table('login_accounts')->where('id', $this->ownerB->id)->update(['status' => 'disabled']);
+        $updated = DB::table('login_accounts')->where('id', $this->ownerB->id)->update(['status' => 'suspended']);
         $deleted = DB::table('devices')->where('entity_id', $this->b->id)->delete();
 
         expect($updated)->toBe(0)->and($deleted)->toBe(0);

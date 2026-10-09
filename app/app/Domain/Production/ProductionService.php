@@ -11,6 +11,7 @@ use App\Domain\Documents\DocumentNumbers;
 use App\Domain\Inventory\StockLedger;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Inventory\StockEntry;
+use App\Models\LoginAccount;
 use App\Models\Masters\Godown;
 use App\Models\Masters\Product;
 use App\Models\Production\OutturnStandard;
@@ -38,20 +39,58 @@ final class ProductionService
         private readonly ActorContext $actor,
     ) {}
 
-    public function open(Product $paddy, ?string $line = null, ?string $notes = null, ?CarbonInterface $openedAt = null): ProductionBatch
-    {
+    public function open(
+        Product $paddy,
+        ?string $line = null,
+        ?string $notes = null,
+        ?CarbonInterface $openedAt = null,
+        ?string $plannedKg = null,
+        ?LoginAccount $supervisor = null,
+    ): ProductionBatch {
         $this->require('batch.manage');
         if ($paddy->category !== 'paddy') {
             throw new BusinessRuleViolation('A batch mills a paddy product.');
+        }
+        if ($plannedKg !== null && ! preg_match('/^\d{1,12}(\.\d{1,3})?$/', $plannedKg)) {
+            throw new BusinessRuleViolation('The planned quantity must be a weight in kg.');
+        }
+        if ($supervisor !== null && (! $supervisor->isActive() || ! ($supervisor->hasPermission('production.log') || $supervisor->hasPermission('batch.manage')))) {
+            throw new BusinessRuleViolation('The supervisor must be an active user who may record production.');
         }
 
         return DB::transaction(fn () => ProductionBatch::query()->create([
             'number' => $this->numbers->next(DocumentNumbers::BATCH, $openedAt),
             'paddy_product_id' => $paddy->id,
             'line' => $line,
+            'planned_kg' => $plannedKg,
+            'supervisor_login_account_id' => $supervisor?->id,
             'opened_at' => $openedAt ?? now(),
             'notes' => $notes,
         ]));
+    }
+
+    /**
+     * Create batch: opens it and issues the paddy taken for it from the godown to production, in one
+     * transaction. The stock ledger refuses an issue larger than the godown holds, and then nothing
+     * is created.
+     */
+    public function create(
+        Product $paddy,
+        Godown $godown,
+        string $issueKg,
+        CarbonInterface $openedAt,
+        ?string $line = null,
+        ?string $plannedKg = null,
+        ?LoginAccount $supervisor = null,
+        ?string $notes = null,
+    ): ProductionBatch {
+        return DB::transaction(function () use ($paddy, $godown, $issueKg, $openedAt, $line, $plannedKg, $supervisor, $notes): ProductionBatch {
+            $batch = $this->open($paddy, $line, $notes, $openedAt, $plannedKg, $supervisor);
+            $end = now()->greaterThan($openedAt->copy()->addMinute()) ? now() : $openedAt->copy()->addMinute();
+            $this->recordInput($batch, $godown, $issueKg, $openedAt, $end, 'Issued to production when the batch was created');
+
+            return $batch->refresh();
+        });
     }
 
     /** Paddy fed into the mill: issues it from the godown. */

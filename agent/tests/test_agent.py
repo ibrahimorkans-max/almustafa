@@ -223,3 +223,40 @@ class SyncTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LockdownTest(unittest.TestCase):
+    """Server-side lockdown: the agent stops, says so, and loses nothing."""
+
+    def setUp(self) -> None:
+        self.store = temp_store()
+        self.server = FakeServer()
+        agent = GateAgent(self.store, SimulatedIndicator(Decimal("24000"), seed=2), SimulatedCamera(), None, Decimal("10"))
+        agent.capture(agent.arrive("HR05AB1234"), "gross")
+        real = self.server.request
+        self.locked = True
+
+        def locked_request(method: str, url: str, headers: dict[str, str], body: bytes) -> tuple[int, bytes]:
+            if self.locked and not url.endswith("/auth/login"):
+                self.server.requests.append((method, url, headers, body))
+                return 401, b'{"error":"unauthenticated","reason":"system_locked","message":"System locked by administrator."}'
+            return real(method, url, headers, body)
+
+        self.server.request = locked_request  # type: ignore[method-assign]
+
+    def test_stops_keeps_the_queue_and_resumes_after_unlock(self) -> None:
+        api = client(self.server)
+        report = SyncWorker(self.store, api).run()
+
+        self.assertEqual(report.state, "locked")
+        self.assertIn("System locked by administrator.", report.problems)
+        self.assertEqual(self.store.unsynced_count(), 2)
+        self.assertEqual(self.store.get_meta("stopped"), "system_locked")
+        logins = [u for _, u, _, _ in self.server.requests if u.endswith("/auth/login")]
+        self.assertLessEqual(len(logins), 1, "must not hammer the login endpoint while locked")
+
+        self.locked = False
+        report = SyncWorker(self.store, api).run()
+        self.assertEqual(report.state, "online")
+        self.assertEqual(self.store.unsynced_count(), 0)
+        self.assertEqual(self.store.get_meta("stopped"), "")

@@ -38,6 +38,14 @@ use Illuminate\Support\Carbon;
  * @property string|null $last_login_ip
  * @property Carbon|null $password_changed_at
  * @property bool $must_change_password
+ * @property string|null $duress_pin_hash
+ * @property Carbon|null $duress_pin_set_at
+ * @property bool $duress_suspends
+ * @property bool $duress_wipes_device
+ * @property Carbon|null $duress_flagged_at
+ * @property int $lockouts_24h
+ * @property Carbon|null $last_lockout_at
+ * @property bool $needs_admin_unlock
  * @property-read Person $person
  * @property-read Role $role
  * @property-read Entity $entity
@@ -53,16 +61,23 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName
 
     public const STATUS_ACTIVE = 'active';
 
-    public const STATUS_DISABLED = 'disabled';
+    /** Access withdrawn for now; an administrator can reinstate it. */
+    public const STATUS_SUSPENDED = 'suspended';
+
+    /** Access withdrawn for good (e.g. the person left); never reinstated — create a new account. */
+    public const STATUS_REVOKED = 'revoked';
+
+    /** @deprecated earlier name of {@see self::STATUS_SUSPENDED} */
+    public const STATUS_DISABLED = self::STATUS_SUSPENDED;
 
     protected $fillable = [
         'entity_id', 'person_id', 'role_id', 'username', 'password', 'status', 'must_change_password',
     ];
 
-    protected $hidden = ['password', 'mfa_secret'];
+    protected $hidden = ['password', 'mfa_secret', 'duress_pin_hash'];
 
     /** @var list<string> */
-    protected array $auditSecret = ['password', 'mfa_secret'];
+    protected array $auditSecret = ['password', 'mfa_secret', 'duress_pin_hash'];
 
     /** @var list<string> */
     protected array $auditIgnored = ['last_login_at', 'last_login_ip', 'failed_attempts', 'mfa_last_timestep'];
@@ -79,6 +94,13 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName
             'last_login_at' => 'datetime',
             'password_changed_at' => 'datetime',
             'must_change_password' => 'boolean',
+            'duress_pin_set_at' => 'datetime',
+            'duress_suspends' => 'boolean',
+            'duress_wipes_device' => 'boolean',
+            'duress_flagged_at' => 'datetime',
+            'lockouts_24h' => 'integer',
+            'last_lockout_at' => 'datetime',
+            'needs_admin_unlock' => 'boolean',
             'version' => 'integer',
         ];
     }
@@ -129,6 +151,11 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(IpAllowlistEntry::class);
     }
 
+    public function isAccessWithdrawn(): bool
+    {
+        return in_array($this->status, [self::STATUS_SUSPENDED, self::STATUS_REVOKED], true);
+    }
+
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
@@ -136,7 +163,12 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName
 
     public function isLocked(): bool
     {
-        return $this->locked_until !== null && $this->locked_until->isFuture();
+        return $this->needs_admin_unlock || ($this->locked_until !== null && $this->locked_until->isFuture());
+    }
+
+    public function mayUseDuressPin(): bool
+    {
+        return in_array($this->role?->code, (array) config('ricemill.security.duress_roles'), true);
     }
 
     public function isSuperAdmin(): bool
@@ -175,8 +207,9 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName
 
     public function canAccessPanel(Panel $panel): bool
     {
-        // Brokers/agents use the portal/PWA, not the back office.
-        return $this->isActive() && $this->role?->code !== 'BROKER';
+        // Brokers/agents use the portal/PWA, not the back office. Inactive accounts are signed out
+        // by EnsureWebAuthSession with an explanation instead of a bare 403 here.
+        return $this->role?->code !== 'BROKER';
     }
 
     public function getFilamentName(): string

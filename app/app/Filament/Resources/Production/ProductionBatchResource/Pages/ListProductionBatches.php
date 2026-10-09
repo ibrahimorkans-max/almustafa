@@ -14,6 +14,6 @@ class ListProductionBatches extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('Open batch')];
+        return [CreateAction::make()->label('Create batch')->icon('heroicon-o-plus')];
     }
 }

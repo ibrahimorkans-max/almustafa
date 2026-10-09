@@ -136,6 +136,30 @@ final class TokenService
         return [$account, $session, $device];
     }
 
+    /**
+     * Why a token that exists no longer works, for an honest answer to the device:
+     * access_disabled | system_locked | device_revoked | session_ended. Null for unknown tokens.
+     */
+    public function failureReason(string $plainAccess): ?string
+    {
+        $token = $this->findToken($plainAccess, ApiToken::TYPE_ACCESS);
+        if ($token === null) {
+            return null;
+        }
+        [$session, $device, $account] = $this->loadContext($token);
+        if ($account->isAccessWithdrawn()) {
+            return 'access_disabled';
+        }
+        $why = (string) $session->revoked_reason;
+
+        return match (true) {
+            str_starts_with($why, 'lockdown') => 'system_locked',
+            str_starts_with($why, 'account_') => 'access_disabled',
+            str_starts_with($why, 'device_') || ! $device->canReceiveInstructions() => 'device_revoked',
+            default => 'session_ended',
+        };
+    }
+
     private function findToken(string $plain, string $type): ?ApiToken
     {
         return $this->tenant->runAsSystem(fn () => ApiToken::query()

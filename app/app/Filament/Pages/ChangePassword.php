@@ -66,6 +66,9 @@ class ChangePassword extends Page implements HasForms
         if (! Hash::check((string) $data['current_password'], $account->password)) {
             throw ValidationException::withMessages(['data.current_password' => 'The current password is not correct.']);
         }
+        if ($account->duress_pin_hash !== null && Hash::check((string) $data['password'], $account->duress_pin_hash)) {
+            throw ValidationException::withMessages(['data.password' => 'The new password must be different from your duress PIN.']);
+        }
 
         DB::transaction(function () use ($account, $data): void {
             $account->password = (string) $data['password'];
