@@ -23,3 +23,4 @@ Schedule::job(new QueueHeartbeat(now()->toIso8601String()))->everyFiveMinutes()-
 Schedule::command('backup:run')->dailyAt('01:30')->timezone('Asia/Kolkata')->withoutOverlapping();
 Schedule::command('backup:verify')->weeklyOn(0, '04:00')->timezone('Asia/Kolkata')->withoutOverlapping();
 Schedule::call(fn () => app(OpsAlerts::class)->checkFailedLoginBurst())->everyFiveMinutes()->name('ops:failed-login-burst');
+Schedule::command('hr:document-expiry')->dailyAt('07:30')->timezone('Asia/Kolkata')->withoutOverlapping();

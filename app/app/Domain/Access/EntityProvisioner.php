@@ -6,6 +6,7 @@ namespace App\Domain\Access;
 
 use App\Domain\Accounts\ChartOfAccounts;
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Hr\HrInstaller;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
 use App\Models\Role;
@@ -20,6 +21,7 @@ final class EntityProvisioner
         private readonly TenantContext $tenant,
         private readonly AuditLogger $audit,
         private readonly ChartOfAccounts $chart,
+        private readonly HrInstaller $hr,
     ) {}
 
     /**
@@ -54,6 +56,7 @@ final class EntityProvisioner
             }
 
             $this->chart->install($entity->id);
+            $this->hr->install($entity->id);
 
             return $entity;
         }));

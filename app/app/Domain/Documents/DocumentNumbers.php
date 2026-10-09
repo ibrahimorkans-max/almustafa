@@ -44,6 +44,8 @@ final class DocumentNumbers
 
     public const CLAIM = 'CLM';
 
+    public const EMPLOYEE = 'EMP';
+
     public function __construct(private readonly TenantContext $tenant) {}
 
     public function next(string $series, ?CarbonInterface $date = null): string
@@ -64,6 +66,28 @@ final class DocumentNumbers
             $code = $this->tenant->runAsSystem(fn () => Entity::query()->whereKey($entityId)->value('code'));
 
             return sprintf('%s/%s/%s/%04d', $code, $series, $fy, $number);
+        });
+    }
+
+    /**
+     * Gap-free code that never resets (master records such as employees): KNL-EMP-0001.
+     * Uses the same locked counter table with the financial year "ALL".
+     */
+    public function nextCode(string $series): string
+    {
+        $entityId = $this->tenant->requireEntityId();
+
+        return DB::transaction(function () use ($entityId, $series): string {
+            DB::table('document_sequences')->insertOrIgnore([
+                'entity_id' => $entityId, 'series' => $series, 'financial_year' => 'ALL', 'last_number' => 0,
+            ]);
+            $query = fn () => DB::table('document_sequences')
+                ->where('entity_id', $entityId)->where('series', $series)->where('financial_year', 'ALL');
+            $number = (int) $query()->lockForUpdate()->value('last_number') + 1;
+            $query()->update(['last_number' => $number]);
+            $code = $this->tenant->runAsSystem(fn () => Entity::query()->whereKey($entityId)->value('code'));
+
+            return sprintf('%s-%s-%04d', $code, $series, $number);
         });
     }
 

@@ -30,6 +30,8 @@ final class RoleTemplates
 
     public const BROKER = 'BROKER';
 
+    public const HR_MANAGER = 'HR_MANAGER';
+
     /**
      * @return array<string, array{name: string, global: bool, mfa_required: bool, session_max_minutes: int, permissions: list<string>}>
      */
@@ -79,6 +81,7 @@ final class RoleTemplates
                     'deal.view', 'quote.view', 'stock.view', 'sales.view', 'claim.view',
                     'ledger.view', 'ledger.post', 'voucher.reverse', 'payment.create', 'bank.view',
                     'pricing.view', 'dashboard.view', 'report.view', 'report.gst', 'archive.search',
+                    'hr.employee.view', 'hr.salary.view', 'hr.payroll.approve', 'hr.documents.generate',
                 ],
             ],
             self::SUPERVISOR => [
@@ -94,6 +97,7 @@ final class RoleTemplates
                     'stock.view', 'requisition.create', 'requisition.approve',
                     'sales.view', 'dispatch.manage', 'gatepass.issue',
                     'claim.view', 'claim.manage', 'dashboard.view', 'report.view',
+                    'hr.employee.view',
                 ],
             ],
             self::INVENTORY_MANAGER => [
@@ -127,6 +131,18 @@ final class RoleTemplates
                 'mfa_required' => false,
                 'session_max_minutes' => 720,
                 'permissions' => ['deal.view_own', 'commission.view_own', 'quote.manage'],
+            ],
+            self::HR_MANAGER => [
+                'name' => 'HR Manager',
+                'global' => false,
+                'mfa_required' => true,
+                'session_max_minutes' => 720,
+                'permissions' => [
+                    'entity.view', 'approval.view', 'master.view', 'dashboard.view',
+                    'hr.employee.view', 'hr.employee.edit', 'hr.employee.sensitive.view',
+                    'hr.salary.view', 'hr.salary.edit', 'hr.payroll.run', 'hr.attendance.override',
+                    'hr.documents.generate', 'hr.documents.share', 'hr.documents.template.manage',
+                ],
             ],
         ];
     }
