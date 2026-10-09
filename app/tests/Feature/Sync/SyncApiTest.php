@@ -26,6 +26,8 @@ beforeEach(function () {
     $this->gate = Make::account($this->entity, 'GATE_OPERATOR');
     $this->headers = Make::apiHeaders(Make::apiTokens($this->gate, DEV), DEV);
     $this->seq = 0;
+    // A new mill already has its default records (e.g. sales-tax rates) in the feed; tests read what comes after.
+    $this->start = pullChanges($this)['next_cursor'];
 });
 
 function syncEvent(object $test, string $type, ?string $recordId, array $payload, ?int $baseVersion = null, ?string $occurredAt = null): array
@@ -71,7 +73,7 @@ it('creates a record offline-first with the client UUID and serves it on pull', 
     expect($result)->toMatchArray(['status' => 'applied', 'version' => 1])
         ->and(serverVehicle($id)->registration_no)->toBe('MNA211234');
 
-    $feed = pullChanges($this);
+    $feed = pullChanges($this, $this->start);
     expect($feed['changes'])->toHaveCount(1)
         ->and($feed['changes'][0])->toMatchArray(['type' => 'vehicle', 'op' => 'upsert', 'id' => $id, 'version' => 1])
         ->and($feed['changes'][0]['data']['registration_no'])->toBe('MNA211234')
@@ -241,7 +243,7 @@ describe('pull', function () {
         }
         pushEvents($this, syncEvent($this, 'vehicle.upsert', $ids[0], ['vehicle_type' => 'tempo'], baseVersion: 1));
 
-        $page1 = pullChanges($this, 0, limit: 4);
+        $page1 = pullChanges($this, $this->start, limit: 4);
         $page2 = pullChanges($this, $page1['next_cursor'], limit: 4);
 
         expect($page1['has_more'])->toBeTrue()
@@ -296,7 +298,7 @@ describe('pull', function () {
                 'record_id' => $id, 'payload' => ['registration_no' => 'BKX9999', 'vehicle_type' => 'truck']],
         ]])->assertOk();
 
-        expect(pullChanges($this)['changes'])->toBe([]);
+        expect(pullChanges($this, $this->start)['changes'])->toBe([]);
 
         [$r] = pushEvents($this, syncEvent($this, 'vehicle.upsert', $id, ['registration_no' => 'MNA211234', 'vehicle_type' => 'truck']));
         expect($r['status'])->toBeIn(['needs_review', 'rejected'])
