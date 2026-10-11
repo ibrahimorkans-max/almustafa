@@ -79,7 +79,10 @@ final class DocumentSharing
             match ($channel) {
                 'email' => Mail::to((string) $recipient)->send(new DocumentMail($doc, $this->documents->original($doc)['bytes'], $title, $message)),
                 'whatsapp' => $sendUrl = 'https://wa.me/'.ltrim((string) $recipient, '+').'?'.http_build_query(['text' => $message]),
-                'sms' => Log::channel(config('ricemill.delivery.sms_log_channel', 'stack'))->info('SMS to send', ['to' => $recipient, 'text' => $message]),
+                // No SMS provider yet: the sender sees the text on screen and sends it. The log never holds
+                // the link (it opens the document) or the full number.
+                'sms' => Log::channel((string) config('ricemill.security.sms_log_channel', 'stack'))->info('SMS prepared for sending by hand', [
+                    'to' => mb_substr((string) $recipient, 0, 4).'*****'.mb_substr((string) $recipient, -3), 'document' => $title, 'share' => $share->id]),
                 default => null,
             };
             $this->documents->log($doc, 'share', $share, ['channel' => $channel, 'hours' => $hours, 'max_opens' => $maxOpens, 'protected' => $protect]);

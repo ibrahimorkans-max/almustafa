@@ -23,6 +23,11 @@ use ZipArchive;
  */
 final class DocumentBatches
 {
+    /** One batch makes at most this many documents (well inside the 30-minute job), and a mill runs at most two at once. */
+    public const MAX_RECORDS = 1000;
+
+    public const MAX_ACTIVE = 2;
+
     public function __construct(
         private readonly ActorContext $actor,
         private readonly AuditLogger $audit,
@@ -35,13 +40,22 @@ final class DocumentBatches
      */
     public function start(string $type, array $sourceIds, string $label, array $options = []): DocumentBatch
     {
-        if (! ($this->actor->account()?->hasPermission('hr.documents.generate') ?? false)) {
-            throw new BusinessRuleViolation('Bulk generation needs the permission hr.documents.generate.');
+        try {
+            $this->documents->requireFor($type);
+        } catch (BusinessRuleViolation $e) {
+            throw new BusinessRuleViolation('Bulk generation: '.lcfirst($e->getMessage()));
         }
         DocumentTypes::get($type);
         $sourceIds = array_values(array_unique($sourceIds));
         if ($sourceIds === []) {
             throw new BusinessRuleViolation('Nothing to generate.');
+        }
+        if (count($sourceIds) > self::MAX_RECORDS) {
+            throw new BusinessRuleViolation(sprintf('At most %d documents in one batch; split it, for example by department.', self::MAX_RECORDS));
+        }
+        // A batch untouched for two hours (three 30-minute tries and their pauses) is not counted as running.
+        if (DocumentBatch::query()->whereIn('status', [DocumentBatch::QUEUED, DocumentBatch::RUNNING])->where('updated_at', '>=', now()->subHours(2))->count() >= self::MAX_ACTIVE) {
+            throw new BusinessRuleViolation('Two bulk runs are already going; start this one when one of them has finished.');
         }
         $batch = DocumentBatch::query()->create(['doc_type' => $type, 'label' => mb_substr($label, 0, 120), 'source_ids' => $sourceIds,
             'options' => $options, 'total' => count($sourceIds)]);

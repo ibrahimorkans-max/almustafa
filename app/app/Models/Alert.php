@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Domain\Audit\Auditable;
 use App\Domain\Tenancy\BelongsToEntity;
 use App\Support\Eloquent\HasOptimisticLock;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -50,5 +51,17 @@ class Alert extends Model
     public function isOpen(): bool
     {
         return $this->status === 'open';
+    }
+
+    /**
+     * Alerts the account may read: those raised for a permission it holds (payroll alerts name
+     * employees and their pay), and those raised for no permission in particular.
+     *
+     * @param  Builder<Alert>  $query
+     */
+    public function scopeVisibleTo(Builder $query, LoginAccount $account): void
+    {
+        $codes = $account->isActive() && ! $account->hasPendingSecuritySetup() ? $account->permissionCodes() : [];
+        $query->where(fn (Builder $q) => $q->whereNull('data->permission')->orWhereIn('data->permission', $codes === [] ? [''] : $codes));
     }
 }

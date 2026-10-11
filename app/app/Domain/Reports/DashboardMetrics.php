@@ -75,6 +75,6 @@ final class DashboardMetrics
         $pending = ApprovalRequest::query()->where('status', ApprovalRequest::STATUS_PENDING)->get()
             ->filter(fn (ApprovalRequest $r) => $this->approvals->canDecide($me, $r))->count();
 
-        return ['open_alerts' => Alert::query()->where('status', 'open')->count(), 'approvals_for_me' => $pending];
+        return ['open_alerts' => Alert::query()->visibleTo($me)->where('status', 'open')->count(), 'approvals_for_me' => $pending];
     }
 }

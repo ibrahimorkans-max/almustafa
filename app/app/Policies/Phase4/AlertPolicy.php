@@ -10,7 +10,8 @@ final class AlertPolicy extends Phase3Policies
 {
     protected function viewPermissions(): array
     {
-        return ['stock.view', 'production.view'];
+        // HR and accounts open the list too; it shows each person only the alerts meant for them.
+        return ['stock.view', 'production.view', 'hr.employee.view', 'ledger.view'];
     }
 
     protected function createPermissions(): array

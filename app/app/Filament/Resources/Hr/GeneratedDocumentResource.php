@@ -110,7 +110,7 @@ class GeneratedDocumentResource extends Resource
                                 $r = app(DocumentSharing::class)->share($record, $data['channel'], $data['recipient'] ?? null, (int) $data['hours'],
                                     filled($data['max_opens'] ?? null) ? (int) $data['max_opens'] : null, (bool) ($data['protect'] ?? false));
                                 $n = Notification::make()->success()->persistent()->title(match ($data['channel']) {
-                                    'email' => 'Sent by e-mail.', 'sms' => 'SMS text ready (no SMS provider configured: it is in the log).', default => 'Link ready.',
+                                    'email' => 'Sent by e-mail.', 'sms' => 'SMS text ready: send it from the HR phone (no SMS provider is set up yet).', default => 'Link ready.',
                                 })->body($r['message']);
                                 if ($r['send_url'] !== null) {
                                     $n->actions([NotificationAction::make('open')->label('Send on WhatsApp')->url($r['send_url'], shouldOpenInNewTab: true)]);

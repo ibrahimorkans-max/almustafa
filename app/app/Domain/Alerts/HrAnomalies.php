@@ -45,22 +45,22 @@ final class HrAnomalies
     private function overtime(PayrollRun $run, array $items): int
     {
         $limit = (int) config('ricemill.anomalies.overtime_hours_month', 60) * 60;
-        $previous = PayrollRun::query()->where('status', PayrollRun::FINALIZED)->where('month', '<', $run->month)->orderByDesc('month')->limit(6)->get();
+        // The six previous finalized months, read once: employee id => overtime minutes per month.
+        $history = [];
+        foreach (PayrollRun::query()->where('status', PayrollRun::FINALIZED)->where('month', '<', $run->month)->orderByDesc('month')->limit(6)->get() as $p) {
+            foreach (PayrollItem::query()->where('payroll_run_id', $p->id)->where('calculation_no', $p->calculation_no)->get(['employee_id', 'result']) as $old) {
+                $history[$old->employee_id][] = (int) ($old->result['info']['overtime_minutes'] ?? 0);
+            }
+        }
         $n = 0;
         foreach ($items as $item) {
             $minutes = (int) ($item->result['info']['overtime_minutes'] ?? 0);
             if ($minutes <= 0) {
                 continue;
             }
-            $history = [];
-            foreach ($previous as $p) {
-                $old = PayrollItem::query()->where('payroll_run_id', $p->id)->where('calculation_no', $p->calculation_no)->where('employee_id', $item->employee_id)->first();
-                if ($old !== null) {
-                    $history[] = (int) ($old->result['info']['overtime_minutes'] ?? 0);
-                }
-            }
-            sort($history);
-            $usual = count($history) >= 3 ? $history[intdiv(count($history), 2)] : null;
+            $usualOf = $history[$item->employee_id] ?? [];
+            sort($usualOf);
+            $usual = count($usualOf) >= 3 ? $usualOf[intdiv(count($usualOf), 2)] : null;
             $why = $minutes > $limit ? sprintf('above the limit of %d hours a month', $limit / 60)
                 : ($usual !== null && $usual > 0 && $minutes > 2 * $usual ? sprintf('more than twice the usual %s hours', round($usual / 60, 1)) : null);
             if ($why === null) {

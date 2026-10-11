@@ -131,6 +131,16 @@ describe('sharing', function () {
             ->and(DocumentShare::query()->where('channel', 'whatsapp')->sole()->recipient)->toBe('+923001234567')
             ->and(DocumentAccessLog::query()->where('action', 'share')->count())->toBe(3);
         expect($protected['message'])->toContain('last 5 digits');
+
+        // SMS without a provider: the sender gets the text; the log gets neither the link nor the full number.
+        $log = storage_path('logs/sms-test.log');
+        @unlink($log);
+        config(['logging.channels.sms_test' => ['driver' => 'single', 'path' => $log], 'ricemill.security.sms_log_channel' => 'sms_test']);
+        $sms = $this->sharing->share($doc, 'sms', '0300-7654321');
+        $logged = (string) file_get_contents($log);
+        @unlink($log);
+        expect($sms['message'])->toContain('/d/')
+            ->and($logged)->toContain('SMS prepared')->toContain('+923*****321')->not->toContain('/d/')->not->toContain('7654321');
     });
 
     it('shares only the current revision, and only with the share permission', function () {
