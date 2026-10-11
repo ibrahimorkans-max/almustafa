@@ -58,6 +58,8 @@ final class DocumentNumbers
 
     public const CONTRACTOR_BILL = 'CB';
 
+    public const EXPENSE = 'EXP';
+
     public function __construct(private readonly TenantContext $tenant) {}
 
     public function next(string $series, ?CarbonInterface $date = null): string

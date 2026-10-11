@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Alerts\AnomalyScanner;
+use App\Domain\Alerts\HrAnomalies;
 use App\Domain\Security\Lockdown;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
@@ -25,7 +26,7 @@ final class AnomaliesScanCommand extends Command
 
                 continue;
             }
-            $counts = $tenant->runInEntity($entity->id, fn () => app(AnomalyScanner::class)->scan($since));
+            $counts = $tenant->runInEntity($entity->id, fn () => app(AnomalyScanner::class)->scan($since) + app(HrAnomalies::class)->scan($since));
             $this->line(sprintf('%s: %d alert(s) %s', $entity->code, array_sum($counts), json_encode(array_filter($counts))));
         }
 

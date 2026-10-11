@@ -166,6 +166,9 @@ class AppServiceProvider extends ServiceProvider
             Hr\Reimbursement::class => Policies\Hr\ReimbursementPolicy::class,
             Hr\ContractorBill::class => Policies\Hr\ContractorBillPolicy::class,
             Accounts\ExpenseCategory::class => Policies\Hr\ExpenseCategoryPolicy::class,
+            Accounts\Expense::class => Policies\Hr\ExpenseCategoryPolicy::class,
+            Accounts\ExpenseBudget::class => Policies\Hr\ExpenseCategoryPolicy::class,
+            Accounts\RecurringExpense::class => Policies\Hr\RecurringExpensePolicy::class,
             GeneratedDocument::class => Policies\Hr\DocumentPolicy::class,
             DocumentTemplate::class => Policies\Hr\DocumentTemplatePolicy::class,
         ] as $model => $policy) {

@@ -4,15 +4,23 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Accounts;
 
+use App\Domain\Accounts\Expenses;
+use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Accounts\ExpenseCategoryResource\Pages;
+use App\Filament\Support\Units;
+use App\Models\Accounts\ExpenseBudget;
 use App\Models\Accounts\ExpenseCategory;
 use App\Models\Accounts\LedgerAccount;
+use App\Models\LoginAccount;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -65,7 +73,25 @@ class ExpenseCategoryResource extends Resource
                 TextColumn::make('status')->badge(),
             ])
             ->defaultSort('code')
-            ->filters([SelectFilter::make('kind')->options(self::KINDS)]);
+            ->filters([SelectFilter::make('kind')->options(self::KINDS)])
+            ->actions([
+                Action::make('budget')->label('Budget')->icon('heroicon-o-calculator')->color('gray')
+                    ->visible(fn () => Filament::auth()->user() instanceof LoginAccount && Filament::auth()->user()->hasPermission('ledger.post'))
+                    ->form([
+                        TextInput::make('month')->required()->regex('/^\d{4}-(0[1-9]|1[0-2])$/')->default(fn () => now('Asia/Karachi')->format('Y-m'))->live(),
+                        TextInput::make('amount')->label('Budget (Rs)')->required()->regex(Units::DECIMAL_2)
+                            ->helperText(fn (ExpenseCategory $record, Get $get) => ($b = ExpenseBudget::query()->where('expense_category_id', $record->id)
+                                ->where('month', (string) $get('month'))->value('amount_paise')) !== null ? 'Now: Rs '.Units::paiseToRupees((int) $b) : 'No budget yet for this month.'),
+                    ])
+                    ->action(function (ExpenseCategory $record, array $data): void {
+                        try {
+                            app(Expenses::class)->setBudget($record, (string) $data['month'], Units::rupeesToPaise((string) $data['amount']));
+                            Notification::make()->title("Budget for {$data['month']} saved.")->success()->send();
+                        } catch (BusinessRuleViolation $e) {
+                            Notification::make()->title($e->getMessage())->danger()->send();
+                        }
+                    }),
+            ]);
     }
 
     public static function getPages(): array
