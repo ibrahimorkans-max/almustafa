@@ -62,3 +62,8 @@ The server set-up itself is in [infra/vps/README.md](../infra/vps/README.md). Th
 * **Payroll settings**: EOBI, PESSI, the minimum wage and the s. 149 slabs are settings. Leave them at the defaults until the tax adviser confirms them for the current Finance Act.
 * Restarting the workers during a deploy stops a running bulk-document batch; it continues where it stopped once the job is retried. Avoid deploying while a large payslip batch is running.
 * Staff claims, labour-contractor bills and expense categories (phase 10) have screens: **HR → Staff claims**, **HR → Contractor bills**, **Accounts → Expense categories**. Link each contractor's workers with **Assign workers** before the first bill.
+
+## Expenses and the profit and loss (HR phase 11)
+* Opening stock is entered on the stock ledger on go-live day. A profit and loss period that starts before that day counts it as a gain (it has no purchase bill), so start profit and loss periods on or after the go-live day.
+* Set up the recurring expenses (rent, electricity, guards) under **Accounts → Recurring expenses**; the scheduler drafts them at 06:30 PKT.
+* Optional alert thresholds: `RICEMILL_OVERTIME_ALERT_HOURS` (default 60 hours a month) and `RICEMILL_PAYROLL_VARIANCE_BP` (default 1500 = 15 %).

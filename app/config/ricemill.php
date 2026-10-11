@@ -130,6 +130,8 @@ return [
         'manual_override_repeat' => 3,     // per user within 30 days
         'approvals_same_party' => 5,       // per approver and party within 7 days
         'yield_drift_batches' => 3,        // consecutive out-of-range batches of a variety
+        'overtime_hours_month' => (int) env('RICEMILL_OVERTIME_ALERT_HOURS', 60),     // per employee in a finalized payroll
+        'payroll_variance_bp' => (int) env('RICEMILL_PAYROLL_VARIANCE_BP', 1500),  // gross pay vs the month before
     ],
 
     'ops' => [

@@ -62,6 +62,13 @@ class AccountsReports extends Page implements HasForms
     #[Url]
     public ?string $ledger = null;
 
+    /** Period of a ledger statement opened from another report (Profit & loss drill-down). */
+    #[Url]
+    public ?string $from = null;
+
+    #[Url]
+    public ?string $to = null;
+
     /** @var array<string, mixed>|null */
     public ?array $data = [];
 
@@ -78,9 +85,14 @@ class AccountsReports extends Page implements HasForms
         $this->form->fill([
             'report' => isset(self::REPORTS[$this->report]) ? $this->report : 'trial_balance',
             'ledger' => $this->ledger,
-            'from' => $today->copy()->startOfMonth()->toDateString(),
-            'to' => $today->toDateString(),
+            'from' => self::date($this->from) ?? $today->copy()->startOfMonth()->toDateString(),
+            'to' => self::date($this->to) ?? $today->toDateString(),
         ]);
+    }
+
+    private static function date(?string $value): ?string
+    {
+        return $value !== null && preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1 ? $value : null;
     }
 
     public function form(Form $form): Form
