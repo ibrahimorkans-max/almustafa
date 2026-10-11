@@ -12,6 +12,7 @@ use App\Domain\Hr\EmployeeService;
 use App\Domain\Hr\SalaryStructureService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Hr\EmployeeResource;
+use App\Filament\Support\DocumentActions;
 use App\Filament\Support\Units;
 use App\Models\Hr\Employee;
 use App\Models\Hr\EmployeeDocument;
@@ -109,6 +110,14 @@ class ViewEmployee extends ViewRecord
                         "Salary account for {$record->code} {$record->name()}", 'Requested from the employee record');
                     Notification::make()->title('Sent for approval.')->body('The new account is used only after it is approved.')->success()->send();
                 })),
+            Action::make('certificate')->label('Certificate')->icon('heroicon-o-academic-cap')->color('gray')
+                ->visible(fn (Employee $r) => $r->status !== Employee::EXITED && DocumentActions::allowed())
+                ->form([
+                    Select::make('kind')->label('Certificate')->required()->default('employment_letter')
+                        ->options(['employment_letter' => 'Employment certificate', 'salary_certificate' => 'Salary certificate (with gross salary)']),
+                    ...DocumentActions::form('salary_certificate'),
+                ])
+                ->action(fn (Employee $record, array $data) => DocumentActions::run((string) $data['kind'], $record->id, $data)),
             Action::make('document')->label('Upload document')->icon('heroicon-o-arrow-up-tray')
                 ->visible(fn (Employee $r) => $open($r) && $this->can('hr.employee.edit'))
                 ->form([

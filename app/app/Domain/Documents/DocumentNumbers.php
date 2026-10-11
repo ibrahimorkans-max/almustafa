@@ -46,6 +46,18 @@ final class DocumentNumbers
 
     public const EMPLOYEE = 'EMP';
 
+    public const ADVANCE = 'ADV';
+
+    public const PAYROLL = 'PR';
+
+    public const PAYSLIP = 'PSL';
+
+    public const SALARY_PAYMENT = 'SPAY';
+
+    public const REIMBURSEMENT = 'RMB';
+
+    public const CONTRACTOR_BILL = 'CB';
+
     public function __construct(private readonly TenantContext $tenant) {}
 
     public function next(string $series, ?CarbonInterface $date = null): string

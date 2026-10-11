@@ -55,6 +55,20 @@ final class ChartOfAccounts
         'sales_claims' => ['SAL-CLAIMS', 'Sales claims & allowances', 'SALES_ACCOUNTS', 'system'],
         'purchase_claims' => ['PUR-CLAIMS', 'Purchase claims recovered', 'PURCHASE_ACCOUNTS', 'system'],
         'wht_payable' => ['WHT-153', 'Income tax withheld payable (s. 153)', 'DUTIES_TAXES', 'system'],
+        // Payroll (HR phases 5-7): operating expenses, what is owed to staff and to the authorities.
+        'staff_advances' => ['STAFF-ADV', 'Advances and loans to staff', 'LOANS_ADVANCES', 'system'],
+        'salaries_expense' => ['EXP-SALARY', 'Salaries and wages', 'INDIRECT_EXPENSES', 'system'],
+        'overtime_expense' => ['EXP-OVERTIME', 'Overtime', 'INDIRECT_EXPENSES', 'system'],
+        'bonus_expense' => ['EXP-BONUS', 'Bonus and festival bonus', 'INDIRECT_EXPENSES', 'system'],
+        'eobi_expense' => ['EXP-EOBI', 'EOBI (employer share)', 'INDIRECT_EXPENSES', 'system'],
+        'pessi_expense' => ['EXP-PESSI', 'Social security PESSI (employer)', 'INDIRECT_EXPENSES', 'system'],
+        'salaries_payable' => ['SAL-PAYABLE', 'Salaries and wages payable', 'CUR_LIAB', 'system'],
+        'salary_tax_payable' => ['WHT-149', 'Income tax on salary payable (s. 149)', 'DUTIES_TAXES', 'system'],
+        'eobi_payable' => ['EOBI-PAYABLE', 'EOBI payable', 'DUTIES_TAXES', 'system'],
+        'pessi_payable' => ['PESSI-PAYABLE', 'PESSI payable', 'DUTIES_TAXES', 'system'],
+        'staff_other_deductions' => ['STAFF-DED', 'Other deductions from staff (fines, canteen)', 'INDIRECT_INCOMES', 'system'],
+        'staff_claims_payable' => ['STAFF-CLAIMS', 'Staff expense claims payable', 'CUR_LIAB', 'system'],
+        'contract_labour' => ['EXP-CONTRACT-LAB', 'Contract labour (incl. sales tax on services)', 'DIRECT_EXPENSES', 'system'],
     ];
 
     public function __construct(private readonly TenantContext $tenant) {}

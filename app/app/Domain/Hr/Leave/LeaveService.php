@@ -6,6 +6,7 @@ namespace App\Domain\Hr\Leave;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
+use App\Domain\Hr\Payroll\PayrollLocks;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Hr\Employee;
 use App\Models\Hr\Holiday;
@@ -104,6 +105,7 @@ final class LeaveService
             if ($request->status !== LeaveRequest::PENDING) {
                 throw new BusinessRuleViolation("This request is already {$request->status}.");
             }
+            self::assertPayrollOpen($request);
             $type = $request->leaveType;
             $year = (int) $request->from_date->year;
             if ($type->paid) {
@@ -133,9 +135,19 @@ final class LeaveService
         return $request;
     }
 
+    /** Leave in a month whose payroll has locked attendance cannot be decided or cancelled any more. */
+    private static function assertPayrollOpen(LeaveRequest $request): void
+    {
+        PayrollLocks::assertOpen(CarbonImmutable::parse($request->from_date->toDateString(), 'Asia/Karachi'), 'Leave');
+        PayrollLocks::assertOpen(CarbonImmutable::parse($request->to_date->toDateString(), 'Asia/Karachi'), 'Leave');
+    }
+
     /** Pending: the requester or HR. Approved: someone with hr.leave.approve (not the employee); the days go back. */
     public function cancel(LeaveRequest $request, string $reason): LeaveRequest
     {
+        if ($request->status === LeaveRequest::APPROVED) {
+            self::assertPayrollOpen($request);
+        }
         $actor = $this->actor->account() ?? throw new BusinessRuleViolation('Not signed in.');
         if (mb_strlen(trim($reason)) < 3) {
             throw new BusinessRuleViolation('Give the reason for cancelling.');

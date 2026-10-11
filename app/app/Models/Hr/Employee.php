@@ -47,6 +47,10 @@ use Illuminate\Support\Carbon;
  * @property string|null $cnic
  * @property string|null $cnic_index
  * @property string|null $cnic_last4
+ * @property string|null $eobi_number
+ * @property string|null $pessi_number
+ * @property bool $eobi_applicable
+ * @property bool $pessi_applicable
  * @property string|null $ntn
  * @property string|null $ntn_index
  * @property string|null $ntn_last4
@@ -92,6 +96,7 @@ class Employee extends Model
     protected $fillable = [
         'person_id', 'photo_file_id', 'department_id', 'designation_id', 'shift_id', 'employment_type', 'joining_date', 'date_of_birth',
         'address', 'emergency_contact_name', 'emergency_contact_phone', 'cnic', 'ntn', 'notice_period_days',
+        'eobi_number', 'pessi_number', 'eobi_applicable', 'pessi_applicable', 'contractor_party_id',
     ];
 
     /** Same defaults as the table, so a new model knows them before it is reloaded. */
@@ -120,6 +125,8 @@ class Employee extends Model
             'last_working_day' => 'date',
             'exited_on' => 'date',
             'version' => 'integer',
+            'eobi_applicable' => 'boolean',
+            'pessi_applicable' => 'boolean',
             'archived_at' => 'datetime',
         ];
     }

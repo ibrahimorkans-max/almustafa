@@ -7,6 +7,7 @@ namespace App\Domain\Hr\Attendance;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Files\FileStore;
+use App\Domain\Hr\Payroll\PayrollLocks;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Hr\AttendanceLog;
 use App\Models\Hr\Employee;
@@ -119,8 +120,14 @@ final class AttendanceImport
             $file = $this->files->put($csv);
             $now = now()->utc()->format('Y-m-d H:i:s.v');
             $imported = 0;
+            $locked = [];
             foreach ($preview['rows'] as $row) {
                 if ($row['duplicate']) {
+                    continue;
+                }
+                if (PayrollLocks::isLocked($row['at'])) {
+                    $locked[] = "Line {$row['line']}: ".$row['at']->format('M Y').' is locked by its payroll.';
+
                     continue;
                 }
                 AttendanceLog::query()->create([
@@ -132,12 +139,12 @@ final class AttendanceImport
                 ]);
                 $imported++;
             }
-            $duplicates = count($preview['rows']) - $imported;
+            $duplicates = count($preview['rows']) - $imported - count($locked);
             $this->audit->record('hr.attendance.imported', null, null, null, [
                 'file_sha256' => $file->sha256, 'imported' => $imported, 'duplicates' => $duplicates, 'errors' => count($preview['errors']),
             ]);
 
-            return ['imported' => $imported, 'duplicates' => $duplicates, 'errors' => $preview['errors'], 'file_sha256' => $file->sha256];
+            return ['imported' => $imported, 'duplicates' => $duplicates, 'errors' => [...$preview['errors'], ...$locked], 'file_sha256' => $file->sha256];
         });
     }
 

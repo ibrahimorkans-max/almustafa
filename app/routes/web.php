@@ -2,6 +2,7 @@
 
 use App\Domain\Security\MaintenanceService;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\SharedDocumentController;
 use App\Http\Controllers\VerifyDocumentController;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Route;
@@ -10,6 +11,9 @@ Route::redirect('/', '/admin');
 
 // Public check of printed slips, invoices and gate passes (number + printed code; minimal facts only).
 Route::get('/verify', VerifyDocumentController::class)->middleware('throttle:30,1')->name('verify');
+
+// Shared HR documents (WhatsApp / SMS / e-mail links): random token, expiring, revocable, logged.
+Route::get('/d/{token}', SharedDocumentController::class)->middleware('throttle:30,1')->name('documents.shared');
 
 // Uptime monitoring: states and ages only, no secrets or versions.
 Route::get('/health', HealthController::class)->middleware('throttle:60,1')->name('health');

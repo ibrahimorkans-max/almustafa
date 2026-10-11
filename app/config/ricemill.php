@@ -115,6 +115,12 @@ return [
         'wht_rate_non_filer_bp' => (int) env('RICEMILL_WHT_RATE_NON_FILER_BP', 1100),
     ],
 
+    // HR documents engine (payslips, vouchers, certificates).
+    'documents' => [
+        // pdftoppm (poppler-utils) turns a PDF into a PNG for quick sharing; found on the PATH when empty.
+        'pdftoppm' => env('RICEMILL_PDFTOPPM'),
+    ],
+
     'anomalies' => [
         'net_weight_z' => 3.5,             // robust z-score vs the vehicle's last trips
         'min_trips' => 5,

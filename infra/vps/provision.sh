@@ -25,7 +25,7 @@ if ! apt-cache policy "php${PHP}-fpm" | grep -q 'Candidate: [0-9]'; then
   apt-get update -q
 fi
 apt-get install -yq nginx certbot python3-certbot-nginx postgresql postgresql-contrib supervisor ufw fail2ban \
-  unattended-upgrades logrotate \
+  unattended-upgrades logrotate poppler-utils \
   "php${PHP}-fpm" "php${PHP}-cli" "php${PHP}-pgsql" "php${PHP}-intl" "php${PHP}-bcmath" "php${PHP}-mbstring" \
   "php${PHP}-xml" "php${PHP}-zip" "php${PHP}-gd" "php${PHP}-curl" "php${PHP}-opcache"
 if ! command -v composer >/dev/null; then

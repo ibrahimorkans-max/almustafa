@@ -7,6 +7,7 @@ namespace App\Domain\Hr\Attendance;
 use App\Domain\Alerts\AlertService;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
+use App\Domain\Hr\Payroll\PayrollLocks;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Alert;
 use App\Models\Hr\AttendanceLog;
@@ -48,6 +49,7 @@ final class AttendanceReviewService
         if ($reviewer->person_id === $log->employee->person_id) {
             throw new BusinessRuleViolation('You cannot review your own attendance.');
         }
+        PayrollLocks::assertOpen($log->occurred_at);
         if (mb_strlen(trim($reason)) < 5) {
             throw new BusinessRuleViolation('Give the reason for the decision (what you checked).');
         }

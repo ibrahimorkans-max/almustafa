@@ -55,3 +55,10 @@ The server set-up itself is in [infra/vps/README.md](../infra/vps/README.md). Th
 * Open `/health`, which must report database and cache OK.
 * Print one weighment slip and one invoice and check them at `/verify` by scanning the QR code.
 * On the gate phones, reload the PWA once, so the new app version and icon are picked up.
+
+## Payroll and HR documents (HR phases 5–10)
+* `DB_QUEUE_RETRY_AFTER=1900` must stay in `/etc/ricemill/ricemill.env` (above the 30-minute bulk-document job). Preflight blocks the deploy otherwise.
+* `poppler-utils` (installed by `provision.sh`) gives PNG copies of documents; PDFs work without it.
+* **Payroll settings**: EOBI, PESSI, the minimum wage and the s. 149 slabs are settings. Leave them at the defaults until the tax adviser confirms them for the current Finance Act.
+* Restarting the workers during a deploy stops a running bulk-document batch; it continues where it stopped once the job is retried. Avoid deploying while a large payslip batch is running.
+* Staff claims and labour-contractor bills (phase 10) exist as services and are tested, but have no screens yet.

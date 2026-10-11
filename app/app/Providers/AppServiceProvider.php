@@ -24,6 +24,8 @@ use App\Models\Accounts;
 use App\Models\Alert;
 use App\Models\AuthSession;
 use App\Models\Claims\Claim;
+use App\Models\Documents\DocumentTemplate;
+use App\Models\Documents\GeneratedDocument;
 use App\Models\Gate\DeductionRule;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\Scale;
@@ -155,6 +157,14 @@ class AppServiceProvider extends ServiceProvider
             Hr\LeaveType::class => Policies\Hr\HrMasterPolicy::class,
             Hr\LeaveRequest::class => Policies\Hr\LeaveRequestPolicy::class,
             Hr\LeaveLedgerEntry::class => Policies\Hr\EmployeeDocumentPolicy::class,
+            Hr\Advance::class => Policies\Hr\PayrollPolicy::class,
+            Hr\PieceWorkEntry::class => Policies\Hr\PieceWorkPolicy::class,
+            Hr\AllowanceRule::class => Policies\Hr\PayrollRulePolicy::class,
+            Hr\PayAdjustment::class => Policies\Hr\PayrollPolicy::class,
+            Hr\PayrollRun::class => Policies\Hr\PayrollPolicy::class,
+            Hr\PayrollItem::class => Policies\Hr\PayrollPolicy::class,
+            GeneratedDocument::class => Policies\Hr\DocumentPolicy::class,
+            DocumentTemplate::class => Policies\Hr\DocumentTemplatePolicy::class,
         ] as $model => $policy) {
             Gate::policy($model, $policy);
         }

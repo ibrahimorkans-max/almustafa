@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Domain\Documents;
 
 use App\Domain\Accounts\AccountsDocuments;
+use App\Domain\Documents\Engine\DocumentTypes;
 use App\Domain\Gate\SlipRenderer;
 use App\Domain\Sales\SalesDocuments;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Accounts\Payment;
 use App\Models\Accounts\PurchaseBill;
+use App\Models\Documents\GeneratedDocument;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
 use App\Models\Sales\SalesBill;
@@ -33,6 +35,19 @@ final class DocumentVerifier
         }
 
         return $this->tenant->runAsSystem(function () use ($number, $code): ?array {
+            // HR documents: number, issue date and validity only — never the contents.
+            $base = (string) preg_replace('/\s+R\d+$/', '', $number);
+            foreach (GeneratedDocument::query()->where('number', $base)->get() as $doc) {
+                if ($doc->displayNumber() === $number && hash_equals($doc->verify_code, $code)) {
+                    $next = GeneratedDocument::query()->where('supersedes_id', $doc->id)->first();
+
+                    return ['type' => DocumentTypes::get($doc->doc_type)->label(), 'facts' => [
+                        'Document' => $doc->displayNumber(), 'Issued' => $doc->created_at->timezone('Asia/Karachi')->format('d M Y'),
+                        'Status' => $next === null ? 'Valid' : 'Replaced by '.$next->displayNumber().' on '.$next->created_at->timezone('Asia/Karachi')->format('d M Y'),
+                    ]];
+                }
+            }
+
             $bill = SalesBill::query()->where('number', $number)->where('status', SalesBill::POSTED)->first();
             if ($bill !== null && hash_equals(SalesDocuments::invoiceCode($bill), $code)) {
                 return ['type' => $bill->isSalesTaxInvoice() ? 'Sales tax invoice' : 'Invoice', 'facts' => [

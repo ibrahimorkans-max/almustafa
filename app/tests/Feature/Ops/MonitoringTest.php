@@ -126,6 +126,10 @@ describe('preflight', function () {
             expect(preflightCheck($r, $name)['ok'])->toBeFalse()->and(preflightCheck($r, $name)['level'])->toBe('error');
         }
         $this->artisan('ricemill:preflight')->assertFailed();
+
+        // A database queue that hands a long bulk-document job to a second worker is blocked.
+        config(['queue.default' => 'database', 'queue.connections.database.retry_after' => 90]);
+        expect(preflightCheck(app(Preflight::class)->run(), 'Queue does not rerun long jobs')['ok'])->toBeFalse();
     });
 
     it('passes the configuration checks for a production setup', function () {
@@ -140,7 +144,7 @@ describe('preflight', function () {
             'ricemill.backup.offsite_disk' => 's3',
         ]);
         $r = app(Preflight::class)->run();
-        foreach (['APP_ENV is production', 'APP_DEBUG is off', 'APP_URL uses https', 'Session cookie is secure-only', 'Queue runs in workers',
+        foreach (['APP_ENV is production', 'APP_DEBUG is off', 'APP_URL uses https', 'Session cookie is secure-only', 'Queue runs in workers', 'Queue does not rerun long jobs',
             'Mail is really sent', 'Super Admin IP allow-list required', 'First-device bootstrap is off', 'Backup key is set',
             'Off-site backup copy', 'All migrations have run'] as $name) {
             expect(preflightCheck($r, $name)['ok'])->toBeTrue("{$name}: ".preflightCheck($r, $name)['detail']);
