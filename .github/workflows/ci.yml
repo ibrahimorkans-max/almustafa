@@ -132,7 +132,6 @@ jobs:
           sudo apt-get install -y -q postgresql-common
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y -q postgresql-client-17
-      - run: vendor/bin/pest
+      - run: vendor/bin/pest -c phpunit.mariadb.xml
         env:
           RICEMILL_TEST_PG_BIN: /usr/lib/postgresql/17/bin
-          RICEMILL_TEST_DRILL_DATABASE: ricemill_drill -c phpunit.mariadb.xml
