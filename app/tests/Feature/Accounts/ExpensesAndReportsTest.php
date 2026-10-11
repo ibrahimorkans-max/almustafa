@@ -354,8 +354,8 @@ describe('screens', function () {
         exSignIn($this, $this->f->owner);
         $this->get(Dashboard::getUrl())->assertOk();
         expect(OwnerOverview::canView())->toBeTrue()->and(HrOverview::canView())->toBeTrue();
-        Livewire::test(OwnerOverview::class)->assertSee('Net profit so far')->assertSee('Milling cost per maund');
-        Livewire::test(HrOverview::class)->assertSee('Present today')->assertSee('0 of 1')->assertSee('Payslips not delivered');
+        Livewire::test(OwnerOverview::class)->assertSee('Net profit so far')->assertSee('Milling cost per maund')->assertSee('Rs 0.00')->assertDontSee('Rs Rs');
+        Livewire::test(HrOverview::class)->assertSee('Present today')->assertSee('0 of 1')->assertSee('Payslips not delivered')->assertDontSee('Rs Rs');
 
         exSignIn($this, $this->f->hr);
         $this->get(Dashboard::getUrl())->assertOk();

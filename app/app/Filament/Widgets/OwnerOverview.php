@@ -34,11 +34,11 @@ class OwnerOverview extends StatsOverviewWidget
         $pl = FinancialReportsPage::getUrl(['report' => 'pl']);
 
         return [
-            Stat::make('Sales', 'Rs '.Units::paiseToRupees($o['sales']))->description($o['month'])->url($pl),
-            Stat::make($o['net_profit'] >= 0 ? 'Net profit so far' : 'Net loss so far', 'Rs '.Units::paiseToRupees(abs($o['net_profit'])))
+            Stat::make('Sales', Units::paiseToRupees($o['sales']))->description($o['month'])->url($pl),
+            Stat::make($o['net_profit'] >= 0 ? 'Net profit so far' : 'Net loss so far', Units::paiseToRupees(abs($o['net_profit'])))
                 ->color($o['net_profit'] >= 0 ? 'success' : 'danger')->url($pl),
-            Stat::make('Payroll cost', 'Rs '.Units::paiseToRupees($o['payroll_cost']))->description('Posted payroll this month'),
-            Stat::make('Milling cost per maund', $o['cost_per_maund'] === null ? '—' : 'Rs '.Units::paiseToRupees($o['cost_per_maund']))
+            Stat::make('Payroll cost', Units::paiseToRupees($o['payroll_cost']))->description('Posted payroll this month'),
+            Stat::make('Milling cost per maund', $o['cost_per_maund'] === null ? '—' : Units::paiseToRupees($o['cost_per_maund']))
                 ->description($o['cost_per_maund'] === null ? 'No paddy milled yet this month' : "{$o['maunds']} maunds milled"),
         ];
     }
