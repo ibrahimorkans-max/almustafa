@@ -364,6 +364,30 @@ paths:
         '200': { description: 'Withdrawn' }
         '404': { description: 'Not your request' }
         '422': { description: 'Not pending' }
+  /documents/me:
+    get:
+      summary: Own current documents (payslips, certificates…), newest first, at most 60; replaced revisions are left out
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      responses:
+        '200':
+          description: 'An empty list, with a message, when the login is not linked to an employee'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents: { type: array, items: { type: object, properties: { id: { type: string, format: uuid }, type: { type: string }, title: { type: string }, number: { type: string }, period: { type: [string, 'null'] }, issued_at: { type: string, format: date-time }, verify_code: { type: string } } } }
+                  message: { type: string }
+  /documents/{document}/pdf:
+    get:
+      summary: The original PDF of a document (the download is logged; Cache-Control no-store)
+      parameters:
+        - { $ref: '#/components/parameters/DeviceId' }
+        - { name: document, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: 'The PDF', content: { application/pdf: { schema: { type: string, format: binary } } } }
+        '403': { description: 'Someone else''s document, without hr.documents.generate' }
+        '404': { description: 'No such document' }
 components:
   securitySchemes:
     bearer: { type: http, scheme: bearer }

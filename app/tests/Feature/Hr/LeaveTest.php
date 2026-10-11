@@ -196,7 +196,7 @@ describe('screens', function () {
         Livewire::test(ListAttendanceLogs::class)
             ->callAction('import', ['file' => [UploadedFile::fake()->createWithContent('punches.csv', $csv)]])
             ->assertHasNoActionErrors()->assertNotified('2 punch(es) imported, 0 skipped as already imported.');
-        expect(AttendanceLog::query()->pluck('kind')->all())->toBe(['in', 'out']);
+        expect(AttendanceLog::query()->orderBy('occurred_at')->pluck('kind')->all())->toBe(['in', 'out']);
     });
 
     it('shows the leave tab on the employee and records a balance adjustment', function () {

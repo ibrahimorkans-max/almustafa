@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Access\PermissionCatalog;
 use App\Domain\Access\RoleTemplates;
 use App\Domain\Auth\AuthContextBinder;
+use App\Filament\Pages\MyDocumentsPage;
 use App\Filament\Pages\SwitchContext;
 use App\Filament\Resources\Pricing\PriceListResource\Pages\CreatePriceList;
 use App\Http\Middleware\EnsureWebAuthSession;
@@ -23,7 +24,12 @@ beforeEach(function () {
     $this->session = Make::webSession($this->sa);
 });
 
-/** @return list<string> every resource and page URL; record pages use a record the resource itself lists */
+/**
+ * Every resource and page URL; record pages use a record the resource itself lists. Personal pages (My
+ * documents) are left out: they show a login its own employee records, and a Super Admin has none.
+ *
+ * @return array<string, string>
+ */
 function adminUrls(LoginAccount $sa, ?string $workingEntity): array
 {
     auth('web')->setUser($sa);
@@ -39,7 +45,7 @@ function adminUrls(LoginAccount $sa, ?string $workingEntity): array
             }
         }
     }
-    foreach (Filament::getPanel('admin')->getPages() as $page) {
+    foreach (array_diff(Filament::getPanel('admin')->getPages(), [MyDocumentsPage::class]) as $page) {
         $urls[$page::getUrl()] = 'page';
     }
     Make::reset();
@@ -64,6 +70,9 @@ it('opens every admin screen of the working firm without a 403 or an error', fun
         }
     }
     expect($failures)->toBe([])->and(count(adminUrls($this->sa, $this->f->entity->id)))->toBeGreaterThan(60);
+
+    // No employee record behind a Super Admin, so no personal documents to show.
+    $this->actingAs($this->sa, 'web')->withSession($session)->get(MyDocumentsPage::getUrl())->assertForbidden();
 });
 
 it('in "All firms" mode opens every list and sends create screens to the firm switcher with an explanation', function () {
