@@ -30,7 +30,7 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property int $current_revision
  * @property string $quantity_kg
- * @property int $rate_paise_per_quintal
+ * @property int $rate_paise_per_maund
  * @property string $last_offer_by
  * @property Carbon|null $valid_until
  * @property string|null $sauda_id
@@ -66,7 +66,7 @@ class Quote extends Model
 
     protected $fillable = [
         'number', 'requirement_id', 'party_id', 'broker_party_id', 'product_id', 'quantity_kg',
-        'rate_paise_per_quintal', 'last_offer_by', 'valid_until',
+        'rate_paise_per_maund', 'last_offer_by', 'valid_until',
     ];
 
     /** @var array<string, mixed> */
@@ -76,7 +76,7 @@ class Quote extends Model
     {
         return [
             'quantity_kg' => 'decimal:3',
-            'rate_paise_per_quintal' => 'integer',
+            'rate_paise_per_maund' => 'integer',
             'current_revision' => 'integer',
             'valid_until' => 'datetime',
             'version' => 'integer',

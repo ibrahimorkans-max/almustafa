@@ -19,8 +19,8 @@ class CreatePaddyRequirement extends CreateRecord
     {
         return app(RequirementService::class)->create([
             'product_id' => $data['product_id'],
-            'quantity_kg' => Units::quintalToKg((string) $data['quantity_quintal']),
-            'target_rate_paise_per_quintal' => ($data['target_rate_rupees'] ?? '') === '' ? null : Units::rupeesToPaise((string) $data['target_rate_rupees']),
+            'quantity_kg' => Units::maundToKg((string) $data['quantity_maund']),
+            'target_rate_paise_per_maund' => ($data['target_rate_rupees'] ?? '') === '' ? null : Units::rupeesToPaise((string) $data['target_rate_rupees']),
             'quality_spec' => ['moisture_max_bp' => Units::percentToBp((string) ($data['moisture_max_percent'] ?? '17'))],
             'delivery_from' => $data['delivery_from'] ?? null,
             'delivery_to' => $data['delivery_to'] ?? null,

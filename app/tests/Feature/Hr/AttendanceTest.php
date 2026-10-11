@@ -19,7 +19,7 @@ use Illuminate\Support\Str;
 use Tests\Support\HrFixtures;
 use Tests\Support\Make;
 
-// Mill gate at Taraori (Karnal): the test geofence.
+// Mill gate (test geofence).
 const MILL_LAT = 29.7972;
 const MILL_LNG = 76.9921;
 const PHONE = 'phone-ramesh-000000001';

@@ -9,6 +9,7 @@ use App\Domain\Tenancy\BelongsToEntity;
 use App\Models\Masters\Party;
 use App\Support\Eloquent\HasOptimisticLock;
 use App\Support\Eloquent\TracksCreator;
+use App\Support\Values\PakistanIds;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,7 +28,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $party_id
  * @property string|null $bank_account_number
  * @property string|null $bank_account_last4
- * @property string|null $bank_ifsc
+ * @property string|null $bank_code
  * @property string|null $bank_name
  * @property string $status
  * @property int $version
@@ -46,7 +47,7 @@ class LedgerAccount extends Model
 
     protected $fillable = [
         'entity_id', 'group_id', 'code', 'name', 'kind', 'system_key', 'party_id',
-        'bank_account_number', 'bank_ifsc', 'bank_name', 'status',
+        'bank_account_number', 'bank_name', 'status',
     ];
 
     protected $hidden = ['bank_account_number'];
@@ -66,12 +67,10 @@ class LedgerAccount extends Model
     {
         static::saving(function (LedgerAccount $account): void {
             if ($account->bank_account_number !== null) {
-                $number = preg_replace('/\s+/', '', $account->bank_account_number) ?? '';
-                $account->bank_account_number = $number;
-                $account->bank_account_last4 = substr($number, -4);
-            }
-            if ($account->bank_ifsc !== null) {
-                $account->bank_ifsc = strtoupper(trim($account->bank_ifsc));
+                // The mill's account is held as its IBAN; the bank code is part of it.
+                $account->bank_account_number = PakistanIds::normalizeIban($account->bank_account_number);
+                $account->bank_account_last4 = substr((string) $account->bank_account_number, -4);
+                $account->bank_code = strlen((string) $account->bank_account_number) === 24 ? PakistanIds::bankCodeOfIban((string) $account->bank_account_number) : null;
             }
         });
     }

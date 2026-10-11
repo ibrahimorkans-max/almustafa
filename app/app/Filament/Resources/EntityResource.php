@@ -6,6 +6,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\EntityResource\Pages;
 use App\Models\Entity;
+use App\Support\Values\PakistanIds;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -34,20 +35,22 @@ class EntityResource extends Resource
             Section::make()->columns(2)->schema([
                 TextInput::make('code')->required()->maxLength(20)->alphaDash()
                     ->unique(ignoreRecord: true)->disabledOn('edit')
-                    ->helperText('Short code used in document numbers, e.g. KNL1.'),
+                    ->helperText('Short code used in document numbers, e.g. AMR.'),
                 TextInput::make('name')->required()->maxLength(255),
                 TextInput::make('legal_name')->maxLength(255),
-                TextInput::make('gstin')->label('GSTIN')->maxLength(15)
-                    ->regex('/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/i')
-                    ->dehydrateStateUsing(fn (?string $state) => $state ? strtoupper($state) : null)
-                    ->helperText('Stored encrypted.'),
-                TextInput::make('pan')->label('PAN')->maxLength(10)
-                    ->regex('/^[A-Z]{5}\d{4}[A-Z]$/i')
-                    ->dehydrateStateUsing(fn (?string $state) => $state ? strtoupper($state) : null)
-                    ->helperText('Stored encrypted.'),
-                TextInput::make('state_code')->label('GST state code')->length(2)->numeric(),
+                TextInput::make('ntn')->label('NTN')->maxLength(20)
+                    ->rule(fn () => fn (string $attribute, mixed $value, \Closure $fail) => PakistanIds::isValidNtn((string) PakistanIds::digits((string) $value)) ? null : $fail('NTN: 7 digits and the check digit (1234567-8), or the CNIC for an individual.'))
+                    ->dehydrateStateUsing(fn (?string $state) => PakistanIds::digits($state))
+                    ->formatStateUsing(fn (?string $state) => PakistanIds::formatNtn($state))
+                    ->helperText('Printed on every invoice. Stored encrypted.'),
+                TextInput::make('strn')->label('STRN (sales tax registration)')->maxLength(20)
+                    ->rule(fn () => fn (string $attribute, mixed $value, \Closure $fail) => PakistanIds::isValidStrn((string) PakistanIds::digits((string) $value)) ? null : $fail('STRN: 13 digits.'))
+                    ->dehydrateStateUsing(fn (?string $state) => PakistanIds::digits($state))
+                    ->helperText('Leave empty if the mill is not registered for sales tax: invoices then print as "Invoice" without tax lines. Stored encrypted.'),
+                TextInput::make('phone')->maxLength(40)->helperText('As printed on slips and invoices, e.g. 0300-6834588.'),
+                Select::make('province')->options(array_combine(PakistanIds::PROVINCES, PakistanIds::PROVINCES)),
                 TextInput::make('city')->maxLength(80),
-                TextInput::make('pincode')->label('PIN code')->length(6)->numeric(),
+                TextInput::make('postal_code')->label('Postal code')->length(5)->numeric(),
                 Textarea::make('address')->columnSpanFull()->rows(2),
                 Select::make('status')->options([
                     Entity::STATUS_ACTIVE => 'Active',
@@ -63,7 +66,7 @@ class EntityResource extends Resource
             ->columns([
                 TextColumn::make('code')->searchable()->sortable(),
                 TextColumn::make('name')->searchable(),
-                TextColumn::make('state_code')->label('State'),
+                TextColumn::make('city'),
                 TextColumn::make('status')->badge()->color(fn (string $state) => $state === Entity::STATUS_ACTIVE ? 'success' : 'danger'),
                 TextColumn::make('created_at')->dateTime()->sortable(),
             ])

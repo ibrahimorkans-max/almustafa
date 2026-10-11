@@ -64,12 +64,12 @@ it('runs bill → payment request → release → bank file from the screens', f
     $bill = $this->f->billFor($this->entry);
     signInP5($this, $this->f->accountant);
     Livewire::test(ViewPurchaseBill::class, ['record' => $bill->id])
-        ->assertSee('3,68,053.00')
+        ->assertSee('368,053.00')
         ->callAction('post', ['note' => 'Checked'])->assertNotified('Bill posted');
 
     Livewire::test(CreatePayment::class)
         ->fillForm([
-            'party_id' => $this->f->inv->gate->seller->id, 'mode' => 'neft', 'from_ledger_id' => $this->f->bank->id,
+            'party_id' => $this->f->inv->gate->seller->id, 'mode' => 'ibft', 'from_ledger_id' => $this->f->bank->id,
             'payment_date' => now()->toDateString(), 'amount' => '368053', 'bills' => [$bill->id],
         ])
         ->call('create')->assertHasNoFormErrors();
@@ -113,7 +113,7 @@ it('posts receipts and journals but keeps payments out of manual entry', functio
 
 it('imports a statement file and shows unmatched lines', function () {
     signInP5($this, $this->f->accountant);
-    $csv = "Date,Description,Reference,Debit,Credit\n".now('Asia/Kolkata')->format('d/m/Y').",BANK CHARGES,,17.70,\n";
+    $csv = "Date,Description,Reference,Debit,Credit\n".now('Asia/Karachi')->format('d/m/Y').",BANK CHARGES,,17.70,\n";
     Livewire::test(ListBankStatementLines::class)
         ->callAction('import', ['bank' => $this->f->bank->id, 'file' => UploadedFile::fake()->createWithContent('stmt.csv', $csv)])
         ->assertNotified('1 lines imported, 0 matched automatically');
@@ -128,7 +128,7 @@ it('renders every report and locks a month', function () {
     }
     Livewire::test(AccountsReports::class)->assertSee('Trial balance');
 
-    Livewire::test(ListPeriodLocks::class)->callAction('lock', ['period' => now('Asia/Kolkata')->subMonthNoOverflow()->format('Y-m')])->assertNotified();
+    Livewire::test(ListPeriodLocks::class)->callAction('lock', ['period' => now('Asia/Karachi')->subMonthNoOverflow()->format('Y-m')])->assertNotified();
     expect(PeriodLock::query()->sole()->locked)->toBeTrue();
 });
 

@@ -9,13 +9,13 @@ use Illuminate\Console\Command;
 
 final class PreflightCommand extends Command
 {
-    protected $signature = 'ricemill:preflight {--strict : Treat warnings as errors}';
+    protected $signature = 'ricemill:preflight {--strict : Treat warnings as errors} {--before-migrate : Deploy step before migrating: pending migrations are expected}';
 
     protected $description = 'Production readiness checks (configuration, security switches, row-level security, backups, server)';
 
     public function handle(Preflight $preflight): int
     {
-        $results = $preflight->run();
+        $results = $preflight->run((bool) $this->option('before-migrate'));
         $this->table(['', 'Check', 'Detail'], array_map(fn ($r) => [
             $r['ok'] ? '<info>ok</info>' : ($r['level'] === 'error' ? '<error>FAIL</error>' : '<comment>warn</comment>'),
             $r['check'], $r['detail'],

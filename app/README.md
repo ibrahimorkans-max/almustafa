@@ -1,4 +1,4 @@
-# Rice Mill ERP — Laravel application
+# Al Mustafa Rice Mills ERP — Laravel application
 
 ## Code map
 
@@ -12,10 +12,10 @@
 | `app/Domain/Settings` | Global / per-entity settings (e.g. login mode) |
 | `app/Domain/Sync` | `SyncService` (push/pull), `SyncRegistry` (event types + permissions), `SyncFeed` (gap-free change feed), `ConflictLog`, `ConflictResolver`, handlers |
 | `app/Models/Masters` | Master data on `MasterModel` (scope, audit, version, archive, change feed) |
-| `app/Support/Values` | `Weight` (kg, bcmath), `Money` (paise), `IndianIds` (GSTIN/PAN/IFSC/vehicle/mobile) |
+| `app/Support/Values` | `Weight` (kg, bcmath; maund = 40 kg), `Money` (paisa, Rs grouping), `AmountInWords`, `PakistanIds` (CNIC/NTN/STRN/IBAN/vehicle/mobile) |
 | `app/Domain/Procurement` | `RequirementService`, `QuoteService` (negotiation), `SaudaService` (lifecycle, maker-checker, deliveries, expiry) |
 | `app/Domain/Gate` | `GateService` (facts + projection), `DeductionCalculator`, `TareCheck`, `SlipRenderer` |
-| `app/Domain/Documents` | `DocumentNumbers` (gap-free per entity / series / Indian financial year) |
+| `app/Domain/Documents` | `DocumentNumbers` (gap-free per entity / series / July–June tax year), `PdfRenderer` (mPDF, shared letterhead, Urdu headings), `DocumentVerifier` |
 | `app/Domain/Files` | `FileStore` (content-addressed private files) |
 | `public/pwa` | Offline PWA: service worker, IndexedDB store, sync engine, gate vehicles screen |
 | `app/Http` | Thin API controllers (`/api/v1`), Form Requests, API Resources, middleware |

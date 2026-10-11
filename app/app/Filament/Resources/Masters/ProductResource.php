@@ -42,10 +42,11 @@ class ProductResource extends Resource
             TextInput::make('name')->required()->maxLength(160),
             Select::make('category')->options(static::categoryOptions())->required()->live(),
             TextInput::make('variety')->maxLength(60)->placeholder('1121, PR-126, Sharbati …'),
-            TextInput::make('hsn_code')->label('HSN code')->regex('/^\d{4}(\d{2}){0,2}$/')->placeholder('1006'),
-            Select::make('tax_rate_id')->label('GST rate')->relationship('taxRate', 'name')->preload(),
+            TextInput::make('pct_code')->label('PCT / HS code')->regex('/^\d{4}(\.\d{2,4})?$/')->placeholder('1006.3090')
+                ->helperText('Pakistan Customs Tariff heading, printed on the invoice and the sales-tax return.'),
+            Select::make('tax_rate_id')->label('Sales tax rate')->relationship('taxRate', 'name')->preload(),
             Select::make('brand_id')->label('Brand')->relationship('brand', 'name')->preload(),
-            Select::make('sale_unit')->options(['kg' => 'Kilogram', 'quintal' => 'Quintal (100 kg)', 'ton' => 'Ton (1000 kg)', 'bag' => 'Bag'])
+            Select::make('sale_unit')->options(['kg' => 'Kilogram', 'maund' => 'Maund (40 kg)', 'quintal' => 'Quintal (100 kg)', 'ton' => 'Ton (1000 kg)', 'bag' => 'Bag'])
                 ->default('kg')->required()->live()->helperText('Stock is always kept in kilograms.'),
             TextInput::make('bag_weight_kg')->label('Bag weight (kg)')->regex('/^\d{1,6}(\.\d{1,3})?$/')
                 ->required(fn (Get $get) => $get('sale_unit') === 'bag')->visible(fn (Get $get) => $get('sale_unit') === 'bag'),
@@ -69,8 +70,8 @@ class ProductResource extends Resource
                 TextColumn::make('name')->searchable(),
                 TextColumn::make('category')->badge(),
                 TextColumn::make('variety')->placeholder('—'),
-                TextColumn::make('hsn_code')->label('HSN')->placeholder('—'),
-                TextColumn::make('taxRate.name')->label('GST')->placeholder('—'),
+                TextColumn::make('pct_code')->label('PCT')->placeholder('—'),
+                TextColumn::make('taxRate.name')->label('Sales tax')->placeholder('—'),
                 TextColumn::make('brand.name')->placeholder('—'),
                 TextColumn::make('sale_unit'),
                 static::updatedColumn(),

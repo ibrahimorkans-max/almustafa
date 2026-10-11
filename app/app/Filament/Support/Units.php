@@ -8,7 +8,7 @@ use App\Support\Values\Money;
 use App\Support\Values\Weight;
 
 /**
- * Conversions between what people type/read (quintal, ₹/qtl, percent) and what is stored
+ * Conversions between what people type/read (maund, Rs/maund, percent) and what is stored
  * (kg, paise, basis points). String/integer arithmetic only.
  */
 final class Units
@@ -17,14 +17,14 @@ final class Units
 
     public const DECIMAL_3 = '/^\d{1,12}(\.\d{1,3})?$/';
 
-    public static function quintalToKg(string $quintal): string
+    public static function maundToKg(string $maund): string
     {
-        return Weight::from($quintal, 'quintal')->kg;
+        return Weight::from($maund, 'maund')->kg;
     }
 
-    public static function kgToQuintal(?string $kg): string
+    public static function kgToMaund(?string $kg): string
     {
-        return $kg === null ? '—' : Weight::kg($kg)->in('quintal', 2);
+        return $kg === null ? '—' : Weight::kg($kg)->in('maund', 2);
     }
 
     public static function rupeesToPaise(string $rupees): int

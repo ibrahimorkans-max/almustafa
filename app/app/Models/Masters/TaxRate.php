@@ -8,53 +8,57 @@ use App\Models\LoginAccount;
 use Illuminate\Validation\Rule;
 
 /**
- * GST rate in basis points (500 = 5 %).
+ * Sales-tax rate in basis points (1800 = 18 %, the standard rate). "Exempt" (Sixth Schedule) differs
+ * from a 0 % (zero-rated) supply on the return, so it is a separate flag; both charge no tax.
  *
  * @property string $name
- * @property int $gst_rate_bp
- * @property int $cess_rate_bp
+ * @property int $sales_tax_rate_bp
+ * @property bool $exempt
  * @property string $status
  */
 class TaxRate extends MasterModel
 {
     public const SYNC_TYPE = 'tax_rate';
 
-    /** Current GST slabs. */
-    public const GST_SLABS_BP = [0, 25, 300, 500, 1200, 1800, 2800];
+    /** Highest rate accepted (25 %), to catch typing mistakes; the standard rate is set by the Finance Act. */
+    public const MAX_RATE_BP = 2500;
 
-    protected $fillable = ['name', 'gst_rate_bp', 'cess_rate_bp', 'status'];
+    /** Installed for every new mill: [name, rate bp, exempt]. The tax adviser adjusts or adds rates. */
+    public const DEFAULTS = [['Exempt (Sixth Schedule)', 0, true], ['Standard 18%', 1800, false]];
+
+    protected $fillable = ['name', 'sales_tax_rate_bp', 'exempt', 'status'];
 
     protected function casts(): array
     {
-        return ['gst_rate_bp' => 'integer', 'cess_rate_bp' => 'integer', 'version' => 'integer', 'archived_at' => 'datetime'];
+        return ['sales_tax_rate_bp' => 'integer', 'exempt' => 'boolean', 'version' => 'integer', 'archived_at' => 'datetime'];
     }
 
     public function percentLabel(): string
     {
-        return rtrim(rtrim(number_format($this->gst_rate_bp / 100, 2, '.', ''), '0'), '.').'%';
+        return $this->exempt ? 'Exempt' : rtrim(rtrim(number_format($this->sales_tax_rate_bp / 100, 2, '.', ''), '0'), '.').'%';
     }
 
     public static function writeRules(?MasterModel $existing): array
     {
         return [
             'name' => ['required', 'string', 'max:60'],
-            'gst_rate_bp' => ['required', 'integer', Rule::in(self::GST_SLABS_BP)],
-            'cess_rate_bp' => ['sometimes', 'integer', 'min:0', 'max:10000'],
+            'sales_tax_rate_bp' => ['required', 'integer', 'min:0', 'max:'.self::MAX_RATE_BP],
+            'exempt' => ['sometimes', 'boolean'],
             'status' => ['sometimes', Rule::in(['active', 'inactive'])],
         ];
     }
 
     public static function writableFields(): array
     {
-        return ['name', 'gst_rate_bp', 'cess_rate_bp', 'status'];
+        return ['name', 'sales_tax_rate_bp', 'exempt', 'status'];
     }
 
     public function toSyncArray(LoginAccount $viewer): array
     {
         return $this->syncEnvelope() + [
             'name' => $this->name,
-            'gst_rate_bp' => $this->gst_rate_bp,
-            'cess_rate_bp' => $this->cess_rate_bp,
+            'sales_tax_rate_bp' => $this->sales_tax_rate_bp,
+            'exempt' => $this->exempt,
             'status' => $this->status,
         ];
     }

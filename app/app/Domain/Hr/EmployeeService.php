@@ -13,10 +13,11 @@ use App\Models\Hr\ClearanceItem;
 use App\Models\Hr\Department;
 use App\Models\Hr\Designation;
 use App\Models\Hr\Employee;
+use App\Models\Hr\Shift;
 use App\Models\LoginAccount;
 use App\Models\Person;
 use App\Support\BlindIndex;
-use App\Support\Values\IndianIds;
+use App\Support\Values\PakistanIds;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -27,7 +28,7 @@ use Illuminate\Support\Facades\DB;
 final class EmployeeService
 {
     /** Fields that hr.employee.sensitive.view can reveal. */
-    public const SENSITIVE = ['aadhaar', 'pan', 'bank_account_number', 'date_of_birth', 'address'];
+    public const SENSITIVE = ['cnic', 'ntn', 'bank_account_number', 'date_of_birth', 'address'];
 
     public function __construct(
         private readonly ActorContext $actor,
@@ -39,7 +40,7 @@ final class EmployeeService
     /**
      * @param  array<string, mixed>  $data  full_name, phone, email | person_id; department_id, designation_id,
      *                                      employment_type, joining_date, date_of_birth, address, emergency contact,
-     *                                      aadhaar, pan, notice_period_days
+     *                                      cnic, ntn, notice_period_days
      */
     public function create(array $data): Employee
     {
@@ -55,7 +56,7 @@ final class EmployeeService
             } else {
                 $person = Person::query()->create([
                     'full_name' => trim((string) $data['full_name']),
-                    'phone' => IndianIds::normalizeMobile($data['phone'] ?? null),
+                    'phone' => PakistanIds::normalizeMobile($data['phone'] ?? null),
                     'email' => $data['email'] ?? null,
                 ]);
             }
@@ -82,7 +83,7 @@ final class EmployeeService
             if (isset($data['full_name']) || array_key_exists('phone', $data) || array_key_exists('email', $data)) {
                 $employee->person->fill(array_filter([
                     'full_name' => isset($data['full_name']) ? trim((string) $data['full_name']) : null,
-                    'phone' => array_key_exists('phone', $data) ? IndianIds::normalizeMobile($data['phone']) : null,
+                    'phone' => array_key_exists('phone', $data) ? PakistanIds::normalizeMobile($data['phone']) : null,
                     'email' => $data['email'] ?? null,
                 ], fn ($v) => $v !== null))->save();
             }
@@ -206,29 +207,29 @@ final class EmployeeService
         if ($existing === null && empty($data['joining_date'])) {
             throw new BusinessRuleViolation('Enter the joining date.');
         }
-        foreach (['department_id' => Department::class, 'designation_id' => Designation::class] as $key => $model) {
+        foreach (['department_id' => Department::class, 'designation_id' => Designation::class, 'shift_id' => Shift::class] as $key => $model) {
             if (! empty($data[$key]) && ! $model::query()->whereKey($data[$key])->exists()) {
                 throw new BusinessRuleViolation('Unknown '.str_replace('_id', '', $key).'.');
             }
         }
-        if (! empty($data['aadhaar'])) {
-            $data['aadhaar'] = preg_replace('/\D+/', '', (string) $data['aadhaar']);
-            if (! IndianIds::isValidAadhaar($data['aadhaar'])) {
-                throw new BusinessRuleViolation('The Aadhaar number is not valid (check the 12 digits).');
+        if (! empty($data['cnic'])) {
+            $data['cnic'] = preg_replace('/\D+/', '', (string) $data['cnic']);
+            if (! PakistanIds::isValidCnic($data['cnic'])) {
+                throw new BusinessRuleViolation('The CNIC is not valid (13 digits, e.g. 31202-1234567-1).');
             }
-            $this->assertUnique('aadhaar_index', BlindIndex::of($data['aadhaar'], 'aadhaar'), $existing, 'Aadhaar');
+            $this->assertUnique('cnic_index', BlindIndex::of($data['cnic'], 'cnic'), $existing, 'CNIC');
         }
-        if (! empty($data['pan'])) {
-            $data['pan'] = strtoupper(trim((string) $data['pan']));
-            if (! IndianIds::isValidPan($data['pan'])) {
-                throw new BusinessRuleViolation('The PAN is not valid.');
+        if (! empty($data['ntn'])) {
+            $data['ntn'] = (string) PakistanIds::digits((string) $data['ntn']);
+            if (! PakistanIds::isValidNtn($data['ntn'])) {
+                throw new BusinessRuleViolation('The NTN is not valid (1234567-8, or the CNIC for an individual).');
             }
-            $this->assertUnique('pan_index', BlindIndex::of($data['pan'], 'pan'), $existing, 'PAN');
+            $this->assertUnique('ntn_index', BlindIndex::of($data['ntn'], 'ntn'), $existing, 'NTN');
         }
         if (! empty($data['date_of_birth'])) {
             $dob = CarbonImmutable::parse((string) $data['date_of_birth']);
-            if ($dob->greaterThan(now()->subYears(14))) {
-                throw new BusinessRuleViolation('The date of birth makes the employee younger than 14, which the law does not allow.');
+            if ($dob->greaterThan(now()->subYears(15))) {
+                throw new BusinessRuleViolation('The date of birth makes the employee younger than 15, which the Punjab Restriction on Employment of Children Act 2016 does not allow.');
             }
             $data['date_of_birth'] = $dob->toDateString();
         }

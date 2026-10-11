@@ -30,7 +30,7 @@ final class AttendanceController extends Controller
         }
         $device = $this->device($request);
         $binding = EmployeeDevice::query()->where('employee_id', $employee->id)->where('device_id', $device->id)->first();
-        $today = now()->timezone('Asia/Kolkata')->startOfDay()->utc();
+        $today = now()->timezone('Asia/Karachi')->startOfDay()->utc();
 
         return response()->json([
             'employee' => ['id' => $employee->id, 'code' => $employee->code, 'name' => $employee->name(), 'status' => $employee->status],

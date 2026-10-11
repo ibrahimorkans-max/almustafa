@@ -12,6 +12,7 @@ use App\Models\StoredFile;
 use App\Support\BlindIndex;
 use App\Support\Eloquent\HasOptimisticLock;
 use App\Support\Eloquent\TracksCreator;
+use App\Support\Values\PakistanIds;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -25,7 +26,7 @@ use Illuminate\Support\Carbon;
  * An employee is a person (name, phone, e-mail live on `persons`) employed by one entity. Their
  * ERP login, if any, is the login account of the same person in the same entity.
  *
- * Aadhaar, PAN, bank account, date of birth and address are encrypted; screens show the last four
+ * CNIC, NTN, bank account, date of birth and address are encrypted; screens show the last four
  * digits unless the viewer holds hr.employee.sensitive.view (each reveal is audited).
  *
  * @property string $id
@@ -35,6 +36,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $photo_file_id
  * @property string|null $department_id
  * @property string|null $designation_id
+ * @property string|null $shift_id
  * @property string $employment_type
  * @property string $status
  * @property Carbon $joining_date
@@ -42,16 +44,20 @@ use Illuminate\Support\Carbon;
  * @property string|null $address
  * @property string|null $emergency_contact_name
  * @property string|null $emergency_contact_phone
- * @property string|null $aadhaar
- * @property string|null $aadhaar_index
- * @property string|null $aadhaar_last4
- * @property string|null $pan
- * @property string|null $pan_index
- * @property string|null $pan_last4
+ * @property string|null $cnic
+ * @property string|null $cnic_index
+ * @property string|null $cnic_last4
+ * @property string|null $eobi_number
+ * @property string|null $pessi_number
+ * @property bool $eobi_applicable
+ * @property bool $pessi_applicable
+ * @property string|null $ntn
+ * @property string|null $ntn_index
+ * @property string|null $ntn_last4
  * @property string|null $bank_account_number
  * @property string|null $bank_account_index
  * @property string|null $bank_account_last4
- * @property string|null $bank_ifsc
+ * @property string|null $bank_code
  * @property string|null $bank_name
  * @property string|null $bank_account_holder
  * @property string|null $bank_approval_request_id
@@ -65,6 +71,7 @@ use Illuminate\Support\Carbon;
  * @property-read Person $person
  * @property-read Department|null $department
  * @property-read Designation|null $designation
+ * @property-read Shift|null $shift
  * @property-read StoredFile|null $photo
  * @property-read Collection<int, EmployeeDocument> $documents
  * @property-read Collection<int, SalaryStructure> $salaryStructures
@@ -87,21 +94,22 @@ class Employee extends Model
     public const EXITED = 'exited';
 
     protected $fillable = [
-        'person_id', 'photo_file_id', 'department_id', 'designation_id', 'employment_type', 'joining_date', 'date_of_birth',
-        'address', 'emergency_contact_name', 'emergency_contact_phone', 'aadhaar', 'pan', 'notice_period_days',
+        'person_id', 'photo_file_id', 'department_id', 'designation_id', 'shift_id', 'employment_type', 'joining_date', 'date_of_birth',
+        'address', 'emergency_contact_name', 'emergency_contact_phone', 'cnic', 'ntn', 'notice_period_days',
+        'eobi_number', 'pessi_number', 'eobi_applicable', 'pessi_applicable', 'contractor_party_id',
     ];
 
     /** Same defaults as the table, so a new model knows them before it is reloaded. */
     protected $attributes = ['status' => self::ACTIVE, 'notice_period_days' => 30];
 
     /** Never serialised: bank details and identifiers leave the model only through masked accessors. */
-    protected $hidden = ['aadhaar', 'aadhaar_index', 'pan', 'pan_index', 'bank_account_number', 'bank_account_index', 'date_of_birth', 'address'];
+    protected $hidden = ['cnic', 'cnic_index', 'ntn', 'ntn_index', 'bank_account_number', 'bank_account_index', 'date_of_birth', 'address'];
 
     /** @var list<string> recorded in the audit log as ****1234 */
-    protected array $auditMasked = ['aadhaar', 'pan', 'bank_account_number'];
+    protected array $auditMasked = ['cnic', 'ntn', 'bank_account_number'];
 
     /** @var list<string> recorded only as "[changed]" */
-    protected array $auditSecret = ['date_of_birth', 'address', 'aadhaar_index', 'pan_index', 'bank_account_index'];
+    protected array $auditSecret = ['date_of_birth', 'address', 'cnic_index', 'ntn_index', 'bank_account_index'];
 
     protected function casts(): array
     {
@@ -109,14 +117,16 @@ class Employee extends Model
             'joining_date' => 'date',
             'date_of_birth' => 'encrypted',
             'address' => 'encrypted',
-            'aadhaar' => 'encrypted',
-            'pan' => 'encrypted',
+            'cnic' => 'encrypted',
+            'ntn' => 'encrypted',
             'bank_account_number' => 'encrypted',
             'notice_period_days' => 'integer',
             'notice_given_on' => 'date',
             'last_working_day' => 'date',
             'exited_on' => 'date',
             'version' => 'integer',
+            'eobi_applicable' => 'boolean',
+            'pessi_applicable' => 'boolean',
             'archived_at' => 'datetime',
         ];
     }
@@ -126,20 +136,22 @@ class Employee extends Model
         static::addGlobalScope('not_archived', fn (Builder $q) => $q->whereNull('employees.archived_at'));
 
         static::saving(function (Employee $e): void {
-            if ($e->isDirty('aadhaar')) {
-                $e->aadhaar = self::digits($e->aadhaar);
-                $e->aadhaar_index = BlindIndex::of($e->aadhaar, 'aadhaar');
-                $e->aadhaar_last4 = $e->aadhaar !== null ? substr($e->aadhaar, -4) : null;
+            if ($e->isDirty('cnic')) {
+                $e->cnic = self::digits($e->cnic);
+                $e->cnic_index = BlindIndex::of($e->cnic, 'cnic');
+                $e->cnic_last4 = $e->cnic !== null ? substr($e->cnic, -4) : null;
             }
-            if ($e->isDirty('pan')) {
-                $e->pan = $e->pan !== null && trim($e->pan) !== '' ? strtoupper(trim($e->pan)) : null;
-                $e->pan_index = BlindIndex::of($e->pan, 'pan');
-                $e->pan_last4 = $e->pan !== null ? substr($e->pan, -4) : null;
+            if ($e->isDirty('ntn')) {
+                $e->ntn = self::digits($e->ntn);
+                $e->ntn_index = BlindIndex::of($e->ntn, 'ntn');
+                $e->ntn_last4 = $e->ntn !== null ? substr($e->ntn, -4) : null;
             }
             if ($e->isDirty('bank_account_number')) {
-                $e->bank_account_number = self::digits($e->bank_account_number);
+                // The salary account is held as its IBAN; the bank code is part of it.
+                $e->bank_account_number = PakistanIds::normalizeIban($e->bank_account_number);
                 $e->bank_account_index = BlindIndex::of($e->bank_account_number, 'bank_account');
                 $e->bank_account_last4 = $e->bank_account_number !== null ? substr($e->bank_account_number, -4) : null;
+                $e->bank_code = $e->bank_account_number !== null && strlen($e->bank_account_number) === 24 ? PakistanIds::bankCodeOfIban($e->bank_account_number) : null;
             }
         });
     }
@@ -156,19 +168,19 @@ class Employee extends Model
         return $last4 === null ? '—' : str_repeat('XXXX ', $groups).$last4;
     }
 
-    public function maskedAadhaar(): string
+    public function maskedCnic(): string
     {
-        return self::maskedTail($this->aadhaar_last4, 2);
+        return $this->cnic_last4 === null ? '—' : 'XXXXX-XXXX'.substr($this->cnic_last4, 0, 3).'-'.substr($this->cnic_last4, 3);
     }
 
-    public function maskedPan(): string
+    public function maskedNtn(): string
     {
-        return $this->pan_last4 === null ? '—' : 'XXXXXX'.$this->pan_last4;
+        return $this->ntn_last4 === null ? '—' : 'XXXX'.$this->ntn_last4;
     }
 
     public function maskedBankAccount(): string
     {
-        return $this->bank_account_last4 === null ? '—' : 'XXXXXX'.$this->bank_account_last4.' · '.$this->bank_ifsc;
+        return $this->bank_account_last4 === null ? '—' : 'PK** **** **** **** '.$this->bank_account_last4.' · '.$this->bank_code;
     }
 
     public function name(): string
@@ -209,6 +221,12 @@ class Employee extends Model
         return $this->belongsTo(Designation::class);
     }
 
+    /** @return BelongsTo<Shift, $this> */
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(Shift::class);
+    }
+
     /** @return BelongsTo<StoredFile, $this> */
     public function photo(): BelongsTo
     {
@@ -225,6 +243,12 @@ class Employee extends Model
     public function salaryStructures(): HasMany
     {
         return $this->hasMany(SalaryStructure::class);
+    }
+
+    /** @return HasMany<LeaveLedgerEntry, $this> */
+    public function leaveLedger(): HasMany
+    {
+        return $this->hasMany(LeaveLedgerEntry::class);
     }
 
     /** @return HasMany<ClearanceItem, $this> */

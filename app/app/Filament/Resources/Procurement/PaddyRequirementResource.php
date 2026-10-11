@@ -42,8 +42,8 @@ class PaddyRequirementResource extends Resource
         return $form->columns(2)->schema([
             Select::make('product_id')->label('Paddy')->required()->preload()
                 ->relationship('product', 'name', fn (Builder $query) => $query->where('category', 'paddy')),
-            TextInput::make('quantity_quintal')->label('Quantity (quintal)')->required()->regex(Units::DECIMAL_3),
-            TextInput::make('target_rate_rupees')->label('Target rate (₹ per quintal)')->regex(Units::DECIMAL_2),
+            TextInput::make('quantity_maund')->label('Quantity (maund)')->required()->regex(Units::DECIMAL_3),
+            TextInput::make('target_rate_rupees')->label('Target rate (Rs per maund)')->regex(Units::DECIMAL_2),
             TextInput::make('moisture_max_percent')->label('Max moisture (%)')->default('17')->regex(Units::DECIMAL_2),
             DatePicker::make('delivery_from'),
             DatePicker::make('delivery_to')->afterOrEqual('delivery_from'),
@@ -57,8 +57,8 @@ class PaddyRequirementResource extends Resource
             ->columns([
                 TextColumn::make('number')->searchable(),
                 TextColumn::make('product.name')->label('Paddy'),
-                TextColumn::make('quantity_kg')->label('Qty (qtl)')->formatStateUsing(fn (string $state) => Units::kgToQuintal($state))->alignEnd(),
-                TextColumn::make('target_rate_paise_per_quintal')->label('Target / qtl')->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state))->alignEnd(),
+                TextColumn::make('quantity_kg')->label('Qty (maund)')->formatStateUsing(fn (string $state) => Units::kgToMaund($state))->alignEnd(),
+                TextColumn::make('target_rate_paise_per_maund')->label('Target / maund')->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state))->alignEnd(),
                 TextColumn::make('recipients_count')->label('Sent to')->counts('recipients'),
                 TextColumn::make('quotes_count')->label('Quotes')->counts('quotes'),
                 TextColumn::make('status')->badge()->color(fn (string $state) => ['open' => 'success', 'closed' => 'gray'][$state] ?? 'warning'),

@@ -54,21 +54,21 @@ class ViewPriceList extends ViewRecord
                             ->groupBy('product_id')
                             ->map(function ($items) use ($pricing, $me) {
                                 $item = $items->sortByDesc(fn (PriceListItem $i) => $i->created_at->format('Y-m-d H:i:s.u').$i->id)->first();
-                                $margin = $pricing->margin($me, $item->product, $item->rate_paise_per_quintal);
+                                $margin = $pricing->margin($me, $item->product, $item->rate_paise_per_maund);
 
-                                return ['product' => $item->product->name, 'rate' => Units::paiseToRupees($item->rate_paise_per_quintal)] + ($margin === null ? [] : [
-                                    'cost' => Units::paiseToRupees($margin['cost_paise_per_quintal']),
-                                    'margin' => Units::paiseToRupees($margin['margin_paise_per_quintal']).($margin['margin_bp'] !== null ? ' ('.Units::bpToPercent($margin['margin_bp']).')' : ''),
-                                    'suggested' => Units::paiseToRupees($margin['suggested_paise_per_quintal']),
+                                return ['product' => $item->product->name, 'rate' => Units::paiseToRupees($item->rate_paise_per_maund)] + ($margin === null ? [] : [
+                                    'cost' => Units::paiseToRupees($margin['cost_paise_per_maund']),
+                                    'margin' => Units::paiseToRupees($margin['margin_paise_per_maund']).($margin['margin_bp'] !== null ? ' ('.Units::bpToPercent($margin['margin_bp']).')' : ''),
+                                    'suggested' => Units::paiseToRupees($margin['suggested_paise_per_maund']),
                                 ]);
                             })->values()->all();
                     })
                     ->schema([
                         TextEntry::make('product'),
-                        TextEntry::make('rate')->label('Rate / qtl'),
+                        TextEntry::make('rate')->label('Rate / maund'),
                         ...($seesMargin ? [
-                            TextEntry::make('cost')->label('Cost / qtl'),
-                            TextEntry::make('margin')->label('Margin / qtl'),
+                            TextEntry::make('cost')->label('Cost / maund'),
+                            TextEntry::make('margin')->label('Margin / maund'),
                             TextEntry::make('suggested')->label('Suggested (markup)'),
                         ] : []),
                     ]),
@@ -77,7 +77,7 @@ class ViewPriceList extends ViewRecord
                 RepeatableEntry::make('items')->hiddenLabel()->columns(4)->schema([
                     TextEntry::make('created_at')->label('From')->dateTime('d M Y H:i'),
                     TextEntry::make('product.name')->label('Product'),
-                    TextEntry::make('rate_paise_per_quintal')->label('Rate / qtl')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
+                    TextEntry::make('rate_paise_per_maund')->label('Rate / maund')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
                     TextEntry::make('reason')->placeholder('—'),
                 ]),
             ]),
@@ -93,7 +93,7 @@ class ViewPriceList extends ViewRecord
                 ->form([
                     Select::make('product_id')->label('Product')->required()->searchable()
                         ->options(fn () => Product::query()->whereIn('category', ['rice', 'by_product'])->orderBy('name')->pluck('name', 'id')),
-                    TextInput::make('rate')->label('New rate (₹ per quintal)')->required()->regex(Units::DECIMAL_2),
+                    TextInput::make('rate')->label('New rate (Rs per maund)')->required()->regex(Units::DECIMAL_2),
                     Textarea::make('reason')->required()->minLength(5)->maxLength(1000),
                 ])
                 ->action(function (PriceList $record, array $data): void {

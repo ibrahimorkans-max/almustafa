@@ -9,11 +9,13 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Hr\HrInstaller;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
+use App\Models\Masters\TaxRate;
 use App\Models\Role;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Creates an entity together with its default roles and grants and its chart of accounts, in one transaction.
+ * Creates an entity together with its default roles and grants, its chart of accounts, HR defaults and
+ * the two common sales-tax rates (exempt and standard), in one transaction.
  */
 final class EntityProvisioner
 {
@@ -57,6 +59,11 @@ final class EntityProvisioner
 
             $this->chart->install($entity->id);
             $this->hr->install($entity->id);
+            $this->tenant->runInEntity($entity->id, function (): void {
+                foreach (TaxRate::DEFAULTS as [$name, $bp, $exempt]) {
+                    TaxRate::query()->firstOrCreate(['name' => $name], ['sales_tax_rate_bp' => $bp, 'exempt' => $exempt]);
+                }
+            });
 
             return $entity;
         }));

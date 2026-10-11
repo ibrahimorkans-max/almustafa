@@ -11,8 +11,8 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Gap-free document numbers per entity, series and Indian financial year (April–March):
- *   KNL/P/2026-27/0001
+ * Gap-free document numbers per entity, series and Pakistani financial year (July–June):
+ *   AMR/P/2026-27/0001
  * The counter row is locked inside the caller's transaction, so a rolled-back document
  * does not consume a number.
  */
@@ -46,6 +46,18 @@ final class DocumentNumbers
 
     public const EMPLOYEE = 'EMP';
 
+    public const ADVANCE = 'ADV';
+
+    public const PAYROLL = 'PR';
+
+    public const PAYSLIP = 'PSL';
+
+    public const SALARY_PAYMENT = 'SPAY';
+
+    public const REIMBURSEMENT = 'RMB';
+
+    public const CONTRACTOR_BILL = 'CB';
+
     public function __construct(private readonly TenantContext $tenant) {}
 
     public function next(string $series, ?CarbonInterface $date = null): string
@@ -70,7 +82,7 @@ final class DocumentNumbers
     }
 
     /**
-     * Gap-free code that never resets (master records such as employees): KNL-EMP-0001.
+     * Gap-free code that never resets (master records such as employees): AMR-EMP-0001.
      * Uses the same locked counter table with the financial year "ALL".
      */
     public function nextCode(string $series): string
@@ -94,8 +106,8 @@ final class DocumentNumbers
     /** "2026-27" for any date from 1 Apr 2026 to 31 Mar 2027 (Indian time). */
     public static function financialYear(CarbonInterface $date): string
     {
-        $local = CarbonImmutable::instance($date)->setTimezone('Asia/Kolkata');
-        $start = $local->month >= 4 ? $local->year : $local->year - 1;
+        $local = CarbonImmutable::instance($date)->setTimezone('Asia/Karachi');
+        $start = $local->month >= 7 ? $local->year : $local->year - 1;
 
         return sprintf('%d-%02d', $start, ($start + 1) % 100);
     }

@@ -55,7 +55,7 @@ class ListVouchers extends ListRecords
                     ])
                     ->action(fn (array $data) => $this->postVoucher(fn (ManualVouchers $m) => $m->receipt(
                         Party::query()->findOrFail($data['party_id']), LedgerAccount::query()->findOrFail($data['into']),
-                        Units::rupeesToPaise($data['amount']), CarbonImmutable::parse($data['date'], 'Asia/Kolkata'), $data['narration'] ?? null,
+                        Units::rupeesToPaise($data['amount']), CarbonImmutable::parse($data['date'], 'Asia/Karachi'), $data['narration'] ?? null,
                         self::allocate(Units::rupeesToPaise($data['amount']), (array) ($data['invoices'] ?? [])),
                     ))),
                 Action::make('contra')->label('Contra (cash ↔ bank)')->icon('heroicon-o-arrows-right-left')
@@ -66,7 +66,7 @@ class ListVouchers extends ListRecords
                     ])
                     ->action(fn (array $data) => $this->postVoucher(fn (ManualVouchers $m) => $m->contra(
                         LedgerAccount::query()->findOrFail($data['from']), LedgerAccount::query()->findOrFail($data['to']),
-                        Units::rupeesToPaise($data['amount']), CarbonImmutable::parse($data['date'], 'Asia/Kolkata'), $data['narration'] ?? null,
+                        Units::rupeesToPaise($data['amount']), CarbonImmutable::parse($data['date'], 'Asia/Karachi'), $data['narration'] ?? null,
                     ))),
                 Action::make('journal')->label('Journal')->icon('heroicon-o-pencil-square')
                     ->modalDescription('Adjustments between ledgers. Bank and cash cannot be used here.')
@@ -80,7 +80,7 @@ class ListVouchers extends ListRecords
                         Textarea::make('narration')->required()->minLength(5)->maxLength(500),
                     ])
                     ->action(fn (array $data) => $this->postVoucher(fn (ManualVouchers $m) => $m->journal(
-                        CarbonImmutable::parse($data['date'], 'Asia/Kolkata'),
+                        CarbonImmutable::parse($data['date'], 'Asia/Karachi'),
                         array_map(fn (array $l) => [
                             'account' => LedgerAccount::query()->findOrFail($l['account']),
                             'dr' => filled($l['dr'] ?? null) ? Units::rupeesToPaise($l['dr']) : 0,

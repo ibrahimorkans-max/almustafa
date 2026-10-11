@@ -53,7 +53,7 @@ class AccessReviewPage extends Page
             Action::make('csv')->label('Export CSV')->icon('heroicon-o-arrow-down-tray')
                 ->action(fn () => response()->streamDownload(
                     fn () => print app(AccessReview::class)->csv(),
-                    'access-review-'.now()->timezone('Asia/Kolkata')->format('Y-m-d').'.csv',
+                    'access-review-'.now()->timezone('Asia/Karachi')->format('Y-m-d').'.csv',
                     ['Content-Type' => 'text/csv'],
                 )),
         ];

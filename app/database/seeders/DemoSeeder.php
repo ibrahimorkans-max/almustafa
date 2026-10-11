@@ -18,7 +18,7 @@ use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
- * Local/demo data: two mills with one user per role, plus one Super Admin.
+ * Local/demo data: Al Mustafa Rice Mills (Lodhran) with one user per role, plus one Super Admin.
  * Passwords are random and written to storage/app/private/demo-credentials.txt
  * (git-ignored). Every demo user must change the password at first sign-in.
  * Refuses to run in production.
@@ -26,8 +26,8 @@ use RuntimeException;
 class DemoSeeder extends Seeder
 {
     private const MILLS = [
-        ['code' => 'KNL', 'name' => 'Karnal Rice Mill (demo)', 'legal_name' => 'Karnal Agro Foods Pvt Ltd (demo)', 'state_code' => '06'],
-        ['code' => 'KKR', 'name' => 'Kurukshetra Rice Mill (demo)', 'legal_name' => 'Kurukshetra Grains LLP (demo)', 'state_code' => '06'],
+        ['code' => 'AMR', 'name' => 'Al Mustafa Rice Mills', 'legal_name' => 'Al Mustafa Rice Mills',
+            'address' => 'Adda Permat, 1 km Shujabad Road', 'city' => 'Lodhran', 'province' => 'Punjab', 'phone' => '0300-6834588'],
     ];
 
     public function run(TenantContext $tenant, EntityProvisioner $provisioner, AccessCatalogSync $catalog): void

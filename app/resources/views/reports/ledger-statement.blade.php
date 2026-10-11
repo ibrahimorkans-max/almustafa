@@ -1,36 +1,41 @@
 @php
-    use App\Filament\Support\Units;
-    $money = fn (int $p) => Units::paiseToRupees($p);
-    $bal = fn (int $p) => $p === 0 ? '0.00' : Units::paiseToRupees(abs($p)).($p > 0 ? ' Dr' : ' Cr');
+    use App\Support\Values\Money;
+    $small = false;
+    $money = fn (int $p) => Money::paise($p)->grouped();
+    $bal = fn (int $p) => $p === 0 ? '0.00' : Money::paise(abs($p))->grouped().($p > 0 ? ' Dr' : ' Cr');
+    $dr = array_sum(array_map(fn ($l) => (int) ($l['dr'] ?? 0), $statement['lines']));
+    $cr = array_sum(array_map(fn ($l) => (int) ($l['cr'] ?? 0), $statement['lines']));
 @endphp
-<!doctype html>
 <html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        body { font-family: DejaVu Sans, sans-serif; font-size: 10px; }
-        h1 { font-size: 14px; margin: 0 0 4px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-        th, td { padding: 3px 4px; border-bottom: 1px solid #ddd; text-align: left; }
-        .r { text-align: right; }
-        .muted { color: #666; }
-    </style>
-</head>
+<head><meta charset="utf-8">@include('pdf.styles')</head>
 <body>
-    <h1>Ledger statement — {{ $account->displayName() }}</h1>
-    <div class="muted">{{ $from->format('d M Y') }} to {{ $to->format('d M Y') }} · generated {{ now('Asia/Kolkata')->format('d M Y H:i') }} IST</div>
-    <table>
-        <thead><tr><th>Date</th><th>Voucher</th><th>Particulars</th><th class="r">Debit</th><th class="r">Credit</th><th class="r">Balance</th></tr></thead>
-        <tbody>
-            <tr><td colspan="5">Opening balance</td><td class="r">{{ $bal($statement['opening']) }}</td></tr>
-            @foreach ($statement['lines'] as $l)
-                <tr>
-                    <td>{{ \Carbon\Carbon::parse($l['date'])->format('d M Y') }}</td><td>{{ $l['number'] }}</td><td>{{ $l['memo'] ?? $l['narration'] }}</td>
-                    <td class="r">{{ $l['dr'] ? $money($l['dr']) : '' }}</td><td class="r">{{ $l['cr'] ? $money($l['cr']) : '' }}</td><td class="r">{{ $bal($l['balance']) }}</td>
-                </tr>
-            @endforeach
-            <tr><th colspan="5">Closing balance</th><th class="r">{{ $bal($statement['closing']) }}</th></tr>
-        </tbody>
-    </table>
+@include('pdf.letterhead', ['title' => 'ACCOUNT STATEMENT', 'titleUr' => 'کھاتہ', 'small' => $small])
+
+<table class="grid">
+    <tr>
+        <td class="label">Account</td><td class="b">{{ $account->displayName() }}</td>
+        <td class="label">Period</td><td>{{ $from->format('d M Y') }} to {{ $to->format('d M Y') }}</td>
+    </tr>
+</table>
+
+<table class="grid" repeat_header="1">
+    <thead>
+        <tr style="font-size: 8pt;"><th style="width: 11%;">Date</th><th style="width: 18%;">Voucher</th><th style="width: 25%;">Particulars</th><th class="r" style="width: 14%;">Debit (Rs)</th><th class="r" style="width: 14%;">Credit (Rs)</th><th class="r" style="width: 18%;">Balance (Rs)</th></tr>
+    </thead>
+    <tbody>
+        <tr style="font-size: 8pt;"><td colspan="5" class="b">Opening balance</td><td class="num b">{{ $bal($statement['opening']) }}</td></tr>
+        @foreach ($statement['lines'] as $l)
+            <tr style="font-size: 8pt;">
+                <td>{{ \Carbon\Carbon::parse($l['date'])->format('d M y') }}</td><td class="mono" style="font-size: 7pt;">{{ $l['number'] }}</td><td>{{ $l['memo'] ?? $l['narration'] }}</td>
+                <td class="num">{{ $l['dr'] ? $money($l['dr']) : '' }}</td><td class="num">{{ $l['cr'] ? $money($l['cr']) : '' }}</td><td class="num">{{ $bal($l['balance']) }}</td>
+            </tr>
+        @endforeach
+        <tr class="total" style="font-size: 8pt;"><td colspan="3">Totals for the period</td><td class="num">{{ $money($dr) }}</td><td class="num">{{ $money($cr) }}</td><td></td></tr>
+        <tr class="grand" style="font-size: 9pt;"><td colspan="5">Closing balance <span class="ur" style="font-size: 120%;">اختتامی بیلنس</span></td><td class="num">{{ $bal($statement['closing']) }}</td></tr>
+    </tbody>
+</table>
+
+<div class="box small muted">Dr = owed to {{ $brand['name'] }}; Cr = owed by {{ $brand['name'] }}. Please report any difference within 15 days of receiving this statement.</div>
+@include('pdf.signatures', ['signs' => [['Accountant', 'اکاؤنٹنٹ'], ['For '.$brand['name'], 'دستخط مجاز']]])
 </body>
 </html>

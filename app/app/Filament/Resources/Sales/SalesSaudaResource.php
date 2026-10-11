@@ -46,10 +46,10 @@ class SalesSaudaResource extends SaudaResource
                     ->relationship('product', 'name', fn (Builder $query) => $query->whereIn('category', ['rice', 'by_product'])),
             ]),
             Section::make('Terms')->columns(3)->schema([
-                TextInput::make('quantity_quintal')->label('Quantity (quintal)')->required()->regex(Units::DECIMAL_3),
-                TextInput::make('rate_rupees')->label('Rate (₹ per quintal, before GST)')->required()->regex(Units::DECIMAL_2),
+                TextInput::make('quantity_maund')->label('Quantity (maund)')->required()->regex(Units::DECIMAL_3),
+                TextInput::make('rate_rupees')->label('Rate (Rs per maund, before sales tax)')->required()->regex(Units::DECIMAL_2),
                 TextInput::make('tolerance_percent')->label('Delivery tolerance (± %)')->default('5')->regex(Units::DECIMAL_2),
-                TextInput::make('brokerage_rupees')->label('Brokerage (₹ per quintal)')->default('0')->regex(Units::DECIMAL_2),
+                TextInput::make('brokerage_rupees')->label('Brokerage (Rs per maund)')->default('0')->regex(Units::DECIMAL_2),
                 TextInput::make('payment_days')->label('Credit days')->integer()->minValue(0)->maxValue(365)->default(0),
                 DatePicker::make('delivery_from')->required(),
                 DatePicker::make('delivery_to')->required()->afterOrEqual('delivery_from'),
@@ -64,19 +64,19 @@ class SalesSaudaResource extends SaudaResource
         return $infolist->schema([
             ...$base,
             InfoSection::make('Price list')->columns(2)->schema([
-                TextEntry::make('list_rate')->label('List rate / qtl today')
+                TextEntry::make('list_rate')->label('List rate / maund today')
                     ->state(fn (Sauda $r) => Units::paiseToRupees(app(PricingService::class)->listRate($r->product)) ?: '—'),
                 TextEntry::make('vs_list')->label('Deal vs list')
                     ->state(function (Sauda $r): string {
                         $list = app(PricingService::class)->listRate($r->product);
 
-                        return $list === null ? 'no list rate' : ($r->rate_paise_per_quintal < $list
-                            ? 'Below list by '.Units::paiseToRupees($list - $r->rate_paise_per_quintal)
+                        return $list === null ? 'no list rate' : ($r->rate_paise_per_maund < $list
+                            ? 'Below list by '.Units::paiseToRupees($list - $r->rate_paise_per_maund)
                             : 'At or above list');
                     })
                     ->color(fn (string $state) => str_starts_with($state, 'Below') ? 'danger' : null),
             ]),
-            SalesBillResource::marginSection(fn (Sauda $r) => [$r->product, (int) $r->rate_paise_per_quintal]),
+            SalesBillResource::marginSection(fn (Sauda $r) => [$r->product, (int) $r->rate_paise_per_maund]),
         ]);
     }
 

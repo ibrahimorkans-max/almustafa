@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\Storage;
 final class EmployeeDocuments
 {
     /** Kinds that carry identity or bank numbers. */
-    public const SENSITIVE_KINDS = ['aadhaar', 'pan', 'bank_proof', 'id_proof'];
+    public const SENSITIVE_KINDS = ['cnic', 'ntn', 'bank_proof', 'id_proof'];
 
     public const REMINDER_DAYS = [30, 7, 0];
 
@@ -100,7 +100,7 @@ final class EmployeeDocuments
     /** Daily: alerts for active documents expiring in 30, 7 or 0 days (once per document and step). */
     public function remindExpiries(): int
     {
-        $today = now()->timezone('Asia/Kolkata')->startOfDay();
+        $today = now()->timezone('Asia/Karachi')->startOfDay();
         $raised = 0;
         foreach (self::REMINDER_DAYS as $days) {
             $day = $today->copy()->addDays($days)->toDateString();

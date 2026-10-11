@@ -7,7 +7,7 @@ namespace App\Filament\Resources\Masters;
 use App\Filament\Resources\Masters\Concerns\MasterResourceHelpers;
 use App\Filament\Resources\Masters\VehicleResource\Pages;
 use App\Models\Masters\Vehicle;
-use App\Support\Values\IndianIds;
+use App\Support\Values\PakistanIds;
 use Closure;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -35,12 +35,12 @@ class VehicleResource extends Resource
     {
         return $form->columns(2)->schema([
             TextInput::make('registration_no')->label('Registration no.')->required()->maxLength(20)
-                ->placeholder('HR05AB1234')
-                ->dehydrateStateUsing(fn (string $state) => IndianIds::normalizeVehicleNumber($state))
+                ->placeholder('MNA-21-1234')
+                ->dehydrateStateUsing(fn (string $state) => PakistanIds::normalizeVehicleNumber($state))
                 ->rule(fn (?Vehicle $record) => function (string $attribute, mixed $value, Closure $fail) use ($record): void {
-                    $normalized = IndianIds::normalizeVehicleNumber((string) $value);
-                    if (! IndianIds::isValidVehicleNumber($normalized)) {
-                        $fail('Not a valid Indian registration number (e.g. HR05AB1234 or 22BH1234AA).');
+                    $normalized = PakistanIds::normalizeVehicleNumber((string) $value);
+                    if (! PakistanIds::isValidVehicleNumber($normalized)) {
+                        $fail('Not a valid Pakistani registration number (e.g. MNA-21-1234, LES-1234).');
 
                         return;
                     }

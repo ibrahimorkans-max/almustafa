@@ -9,7 +9,7 @@ use JsonSerializable;
 use Stringable;
 
 /**
- * Indian rupees held as integer paise. Parsing and formatting never go through floats.
+ * Pakistani rupees held as integer paisa (1/100 rupee; columns keep the name "paise"). Parsing and formatting never go through floats.
  */
 final readonly class Money implements JsonSerializable, Stringable
 {
@@ -23,7 +23,7 @@ final readonly class Money implements JsonSerializable, Stringable
     /** "1234.5" / "1,234.50" / "-12" → paise */
     public static function rupees(string|int $rupees): self
     {
-        $value = str_replace([',', ' ', '₹'], '', trim((string) $rupees));
+        $value = str_replace([',', ' ', 'Rs.', 'Rs', 'PKR', '₨'], '', trim((string) $rupees));
         if (preg_match('/^(-?)(\d{1,15})(?:\.(\d{1,2}))?$/', $value, $m) !== 1) {
             throw new InvalidArgumentException("Invalid amount '{$rupees}' (max 2 decimals).");
         }
@@ -51,15 +51,18 @@ final readonly class Money implements JsonSerializable, Stringable
         return ($this->paise < 0 ? '-' : '').intdiv($abs, 100).'.'.str_pad((string) ($abs % 100), 2, '0', STR_PAD_LEFT);
     }
 
-    /** Indian grouping: ₹12,34,567.89 */
+    /** Pakistani style, grouped in thousands: Rs 1,234,567.89 */
     public function format(): string
     {
-        [$whole, $fraction] = explode('.', ltrim($this->toDecimal(), '-'));
-        $last3 = substr($whole, -3);
-        $rest = substr($whole, 0, -3);
-        $grouped = $rest === '' ? $last3 : preg_replace('/\B(?=(\d{2})+(?!\d))/', ',', $rest).','.$last3;
+        return ($this->paise < 0 ? '-' : '').'Rs '.$this->grouped();
+    }
 
-        return ($this->paise < 0 ? '-' : '').'₹'.$grouped.'.'.$fraction;
+    /** 1,234,567.89 without the currency (for table columns headed "Rs"). */
+    public function grouped(): string
+    {
+        [$whole, $fraction] = explode('.', ltrim($this->toDecimal(), '-'));
+
+        return preg_replace('/\B(?=(\d{3})+(?!\d))/', ',', $whole).'.'.$fraction;
     }
 
     public function __toString(): string

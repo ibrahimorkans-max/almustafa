@@ -28,7 +28,8 @@ class StoredFile extends Model
     use HasUuids;
     use TracksCreator;
 
-    public const ALLOWED_MIME = ['image/jpeg', 'image/png', 'application/pdf'];
+    // CSV / text: biometric attendance files kept as evidence of an import.
+    public const ALLOWED_MIME = ['image/jpeg', 'image/png', 'application/pdf', 'text/csv', 'text/plain'];
 
     public const MAX_BYTES = 5 * 1024 * 1024;
 

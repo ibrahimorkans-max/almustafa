@@ -88,7 +88,7 @@ class ProductionBatchResource extends Resource
             return null;
         }
 
-        return 'In stock here: '.Units::kgToQuintal(app(StockLedger::class)->balance($product, $godown)->kg).' qtl';
+        return 'In stock here: '.Units::kgToMaund(app(StockLedger::class)->balance($product, $godown)->kg).' maund';
     }
 
     public static function table(Table $table): Table
@@ -100,8 +100,8 @@ class ProductionBatchResource extends Resource
                 TextColumn::make('paddy.name')->label('Paddy'),
                 TextColumn::make('line')->placeholder('—'),
                 TextColumn::make('status')->badge()->color(fn (string $state) => $state === 'open' ? 'warning' : 'success'),
-                TextColumn::make('input_kg')->label('Paddy in (qtl)')->alignEnd()->formatStateUsing(fn (string $state) => Units::kgToQuintal($state)),
-                TextColumn::make('output_kg')->label('Output (qtl)')->alignEnd()->formatStateUsing(fn (string $state) => Units::kgToQuintal($state)),
+                TextColumn::make('input_kg')->label('Paddy in (maund)')->alignEnd()->formatStateUsing(fn (string $state) => Units::kgToMaund($state)),
+                TextColumn::make('output_kg')->label('Output (maund)')->alignEnd()->formatStateUsing(fn (string $state) => Units::kgToMaund($state)),
                 TextColumn::make('unaccounted')->label('Unaccounted loss')
                     ->state(fn (ProductionBatch $record) => $record->yield_snapshot
                         ? Units::bpToPercent((int) $record->yield_snapshot['unaccounted_bp'])

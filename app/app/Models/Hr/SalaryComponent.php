@@ -40,12 +40,12 @@ class SalaryComponent extends Model
     public const DEFAULTS = [
         ['BASIC', 'Basic', 'earning', false, 10],
         ['HRA', 'House rent allowance', 'earning', false, 20],
-        ['CONV', 'Conveyance', 'earning', false, 30],
+        ['CONV', 'Conveyance allowance', 'earning', false, 30],
+        ['MEDICAL', 'Medical allowance', 'earning', false, 35],
         ['SPECIAL', 'Special allowance', 'earning', false, 40],
-        ['PF', 'Provident fund (employee)', 'deduction', true, 110],
-        ['ESI', 'ESI (employee)', 'deduction', true, 120],
-        ['PT', 'Professional tax', 'deduction', true, 130],
-        ['TDS', 'Income tax (TDS)', 'deduction', true, 140],
+        ['EOBI', 'EOBI (employee share)', 'deduction', true, 110],
+        ['PF', 'Provident fund (employee, if the mill has a fund)', 'deduction', false, 120],
+        ['TAX', 'Income tax on salary (s. 149)', 'deduction', true, 140],
         ['ADV', 'Advance recovery', 'deduction', false, 150],
     ];
 

@@ -27,7 +27,7 @@ class StockOverview extends StatsOverviewWidget
         $stock = app(DashboardMetrics::class)->stockByCategory();
         $stats = [];
         foreach (['paddy' => 'Paddy in stock', 'rice' => 'Rice in stock', 'by_product' => 'By-products in stock'] as $category => $label) {
-            $stats[] = Stat::make($label, number_format(((float) ($stock[$category] ?? 0)) / 100, 1).' qtl')->url(StockBalanceResource::getUrl('index'));
+            $stats[] = Stat::make($label, number_format(((float) ($stock[$category] ?? 0)) / 40, 1).' maund')->url(StockBalanceResource::getUrl('index'));
         }
 
         return $stats;

@@ -6,7 +6,7 @@ namespace App\Support;
 
 /**
  * Deterministic keyed hash of a normalised value, stored next to an encrypted column so it can
- * be searched and kept unique without decrypting (GSTIN, PAN, bank account number).
+ * be searched and kept unique without decrypting (NTN, CNIC, STRN, IBAN).
  * The key is separate from the encryption key (RICEMILL_BLIND_INDEX_KEY, falls back to a key
  * derived from APP_KEY).
  */

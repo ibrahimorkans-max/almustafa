@@ -8,6 +8,7 @@ use App\Domain\Approvals\Contracts\ApprovalAction;
 use App\Domain\Approvals\Contracts\ExplainsCheckerRule;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Hr\Payroll\PayrollLocks;
 use App\Models\ApprovalRequest;
 use App\Models\Hr\AttendanceLog;
 use App\Models\Hr\Employee;
@@ -63,17 +64,20 @@ final class ManualAttendance implements ApprovalAction, ExplainsCheckerRule
         if ($employee->person_id === $maker->person_id) {
             throw ValidationException::withMessages(['employee_id' => 'You cannot enter your own attendance.']);
         }
-        $at = CarbonImmutable::parse((string) $data['at'], 'Asia/Kolkata');
+        $at = CarbonImmutable::parse((string) $data['at'], 'Asia/Karachi');
         if ($at->isFuture()) {
             throw ValidationException::withMessages(['at' => 'Attendance cannot be entered for a future time.']);
         }
         if ($at->lessThan(CarbonImmutable::parse($employee->joining_date)->startOfDay())) {
             throw ValidationException::withMessages(['at' => 'This is before the employee joined.']);
         }
+        if (PayrollLocks::isLocked($at)) {
+            throw ValidationException::withMessages(['at' => 'The payroll for '.$at->format('M Y').' has locked its attendance; correct it in a later month or ask payroll to unlock the run.']);
+        }
 
         return [
             'employee_id' => $employee->id, 'employee' => "{$employee->code} {$employee->name()}",
-            'kind' => $data['kind'], 'at' => $at->utc()->toIso8601String(), 'at_ist' => $at->timezone('Asia/Kolkata')->format('d M Y H:i'),
+            'kind' => $data['kind'], 'at' => $at->utc()->toIso8601String(), 'at_ist' => $at->timezone('Asia/Karachi')->format('d M Y H:i'),
             'reason' => trim($data['reason']),
         ];
     }
@@ -82,6 +86,9 @@ final class ManualAttendance implements ApprovalAction, ExplainsCheckerRule
     {
         $p = $request->payload;
         $employee = Employee::query()->find($p['employee_id']) ?? throw new ApprovalDenied('Employee no longer exists.');
+        if (PayrollLocks::isLocked(CarbonImmutable::parse((string) $p['at']))) {
+            throw new ApprovalDenied('The payroll for that month has locked its attendance since this was requested; correct it in a later month or unlock the run first.');
+        }
         $now = now();
         $log = AttendanceLog::query()->create([
             'employee_id' => $employee->id, 'kind' => $p['kind'], 'source' => 'manual',

@@ -14,7 +14,7 @@ use App\Models\Hr\EmployeeDocument;
 use App\Models\LoginAccount;
 use App\Models\Person;
 use App\Models\Role;
-use App\Support\Values\IndianIds;
+use App\Support\Values\PakistanIds;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -29,42 +29,43 @@ const PDF_BYTES = "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n";
 
 describe('employee master', function () {
     it('creates an employee as a person with a gap-free code, encrypted identifiers and masked display', function () {
-        $aadhaar = HrFixtures::aadhaar(123);
-        $a = $this->f->employee(['aadhaar' => substr($aadhaar, 0, 4).' '.substr($aadhaar, 4, 4).' '.substr($aadhaar, 8)]);
-        $b = $this->f->employee(['full_name' => 'Suresh Pal']);
+        $cnic = HrFixtures::cnic(123);
+        $a = $this->f->employee(['cnic' => substr($cnic, 0, 4).' '.substr($cnic, 4, 4).' '.substr($cnic, 8)]);
+        $b = $this->f->employee(['full_name' => 'Ghulam Rasool']);
 
         expect($a->code)->toBe('HRE-EMP-0001')->and($b->code)->toBe('HRE-EMP-0002')
-            ->and($a->person->full_name)->toBe('Ramesh Kumar')
-            ->and($a->aadhaar_last4)->toBe(substr($aadhaar, -4))
-            ->and($a->maskedAadhaar())->toBe('XXXX XXXX '.substr($aadhaar, -4))
-            ->and($a->toArray())->not->toHaveKeys(['aadhaar', 'pan', 'date_of_birth', 'address']);
+            ->and($a->person->full_name)->toBe('Muhammad Iqbal')
+            ->and($a->cnic_last4)->toBe(substr($cnic, -4))
+            ->and($a->maskedCnic())->toBe('XXXXX-XXXX'.substr($cnic, -4, 3).'-'.substr($cnic, -1))
+            ->and($a->toArray())->not->toHaveKeys(['cnic', 'ntn', 'date_of_birth', 'address']);
 
         $raw = Make::system(fn () => DB::table('employees')->where('id', $a->id)->first());
-        expect($raw->aadhaar)->not->toContain($aadhaar)->and($raw->pan)->not->toContain($a->pan)
-            ->and($raw->address)->not->toContain('Taraori')->and($raw->date_of_birth)->not->toContain('1990');
+        expect($raw->cnic)->not->toContain($cnic)->and($raw->ntn)->not->toContain($a->ntn)
+            ->and($raw->address)->not->toContain('Islampura')->and($raw->date_of_birth)->not->toContain('1990');
 
         $log = Make::system(fn () => AuditLog::query()->where('subject_id', $a->id)->where('action', 'like', '%created%')->first());
-        expect(json_encode($log->new_values))->not->toContain($aadhaar)->not->toContain('Taraori');
+        expect(json_encode($log->new_values))->not->toContain($cnic)->not->toContain('Islampura');
     });
 
-    it('validates Aadhaar (check digit), PAN and age, and keeps Aadhaar / PAN unique within the entity', function () {
+    it('validates CNIC, NTN and age, and keeps CNIC / NTN unique within the entity', function () {
         $svc = app(EmployeeService::class);
         $this->f->as($this->f->hr);
         $base = ['full_name' => 'X Y', 'employment_type' => 'permanent', 'joining_date' => '2026-04-01'];
-        $valid = HrFixtures::aadhaar(77);
-        $wrongCheck = substr($valid, 0, 11).(((int) substr($valid, -1) + 1) % 10);
+        $valid = HrFixtures::cnic(77);
+        $noRegion = '8'.substr($valid, 1); // CNICs start with a region digit 1–7
 
-        expect(IndianIds::isValidAadhaar($valid))->toBeTrue()->and(IndianIds::isValidAadhaar($wrongCheck))->toBeFalse()
-            ->and(fn () => $svc->create($base + ['aadhaar' => $wrongCheck]))->toThrow(BusinessRuleViolation::class, 'Aadhaar number is not valid')
-            ->and(fn () => $svc->create($base + ['pan' => 'ABCDE12345']))->toThrow(BusinessRuleViolation::class, 'PAN is not valid')
-            ->and(fn () => $svc->create($base + ['date_of_birth' => now()->subYears(12)->toDateString()]))->toThrow(BusinessRuleViolation::class, 'younger than 14');
+        expect(PakistanIds::isValidCnic($valid))->toBeTrue()->and(PakistanIds::isValidCnic($noRegion))->toBeFalse()
+            ->and(fn () => $svc->create($base + ['cnic' => $noRegion]))->toThrow(BusinessRuleViolation::class, 'CNIC is not valid')
+            ->and(fn () => $svc->create($base + ['cnic' => '36203-123456-1']))->toThrow(BusinessRuleViolation::class, 'CNIC is not valid')
+            ->and(fn () => $svc->create($base + ['ntn' => 'ABCDE12345']))->toThrow(BusinessRuleViolation::class, 'NTN is not valid')
+            ->and(fn () => $svc->create($base + ['date_of_birth' => now()->subYears(12)->toDateString()]))->toThrow(BusinessRuleViolation::class, 'younger than 15');
 
-        $first = $this->f->employee(['aadhaar' => $valid]);
-        expect(fn () => $this->f->employee(['aadhaar' => $valid]))->toThrow(BusinessRuleViolation::class, "already recorded for employee {$first->code}");
+        $first = $this->f->employee(['cnic' => $valid]);
+        expect(fn () => $this->f->employee(['cnic' => $valid]))->toThrow(BusinessRuleViolation::class, "already recorded for employee {$first->code}");
 
         // The same person may also work for another firm of the group.
         $other = new HrFixtures(Make::entity('HR2'));
-        expect($other->employee(['aadhaar' => $valid])->code)->toBe('HR2-EMP-0001');
+        expect($other->employee(['cnic' => $valid])->code)->toBe('HR2-EMP-0001');
     });
 
     it('lets HR edit, the supervisor only look, and nobody else touch the master', function () {
@@ -72,20 +73,20 @@ describe('employee master', function () {
         $this->f->as($this->f->supervisor);
         expect(fn () => app(EmployeeService::class)->update($e, ['notice_period_days' => 15]))->toThrow(BusinessRuleViolation::class, 'hr.employee.edit');
         $this->f->as($this->f->hr);
-        $updated = app(EmployeeService::class)->update($e, ['notice_period_days' => 15, 'full_name' => 'Ramesh K. Sharma']);
-        expect($updated->notice_period_days)->toBe(15)->and($updated->person->full_name)->toBe('Ramesh K. Sharma');
+        $updated = app(EmployeeService::class)->update($e, ['notice_period_days' => 15, 'full_name' => 'Muhammad Iqbal Khan']);
+        expect($updated->notice_period_days)->toBe(15)->and($updated->person->full_name)->toBe('Muhammad Iqbal Khan');
     });
 
     it('reveals full identifiers only with hr.employee.sensitive.view, and audits every reveal', function () {
         $e = $this->f->employee();
         $this->f->as($this->f->accountant);
-        expect(fn () => app(EmployeeService::class)->reveal($e, 'aadhaar'))->toThrow(BusinessRuleViolation::class, 'hr.employee.sensitive.view');
+        expect(fn () => app(EmployeeService::class)->reveal($e, 'cnic'))->toThrow(BusinessRuleViolation::class, 'hr.employee.sensitive.view');
 
         $this->f->as($this->f->hr);
-        expect(app(EmployeeService::class)->reveal($e, 'aadhaar'))->toHaveLength(12)
+        expect(app(EmployeeService::class)->reveal($e, 'cnic'))->toHaveLength(13)
             ->and(app(EmployeeService::class)->reveal($e, 'date_of_birth'))->toBe('1990-05-17');
         $reveals = Make::system(fn () => AuditLog::query()->where('action', 'hr.employee.sensitive_revealed')->where('subject_id', $e->id)->get());
-        expect($reveals)->toHaveCount(2)->and($reveals->pluck('meta.field')->all())->toBe(['aadhaar', 'date_of_birth'])
+        expect($reveals)->toHaveCount(2)->and($reveals->pluck('meta.field')->all())->toBe(['cnic', 'date_of_birth'])
             ->and($reveals->first()->actor_login_account_id)->toBe($this->f->hr->id);
     });
 });
@@ -129,8 +130,8 @@ describe('documents', function () {
         $e = $this->f->employee();
         $docs = app(EmployeeDocuments::class);
         $this->f->as($this->f->hr);
-        $first = $docs->upload($e, 'aadhaar', '', PDF_BYTES);
-        $second = $docs->upload($e, 'aadhaar', 'Aadhaar (new)', PDF_BYTES."% v2\n");
+        $first = $docs->upload($e, 'cnic', '', PDF_BYTES);
+        $second = $docs->upload($e, 'cnic', 'CNIC (new)', PDF_BYTES."% v2\n");
         $contract = $docs->upload($e, 'contract', 'Appointment letter', PDF_BYTES."% contract\n");
 
         expect($first->fresh()->status)->toBe('superseded')->and($first->fresh()->superseded_by)->toBe($second->id)
@@ -159,7 +160,7 @@ describe('documents', function () {
     it('reminds HR 30, 7 and 0 days before a document expires, once each', function () {
         $e = $this->f->employee();
         $this->f->as($this->f->hr);
-        $today = now()->timezone('Asia/Kolkata')->startOfDay();
+        $today = now()->timezone('Asia/Karachi')->startOfDay();
         app(EmployeeDocuments::class)->upload($e, 'contract', 'Contract', PDF_BYTES, CarbonImmutable::instance($today)->addDays(30));
         app(EmployeeDocuments::class)->upload($e, 'id_proof', 'Driving licence', PDF_BYTES.'dl', CarbonImmutable::instance($today)->addDays(7));
         app(EmployeeDocuments::class)->upload($e, 'other', 'Medical certificate', PDF_BYTES.'med', CarbonImmutable::instance($today)->addDays(12));
@@ -176,11 +177,11 @@ describe('salary account (maker-checker)', function () {
         $e = $this->f->employee();
         $this->f->as($this->f->hr);
         $req = app(ApprovalService::class)->submit(EmployeeBankAccountChange::KEY,
-            ['employee_id' => $e->id, 'account_holder' => 'Ramesh Kumar', 'account_number' => '50100123456789', 'ifsc' => 'hdfc0001234'],
+            ['employee_id' => $e->id, 'account_holder' => 'Muhammad Iqbal', 'account_number' => 'pk 27 habb 0000 0050 1001 3456'],
             'Salary account', 'Joining');
 
         expect($e->fresh()->bank_account_last4)->toBeNull()
-            ->and(json_encode(Make::system(fn () => DB::table('approval_requests')->where('id', $req->id)->value('payload'))))->not->toContain('50100123456789')
+            ->and(json_encode(Make::system(fn () => DB::table('approval_requests')->where('id', $req->id)->value('payload'))))->not->toContain('0000005010013456')
             ->and(app(ApprovalService::class)->decisionBlocker($this->f->hr, $req))->toContain('cannot approve your own request')
             ->and(app(ApprovalService::class)->decisionBlocker($this->f->supervisor, $req))->not->toBeNull();
 
@@ -191,10 +192,10 @@ describe('salary account (maker-checker)', function () {
         $done = app(ApprovalService::class)->approve($req, $this->f->owner, 'Checked against the passbook');
         $fresh = $e->fresh();
         expect($done->status)->toBe(ApprovalRequest::STATUS_EXECUTED)
-            ->and($fresh->bank_account_last4)->toBe('6789')->and($fresh->bank_ifsc)->toBe('HDFC0001234')
-            ->and($fresh->maskedBankAccount())->toBe('XXXXXX6789 · HDFC0001234');
+            ->and($fresh->bank_account_last4)->toBe('3456')->and($fresh->bank_code)->toBe('HABB')
+            ->and($fresh->maskedBankAccount())->toBe('PK** **** **** **** 3456 · HABB');
         $log = Make::system(fn () => AuditLog::query()->where('action', 'hr.employee.bank_account_changed')->sole());
-        expect(json_encode($log->meta))->not->toContain('50100123456789')->toContain('XXXXXX6789');
+        expect(json_encode($log->meta))->not->toContain('0000005010013456')->toContain('XXXXXX3456');
     });
 });
 

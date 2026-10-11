@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  *  excess_weight: deduct (value − free) × factor/10000 percent of net weight
  *                 (factor 10000 = "1 % weight per 1 % excess moisture")
- *  rate_cut:      cut factor paise per quintal for every full 1 % above free
+ *  rate_cut:      cut factor paisa per maund for every full 1 % above free
  *  per_bag:       deduct factor grams per bag (bag weight, "bardana")
  *
  * @property string $id

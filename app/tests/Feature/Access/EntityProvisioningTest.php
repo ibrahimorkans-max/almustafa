@@ -25,7 +25,7 @@ it('creates an entity with every default role and its grants', function () {
     }
 });
 
-it('lets a Super Admin create an entity from the admin panel, storing GSTIN/PAN encrypted', function () {
+it('lets a Super Admin create an entity from the admin panel, storing NTN/STRN encrypted', function () {
     $home = Make::entity('HQ');
     $sa = Make::superAdmin($home);
     Filament::setCurrentPanel(Filament::getPanel('admin'));
@@ -34,21 +34,23 @@ it('lets a Super Admin create an entity from the admin panel, storing GSTIN/PAN 
 
     Livewire::test(CreateEntity::class)
         ->fillForm([
-            'code' => 'PNP', 'name' => 'Panipat Mill', 'gstin' => '06abcde1234f1z5', 'pan' => 'ABCDE1234F',
-            'state_code' => '06', 'status' => 'active',
+            'code' => 'LDN', 'name' => 'Lodhran Mill', 'ntn' => '1234567-8', 'strn' => '32-77-8765-432-10',
+            'province' => 'Punjab', 'city' => 'Lodhran', 'phone' => '0300-6834588', 'status' => 'active',
         ])
         ->call('create')
         ->assertHasNoFormErrors();
 
-    $entity = Entity::query()->where('code', 'PNP')->sole();
+    $entity = Entity::query()->where('code', 'LDN')->sole();
     $raw = Make::system(fn () => DB::table('entities')->where('id', $entity->id)->first());
 
-    expect($entity->gstin)->toBe('06ABCDE1234F1Z5')
-        ->and($raw->gstin)->not->toContain('06ABCDE1234F1Z5')
-        ->and($raw->pan)->not->toContain('ABCDE1234F')
+    expect($entity->ntn)->toBe('12345678')
+        ->and($entity->strn)->toBe('3277876543210')
+        ->and($entity->province)->toBe('Punjab')
+        ->and($raw->strn)->not->toContain('3277876543210')
+        ->and($raw->ntn)->not->toContain('12345678')
         ->and(Make::system(fn () => Role::query()->where('entity_id', $entity->id)->count()))->toBe(count(RoleTemplates::entityRoleCodes()))
-        ->and(Make::system(fn () => AuditLog::query()->where('action', 'entity.created')->where('subject_id', $entity->id)->first()?->new_values['gstin']))
-        ->toBe('***********F1Z5');
+        ->and(Make::system(fn () => AuditLog::query()->where('action', 'entity.created')->where('subject_id', $entity->id)->first()?->new_values['strn']))
+        ->toBe('*********3210');
 });
 
 it('does not let an Owner create entities', function () {

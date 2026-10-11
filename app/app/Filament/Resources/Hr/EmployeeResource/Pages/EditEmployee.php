@@ -17,7 +17,7 @@ class EditEmployee extends EditRecord
     protected static string $resource = EmployeeResource::class;
 
     /**
-     * Identifiers are never put into the form in clear: Aadhaar / PAN stay empty (masked placeholder)
+     * Identifiers are never put into the form in clear: CNIC / NTN stay empty (masked placeholder)
      * and are changed only when something new is typed. Date of birth and address are filled only for
      * people allowed to see them.
      *
@@ -32,11 +32,11 @@ class EditEmployee extends EditRecord
 
         return [
             'full_name' => $e->person->full_name, 'phone' => $e->person->phone, 'email' => $e->person->email,
-            'department_id' => $e->department_id, 'designation_id' => $e->designation_id,
+            'department_id' => $e->department_id, 'designation_id' => $e->designation_id, 'shift_id' => $e->shift_id,
             'employment_type' => $e->employment_type, 'joining_date' => $e->joining_date->toDateString(),
             'notice_period_days' => $e->notice_period_days,
             'emergency_contact_name' => $e->emergency_contact_name, 'emergency_contact_phone' => $e->emergency_contact_phone,
-            'aadhaar' => null, 'pan' => null,
+            'cnic' => null, 'ntn' => null,
             'date_of_birth' => $sensitive ? $e->date_of_birth : null,
             'address' => $sensitive ? $e->address : null,
         ];
@@ -46,7 +46,7 @@ class EditEmployee extends EditRecord
     protected function handleRecordUpdate(Model $record, array $data): Model
     {
         /** @var Employee $record */
-        $data = array_filter($data, fn ($v, $k) => ! (in_array($k, ['aadhaar', 'pan'], true) && blank($v)), ARRAY_FILTER_USE_BOTH);
+        $data = array_filter($data, fn ($v, $k) => ! (in_array($k, ['cnic', 'ntn'], true) && blank($v)), ARRAY_FILTER_USE_BOTH);
         unset($data['joining_date']);
         if (! EmployeeResource::canSeeSensitive()) {
             unset($data['date_of_birth'], $data['address']);

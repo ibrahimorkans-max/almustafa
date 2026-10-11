@@ -6,7 +6,7 @@ namespace App\Models\Masters;
 
 use App\Domain\Tenancy\TenantContext;
 use App\Models\LoginAccount;
-use App\Support\Values\IndianIds;
+use App\Support\Values\PakistanIds;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -36,7 +36,7 @@ class Driver extends MasterModel
         parent::booted();
 
         static::saving(function (Driver $driver): void {
-            $driver->phone = IndianIds::normalizeMobile($driver->phone) ?? $driver->phone;
+            $driver->phone = PakistanIds::normalizeMobile($driver->phone) ?? $driver->phone;
             $driver->licence_no = $driver->licence_no !== null ? strtoupper(preg_replace('/[\s-]/', '', $driver->licence_no) ?? '') : null;
         });
     }

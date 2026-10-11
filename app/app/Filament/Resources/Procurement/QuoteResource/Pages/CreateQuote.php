@@ -22,8 +22,8 @@ class CreateQuote extends CreateRecord
             'party_id' => $data['party_id'],
             'broker_party_id' => $data['broker_party_id'] ?? null,
             'product_id' => $data['product_id'],
-            'quantity_kg' => Units::quintalToKg((string) $data['quantity_quintal']),
-            'rate_paise_per_quintal' => Units::rupeesToPaise((string) $data['rate_rupees']),
+            'quantity_kg' => Units::maundToKg((string) $data['quantity_maund']),
+            'rate_paise_per_maund' => Units::rupeesToPaise((string) $data['rate_rupees']),
             'valid_until' => $data['valid_until'] ?? null,
         ], (string) $data['by'], $data['note'] ?? null);
     }

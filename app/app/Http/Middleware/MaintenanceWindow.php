@@ -30,7 +30,7 @@ final class MaintenanceWindow
 
         $until = CarbonImmutable::parse($window->ends_at, 'UTC');
         $retryAfter = max(60, (int) now()->diffInSeconds($until, true));
-        $back = $until->timezone('Asia/Kolkata');
+        $back = $until->timezone('Asia/Karachi');
         $headers = ['Retry-After' => (string) $retryAfter];
 
         if ($request->is('api/*') || $request->expectsJson()) {

@@ -37,7 +37,7 @@ function weigh(object $t, GateEntry $e, string $kind, string $kg, ?array $readin
 /** Inbound paddy, start to finish. */
 function fullInbound(object $t, string $gross = '25480.000', string $tare = '10230.000', int $moistureBp = 1850): GateEntry
 {
-    $e = $t->gate->arrive(['registration_no' => 'hr 05 ab 1234', 'sauda_id' => $t->sauda->id, 'bag_count' => 400]);
+    $e = $t->gate->arrive(['registration_no' => 'mna 21 1234', 'sauda_id' => $t->sauda->id, 'bag_count' => 400]);
     weigh($t, $e, 'gross', $gross);
     $t->gate->recordLabTest($e, ['moisture_bp' => $moistureBp, 'foreign_matter_bp' => 350, 'grade' => 'A']);
     $t->gate->decideLab($e, true);
@@ -61,7 +61,7 @@ it('runs the inbound paddy flow and books the payable weight on the sauda', func
         ->and($e->net_kg)->toBe('15250.000')
         ->and($e->deduction_kg)->toBe('468.750')
         ->and($e->payable_kg)->toBe('14781.250')
-        ->and($e->rate_cut_paise_per_quintal)->toBe(1000) // foreign matter 3.5 % → 1 full point × ₹10
+        ->and($e->rate_cut_paise_per_maund)->toBe(400) // foreign matter 3.5 % → 1 full point × Rs 4
         ->and($e->events()->pluck('event')->all())
         ->toBe(['arrived', 'gross_weighed', 'lab_accepted', 'unloaded', 'tare_weighed', 'slip_issued', 'exited']);
 
@@ -72,7 +72,7 @@ it('runs the inbound paddy flow and books the payable weight on the sauda', func
 });
 
 it('enforces the order of steps on screens', function () {
-    $e = $this->gate->arrive(['registration_no' => 'HR05AB1234']);
+    $e = $this->gate->arrive(['registration_no' => 'MNA211234']);
 
     expect(fn () => weigh($this, $e, 'tare', '10000'))->toThrow(BusinessRuleViolation::class, 'before')
         ->and(fn () => $this->gate->markUnloaded($e))->toThrow(BusinessRuleViolation::class, 'lab')
@@ -80,7 +80,7 @@ it('enforces the order of steps on screens', function () {
 });
 
 it('lets a rejected lot leave without unloading and books nothing', function () {
-    $e = $this->gate->arrive(['registration_no' => 'HR05AB1234', 'sauda_id' => $this->sauda->id]);
+    $e = $this->gate->arrive(['registration_no' => 'MNA211234', 'sauda_id' => $this->sauda->id]);
     weigh($this, $e, 'gross', '25000');
     $this->gate->recordLabTest($e, ['moisture_bp' => 2400]);
     $this->gate->decideLab($e, false, 'Too wet');
@@ -90,7 +90,7 @@ it('lets a rejected lot leave without unloading and books nothing', function () 
 });
 
 it('requires a note to accept a lot above a reject limit', function () {
-    $e = $this->gate->arrive(['registration_no' => 'HR05AB1234', 'sauda_id' => $this->sauda->id]);
+    $e = $this->gate->arrive(['registration_no' => 'MNA211234', 'sauda_id' => $this->sauda->id]);
     weigh($this, $e, 'gross', '25000');
     $this->gate->recordLabTest($e, ['moisture_bp' => 2300]);
 
@@ -100,7 +100,7 @@ it('requires a note to accept a lot above a reject limit', function () {
 });
 
 it('splits lab work: technicians test, supervisors decide', function () {
-    $e = $this->gate->arrive(['registration_no' => 'HR05AB1234']);
+    $e = $this->gate->arrive(['registration_no' => 'MNA211234']);
     weigh($this, $e, 'gross', '25000');
 
     $this->f->as(Make::account($this->f->entity, 'LAB_TECHNICIAN'));
@@ -110,7 +110,7 @@ it('splits lab work: technicians test, supervisors decide', function () {
 
 describe('weighment evidence', function () {
     beforeEach(function () {
-        $this->e = $this->gate->arrive(['registration_no' => 'HR05AB1234']);
+        $this->e = $this->gate->arrive(['registration_no' => 'MNA211234']);
     });
 
     it('flags unstable readings and missing photos but keeps the record', function () {
@@ -125,7 +125,7 @@ describe('weighment evidence', function () {
         expect(weigh($this, $this->e, 'gross', '25000')->flags)->toContain('scale_certificate_invalid');
 
         config(['ricemill.gate.block_uncertified_scale' => true]);
-        $other = $this->gate->arrive(['registration_no' => 'HR05AB1234']);
+        $other = $this->gate->arrive(['registration_no' => 'MNA211234']);
         expect(fn () => weigh($this, $other, 'gross', '25000'))->toThrow(BusinessRuleViolation::class, 'certificate');
     });
 
@@ -147,7 +147,7 @@ describe('weighment evidence', function () {
         foreach (['10200', '10250', '10230'] as $tare) {
             fullInbound($this, tare: $tare);
         }
-        $e = $this->gate->arrive(['registration_no' => 'HR05AB1234', 'sauda_id' => $this->sauda->id]);
+        $e = $this->gate->arrive(['registration_no' => 'MNA211234', 'sauda_id' => $this->sauda->id]);
         weigh($this, $e, 'gross', '25000');
         $this->gate->recordLabTest($e, ['moisture_bp' => 1600]);
         $this->gate->decideLab($e, true);
@@ -169,7 +169,7 @@ describe('weighment evidence', function () {
 
 describe('manual weight override', function () {
     beforeEach(function () {
-        $this->e = $this->gate->arrive(['registration_no' => 'HR05AB1234']);
+        $this->e = $this->gate->arrive(['registration_no' => 'MNA211234']);
         $this->sa = Make::superAdmin($this->f->entity);
     });
 
@@ -183,7 +183,7 @@ describe('manual weight override', function () {
         $this->f->as($this->sa);
         $request = app(ApprovalService::class)->submit(ManualWeighmentOverride::KEY, [
             'gate_entry_id' => $this->e->id, 'kind' => 'gross', 'weight_kg' => '25000', 'reason' => 'Indicator display broken, read from printer tape',
-        ], 'Manual gross for HR05AB1234');
+        ], 'Manual gross for MNA211234');
 
         expect(Weighment::query()->count())->toBe(0)
             ->and(app(ApprovalService::class)->canDecide($this->sa, $request))->toBeFalse();

@@ -60,7 +60,7 @@ describe('claims', function () {
 
         $this->f->as($this->f->acc->owner);
         expect(fn () => ($this->claims)()->approve($claim, 1_200_001))->toThrow(BusinessRuleViolation::class, 'not more than');
-        ($this->claims)()->approve($claim, 1_055_250, 'Agreed 250 kg at invoice rate incl. GST');
+        ($this->claims)()->approve($claim, 1_055_250, 'Agreed 250 kg at invoice rate incl. sales tax');
 
         $this->f->as($this->f->acc->accountant);
         $settled = ($this->claims)()->settle($claim->fresh());
@@ -68,17 +68,17 @@ describe('claims', function () {
             ->map(fn ($l) => [$l->account->code, $l->dr_paise, $l->cr_paise])->all();
 
         expect($settled->status)->toBe('settled')
-            ->and($lines)->toBe([['SAL-CLAIMS', 1_005_000, 0], ['GST-OUT-IGST', 50_250, 0], ['P-C-DEL', 0, 1_055_250]])
+            ->and($lines)->toBe([['SAL-CLAIMS', 1_005_000, 0], ['ST-OUTPUT', 50_250, 0], ['P-C-KHI', 0, 1_055_250]])
             ->and(app(SalesBillService::class)->outstanding($invoice->fresh()))->toBe(42_210_000 - 1_055_250)
             ->and(app(AccountReports::class)->receivablesAgeing(now())[0]['outstanding'])->toBe(42_210_000 - 1_055_250)
             ->and(ClaimEvent::query()->where('claim_id', $claim->id)->pluck('event')->all())->toBe(['raised', 'approved', 'settled']);
     });
 
-    it('splits CGST and SGST for a buyer in the same state', function () {
-        $invoice = postedInvoice($this, $this->f->saleSauda($this->f->localBuyer));
+    it('splits a credit note into value and sales tax in the invoice proportion', function () {
+        $invoice = postedInvoice($this, $this->f->saleSauda($this->f->multanBuyer));
         $split = ClaimService::split(1_055_250, $invoice);
 
-        expect($split)->toBe(['taxable' => 1_005_000, 'cgst' => 25_125, 'sgst' => 25_125, 'igst' => 0])
+        expect($split)->toBe(['taxable' => 1_005_000, 'sales_tax' => 50_250, 'further_tax' => 0])
             ->and(array_sum($split))->toBe(1_055_250);
     });
 
@@ -96,7 +96,7 @@ describe('claims', function () {
 
         expect(app(PurchaseBillService::class)->outstanding($bill->fresh()))->toBe(36_805_300 - 400_000)
             ->and(app(Books::class)->balance(app(ChartOfAccounts::class)->system('purchase_claims')))->toBe(-400_000);
-        expect(fn () => app(PaymentService::class)->request($this->f->inv->gate->seller, 'neft', $this->f->acc->bank, 36_805_300, now(), [$bill->id => 36_805_300]))
+        expect(fn () => app(PaymentService::class)->request($this->f->inv->gate->seller, 'ibft', $this->f->acc->bank, 36_805_300, now(), [$bill->id => 36_805_300]))
             ->toThrow(BusinessRuleViolation::class, 'outstanding');
     });
 
@@ -154,7 +154,7 @@ describe('pricing', function () {
         expect($pricing->listRate($this->f->inv->rice))->toBe(425000)
             ->and($items)->toHaveCount(2)
             ->and($items[1]->supersedes_id)->toBe($items[0]->id);
-        expect(fn () => DB::table('price_list_items')->update(['rate_paise_per_quintal' => 1]))->toThrow(QueryException::class);
+        expect(fn () => DB::table('price_list_items')->update(['rate_paise_per_maund' => 1]))->toThrow(QueryException::class);
     });
 
     it('shows cost and margin only to those allowed, with the real figures', function () {
@@ -166,10 +166,10 @@ describe('pricing', function () {
         $pricing = app(PricingService::class);
         $pricing->setMarkup('rice', 2500);
 
-        expect($pricing->margin($this->f->dispatcher, $this->f->inv->rice, 420000))->toBeNull()
-            ->and($pricing->margin($this->f->acc->accountant, $this->f->inv->rice, 420000))->toBeNull()
-            ->and($pricing->margin($this->f->acc->owner, $this->f->inv->rice, 420000))->toBe([
-                'cost_paise_per_quintal' => 300000, 'margin_paise_per_quintal' => 120000, 'margin_bp' => 2857, 'suggested_paise_per_quintal' => 375000,
+        expect($pricing->margin($this->f->dispatcher, $this->f->inv->rice, 168000))->toBeNull()
+            ->and($pricing->margin($this->f->acc->accountant, $this->f->inv->rice, 168000))->toBeNull()
+            ->and($pricing->margin($this->f->acc->owner, $this->f->inv->rice, 168000))->toBe([
+                'cost_paise_per_maund' => 120000, 'margin_paise_per_maund' => 48000, 'margin_bp' => 2857, 'suggested_paise_per_maund' => 150000,
             ]);
 
         $this->f->as($this->f->dispatcher);
@@ -181,9 +181,9 @@ describe('archive', function () {
     beforeEach(function () {
         $this->f->as($this->f->dispatcher);
         $gate = app(GateService::class);
-        $this->old = $gate->arrive(['registration_no' => 'HR05AB1234']);
+        $this->old = $gate->arrive(['registration_no' => 'MNA211234']);
         $gate->cancel($this->old, 'Driver left');
-        $this->recent = $gate->arrive(['registration_no' => 'HR05AB1234']);
+        $this->recent = $gate->arrive(['registration_no' => 'MNA211234']);
         $gate->cancel($this->recent, 'Driver left');
         DB::table('gate_entries')->where('id', $this->old->id)->update(['updated_at' => now()->subMonths(30)]);
     });
@@ -204,7 +204,7 @@ describe('archive', function () {
             ->and(GateEntry::query()->count())->toBe(2)
             ->and(Make::system(fn () => AuditLog::query()->where('action', 'archive.run')->exists()))->toBeTrue(); // global chain: the run spans all mills
 
-        $found = $archive->search('hr05ab');
+        $found = $archive->search('mna21');
         expect($found)->toHaveCount(1)->and($found[0])->toMatchArray(['type' => 'gate_entry', 'id' => $this->old->id]);
 
         expect(fn () => $archive->restore('gate_entry', $this->old->id, 'oops'))->toThrow(BusinessRuleViolation::class, 'reason');
@@ -215,9 +215,9 @@ describe('archive', function () {
 
     it('lets only the right roles search and restore', function () {
         $this->f->as($this->f->dispatcher);
-        expect(fn () => app(ArchiveService::class)->search('HR05'))->toThrow(BusinessRuleViolation::class, 'archive.search');
+        expect(fn () => app(ArchiveService::class)->search('MNA2'))->toThrow(BusinessRuleViolation::class, 'archive.search');
         $this->f->as($this->f->acc->accountant); // can search, cannot restore
-        expect(app(ArchiveService::class)->search('HR05'))->toBe([]);
+        expect(app(ArchiveService::class)->search('MNA2'))->toBe([]);
         expect(fn () => app(ArchiveService::class)->restore('gate_entry', $this->old->id, 'A good long reason here'))->toThrow(BusinessRuleViolation::class, 'archive.restore');
     });
 });

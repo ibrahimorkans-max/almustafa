@@ -106,32 +106,32 @@ final class AnomalyScanner
             if ($sauda->direction === 'purchase') {
                 $rates = Sauda::query()->where('direction', 'purchase')->where('product_id', $sauda->product_id)->whereKeyNot($sauda->id)
                     ->whereNotNull('approved_at')->where('approved_at', '>=', CarbonImmutable::instance($sauda->approved_at)->subDays(30))
-                    ->where('approved_at', '<', $sauda->approved_at)->pluck('rate_paise_per_quintal')->map(fn ($v) => (float) $v)->all();
+                    ->where('approved_at', '<', $sauda->approved_at)->pluck('rate_paise_per_maund')->map(fn ($v) => (float) $v)->all();
                 if (count($rates) < 3) {
                     continue;
                 }
                 $median = self::median($rates);
-                $dev = (int) round(($sauda->rate_paise_per_quintal - $median) * 10000 / $median);
+                $dev = (int) round(($sauda->rate_paise_per_maund - $median) * 10000 / $median);
                 if (abs($dev) > $limit) {
                     yield [
                         "rate_outlier|{$sauda->id}",
                         sprintf('Purchase rate %s%% from the 30-day median: sauda %s', number_format($dev / 100, 1), $sauda->number),
-                        sprintf('₹%s/qtl against a median of ₹%s/qtl over %d deals (limit ±%s%%).', number_format($sauda->rate_paise_per_quintal / 100, 2),
+                        sprintf('Rs %s/maund against a median of Rs %s/maund over %d deals (limit ±%s%%).', number_format($sauda->rate_paise_per_maund / 100, 2),
                             number_format($median / 100, 2), count($rates), number_format($limit / 100, 0)),
-                        ['sauda' => $sauda->number, 'rate' => $sauda->rate_paise_per_quintal, 'median' => $median, 'deviation_bp' => $dev],
+                        ['sauda' => $sauda->number, 'rate' => $sauda->rate_paise_per_maund, 'median' => $median, 'deviation_bp' => $dev],
                         'deal.approve',
                     ];
                 }
             } else {
                 $list = $this->pricing->listRate($sauda->product, $sauda->approved_at);
-                if ($list !== null && $sauda->rate_paise_per_quintal < $list) {
-                    $dev = (int) round(($list - $sauda->rate_paise_per_quintal) * 10000 / $list);
+                if ($list !== null && $sauda->rate_paise_per_maund < $list) {
+                    $dev = (int) round(($list - $sauda->rate_paise_per_maund) * 10000 / $list);
                     if ($dev > $limit) {
                         yield [
                             "rate_outlier|{$sauda->id}",
                             sprintf('Sale %s%% below the list rate: sauda %s', number_format($dev / 100, 1), $sauda->number),
-                            sprintf('₹%s/qtl against the list rate ₹%s/qtl.', number_format($sauda->rate_paise_per_quintal / 100, 2), number_format($list / 100, 2)),
-                            ['sauda' => $sauda->number, 'rate' => $sauda->rate_paise_per_quintal, 'list' => $list, 'deviation_bp' => $dev],
+                            sprintf('Rs %s/maund against the list rate Rs %s/maund.', number_format($sauda->rate_paise_per_maund / 100, 2), number_format($list / 100, 2)),
+                            ['sauda' => $sauda->number, 'rate' => $sauda->rate_paise_per_maund, 'list' => $list, 'deviation_bp' => $dev],
                             'deal.approve',
                         ];
                     }
@@ -145,7 +145,7 @@ final class AnomalyScanner
     {
         [$open, $close] = config('ricemill.anomalies.working_hours');
         $outside = function (CarbonInterface $at) use ($open, $close): bool {
-            $t = CarbonImmutable::instance($at)->setTimezone('Asia/Kolkata')->format('H:i');
+            $t = CarbonImmutable::instance($at)->setTimezone('Asia/Karachi')->format('H:i');
 
             return $t < $open || $t >= $close;
         };
@@ -154,7 +154,7 @@ final class AnomalyScanner
                 $entry = GateEntry::query()->find($w->gate_entry_id);
                 yield [
                     "after_hours|weighment|{$w->id}",
-                    sprintf('Weighment at %s IST outside working hours (%s)', $w->captured_at->timezone('Asia/Kolkata')->format('d M H:i'), $entry?->registration_no),
+                    sprintf('Weighment at %s PKT outside working hours (%s)', $w->captured_at->timezone('Asia/Karachi')->format('d M H:i'), $entry?->registration_no),
                     sprintf('Working hours are %s–%s. %s %s kg on %s.', $open, $close, ucfirst($w->kind), $w->weight_kg, $entry?->number),
                     ['weighment_id' => $w->id, 'gate_entry' => $entry?->number],
                     'approval.decide',
@@ -165,7 +165,7 @@ final class AnomalyScanner
             if ($outside($e->occurred_at)) {
                 yield [
                     "after_hours|barrier|{$e->id}",
-                    sprintf('Barrier opened by hand at %s IST, outside working hours', $e->occurred_at->timezone('Asia/Kolkata')->format('d M H:i')),
+                    sprintf('Barrier opened by hand at %s PKT, outside working hours', $e->occurred_at->timezone('Asia/Karachi')->format('d M H:i')),
                     'Reason given: '.$e->reason,
                     ['device_event_id' => $e->id],
                     'approval.decide',

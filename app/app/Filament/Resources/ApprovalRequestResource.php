@@ -104,7 +104,7 @@ class ApprovalRequestResource extends Resource
                     ->listWithLineBreaks()->badge()->color('danger')
                     ->visible(fn (ApprovalRequest $r) => isset($r->payload['before'])),
                 KeyValueEntry::make('payload_view')->label('Payload')
-                    // Encrypted secrets (bank account number, UPI) are never displayed; masked copies are.
+                    // Encrypted secrets (IBAN, Raast id) are never displayed; masked copies are.
                     ->state(fn (ApprovalRequest $r) => collect($r->payload)
                         ->reject(fn ($v, string $k) => str_ends_with($k, '_encrypted'))
                         ->map(fn ($v) => is_scalar($v) || $v === null ? (string) ($v ?? '—') : json_encode($v))->all())
@@ -122,8 +122,8 @@ class ApprovalRequestResource extends Resource
                     ->state(fn (ApprovalRequest $r) => AuditLog::query()
                         ->where('subject_type', $r->getTable())->where('subject_id', $r->getKey())
                         ->orderBy('occurred_at')->orderBy('seq')->get()
-                        ->map(fn (AuditLog $a) => sprintf('%s IST · %s · %s%s',
-                            $a->occurred_at->timezone('Asia/Kolkata')->format('d M Y H:i:s'),
+                        ->map(fn (AuditLog $a) => sprintf('%s PKT · %s · %s%s',
+                            $a->occurred_at->timezone('Asia/Karachi')->format('d M Y H:i:s'),
                             str_replace('approval.', '', $a->action),
                             LoginAccount::query()->whereKey($a->actor_login_account_id)->value('username') ?? 'system',
                             ($note = $a->meta['note'] ?? null) ? ' — '.$note : ''))

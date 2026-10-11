@@ -6,7 +6,7 @@ namespace App\Filament\Resources\Gate\GateEntryResource\Pages;
 
 use App\Domain\Gate\GateService;
 use App\Filament\Resources\Gate\GateEntryResource;
-use App\Support\Values\IndianIds;
+use App\Support\Values\PakistanIds;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
@@ -20,7 +20,7 @@ class CreateGateEntry extends CreateRecord
     /** @param  array<string, mixed>  $data */
     protected function handleRecordCreation(array $data): Model
     {
-        if (! IndianIds::isValidVehicleNumber(IndianIds::normalizeVehicleNumber((string) $data['registration_no']))) {
+        if (! PakistanIds::isValidVehicleNumber(PakistanIds::normalizeVehicleNumber((string) $data['registration_no']))) {
             throw ValidationException::withMessages(['data.registration_no' => 'Not a valid registration number.']);
         }
 

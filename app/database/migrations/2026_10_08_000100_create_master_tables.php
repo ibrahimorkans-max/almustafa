@@ -34,8 +34,8 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('entity_id')->constrained('entities');
             $table->string('name', 60);
-            $table->unsignedInteger('gst_rate_bp');   // 500 = 5 %
-            $table->unsignedInteger('cess_rate_bp')->default(0);
+            $table->unsignedInteger('sales_tax_rate_bp');   // 1800 = 18 %; 0 = zero-rated / exempt
+            $table->boolean('exempt')->default(false);      // Sixth Schedule (exempt) rather than zero-rated
             $table->string('status', 16)->default('active');
             $common($table);
             $table->unique(['entity_id', 'name']);
@@ -62,10 +62,10 @@ return new class extends Migration
             // paddy | rice | by_product | packing | consumable | other
             $table->string('category', 16);
             $table->string('variety', 60)->nullable();
-            $table->string('hsn_code', 8)->nullable();
+            $table->string('pct_code', 12)->nullable();   // Pakistan Customs Tariff heading, e.g. 1006.3090
             $table->foreignUuid('tax_rate_id')->nullable()->constrained('tax_rates');
             $table->foreignUuid('brand_id')->nullable()->constrained('brands');
-            $table->string('sale_unit', 10)->default('kg'); // kg | quintal | ton | bag
+            $table->string('sale_unit', 10)->default('kg'); // kg | maund | quintal | ton | bag
             $table->decimal('bag_weight_kg', 15, 3)->nullable();
             $table->boolean('is_stock_item')->default(true);
             $table->string('status', 16)->default('active');
@@ -89,14 +89,18 @@ return new class extends Migration
             $table->string('email', 160)->nullable();
             $table->text('address')->nullable();
             $table->string('city', 80)->nullable();
-            $table->char('state_code', 2)->nullable();
-            $table->string('pincode', 6)->nullable();
-            // regular | composition | unregistered | consumer
-            $table->string('gst_registration_type', 16)->default('unregistered');
-            $table->text('gstin')->nullable();          // encrypted
-            $table->char('gstin_index', 64)->nullable(); // blind index
-            $table->text('pan')->nullable();            // encrypted
-            $table->char('pan_index', 64)->nullable();
+            $table->string('province', 40)->nullable();
+            // registered (has an STRN) | unregistered
+            $table->string('tax_registration', 16)->default('unregistered');
+            $table->text('strn')->nullable();            // encrypted
+            $table->char('strn_index', 64)->nullable();  // blind index
+            $table->text('ntn')->nullable();             // encrypted
+            $table->char('ntn_index', 64)->nullable();
+            $table->text('cnic')->nullable();            // encrypted
+            $table->char('cnic_index', 64)->nullable();
+            // FBR Active Taxpayer List: active (filer) | inactive | unknown
+            $table->string('atl_status', 10)->default('unknown');
+            $table->date('atl_checked_on')->nullable();
             $table->bigInteger('credit_limit_paise')->nullable();
             $table->unsignedSmallInteger('credit_days')->nullable();
             $table->uuid('login_account_id')->nullable(); // broker / agent portal account
@@ -104,8 +108,9 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $common($table);
             $table->unique(['entity_id', 'code']);
-            $table->unique(['entity_id', 'gstin_index']);
-            $table->index(['entity_id', 'pan_index']);
+            $table->unique(['entity_id', 'strn_index']);
+            $table->index(['entity_id', 'ntn_index']);
+            $table->index(['entity_id', 'cnic_index']);
             $table->index(['entity_id', 'name']);
         });
 
@@ -114,13 +119,13 @@ return new class extends Migration
             $table->foreignUuid('entity_id')->constrained('entities');
             $table->foreignUuid('party_id')->constrained('parties');
             $table->string('account_holder', 160);
-            $table->text('account_number');                 // encrypted
+            $table->text('account_number');                 // encrypted IBAN (PK.. 24 characters)
             $table->char('account_number_index', 64);       // blind index
             $table->string('account_last4', 4);
-            $table->string('ifsc', 11);
+            $table->string('bank_code', 4)->nullable();     // from the IBAN, e.g. MEZN
             $table->string('bank_name', 120)->nullable();
             $table->string('branch', 120)->nullable();
-            $table->text('upi_id')->nullable();             // encrypted
+            $table->text('raast_id')->nullable();           // encrypted (Raast: usually the mobile number)
             $table->boolean('is_primary')->default(false);
             $table->string('status', 16)->default('active');
             $table->uuid('approval_request_id')->nullable();
@@ -143,7 +148,7 @@ return new class extends Migration
         Schema::create('vehicles', function (Blueprint $table) use ($common) {
             $table->uuid('id')->primary();
             $table->foreignUuid('entity_id')->constrained('entities');
-            $table->string('registration_no', 16); // normalised: HR05AB1234
+            $table->string('registration_no', 16); // normalised: LES211234
             $table->string('vehicle_type', 16)->default('truck'); // truck | tractor | trolley | tempo | other
             $table->foreignUuid('owner_party_id')->nullable()->constrained('parties');
             $table->foreignUuid('default_driver_id')->nullable()->constrained('drivers');

@@ -7,11 +7,13 @@ namespace App\Filament\Pages;
 use App\Domain\Accounts\AccountReports;
 use App\Domain\Accounts\StockValuation;
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Documents\PdfRenderer;
+use App\Domain\Tenancy\TenantContext;
 use App\Models\Accounts\LedgerAccount;
+use App\Models\Entity;
 use App\Models\LoginAccount;
 use App\Models\Masters\Godown;
 use App\Models\Masters\Product;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -72,7 +74,7 @@ class AccountsReports extends Page implements HasForms
 
     public function mount(): void
     {
-        $today = now('Asia/Kolkata');
+        $today = now('Asia/Karachi');
         $this->form->fill([
             'report' => isset(self::REPORTS[$this->report]) ? $this->report : 'trial_balance',
             'ledger' => $this->ledger,
@@ -98,11 +100,11 @@ class AccountsReports extends Page implements HasForms
     public function getReportData(): array
     {
         $reports = app(AccountReports::class);
-        $to = CarbonImmutable::parse($this->data['to'] ?? now('Asia/Kolkata')->toDateString(), 'Asia/Kolkata');
+        $to = CarbonImmutable::parse($this->data['to'] ?? now('Asia/Karachi')->toDateString(), 'Asia/Karachi');
 
         return match ($this->data['report'] ?? 'trial_balance') {
             'ledger' => ($id = $this->data['ledger'] ?? null) && ($account = LedgerAccount::query()->find($id))
-                ? ['account' => $account, 'statement' => $reports->ledgerStatement($account, CarbonImmutable::parse($this->data['from'], 'Asia/Kolkata'), $to)]
+                ? ['account' => $account, 'statement' => $reports->ledgerStatement($account, CarbonImmutable::parse($this->data['from'], 'Asia/Karachi'), $to)]
                 : ['account' => null],
             'day_book' => ['vouchers' => $reports->dayBook($to)],
             'ageing' => ['rows' => $reports->payablesAgeing($to)],
@@ -131,11 +133,12 @@ class AccountsReports extends Page implements HasForms
         if ($account === null) {
             return null;
         }
-        $from = CarbonImmutable::parse($this->data['from'], 'Asia/Kolkata');
-        $to = CarbonImmutable::parse($this->data['to'], 'Asia/Kolkata');
+        $from = CarbonImmutable::parse($this->data['from'], 'Asia/Karachi');
+        $to = CarbonImmutable::parse($this->data['to'], 'Asia/Karachi');
         $statement = app(AccountReports::class)->ledgerStatement($account, $from, $to);
         app(AuditLogger::class)->record('report.ledger_statement.downloaded', $account, meta: ['from' => $from->toDateString(), 'to' => $to->toDateString()]);
-        $pdf = Pdf::loadView('reports.ledger-statement', compact('account', 'statement', 'from', 'to'))->output();
+        $entity = app(TenantContext::class)->runAsSystem(fn () => Entity::query()->find($account->entity_id));
+        $pdf = app(PdfRenderer::class)->render('reports.ledger-statement', ['title' => 'Statement '.$account->displayName()] + compact('account', 'statement', 'from', 'to'), $entity);
 
         return response()->streamDownload(fn () => print $pdf, "statement-{$account->code}.pdf", ['Content-Type' => 'application/pdf']);
     }

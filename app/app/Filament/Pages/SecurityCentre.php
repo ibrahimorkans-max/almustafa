@@ -80,7 +80,7 @@ class SecurityCentre extends Page
                 ->visible(fn () => app(Lockdown::class)->activeLocks() !== [])
                 ->form([
                     Select::make('lock_id')->label('Lockdown')->required()
-                        ->options(fn () => collect($this->locks())->mapWithKeys(fn ($l) => [$l->id => "{$l->where} (since ".CarbonImmutable::parse($l->locked_at, 'UTC')->timezone('Asia/Kolkata')->format('d M H:i').' IST)'])->all()),
+                        ->options(fn () => collect($this->locks())->mapWithKeys(fn ($l) => [$l->id => "{$l->where} (since ".CarbonImmutable::parse($l->locked_at, 'UTC')->timezone('Asia/Karachi')->format('d M H:i').' PKT)'])->all()),
                     Textarea::make('reason')->label('Why it is safe to unlock')->required()->minLength(5)->maxLength(1000),
                     $code,
                 ])

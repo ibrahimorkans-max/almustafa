@@ -157,7 +157,7 @@ final class ClaimService
     }
 
     /**
-     * Accounts posts the note. Sales: credit note that reverses GST in the invoice's own proportion.
+     * Accounts posts the note. Sales: credit note that reverses sales tax in the invoice's own proportion.
      * Purchase: debit note to the supplier.
      */
     public function settle(Claim $claim): Claim
@@ -176,9 +176,8 @@ final class ClaimService
                 $split = self::split($amount, $document);
                 $voucher = $this->books->post('credit_note', now(), [
                     ['account' => $this->chart->system('sales_claims'), 'dr' => $split['taxable'], 'memo' => $memo],
-                    ['account' => $this->chart->system('output_cgst'), 'dr' => $split['cgst']],
-                    ['account' => $this->chart->system('output_sgst'), 'dr' => $split['sgst']],
-                    ['account' => $this->chart->system('output_igst'), 'dr' => $split['igst']],
+                    ['account' => $this->chart->system('output_sales_tax'), 'dr' => $split['sales_tax']],
+                    ['account' => $this->chart->system('further_tax'), 'dr' => $split['further_tax']],
                     ['account' => $this->chart->partyLedger($party), 'cr' => $amount, 'bill_id' => $document->id, 'memo' => $memo],
                 ], "Credit note: {$memo} ({$claim->description})", ['source_type' => 'claim', 'source_id' => $claim->id]);
             } else {
@@ -199,17 +198,16 @@ final class ClaimService
      * Splits a settlement in the invoice's proportion of taxable value and each tax (round-off excluded);
      * the taxable part absorbs the rounding so the parts always add up to the settlement.
      *
-     * @return array{taxable: int, cgst: int, sgst: int, igst: int}
+     * @return array{taxable: int, sales_tax: int, further_tax: int}
      */
     public static function split(int $amount, SalesBill $bill): array
     {
-        $base = $bill->taxable_paise + $bill->cgst_paise + $bill->sgst_paise + $bill->igst_paise;
+        $base = $bill->taxable_paise + $bill->sales_tax_paise + $bill->further_tax_paise;
         $part = fn (int $tax) => $base === 0 ? 0 : intdiv($amount * $tax * 2 + $base, $base * 2);
-        $cgst = $part($bill->cgst_paise);
-        $sgst = $part($bill->sgst_paise);
-        $igst = $part($bill->igst_paise);
+        $tax = $part($bill->sales_tax_paise);
+        $further = $part($bill->further_tax_paise);
 
-        return ['taxable' => $amount - $cgst - $sgst - $igst, 'cgst' => $cgst, 'sgst' => $sgst, 'igst' => $igst];
+        return ['taxable' => $amount - $tax - $further, 'sales_tax' => $tax, 'further_tax' => $further];
     }
 
     /** Total settled by claims on a document (approved amounts that were posted as notes). */

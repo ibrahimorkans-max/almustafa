@@ -38,8 +38,8 @@ final class GateFixtures
         $this->as($this->owner);
 
         $this->paddy = Product::query()->create(['code' => 'PDY-1121', 'name' => 'Paddy 1121', 'category' => 'paddy', 'sale_unit' => 'quintal']);
-        $this->seller = Party::query()->create(['code' => 'F1', 'name' => 'Ram Singh', 'is_farmer' => true, 'is_vendor' => true, 'gst_registration_type' => 'unregistered']);
-        $this->broker = Party::query()->create(['code' => 'B1', 'name' => 'Suresh (broker)', 'is_broker' => true, 'gst_registration_type' => 'unregistered']);
+        $this->seller = Party::query()->create(['code' => 'F1', 'name' => 'Muhammad Aslam', 'is_farmer' => true, 'is_vendor' => true]);
+        $this->broker = Party::query()->create(['code' => 'B1', 'name' => 'Shahid (broker)', 'is_broker' => true]);
         $this->scale = Scale::query()->create(['code' => 'WB1', 'name' => 'Main weighbridge', 'capacity_kg' => '60000', 'resolution_kg' => '10']);
         ScaleCertificate::query()->create([
             'scale_id' => $this->scale->id, 'type' => 'stamping', 'certificate_no' => 'LM/2026/001',
@@ -48,12 +48,12 @@ final class GateFixtures
 
         // Moisture above 17 %: 1 % weight per 1 % excess; reject above 22 %.
         DeductionRule::query()->create(['product_id' => $this->paddy->id, 'parameter' => 'moisture', 'method' => 'excess_weight', 'free_limit_bp' => 1700, 'factor' => 10000, 'reject_above_bp' => 2200]);
-        // Foreign matter above 2 %: ₹10 per quintal per full 1 %.
-        DeductionRule::query()->create(['product_id' => $this->paddy->id, 'parameter' => 'foreign_matter', 'method' => 'rate_cut', 'free_limit_bp' => 200, 'factor' => 1000]);
+        // Foreign matter above 2 %: ₹10 per maund per full 1 %.
+        DeductionRule::query()->create(['product_id' => $this->paddy->id, 'parameter' => 'foreign_matter', 'method' => 'rate_cut', 'free_limit_bp' => 200, 'factor' => 400]);
         // Bag weight 600 g per bag.
         DeductionRule::query()->create(['product_id' => $this->paddy->id, 'parameter' => 'bags', 'method' => 'per_bag', 'factor' => 600]);
 
-        Vehicle::query()->create(['registration_no' => 'HR05AB1234', 'vehicle_type' => 'truck']);
+        Vehicle::query()->create(['registration_no' => 'MNA211234', 'vehicle_type' => 'truck']);
         Make::reset();
     }
 
@@ -63,12 +63,12 @@ final class GateFixtures
     }
 
     /** A confirmed purchase sauda (created by owner, approved by owner2). */
-    public function confirmedSauda(string $quantityKg = '100000', int $ratePaisePerQuintal = 250000): Sauda
+    public function confirmedSauda(string $quantityKg = '100000', int $ratePaisePerMaund = 100000): Sauda
     {
         $this->as($this->owner);
         $sauda = app(SaudaService::class)->create([
             'party_id' => $this->seller->id, 'broker_party_id' => $this->broker->id, 'product_id' => $this->paddy->id,
-            'quantity_kg' => $quantityKg, 'rate_paise_per_quintal' => $ratePaisePerQuintal,
+            'quantity_kg' => $quantityKg, 'rate_paise_per_maund' => $ratePaisePerMaund,
             'delivery_from' => now()->toDateString(), 'delivery_to' => now()->addDays(30)->toDateString(),
         ]);
         app(SaudaService::class)->submit($sauda);

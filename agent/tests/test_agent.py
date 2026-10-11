@@ -68,12 +68,12 @@ class StabilityTest(unittest.TestCase):
 class StoreTest(unittest.TestCase):
     def test_encrypts_everything_at_rest(self) -> None:
         store = temp_store()
-        store.enqueue("gate_entry.arrived", "id-1", {"registration_no": "HR05AB1234"})
+        store.enqueue("gate_entry.arrived", "id-1", {"registration_no": "MNA211234"})
         store.put_file("ab" * 32, b"secret photo bytes")
         raw = Path(store._db.execute("PRAGMA database_list").fetchone()[2]).read_bytes()  # noqa: SLF001
         store._db.execute("PRAGMA wal_checkpoint(FULL)")  # noqa: SLF001
         raw += Path(store._db.execute("PRAGMA database_list").fetchone()[2]).read_bytes()  # noqa: SLF001
-        self.assertNotIn(b"HR05AB1234", raw)
+        self.assertNotIn(b"MNA211234", raw)
         self.assertNotIn(b"secret photo bytes", raw)
 
     def test_keeps_order_and_wipes(self) -> None:
@@ -97,7 +97,7 @@ class GateAgentTest(unittest.TestCase):
     def test_captures_a_stable_weight_with_photo_offline(self) -> None:
         store = temp_store()
         agent = GateAgent(store, SimulatedIndicator(Decimal("25480"), seed=1), SimulatedCamera(), "scale-1", Decimal("10"))
-        entry = agent.arrive("HR05AB1234", bag_count=400)
+        entry = agent.arrive("MNA211234", bag_count=400)
         capture = agent.capture(entry, "gross")
 
         self.assertEqual(capture.reading.weight_kg, Decimal("25480.000"))
@@ -154,7 +154,7 @@ class FakeServer:
             events = json.loads(body)["events"]
             return 200, json.dumps({"results": [{"event_id": e["event_id"], "status": self.push_status} for e in events]}).encode()
         if path.startswith("/sync/pull"):
-            return 200, json.dumps({"changes": [{"type": "vehicle", "op": "upsert", "id": "v1", "data": {"registration_no": "HR05AB1234"}}],
+            return 200, json.dumps({"changes": [{"type": "vehicle", "op": "upsert", "id": "v1", "data": {"registration_no": "MNA211234"}}],
                                     "next_cursor": 7, "has_more": False}).encode()
         if path == "/sync/wipe-ack":
             return 200, b'{"status":"wiped"}'
@@ -170,7 +170,7 @@ class SyncTest(unittest.TestCase):
         self.store = temp_store()
         self.server = FakeServer()
         agent = GateAgent(self.store, SimulatedIndicator(Decimal("24000"), seed=2), SimulatedCamera(), None, Decimal("10"))
-        entry = agent.arrive("HR05AB1234")
+        entry = agent.arrive("MNA211234")
         agent.capture(entry, "gross")
 
     def test_uploads_photos_then_events_and_pulls_with_signed_requests(self) -> None:
@@ -180,7 +180,7 @@ class SyncTest(unittest.TestCase):
         self.assertEqual((report.uploaded_files, report.pushed, report.pulled), (1, 2, 1))
         self.assertEqual(self.store.unsynced_count(), 0)
         self.assertEqual(self.store.get_meta("cursor"), "7")
-        self.assertEqual(self.store.feed("vehicle")[0]["registration_no"], "HR05AB1234")
+        self.assertEqual(self.store.feed("vehicle")[0]["registration_no"], "MNA211234")
         for method, url, headers, body in self.server.requests:
             if "/auth/" in url:
                 continue
@@ -232,7 +232,7 @@ class LockdownTest(unittest.TestCase):
         self.store = temp_store()
         self.server = FakeServer()
         agent = GateAgent(self.store, SimulatedIndicator(Decimal("24000"), seed=2), SimulatedCamera(), None, Decimal("10"))
-        agent.capture(agent.arrive("HR05AB1234"), "gross")
+        agent.capture(agent.arrive("MNA211234"), "gross")
         real = self.server.request
         self.locked = True
 

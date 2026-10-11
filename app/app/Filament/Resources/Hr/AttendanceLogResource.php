@@ -58,7 +58,7 @@ class AttendanceLogResource extends Resource
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['employee.person', 'site', 'reviews']))
             ->columns([
-                TextColumn::make('occurred_at')->label('Time (IST)')->dateTime('d M Y H:i', 'Asia/Kolkata')->sortable(),
+                TextColumn::make('occurred_at')->label('Time (PKT)')->dateTime('d M Y H:i', 'Asia/Karachi')->sortable(),
                 TextColumn::make('employee.code')->label('Employee')->searchable(),
                 TextColumn::make('employee.person.full_name')->label('Name'),
                 TextColumn::make('kind')->badge()->color(fn (string $state) => $state === 'in' ? 'info' : 'gray'),
@@ -82,8 +82,8 @@ class AttendanceLogResource extends Resource
                         ->mapWithKeys(fn (Employee $e) => [$e->id => "{$e->code} {$e->name()}"])->all()),
                 Filter::make('day')->form([DatePicker::make('day')->label('Day')])
                     ->query(fn (Builder $query, array $data) => $query->when($data['day'] ?? null, function (Builder $q, string $day) {
-                        // IST day → UTC bounds (storage is UTC).
-                        $start = CarbonImmutable::parse($day, 'Asia/Kolkata')->startOfDay();
+                        // PKT day → UTC bounds (storage is UTC).
+                        $start = CarbonImmutable::parse($day, 'Asia/Karachi')->startOfDay();
                         $q->where('occurred_at', '>=', $start->utc())->where('occurred_at', '<', $start->addDay()->utc());
                     })),
             ])
@@ -102,9 +102,9 @@ class AttendanceLogResource extends Resource
                     ->state(fn (AttendanceLog $r) => $r->reasonTexts() ?: ['No issues found']),
             ]),
             Section::make('Time')->columns(4)->schema([
-                TextEntry::make('occurred_at')->label('Phone time (IST)')->dateTime('d M Y H:i:s', 'Asia/Kolkata'),
-                TextEntry::make('estimated_at')->label('Time worked out by the server')->dateTime('d M Y H:i:s', 'Asia/Kolkata')->placeholder('not possible'),
-                TextEntry::make('received_at')->label('Uploaded')->dateTime('d M Y H:i:s', 'Asia/Kolkata'),
+                TextEntry::make('occurred_at')->label('Phone time (PKT)')->dateTime('d M Y H:i:s', 'Asia/Karachi'),
+                TextEntry::make('estimated_at')->label('Time worked out by the server')->dateTime('d M Y H:i:s', 'Asia/Karachi')->placeholder('not possible'),
+                TextEntry::make('received_at')->label('Uploaded')->dateTime('d M Y H:i:s', 'Asia/Karachi'),
                 TextEntry::make('time_check')->badge(),
             ]),
             Section::make('Place')->columns(4)->schema([
@@ -129,8 +129,8 @@ class AttendanceLogResource extends Resource
                     ->state(fn (AttendanceLog $r) => $r->status === AttendanceLog::FLAGGED && ! $r->reviews()->exists() ? 'awaiting review' : $r->finalStatus())
                     ->color(fn (string $state) => $state === 'awaiting review' ? 'warning' : static::statusColor($state)),
                 TextEntry::make('review_history')->label('Decisions (latest counts)')->listWithLineBreaks()->placeholder('none yet')
-                    ->state(fn (AttendanceLog $r) => $r->reviews()->with('reviewer')->get()->map(fn (AttendanceReview $v) => sprintf('%s IST · %s · %s — %s',
-                        $v->reviewed_at->timezone('Asia/Kolkata')->format('d M Y H:i'), $v->decision === 'accept' ? 'accepted' : 'rejected',
+                    ->state(fn (AttendanceLog $r) => $r->reviews()->with('reviewer')->get()->map(fn (AttendanceReview $v) => sprintf('%s PKT · %s · %s — %s',
+                        $v->reviewed_at->timezone('Asia/Karachi')->format('d M Y H:i'), $v->decision === 'accept' ? 'accepted' : 'rejected',
                         $v->reviewer->username ?? '?', $v->reason))->all()),
             ]),
         ]);

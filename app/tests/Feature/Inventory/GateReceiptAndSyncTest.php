@@ -24,7 +24,7 @@ beforeEach(function () {
 function receiveLot(object $t, ?Godown $godown): GateEntry
 {
     $g = app(GateService::class); // fresh: an API call in between replaces the scoped contexts
-    $e = $g->arrive(['registration_no' => 'HR05AB1234', 'sauda_id' => $t->sauda->id, 'bag_count' => 400]);
+    $e = $g->arrive(['registration_no' => 'MNA211234', 'sauda_id' => $t->sauda->id, 'bag_count' => 400]);
     $g->recordWeighment($e, 'gross', '25480', $t->f->gate->scale, GateFixtures::readings('25480'), str_repeat('a', 64));
     $g->recordLabTest($e, ['moisture_bp' => 1850]);
     $g->decideLab($e, true);

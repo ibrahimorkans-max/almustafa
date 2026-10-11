@@ -9,8 +9,8 @@ use App\Domain\Approvals\ApprovalService;
 use App\Domain\Gate\GateService;
 use App\Domain\Inventory\StockLedger;
 use App\Domain\Sales\CreditControl;
-use App\Domain\Sales\GstCalculator;
 use App\Domain\Sales\SalesBillService;
+use App\Domain\Sales\SalesTaxCalculator;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Accounts\VoucherLine;
@@ -29,18 +29,16 @@ beforeEach(function () {
     $this->f = new SalesFixtures(Make::entity('SAL'));
 });
 
-it('splits GST by place of supply with half-up rounding', function () {
-    $gst = new GstCalculator;
+it('computes sales tax and further tax per maund with half-up rounding', function () {
+    $tax = new SalesTaxCalculator;
 
-    expect($gst->calculate('10050', 400000, 500, '06', '07'))
-        ->toBe(['taxable_paise' => 40_200_000, 'cgst_paise' => 0, 'sgst_paise' => 0, 'igst_paise' => 2_010_000, 'round_off_paise' => 0, 'total_paise' => 42_210_000])
-        ->and($gst->calculate('10050', 400000, 500, '06', '06'))
-        ->toMatchArray(['cgst_paise' => 1_005_000, 'sgst_paise' => 1_005_000, 'igst_paise' => 0, 'total_paise' => 42_210_000])
-        // ₹10.10 taxable: 2.5 % = 25.25 paise each half → 25; 5 % = 50.5 → 51 (half-up)
-        ->and($gst->calculate('0.2525', 400000, 500, '06', '06', false))->toMatchArray(['taxable_paise' => 1010, 'cgst_paise' => 25, 'sgst_paise' => 25, 'total_paise' => 1060])
-        ->and($gst->calculate('0.2525', 400000, 500, '06', '27', false))->toMatchArray(['igst_paise' => 51, 'total_paise' => 1061])
-        ->and($gst->calculate('0.2525', 400000, 500, '06', '27'))->toMatchArray(['total_paise' => 1100, 'round_off_paise' => 39])
-        ->and(GstCalculator::stateOfGstin('07AAACD1234C1Z5'))->toBe('07');
+    expect($tax->calculate('10050', 160000, 500))   // 251.25 maund × Rs 1,600
+        ->toBe(['taxable_paise' => 40_200_000, 'sales_tax_paise' => 2_010_000, 'further_tax_paise' => 0, 'round_off_paise' => 0, 'total_paise' => 42_210_000])
+        ->and($tax->calculate('10050', 160000, 500, 400))->toMatchArray(['further_tax_paise' => 1_608_000, 'total_paise' => 43_818_000])
+        // Rs 10.10 value: 5 % = 50.5 paisa → 51; 4 % = 40.4 → 40 (half-up)
+        ->and($tax->calculate('0.2525', 160000, 500, 400, false))->toMatchArray(['taxable_paise' => 1010, 'sales_tax_paise' => 51, 'further_tax_paise' => 40, 'total_paise' => 1101])
+        ->and($tax->calculate('0.2525', 160000, 500, 400))->toMatchArray(['total_paise' => 1100, 'round_off_paise' => -1])
+        ->and($tax->calculate('10050', 160000, 0))->toMatchArray(['sales_tax_paise' => 0, 'total_paise' => 40_200_000]);
 });
 
 it('takes sales orders only within the sauda and the godown stock', function () {
@@ -56,7 +54,7 @@ it('takes sales orders only within the sauda and the godown stock', function () 
 });
 
 it('holds an order over the credit limit until a different person overrides', function () {
-    $order = $this->f->order(kg: '12000'); // ₹5.04 lakh incl. IGST > ₹5 lakh limit
+    $order = $this->f->order(kg: '12000'); // Rs 504,000 incl. sales tax > Rs 500,000 limit
     expect($order->status)->toBe(DispatchOrder::PENDING_CREDIT)->and($order->credit_override_request_id)->not->toBeNull();
 
     $request = ApprovalRequest::query()->findOrFail($order->credit_override_request_id);
@@ -79,18 +77,18 @@ it('dispatches through the gate: stock out, delivery on the sauda, invoice, gate
         ->and(app(StockLedger::class)->balance($this->f->inv->rice, $this->f->inv->store)->kg)->toBe('9950.000')
         ->and($this->f->sauda->fresh()->delivered_kg)->toBe('10050.000')
         ->and($bill->status)->toBe('draft')
-        ->and($bill)->igst_paise->toBe(2_010_000)->total_paise->toBe(42_210_000)->place_of_supply->toBe('07')->hsn_code->toBe('10063020');
+        ->and($bill)->sales_tax_paise->toBe(2_010_000)->total_paise->toBe(42_210_000)->buyer_strn->toBe(SalesFixtures::strn(2))->pct_code->toBe('1006.3000');
 
     $gate = app(GateService::class);
     expect(fn () => $gate->exit($entry))->toThrow(BusinessRuleViolation::class, 'gate pass');
-    expect(fn () => $gate->issueGatePass($entry))->toThrow(BusinessRuleViolation::class, 'tax invoice');
+    expect(fn () => $gate->issueGatePass($entry))->toThrow(BusinessRuleViolation::class, 'invoice must be posted');
 
     $this->f->as($this->f->acc->accountant);
     $bill = app(SalesBillService::class)->post($bill);
     $lines = VoucherLine::query()->where('voucher_id', $bill->voucher_id)->with('account')->orderBy('line_no')->get()
         ->map(fn ($l) => [$l->account->code, $l->dr_paise, $l->cr_paise])->all();
     expect($bill->number)->toMatch('#^SAL/INV/\d{4}-\d{2}/0001$#')
-        ->and($lines)->toBe([['P-C-DEL', 42_210_000, 0], ['SAL-RICE', 0, 40_200_000], ['GST-OUT-IGST', 0, 2_010_000]]);
+        ->and($lines)->toBe([['P-C-KHI', 42_210_000, 0], ['SAL-RICE', 0, 40_200_000], ['ST-OUTPUT', 0, 2_010_000]]);
 
     $this->f->as($this->f->dispatcher);
     $pass = $gate->issueGatePass($entry);
@@ -99,11 +97,12 @@ it('dispatches through the gate: stock out, delivery on the sauda, invoice, gate
         ->and($entry->fresh()->status)->toBe('exited');
 });
 
-it('charges CGST and SGST to a buyer in the same state', function () {
-    $order = $this->f->order($this->f->saleSauda($this->f->localBuyer));
+it('charges the same single sales tax to a registered buyer in any province', function () {
+    $order = $this->f->order($this->f->saleSauda($this->f->multanBuyer));
     $bill = $this->f->billFor($this->f->loadAndWeigh($order));
 
-    expect($bill)->cgst_paise->toBe(1_005_000)->sgst_paise->toBe(1_005_000)->igst_paise->toBe(0)->place_of_supply->toBe('06');
+    expect($bill)->sales_tax_paise->toBe(2_010_000)->further_tax_paise->toBe(0)->total_paise->toBe(42_210_000)
+        ->and($bill->snapshot['buyer'])->toMatchArray(['province' => 'Punjab', 'registered' => true]);
 });
 
 it('refuses the slip when the godown no longer holds the goods', function () {
@@ -129,17 +128,17 @@ it('settles invoices by receipts, shows receivables ageing and frees credit', fu
     $this->f->as($this->f->acc->accountant);
     $bill = app(SalesBillService::class)->post($this->f->billFor($entry));
     $credit = app(CreditControl::class);
-    expect($credit->exposure($this->f->delhiBuyer))->toBe(42_210_000);
+    expect($credit->exposure($this->f->karachiBuyer))->toBe(42_210_000);
 
     $receipts = app(ManualVouchers::class);
-    expect(fn () => $receipts->receipt($this->f->delhiBuyer, $this->f->acc->bank, 50_000_000, now(), null, [$bill->id => 42_210_001]))
+    expect(fn () => $receipts->receipt($this->f->karachiBuyer, $this->f->acc->bank, 50_000_000, now(), null, [$bill->id => 42_210_001]))
         ->toThrow(BusinessRuleViolation::class, 'outstanding');
-    $receipts->receipt($this->f->delhiBuyer, $this->f->acc->bank, 30_000_000, now(), 'NEFT', [$bill->id => 30_000_000]);
+    $receipts->receipt($this->f->karachiBuyer, $this->f->acc->bank, 30_000_000, now(), 'NEFT', [$bill->id => 30_000_000]);
 
     $ageing = app(AccountReports::class)->receivablesAgeing(now()->addDays(45));
     expect(app(SalesBillService::class)->outstanding($bill->fresh()))->toBe(12_210_000)
         ->and($ageing[0])->toMatchArray(['received' => 30_000_000, 'outstanding' => 12_210_000, 'bucket' => '0–30'])
-        ->and($credit->exposure($this->f->delhiBuyer))->toBe(12_210_000);
+        ->and($credit->exposure($this->f->karachiBuyer))->toBe(12_210_000);
 });
 
 it('reverses an unpaid invoice through a second person', function () {
@@ -151,14 +150,16 @@ it('reverses an unpaid invoice through a second person', function () {
     app(ApprovalService::class)->approve($request, $this->f->acc->owner);
 
     expect($bill->fresh()->status)->toBe(SalesBill::CANCELLED)
-        ->and(app(CreditControl::class)->exposure($this->f->delhiBuyer))->toBe(0);
+        ->and(app(CreditControl::class)->exposure($this->f->karachiBuyer))->toBe(0);
 });
 
-it('refuses to post an invoice while the mill has no state code', function () {
-    app(TenantContext::class)->runAsSystem(fn () => Entity::query()->whereKey($this->f->entity->id)->update(['state_code' => null]));
+it('posts a commercial invoice without a tax line while the mill has no STRN', function () {
+    app(TenantContext::class)->runAsSystem(fn () => Entity::query()->findOrFail($this->f->entity->id)->forceFill(['strn' => null])->save());
     $bill = $this->f->billFor($this->f->loadAndWeigh($this->f->order()));
     $this->f->as($this->f->acc->accountant);
+    $bill = app(SalesBillService::class)->post($bill);
+    $codes = VoucherLine::query()->where('voucher_id', $bill->voucher_id)->with('account')->get()->map(fn ($l) => $l->account->code)->all();
 
-    expect($bill->supplier_state)->toBeNull();
-    expect(fn () => app(SalesBillService::class)->post($bill))->toThrow(BusinessRuleViolation::class, 'state code');
+    expect($bill)->invoice_type->toBe('commercial')->seller_strn->toBeNull()->total_paise->toBe(40_200_000)
+        ->and($codes)->toBe(['P-C-KHI', 'SAL-RICE']);
 });

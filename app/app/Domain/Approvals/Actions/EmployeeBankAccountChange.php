@@ -11,7 +11,7 @@ use App\Domain\Audit\AuditLogger;
 use App\Models\ApprovalRequest;
 use App\Models\Hr\Employee;
 use App\Models\LoginAccount;
-use App\Support\Values\IndianIds;
+use App\Support\Values\PakistanIds;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -52,10 +52,11 @@ final class EmployeeBankAccountChange implements ApprovalAction, ExplainsChecker
         $data = Validator::make($payload, [
             'employee_id' => ['required', 'uuid'],
             'account_holder' => ['required', 'string', 'max:120'],
-            'account_number' => ['required', 'regex:/^\d{9,18}$/'],
-            'ifsc' => ['required', fn ($a, $value, $fail) => IndianIds::isValidIfsc(strtoupper((string) $value)) ? null : $fail('Invalid IFSC code.')],
+            'account_number' => ['required', fn ($a, $value, $fail) => PakistanIds::isValidIban((string) PakistanIds::normalizeIban((string) $value))
+                ? null : $fail('Enter the IBAN (PK and 22 characters); its check digits do not match.')],
             'bank_name' => ['nullable', 'string', 'max:120'],
         ])->validate();
+        $data['account_number'] = (string) PakistanIds::normalizeIban((string) $data['account_number']);
 
         $employee = Employee::query()->find($data['employee_id']) ?? throw ValidationException::withMessages(['employee_id' => 'Employee not found.']);
         if ($employee->status === Employee::EXITED) {
@@ -69,7 +70,7 @@ final class EmployeeBankAccountChange implements ApprovalAction, ExplainsChecker
             'account_number_encrypted' => Crypt::encryptString($data['account_number']),
             'account_number_masked' => 'XXXXXX'.substr($data['account_number'], -4),
             'previous_account_masked' => $employee->bank_account_last4 ? 'XXXXXX'.$employee->bank_account_last4 : null,
-            'ifsc' => strtoupper((string) $data['ifsc']),
+            'bank_code' => PakistanIds::bankCodeOfIban($data['account_number']),
             'bank_name' => $data['bank_name'] ?? null,
         ];
     }
@@ -83,11 +84,11 @@ final class EmployeeBankAccountChange implements ApprovalAction, ExplainsChecker
         }
         $employee->forceFill([
             'bank_account_number' => Crypt::decryptString((string) $p['account_number_encrypted']),
-            'bank_ifsc' => $p['ifsc'], 'bank_name' => $p['bank_name'], 'bank_account_holder' => $p['account_holder'],
+            'bank_name' => $p['bank_name'], 'bank_account_holder' => $p['account_holder'],
             'bank_approval_request_id' => $request->id,
         ])->save();
         $this->audit->record('hr.employee.bank_account_changed', $employee, meta: [
-            'account' => $p['account_number_masked'], 'previous' => $p['previous_account_masked'], 'ifsc' => $p['ifsc'],
+            'account' => $p['account_number_masked'], 'previous' => $p['previous_account_masked'], 'bank_code' => $p['bank_code'],
             'approval_request_id' => $request->id,
         ]);
 

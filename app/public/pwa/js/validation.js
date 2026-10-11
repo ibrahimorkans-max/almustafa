@@ -1,5 +1,5 @@
 /**
- * Client-side mirrors of App\Support\Values\IndianIds (the server re-validates everything).
+ * Client-side mirrors of App\Support\Values\PakistanIds (the server re-validates everything).
  */
 
 export function normalizeVehicleNumber(value) {
@@ -7,5 +7,6 @@ export function normalizeVehicleNumber(value) {
 }
 
 export function isValidVehicleNumber(normalized) {
-  return /^[A-Z]{2}\d{1,2}[A-Z]{0,3}\d{1,4}$/.test(normalized) || /^\d{2}BH\d{4}[A-Z]{1,2}$/.test(normalized);
+  // Pakistani marks: 1-4 letters, optional 2-digit year, 1-4 digits (LES-21-1234, MNA-1234, BKX-123).
+  return /^[A-Z]{1,4}\d{1,6}$/.test(normalized);
 }

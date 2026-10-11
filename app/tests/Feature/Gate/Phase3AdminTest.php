@@ -52,13 +52,13 @@ it('opens procurement and gate screens only for the right roles', function (stri
     }
 })->with('phase 3 screens');
 
-it('creates a sauda from quintal and rupee inputs and stores kg and paise', function () {
+it('creates a sauda from maund and rupee inputs and stores kg and paisa', function () {
     signInAs($this, $this->f->owner);
 
     Livewire::test(CreateSauda::class)
         ->fillForm([
             'party_id' => $this->f->seller->id, 'product_id' => $this->f->paddy->id,
-            'quantity_quintal' => '1250.5', 'rate_rupees' => '2650.75', 'tolerance_percent' => '5',
+            'quantity_maund' => '1250.5', 'rate_rupees' => '2650.75', 'tolerance_percent' => '5',
             'brokerage_rupees' => '10', 'moisture_max_percent' => '17', 'payment_days' => 15,
             'delivery_from' => now()->toDateString(), 'delivery_to' => now()->addDays(20)->toDateString(),
         ])
@@ -66,9 +66,9 @@ it('creates a sauda from quintal and rupee inputs and stores kg and paise', func
         ->assertHasNoFormErrors();
 
     $s = Sauda::query()->latest('created_at')->firstOrFail();
-    expect($s->quantity_kg)->toBe('125050.000')
-        ->and($s->rate_paise_per_quintal)->toBe(265075)
-        ->and($s->brokerage_paise_per_quintal)->toBe(1000)
+    expect($s->quantity_kg)->toBe('50020.000') // 1,250.5 maund × 40 kg
+        ->and($s->rate_paise_per_maund)->toBe(265075)
+        ->and($s->brokerage_paise_per_maund)->toBe(1000)
         ->and($s->quality_terms)->toBe(['moisture_max_bp' => 1700])
         ->and($s->status)->toBe('draft');
 
@@ -85,7 +85,7 @@ it('runs a vehicle visit from the gate screens', function () {
     signInAs($this, $sup);
 
     Livewire::test(CreateGateEntry::class)
-        ->fillForm(['registration_no' => 'hr05ab1234', 'direction' => 'inbound', 'sauda_id' => $sauda->id, 'bag_count' => 400])
+        ->fillForm(['registration_no' => 'mna211234', 'direction' => 'inbound', 'sauda_id' => $sauda->id, 'bag_count' => 400])
         ->call('create')
         ->assertHasNoFormErrors();
     $entry = GateEntry::query()->sole();
@@ -114,7 +114,7 @@ it('runs a vehicle visit from the gate screens', function () {
 it('does not offer any way to type a weight except the Super Admin override', function () {
     $sup = Make::account($this->f->entity, 'SUPERVISOR');
     signInAs($this, $sup);
-    $entry = app(GateService::class)->arrive(['registration_no' => 'HR05AB1234']);
+    $entry = app(GateService::class)->arrive(['registration_no' => 'MNA211234']);
 
     Livewire::test(ViewGateEntry::class, ['record' => $entry->id])->assertActionHidden('manualWeight');
 

@@ -1,68 +1,118 @@
 @php
-    use App\Filament\Support\Units;
-    $m = fn (int $p) => Units::paiseToRupees($p);
+    use App\Support\Values\PakistanIds;
+    $small = false;
+    $m = fn (int $p) => \App\Support\Values\Money::paise($p)->grouped();
+    $pct = fn (int $bp) => rtrim(rtrim(number_format($bp / 100, 2), '0'), '.').'%';
+    $taxInvoice = $bill->isSalesTaxInvoice();
+    $buyer = $bill->snapshot['buyer'] ?? [];
+    $maund = bcdiv((string) $bill->quantity_kg, '40', 3);
+    $bags = $bill->snapshot['bags'] ?? null;
+    $cell = 'font-size: 8pt;';
 @endphp
-<!doctype html>
 <html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #111; }
-        h1 { font-size: 15px; margin: 0; }
-        h2 { font-size: 12px; margin: 8px 0 0; text-align: center; letter-spacing: 1px; }
-        .muted { color: #555; }
-        table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-        td, th { border: 1px solid #999; padding: 3px 5px; text-align: left; vertical-align: top; }
-        th { background: #eee; }
-        .num { text-align: right; }
-        .code { font-family: DejaVu Sans Mono, monospace; font-size: 11px; letter-spacing: 1px; }
-    </style>
-</head>
+<head><meta charset="utf-8">@include('pdf.styles')</head>
 <body>
-    <h1>{{ $entity->legal_name ?? $entity->name }}</h1>
-    <div class="muted">{{ $entity->address }} · GSTIN {{ $entity->gstin ?? '—' }} · State code {{ $entity->state_code ?? '—' }}</div>
-    <h2>TAX INVOICE</h2>
-    @if ($bill->irn && $bill->einvoice_status === 'generated')
-        <table>
-            <tr>
-                <td style="width: 75%">
-                    <strong>IRN</strong> <span class="code" style="font-size: 8px">{{ $bill->irn }}</span><br>
-                    <strong>Ack no.</strong> {{ $bill->irn_ack_no }} · <strong>Ack date</strong> {{ $bill->irn_ack_at?->timezone('Asia/Kolkata')->format('d M Y H:i') }}
-                    @if ($bill->eway_bill_no)
-                        <br><strong>E-way bill</strong> {{ $bill->eway_bill_no }} · valid until {{ $bill->eway_valid_until?->timezone('Asia/Kolkata')->format('d M Y H:i') }}
+@include('pdf.letterhead', $taxInvoice
+    ? ['title' => 'SALES TAX INVOICE', 'titleUr' => 'سیلز ٹیکس انوائس', 'small' => $small]
+    : ['title' => 'INVOICE', 'titleUr' => 'انوائس / بل', 'small' => $small])
+
+<table class="grid">
+    <tr>
+        <td style="width: 50%;">
+            <div class="small muted">Seller</div>
+            <div class="b">{{ $brand['name'] }}</div>
+            <div class="small">{{ $brand['address'] }}</div>
+            <div class="small">NTN {{ $brand['ntn'] ?? '—' }}@if ($taxInvoice) &nbsp;·&nbsp; STRN {{ $bill->seller_strn }}@endif</div>
+        </td>
+        <td style="width: 50%;">
+            <div class="small muted">Buyer</div>
+            <div class="b">{{ $buyer['name'] ?? $bill->party->name }}</div>
+            <div class="small">{{ trim(($buyer['address'] ?? '').(! empty($buyer['address']) ? ', ' : '').($buyer['city'] ?? '').(! empty($buyer['province']) ? ', '.$buyer['province'] : '')) ?: '—' }}</div>
+            <div class="small">NTN / CNIC {{ PakistanIds::formatNtn($bill->buyer_ntn) ?? '—' }} &nbsp;·&nbsp; STRN {{ $bill->buyer_strn ?? 'Unregistered' }}</div>
+        </td>
+    </tr>
+</table>
+
+<table class="grid">
+    <tr>
+        <td class="label" style="width: 17%;">Invoice no.</td><td class="mono b" style="width: 33%;">{{ $bill->number }}</td>
+        <td class="label" style="width: 17%;">Invoice date</td><td style="width: 33%;">{{ $bill->bill_date->format('d M Y') }}</td>
+    </tr>
+    <tr>
+        <td class="label">Payment due</td><td>{{ $bill->due_date->format('d M Y') }}</td>
+        <td class="label">Vehicle</td><td class="mono">{{ PakistanIds::formatVehicleNumber((string) ($bill->snapshot['registration_no'] ?? '')) ?: '—' }}</td>
+    </tr>
+    <tr>
+        <td class="label">Weighment slip</td><td class="mono">{{ $bill->snapshot['gate_entry_number'] ?? '—' }}</td>
+        <td class="label">Order / sauda</td><td class="mono">{{ $bill->snapshot['dispatch_order_number'] ?? '—' }} / {{ $bill->snapshot['sauda_number'] ?? '—' }}</td>
+    </tr>
+</table>
+
+<table class="grid">
+    <tr>
+        <th style="width: 4%; {{ $cell }}">#</th>
+        <th style="width: {{ $taxInvoice ? '18%' : '36%' }}; {{ $cell }}">Description</th>
+        <th style="width: 11%; {{ $cell }}">HS code</th>
+        <th class="r" style="width: 7%; {{ $cell }}">Bags</th>
+        <th class="r" style="width: 11%; {{ $cell }}">Quantity (kg)</th>
+        <th class="r" style="width: 9%; {{ $cell }}">Maund</th>
+        <th class="r" style="width: 10%; {{ $cell }}">Rate / maund</th>
+        <th class="r" style="width: 12%; {{ $cell }}">Value excl. tax</th>
+        @if ($taxInvoice)
+            <th class="r" style="width: 6%; {{ $cell }}">Rate</th>
+            <th class="r" style="width: 12%; {{ $cell }}">Sales tax</th>
+        @endif
+    </tr>
+    <tr>
+        <td class="c" style="{{ $cell }}">1</td>
+        <td style="{{ $cell }}">{{ $bill->snapshot['product']['name'] ?? $bill->product->name }}</td>
+        <td style="{{ $cell }} font-family: dejavusanscondensed;">{{ $bill->pct_code ?? '—' }}</td>
+        <td class="num" style="{{ $cell }}">{{ $bags ?? '—' }}</td>
+        <td class="num" style="{{ $cell }}">{{ number_format((float) $bill->quantity_kg, 3) }}</td>
+        <td class="num" style="{{ $cell }}">{{ number_format((float) $maund, 3) }}</td>
+        <td class="num" style="{{ $cell }}">{{ $m($bill->rate_paise_per_maund) }}</td>
+        <td class="num" style="{{ $cell }}">{{ $m($bill->taxable_paise) }}</td>
+        @if ($taxInvoice)
+            <td class="num" style="{{ $cell }}">{{ $bill->tax_exempt ? 'Exempt' : $pct($bill->tax_rate_bp) }}</td>
+            <td class="num" style="{{ $cell }}">{{ $m($bill->sales_tax_paise) }}</td>
+        @endif
+    </tr>
+</table>
+
+<table style="margin-top: 6pt;">
+    <tr>
+        <td style="width: 48%; vertical-align: top; padding-right: 8pt;">
+            <div class="words">{{ $words }}</div>
+            <div class="box small">
+                <div class="b">Terms</div>
+                <div>Payment within {{ $bill->bill_date->diffInDays($bill->due_date) }} days of the invoice date, into the mill's bank account only.
+                    Weights are from the mill weighbridge slip quoted above.</div>
+                @if (! $taxInvoice)
+                    <div class="muted" style="margin-top: 3pt;">The seller is not registered for sales tax; no sales tax is charged on this invoice.</div>
+                @elseif ($bill->tax_exempt)
+                    <div class="muted" style="margin-top: 3pt;">Supply exempt from sales tax.</div>
+                @endif
+            </div>
+        </td>
+        <td style="width: 52%; vertical-align: top;">
+            <table class="grid" style="margin-top: 0;">
+                <tr><td class="label" style="width: 62%;">Value excluding sales tax</td><td class="num" style="width: 38%;">{{ $m($bill->taxable_paise) }}</td></tr>
+                @if ($taxInvoice)
+                    <tr><td class="label">Sales tax{{ $bill->tax_exempt ? ' (exempt)' : ' @ '.$pct($bill->tax_rate_bp) }}</td><td class="num">{{ $m($bill->sales_tax_paise) }}</td></tr>
+                    @if ($bill->further_tax_paise > 0)
+                        <tr><td class="label">Further tax @ {{ $pct($bill->further_tax_rate_bp) }} (buyer not registered)</td><td class="num">{{ $m($bill->further_tax_paise) }}</td></tr>
                     @endif
-                </td>
-                <td style="text-align: center"><img src="{{ \App\Domain\Sales\SalesDocuments::qrDataUri((string) $bill->irn_signed_qr) }}" width="100" height="100" alt="e-invoice QR"></td>
-            </tr>
-        </table>
-    @endif
+                @endif
+                @if ($bill->round_off_paise !== 0)
+                    <tr><td class="label">Round off</td><td class="num">{{ $bill->round_off_paise < 0 ? '−' : '' }}{{ $m(abs($bill->round_off_paise)) }}</td></tr>
+                @endif
+                <tr class="grand"><td>Total (Rs) &nbsp;<span style="font-family: lateef; font-size: 14pt;">کل رقم</span></td><td class="num">{{ $m($bill->total_paise) }}</td></tr>
+            </table>
+        </td>
+    </tr>
+</table>
 
-    <table>
-        <tr><th>Invoice no.</th><td>{{ $bill->number }}</td><th>Date</th><td>{{ $bill->bill_date->format('d M Y') }}</td></tr>
-        <tr><th>Buyer</th><td>{{ $bill->snapshot['buyer']['name'] ?? $bill->party->name }}<br>{{ $bill->snapshot['buyer']['address'] ?? '' }} {{ $bill->snapshot['buyer']['city'] ?? '' }}</td>
-            <th>Buyer GSTIN</th><td>{{ $bill->buyer_gstin ?? 'Unregistered' }}</td></tr>
-        <tr><th>Place of supply</th><td>State code {{ $bill->place_of_supply ?? '—' }}</td><th>Due date</th><td>{{ $bill->due_date->format('d M Y') }}</td></tr>
-        <tr><th>Vehicle</th><td>{{ $bill->snapshot['registration_no'] ?? '' }} (slip {{ $bill->snapshot['gate_entry_number'] ?? '' }})</td>
-            <th>Order / sauda</th><td>{{ $bill->snapshot['dispatch_order_number'] ?? '' }} / {{ $bill->snapshot['sauda_number'] ?? '' }}</td></tr>
-    </table>
-
-    <table>
-        <tr><th>Description</th><th>HSN</th><th class="num">Quantity (kg)</th><th class="num">Rate / qtl</th><th class="num">Taxable value</th></tr>
-        <tr><td>{{ $bill->snapshot['product']['name'] ?? $bill->product->name }}</td><td>{{ $bill->hsn_code ?? '—' }}</td>
-            <td class="num">{{ number_format((float) $bill->quantity_kg, 3) }}</td><td class="num">{{ $m($bill->rate_paise_per_quintal) }}</td>
-            <td class="num">{{ $m($bill->taxable_paise) }}</td></tr>
-        @if ($bill->igst_paise > 0)
-            <tr><td colspan="4" class="num">IGST @ {{ number_format($bill->gst_rate_bp / 100, 2) }} %</td><td class="num">{{ $m($bill->igst_paise) }}</td></tr>
-        @else
-            <tr><td colspan="4" class="num">CGST @ {{ number_format($bill->gst_rate_bp / 200, 2) }} %</td><td class="num">{{ $m($bill->cgst_paise) }}</td></tr>
-            <tr><td colspan="4" class="num">SGST @ {{ number_format($bill->gst_rate_bp / 200, 2) }} %</td><td class="num">{{ $m($bill->sgst_paise) }}</td></tr>
-        @endif
-        @if ($bill->round_off_paise !== 0)
-            <tr><td colspan="4" class="num">Round off</td><td class="num">{{ $bill->round_off_paise < 0 ? '−' : '' }}{{ $m(abs($bill->round_off_paise)) }}</td></tr>
-        @endif
-        <tr><th colspan="4" class="num">Total</th><th class="num">{{ $m($bill->total_paise) }}</th></tr>
-    </table>
-    <p><strong>{{ $words }}</strong></p>
-    <p class="muted">Verification code: <span class="code">{{ $code }}</span> · computer-generated from the weighment slip and the confirmed deal · check at {{ url('/verify') }}</p>
+@include('pdf.verify', ['small' => $small, 'note' => 'Computed from the weighment slip and the confirmed deal; amounts cannot be typed by hand.'])
+@include('pdf.signatures', ['signs' => [['Prepared by', 'تیار کنندہ'], ['Received by (buyer)', 'وصول کنندہ'], ['For '.$brand['name'], 'دستخط مجاز']]])
 </body>
 </html>

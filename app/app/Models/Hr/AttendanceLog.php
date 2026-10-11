@@ -88,6 +88,8 @@ class AttendanceLog extends Model
         'shared_device' => 'The same phone punched for another employee shortly before',
         'device_clock_off' => 'The phone clock differs from the server clock',
         'manual_entry' => 'Entered manually (approved by a second person)',
+        'imported' => 'Imported from a biometric machine / gate PC file',
+        'direction_inferred' => 'In / out worked out from the order of the day\'s punches',
     ];
 
     protected $fillable = [

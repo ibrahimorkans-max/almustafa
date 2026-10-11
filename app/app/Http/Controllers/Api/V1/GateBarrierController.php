@@ -8,7 +8,7 @@ use App\Domain\Gate\GateDevices;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Http\Controllers\Controller;
 use App\Models\Gate\GateEntry;
-use App\Support\Values\IndianIds;
+use App\Support\Values\PakistanIds;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -27,7 +27,7 @@ final class GateBarrierController extends Controller
         ]);
         $entry = isset($data['gate_entry_id']) ? GateEntry::query()->find($data['gate_entry_id']) : null;
         if ($entry === null && isset($data['plate'])) {
-            $entry = $devices->openEntryFor(IndianIds::normalizeVehicleNumber((string) $data['plate']));
+            $entry = $devices->openEntryFor(PakistanIds::normalizeVehicleNumber((string) $data['plate']));
         }
 
         try {

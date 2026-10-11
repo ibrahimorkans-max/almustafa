@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Accounts\PaymentResource\Pages;
 
+use App\Domain\Accounts\AccountsDocuments;
 use App\Domain\Accounts\PaymentService;
 use App\Filament\Resources\Accounts\PaymentResource;
 use App\Filament\Resources\ApprovalRequestResource;
@@ -29,7 +30,14 @@ class ViewPayment extends ViewRecord
             Action::make('approval')->label('Open approval')->icon('heroicon-o-shield-check')
                 ->visible(fn (Payment $p) => $p->isOpen() && $p->approval_request_id !== null)
                 ->url(fn (Payment $p) => ApprovalRequestResource::getUrl('view', ['record' => $p->approval_request_id])),
-            Action::make('reference')->label('Record UTR / cheque no.')->icon('heroicon-o-hashtag')
+            Action::make('voucher')->label('Print payment voucher (PDF)')->icon('heroicon-o-printer')->color('gray')
+                ->visible(fn (Payment $p) => $p->status === Payment::APPROVED)
+                ->action(fn (Payment $p) => response()->streamDownload(
+                    fn () => print app(AccountsDocuments::class)->paymentVoucherPdf($p),
+                    str_replace('/', '-', $p->number).'.pdf',
+                    ['Content-Type' => 'application/pdf'],
+                )),
+            Action::make('reference')->label('Record transaction ID / cheque no.')->icon('heroicon-o-hashtag')
                 ->visible(fn (Payment $p) => $p->status === Payment::APPROVED && $can('payment.create'))
                 ->form([TextInput::make('reference')->required()->maxLength(60)])
                 ->action(fn (Payment $p, array $data) => $this->runDomain(fn () => app(PaymentService::class)->recordReference($p, $data['reference']), 'Reference saved')),

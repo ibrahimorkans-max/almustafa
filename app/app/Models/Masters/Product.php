@@ -16,7 +16,7 @@ use Illuminate\Validation\Rule;
  * @property string $name
  * @property string $category
  * @property string|null $variety
- * @property string|null $hsn_code
+ * @property string|null $pct_code
  * @property string|null $tax_rate_id
  * @property string|null $brand_id
  * @property string $sale_unit
@@ -33,10 +33,10 @@ class Product extends MasterModel
 
     public const CATEGORIES = ['paddy', 'rice', 'by_product', 'packing', 'consumable', 'other'];
 
-    public const SALE_UNITS = ['kg', 'quintal', 'ton', 'bag'];
+    public const SALE_UNITS = ['kg', 'maund', 'quintal', 'ton', 'bag'];
 
     protected $fillable = [
-        'code', 'name', 'category', 'variety', 'hsn_code', 'tax_rate_id', 'brand_id',
+        'code', 'name', 'category', 'variety', 'pct_code', 'tax_rate_id', 'brand_id',
         'sale_unit', 'bag_weight_kg', 'is_stock_item', 'status', 'valuation_paise_per_kg',
     ];
 
@@ -75,7 +75,7 @@ class Product extends MasterModel
             'name' => ['required', 'string', 'max:160'],
             'category' => ['required', Rule::in(self::CATEGORIES)],
             'variety' => ['nullable', 'string', 'max:60'],
-            'hsn_code' => ['nullable', 'regex:/^\d{4}(\d{2}){0,2}$/'],
+            'pct_code' => ['nullable', 'regex:/^\d{4}(\.\d{2,4})?$/'],
             'tax_rate_id' => ['nullable', 'uuid', Rule::exists('tax_rates', 'id')->where('entity_id', $entity)],
             'brand_id' => ['nullable', 'uuid', Rule::exists('brands', 'id')->where('entity_id', $entity)],
             'sale_unit' => ['required', Rule::in(self::SALE_UNITS)],
@@ -88,7 +88,7 @@ class Product extends MasterModel
     public static function writableFields(): array
     {
         return [
-            'code', 'name', 'category', 'variety', 'hsn_code', 'tax_rate_id', 'brand_id',
+            'code', 'name', 'category', 'variety', 'pct_code', 'tax_rate_id', 'brand_id',
             'sale_unit', 'bag_weight_kg', 'is_stock_item', 'status',
         ];
     }
@@ -97,7 +97,7 @@ class Product extends MasterModel
     {
         return $this->syncEnvelope() + [
             'code' => $this->code, 'name' => $this->name, 'category' => $this->category, 'variety' => $this->variety,
-            'hsn_code' => $this->hsn_code, 'tax_rate_id' => $this->tax_rate_id, 'brand_id' => $this->brand_id,
+            'pct_code' => $this->pct_code, 'tax_rate_id' => $this->tax_rate_id, 'brand_id' => $this->brand_id,
             'sale_unit' => $this->sale_unit, 'bag_weight_kg' => $this->bag_weight_kg,
             'is_stock_item' => $this->is_stock_item, 'status' => $this->status,
         ];

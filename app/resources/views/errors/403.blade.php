@@ -10,6 +10,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>No access — {{ config('app.name') }}</title>
+    <link rel="icon" type="image/png" href="{{ asset(config('ricemill.brand.favicon')) }}">
     <style>
         :root { color-scheme: light dark; --bg: #f8fafc; --fg: #0f172a; --muted: #475569; --card: #ffffff; --line: #e2e8f0; --link: #b45309; }
         @media (prefers-color-scheme: dark) { :root { --bg: #0f172a; --fg: #f1f5f9; --muted: #94a3b8; --card: #1e293b; --line: #334155; --link: #fbbf24; } }
@@ -24,6 +25,10 @@
 </head>
 <body>
 <main>
+    <picture style="display:block;margin-bottom:12px">
+        <source srcset="{{ asset(config('ricemill.brand.logo_wide_dark')) }}" media="(prefers-color-scheme: dark)">
+        <img src="{{ asset(config('ricemill.brand.logo_wide')) }}" alt="{{ config('ricemill.brand.name') }}" style="height:56px;width:auto">
+    </picture>
     <h1>You do not have access to this page</h1>
     @if ($detail)
         <p>{{ $detail }}</p>

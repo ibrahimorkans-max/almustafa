@@ -41,7 +41,7 @@ function send(object $t, array ...$events): array
 it('accepts gate facts from devices and projects them', function () {
     $entryId = (string) Str::uuid();
     [$arrived, $gross] = send($this,
-        ev($this, 'gate_entry.arrived', $entryId, ['registration_no' => 'HR05AB1234', 'sauda_id' => $this->sauda->id, 'bag_count' => 300]),
+        ev($this, 'gate_entry.arrived', $entryId, ['registration_no' => 'MNA211234', 'sauda_id' => $this->sauda->id, 'bag_count' => 300]),
         ev($this, 'weighment.captured', (string) Str::uuid(), [
             'gate_entry_id' => $entryId, 'kind' => 'gross', 'weight_kg' => '24000', 'scale_id' => $this->f->scale->id,
             'readings' => GateFixtures::readings('24000'), 'photo_sha256' => str_repeat('b', 64),
@@ -66,7 +66,7 @@ it('answers retry for a fact about a vehicle not uploaded yet, then applies it o
         ->and(Make::system(fn () => Weighment::query()->count()))->toBe(0);
 
     // Another device (gate tablet) uploads the arrival; the agent re-sends the same event and seq.
-    send($this, ev($this, 'gate_entry.arrived', $entryId, ['registration_no' => 'HR05AB1234']));
+    send($this, ev($this, 'gate_entry.arrived', $entryId, ['registration_no' => 'MNA211234']));
     [$again] = send($this, $weighment);
 
     expect($again['status'])->toBe('applied')
@@ -75,7 +75,7 @@ it('answers retry for a fact about a vehicle not uploaded yet, then applies it o
 
 it('keeps out-of-order facts from offline devices and marks them', function () {
     $entryId = (string) Str::uuid();
-    send($this, ev($this, 'gate_entry.arrived', $entryId, ['registration_no' => 'HR05AB1234']));
+    send($this, ev($this, 'gate_entry.arrived', $entryId, ['registration_no' => 'MNA211234']));
     // Unloaded reported before any lab decision (devices were offline) — a fact, not an error.
     [$r] = send($this, ev($this, 'gate_entry.event', null, ['gate_entry_id' => $entryId, 'event' => 'unloaded']));
 
@@ -87,15 +87,15 @@ it('keeps out-of-order facts from offline devices and marks them', function () {
 
 it('is idempotent for facts re-sent under a new event id', function () {
     $entryId = (string) Str::uuid();
-    send($this, ev($this, 'gate_entry.arrived', $entryId, ['registration_no' => 'HR05AB1234']));
-    [$dup] = send($this, ev($this, 'gate_entry.arrived', $entryId, ['registration_no' => 'HR05AB1234']));
+    send($this, ev($this, 'gate_entry.arrived', $entryId, ['registration_no' => 'MNA211234']));
+    [$dup] = send($this, ev($this, 'gate_entry.arrived', $entryId, ['registration_no' => 'MNA211234']));
 
     expect($dup['status'])->toBe('applied')
         ->and(Make::system(fn () => GateEntry::query()->count()))->toBe(1);
 });
 
 it('serves gate entries and saudas to gate devices, without the deal rate', function () {
-    send($this, ev($this, 'gate_entry.arrived', (string) Str::uuid(), ['registration_no' => 'HR05AB1234', 'sauda_id' => $this->sauda->id]));
+    send($this, ev($this, 'gate_entry.arrived', (string) Str::uuid(), ['registration_no' => 'MNA211234', 'sauda_id' => $this->sauda->id]));
     $gateOp = Make::account($this->f->entity, 'GATE_OPERATOR');
     $headers = Make::apiHeaders(Make::apiTokens($gateOp, 'gate-op-phone-0001-ab'), 'gate-op-phone-0001-ab');
 
@@ -104,7 +104,7 @@ it('serves gate entries and saudas to gate devices, without the deal rate', func
 
     expect($changes->pluck('type')->unique()->values()->all())->toContain('gate_entry', 'sauda', 'vehicle')
         ->and($sauda['number'])->toBe($this->sauda->number)
-        ->and($sauda)->not->toHaveKey('rate_paise_per_quintal');
+        ->and($sauda)->not->toHaveKey('rate_paise_per_maund');
 });
 
 describe('photo upload', function () {
@@ -175,7 +175,7 @@ describe('gate agent', function () {
         $this->get('/api/v1/sync/bootstrap', $headers)->assertStatus(401)->assertJsonPath('error', 'nonce_reused');
 
         // Signature over a different body.
-        $body = json_encode(['events' => [ev($this, 'gate_entry.arrived', (string) Str::uuid(), ['registration_no' => 'HR05AB1234'])]]);
+        $body = json_encode(['events' => [ev($this, 'gate_entry.arrived', (string) Str::uuid(), ['registration_no' => 'MNA211234'])]]);
         $tampered = signed($secret, $access, $uid, 'POST', '/api/v1/sync/push', '{"events":[]}');
         $this->call('POST', '/api/v1/sync/push', [], [], [], $this->transformHeadersToServerVars($tampered) + ['CONTENT_TYPE' => 'application/json'], $body)
             ->assertStatus(401);

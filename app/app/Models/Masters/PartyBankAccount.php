@@ -9,6 +9,7 @@ use App\Domain\Tenancy\BelongsToEntity;
 use App\Support\BlindIndex;
 use App\Support\Eloquent\HasOptimisticLock;
 use App\Support\Eloquent\TracksCreator;
+use App\Support\Values\PakistanIds;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -26,10 +27,10 @@ use Illuminate\Support\Carbon;
  * @property string $account_number
  * @property string $account_number_index
  * @property string $account_last4
- * @property string $ifsc
+ * @property string|null $bank_code
  * @property string|null $bank_name
  * @property string|null $branch
- * @property string|null $upi_id
+ * @property string|null $raast_id
  * @property bool $is_primary
  * @property string $status
  * @property string|null $approval_request_id
@@ -46,19 +47,19 @@ class PartyBankAccount extends Model
     use TracksCreator;
 
     protected $fillable = [
-        'entity_id', 'party_id', 'account_holder', 'account_number', 'ifsc', 'bank_name', 'branch', 'upi_id', 'is_primary', 'status',
+        'entity_id', 'party_id', 'account_holder', 'account_number', 'bank_name', 'branch', 'raast_id', 'is_primary', 'status',
     ];
 
-    protected $hidden = ['account_number', 'account_number_index', 'upi_id'];
+    protected $hidden = ['account_number', 'account_number_index', 'raast_id'];
 
     /** @var list<string> */
-    protected array $auditMasked = ['account_number', 'upi_id'];
+    protected array $auditMasked = ['account_number', 'raast_id'];
 
     protected function casts(): array
     {
         return [
             'account_number' => 'encrypted',
-            'upi_id' => 'encrypted',
+            'raast_id' => 'encrypted',
             'is_primary' => 'boolean',
             'version' => 'integer',
             'archived_at' => 'datetime',
@@ -70,11 +71,12 @@ class PartyBankAccount extends Model
         static::addGlobalScope('not_archived', fn (Builder $q) => $q->whereNull('party_bank_accounts.archived_at'));
 
         static::saving(function (PartyBankAccount $account): void {
-            $number = preg_replace('/\s+/', '', $account->account_number) ?? '';
+            // The account number is the IBAN (PK.. 24 characters); the bank code is part of it.
+            $number = (string) PakistanIds::normalizeIban($account->account_number);
             $account->account_number = $number;
             $account->account_number_index = (string) BlindIndex::of($number, 'bank_account');
             $account->account_last4 = substr($number, -4);
-            $account->ifsc = strtoupper(trim($account->ifsc));
+            $account->bank_code = strlen($number) === 24 ? PakistanIds::bankCodeOfIban($number) : null;
         });
     }
 

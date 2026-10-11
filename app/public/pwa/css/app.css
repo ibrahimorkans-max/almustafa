@@ -4,7 +4,8 @@
   --text: #0f172a;
   --muted: #64748b;
   --border: #e2e8f0;
-  --primary: #047857;
+  --primary: #0B4F2C;
+  --accent: #D99A0E;
   --danger: #b91c1c;
   --warning: #b45309;
 }
@@ -16,7 +17,8 @@
     --text: #e5e7eb;
     --muted: #94a3b8;
     --border: #1f2937;
-    --primary: #34d399;
+    --primary: #5cbf7a;
+    --accent: #f0b43a;
     --danger: #f87171;
     --warning: #fbbf24;
   }
@@ -130,3 +132,6 @@ dialog#camera { border: 1px solid var(--line, #ccc); border-radius: 12px; paddin
 dialog#camera video { width: 100%; border-radius: 8px; background: #000; transform: scaleX(-1); }
 dialog#camera::backdrop { background: rgb(0 0 0 / 0.5); }
 #attendance .row button { flex: 1; min-height: 48px; }
+
+.brand { display: inline-flex; align-items: center; gap: 8px; }
+.brand-mark { height: 28px; width: auto; }

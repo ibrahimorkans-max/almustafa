@@ -27,7 +27,7 @@ return new class extends Migration
             $table->decimal('latitude', 10, 7);
             $table->decimal('longitude', 10, 7);
             $table->unsignedInteger('radius_m');
-            $table->json('time_windows')->nullable();            // [{days:[1..7], from:"06:00", to:"22:00"}], IST; null = any time
+            $table->json('time_windows')->nullable();            // [{days:[1..7], from:"06:00", to:"22:00"}], PKT; null = any time
             $table->string('status', 16)->default('active');
             $table->uuid('created_by')->nullable();
             $table->unsignedInteger('version')->default(1);

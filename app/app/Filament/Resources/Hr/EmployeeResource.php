@@ -10,6 +10,7 @@ use App\Filament\Support\ArchivedFilter;
 use App\Models\Hr\Department;
 use App\Models\Hr\Designation;
 use App\Models\Hr\Employee;
+use App\Models\Hr\Shift;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
@@ -63,17 +64,20 @@ class EmployeeResource extends Resource
                 Select::make('designation_id')->label('Designation')
                     ->options(fn () => Designation::query()->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
                 Select::make('employment_type')->options(Employee::TYPES)->required(),
+                Select::make('shift_id')->label('Shift')
+                    ->options(fn () => Shift::query()->where('status', 'active')->orderBy('code')->get()
+                        ->mapWithKeys(fn (Shift $s) => [$s->id => "{$s->name} ({$s->start_time}–{$s->end_time})"])->all()),
                 DatePicker::make('joining_date')->required()->disabledOn('edit')->maxDate(now()->addMonths(3)),
                 TextInput::make('notice_period_days')->label('Notice period (days)')->numeric()->minValue(0)->maxValue(180)->default(30),
             ]),
             FormSection::make('Personal details')->columns(2)
-                ->description('Encrypted. Aadhaar and PAN are shown masked; leave a field empty on edit to keep the stored value.')
+                ->description('Encrypted. CNIC and NTN are shown masked; leave a field empty on edit to keep the stored value.')
                 ->schema([
-                    TextInput::make('aadhaar')->label('Aadhaar')->maxLength(14)->autocomplete('off')
-                        ->placeholder(fn (?Employee $record) => $record?->maskedAadhaar()),
-                    TextInput::make('pan')->label('PAN')->maxLength(10)->autocomplete('off')
-                        ->placeholder(fn (?Employee $record) => $record?->maskedPan()),
-                    DatePicker::make('date_of_birth')->maxDate(now()->subYears(14))
+                    TextInput::make('cnic')->label('CNIC')->maxLength(15)->autocomplete('off')
+                        ->placeholder(fn (?Employee $record) => $record?->maskedCnic()),
+                    TextInput::make('ntn')->label('NTN (if any)')->maxLength(15)->autocomplete('off')
+                        ->placeholder(fn (?Employee $record) => $record?->maskedNtn()),
+                    DatePicker::make('date_of_birth')->maxDate(now()->subYears(15))
                         ->visible(fn (?Employee $record) => $record === null || $sensitive),
                     Textarea::make('address')->maxLength(500)->visible(fn (?Employee $record) => $record === null || $sensitive),
                     TextInput::make('emergency_contact_name')->maxLength(120),
@@ -121,6 +125,7 @@ class EmployeeResource extends Resource
                 TextEntry::make('employment_type')->label('Type')->formatStateUsing(fn (string $state) => Employee::TYPES[$state] ?? $state),
                 TextEntry::make('department.name')->label('Department')->placeholder('—'),
                 TextEntry::make('designation.name')->label('Designation')->placeholder('—'),
+                TextEntry::make('shift.name')->label('Shift')->placeholder('default 09:00–18:00'),
                 TextEntry::make('joining_date')->date('d M Y'),
                 TextEntry::make('notice_period_days')->label('Notice period')->suffix(' days'),
                 TextEntry::make('person.phone')->label('Phone')->placeholder('—'),
@@ -133,16 +138,16 @@ class EmployeeResource extends Resource
             Section::make('Identity and bank')->columns(3)
                 ->description('Masked. Full values need hr.employee.sensitive.view; each reveal is audited.')
                 ->schema([
-                    TextEntry::make('aadhaar_view')->label('Aadhaar')->fontFamily('mono')
-                        ->state(fn (Employee $r, $livewire) => $livewire->revealed['aadhaar'] ?? $r->maskedAadhaar())->hintAction($reveal('aadhaar')),
-                    TextEntry::make('pan_view')->label('PAN')->fontFamily('mono')
-                        ->state(fn (Employee $r, $livewire) => $livewire->revealed['pan'] ?? $r->maskedPan())->hintAction($reveal('pan')),
+                    TextEntry::make('cnic_view')->label('CNIC')->fontFamily('mono')
+                        ->state(fn (Employee $r, $livewire) => $livewire->revealed['cnic'] ?? $r->maskedCnic())->hintAction($reveal('cnic')),
+                    TextEntry::make('ntn_view')->label('NTN')->fontFamily('mono')
+                        ->state(fn (Employee $r, $livewire) => $livewire->revealed['ntn'] ?? $r->maskedNtn())->hintAction($reveal('ntn')),
                     TextEntry::make('dob_view')->label('Date of birth')
                         ->state(fn (Employee $r, $livewire) => $livewire->revealed['date_of_birth'] ?? ($r->getRawOriginal('date_of_birth') ? 'hidden' : '—'))
                         ->hintAction($reveal('date_of_birth')),
                     TextEntry::make('bank_view')->label('Salary account')->fontFamily('mono')
                         ->state(fn (Employee $r, $livewire) => isset($livewire->revealed['bank_account_number'])
-                            ? $livewire->revealed['bank_account_number'].' · '.$r->bank_ifsc : $r->maskedBankAccount())
+                            ? $livewire->revealed['bank_account_number'].' · '.$r->bank_code : $r->maskedBankAccount())
                         ->hintAction($reveal('bank_account_number')),
                     TextEntry::make('bank_name')->placeholder('—'),
                     TextEntry::make('bank_account_holder')->label('Account holder')->placeholder('—'),
@@ -165,6 +170,7 @@ class EmployeeResource extends Resource
             RelationManagers\DocumentsRelationManager::class,
             RelationManagers\SalaryStructuresRelationManager::class,
             RelationManagers\ClearanceItemsRelationManager::class,
+            RelationManagers\LeaveLedgerRelationManager::class,
         ];
     }
 

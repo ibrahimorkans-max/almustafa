@@ -101,26 +101,26 @@ it('hides cost and margin from roles without permission while every other figure
 
     signInP7($this, $this->f->acc->accountant);
     $accountantView = Livewire::test(ViewSalesBill::class, ['record' => $invoice->id])
-        ->assertSee('4,22,100.00')->assertSee('4,02,000.00')->assertDontSee('Cost and margin')->assertDontSee('3,000.00');
+        ->assertSee('422,100.00')->assertSee('402,000.00')->assertDontSee('Cost and margin')->assertDontSee('1,200.00');
 
     signInP7($this, $this->f->acc->owner);
     Livewire::test(ViewSalesBill::class, ['record' => $invoice->id])
-        ->assertSee('4,22,100.00')->assertSee('4,02,000.00')
-        ->assertSee('Cost and margin')->assertSee('3,000.00')->assertSee('1,000.00')->assertSee('25%');
+        ->assertSee('422,100.00')->assertSee('402,000.00')
+        ->assertSee('Cost and margin')->assertSee('1,200.00')->assertSee('400.00')->assertSee('25%'); // per maund: cost Rs 30 × 40 kg
     expect($accountantView)->not->toBeNull();
 });
 
 it('finds archived records and restores one with a reason', function () {
     $this->f->as($this->f->dispatcher);
     $gate = app(GateService::class);
-    $old = $gate->arrive(['registration_no' => 'HR05AB1234']);
+    $old = $gate->arrive(['registration_no' => 'MNA211234']);
     $gate->cancel($old, 'Driver left');
     DB::table('gate_entries')->where('id', $old->id)->update(['updated_at' => now()->subMonths(30)]);
     Make::reset();
     $this->artisan('archive:run')->assertSuccessful();
 
     signInP7($this, $this->f->acc->owner);
-    Livewire::test(ArchiveSearch::class)->set('term', 'HR05')->call('search')->assertSee($old->number)
+    Livewire::test(ArchiveSearch::class)->set('term', 'MNA2')->call('search')->assertSee($old->number)
         ->callAction('restore', ['reason' => 'Needed for a weight dispute in court'], ['type' => 'gate_entry', 'id' => $old->id])
         ->assertNotified('Restored');
 

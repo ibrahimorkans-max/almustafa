@@ -60,7 +60,7 @@ class GateEntryResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            TextInput::make('registration_no')->label('Vehicle registration no.')->required()->maxLength(20)->placeholder('HR05AB1234')
+            TextInput::make('registration_no')->label('Vehicle registration no.')->required()->maxLength(20)->placeholder('MNA-21-1234')
                 ->datalist(fn () => Vehicle::query()->orderBy('registration_no')->limit(500)->pluck('registration_no')->all()),
             Select::make('direction')->options(['inbound' => 'Inbound (paddy in)', 'outbound' => 'Outbound (dispatch)'])->default('inbound')->required()->live(),
             Select::make('dispatch_order_id')->label('Dispatch order')->searchable()
@@ -70,7 +70,7 @@ class GateEntryResource extends Resource
                     ->mapWithKeys(fn (DispatchOrder $o) => [$o->id => "{$o->number} — {$o->party->name} · {$o->product->name} · {$o->quantity_kg} kg"])),
             Select::make('sauda_id')->label('Against sauda')->searchable()
                 ->options(fn () => Sauda::query()->whereIn('status', [Sauda::STATUS_CONFIRMED, Sauda::STATUS_IN_DELIVERY])->with('party')->get()
-                    ->mapWithKeys(fn (Sauda $s) => [$s->id => "{$s->number} — {$s->party->name} ({$s->remaining()->in('quintal', 2)} qtl left)"])),
+                    ->mapWithKeys(fn (Sauda $s) => [$s->id => "{$s->number} — {$s->party->name} ({$s->remaining()->in('maund', 2)} maund left)"])),
             Select::make('party_id')->label('Party (if no sauda)')->searchable()->preload()
                 ->options(fn () => Party::query()->orderBy('name')->pluck('name', 'id')),
             TextInput::make('driver_name')->maxLength(120),
@@ -94,8 +94,8 @@ class GateEntryResource extends Resource
                 TextColumn::make('party.name')->label('Party')->placeholder('—'),
                 TextColumn::make('sauda.number')->label('Sauda')->placeholder('—'),
                 TextColumn::make('status')->badge()->color(fn (string $state) => static::statusColor($state)),
-                TextColumn::make('net_kg')->label('Net (qtl)')->formatStateUsing(fn (?string $state) => Units::kgToQuintal($state))->alignEnd()->placeholder('—'),
-                TextColumn::make('payable_kg')->label('Payable (qtl)')->formatStateUsing(fn (?string $state) => Units::kgToQuintal($state))->alignEnd()->placeholder('—'),
+                TextColumn::make('net_kg')->label('Net (maund)')->formatStateUsing(fn (?string $state) => Units::kgToMaund($state))->alignEnd()->placeholder('—'),
+                TextColumn::make('payable_kg')->label('Payable (maund)')->formatStateUsing(fn (?string $state) => Units::kgToMaund($state))->alignEnd()->placeholder('—'),
                 TextColumn::make('flags')->badge()->color('danger')->separator(',')
                     ->formatStateUsing(fn (string $state) => self::FLAG_LABELS[$state] ?? $state)->placeholder(''),
                 TextColumn::make('arrived_at')->label('Arrived')->dateTime('d M H:i')->sortable(),
@@ -132,7 +132,7 @@ class GateEntryResource extends Resource
                 TextEntry::make('net_kg')->label('Net (kg)')->placeholder('—')->weight('bold'),
                 TextEntry::make('deduction_kg')->label('Deduction (kg)')->placeholder('—'),
                 TextEntry::make('payable_kg')->label('Payable (kg)')->placeholder('—')->weight('bold'),
-                TextEntry::make('rate_cut_paise_per_quintal')->label('Rate cut / qtl')->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state))->placeholder('—'),
+                TextEntry::make('rate_cut_paise_per_maund')->label('Rate cut / maund')->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state))->placeholder('—'),
             ]),
             Section::make('Weighments (from the indicator)')->schema([
                 RepeatableEntry::make('weighments')->hiddenLabel()->columns(6)->schema([

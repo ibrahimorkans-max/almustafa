@@ -10,6 +10,7 @@ use App\Filament\Resources\Masters\TaxRateResource\Pages;
 use App\Models\Masters\TaxRate;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\EditAction;
@@ -25,19 +26,17 @@ class TaxRateResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-receipt-percent';
 
-    protected static ?string $navigationLabel = 'Tax rates (GST)';
+    protected static ?string $navigationLabel = 'Sales tax rates';
 
     protected static ?int $navigationSort = 70;
 
     public static function form(Form $form): Form
     {
-        $slabs = collect(TaxRate::GST_SLABS_BP)->mapWithKeys(fn (int $bp) => [$bp => rtrim(rtrim(number_format($bp / 100, 2), '0'), '.').'%'])->all();
-
         return $form->schema([
-            TextInput::make('name')->required()->maxLength(60)->placeholder('GST 5%')
+            TextInput::make('name')->required()->maxLength(60)->placeholder('Standard 18%')
                 ->unique('tax_rates', 'name', ignoreRecord: true, modifyRuleUsing: fn (Unique $rule) => $rule->where('entity_id', app(TenantContext::class)->entityId())),
-            Select::make('gst_rate_bp')->label('GST rate')->options($slabs)->required(),
-            TextInput::make('cess_rate_bp')->label('Cess (basis points, 100 = 1%)')->integer()->minValue(0)->maxValue(10000)->default(0),
+            TextInput::make('sales_tax_rate_bp')->label('Rate (basis points, 1800 = 18%)')->required()->integer()->minValue(0)->maxValue(TaxRate::MAX_RATE_BP)->default(1800),
+            Toggle::make('exempt')->label('Exempt (Sixth Schedule)')->helperText('No tax is charged; the supply is reported as exempt rather than zero-rated.'),
             Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
         ]);
     }
@@ -47,12 +46,11 @@ class TaxRateResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('name')->searchable(),
-                TextColumn::make('gst_rate_bp')->label('GST')->formatStateUsing(fn (int $state) => ($state / 100).'%'),
-                TextColumn::make('cess_rate_bp')->label('Cess')->formatStateUsing(fn (int $state) => ($state / 100).'%'),
+                TextColumn::make('rate')->label('Sales tax')->state(fn (TaxRate $record) => $record->percentLabel()),
                 TextColumn::make('status')->badge(),
                 static::updatedColumn(),
             ])
-            ->defaultSort('gst_rate_bp')
+            ->defaultSort('sales_tax_rate_bp')
             ->actions([EditAction::make()]);
     }
 

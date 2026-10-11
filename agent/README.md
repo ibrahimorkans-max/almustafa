@@ -38,12 +38,12 @@ copy agent.example.toml agent.toml                   # fill in; restrict file ac
 ## Use
 
 ```powershell
-ricemill-agent --config agent.toml arrive HR05AB1234 --sauda <sauda-id> --bags 400
+ricemill-agent --config agent.toml arrive MNA211234 --sauda <sauda-id> --bags 400
 ricemill-agent --config agent.toml capture <gate-entry-id> gross
 ricemill-agent --config agent.toml sync
 ricemill-agent --config agent.toml status
-ricemill-agent --config agent.toml simulate HR05AB1234 24560 9870     # simulator end-to-end
-ricemill-agent --config agent.toml gate in --plate HR05AB1234           # plate read + barrier decision
+ricemill-agent --config agent.toml simulate MNA211234 24560 9870     # simulator end-to-end
+ricemill-agent --config agent.toml gate in --plate MNA211234           # plate read + barrier decision
 ricemill-agent --config agent.toml manual-open out "Server down, ambulance behind"   # guard override (flagged)
 ```
 

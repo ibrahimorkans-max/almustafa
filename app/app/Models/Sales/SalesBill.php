@@ -20,7 +20,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
- * GST tax invoice for one outbound slip, computed from the slip and the frozen sales sauda terms.
+ * Sales tax invoice (or a commercial invoice when the mill has no STRN) for one outbound slip, computed
+ * from the slip and the frozen sales sauda terms.
  * The invoice number is assigned when it is posted (gap-free per financial year).
  *
  * @property string $id
@@ -34,16 +35,18 @@ use Illuminate\Support\Carbon;
  * @property Carbon $bill_date
  * @property Carbon $due_date
  * @property string $quantity_kg
- * @property int $rate_paise_per_quintal
- * @property string|null $hsn_code
- * @property int $gst_rate_bp
- * @property string|null $supplier_state
- * @property string|null $place_of_supply
- * @property string|null $buyer_gstin
+ * @property int $rate_paise_per_maund
+ * @property string $invoice_type sales_tax | commercial
+ * @property string|null $pct_code
+ * @property int $tax_rate_bp
+ * @property bool $tax_exempt
+ * @property int $further_tax_rate_bp
+ * @property string|null $seller_strn
+ * @property string|null $buyer_strn
+ * @property string|null $buyer_ntn
  * @property int $taxable_paise
- * @property int $cgst_paise
- * @property int $sgst_paise
- * @property int $igst_paise
+ * @property int $sales_tax_paise
+ * @property int $further_tax_paise
  * @property int $round_off_paise
  * @property int $total_paise
  * @property string $status
@@ -52,13 +55,6 @@ use Illuminate\Support\Carbon;
  * @property string|null $note
  * @property Carbon|null $posted_at
  * @property int $version
- * @property string|null $irn
- * @property string|null $irn_ack_no
- * @property Carbon|null $irn_ack_at
- * @property string|null $irn_signed_qr
- * @property string|null $einvoice_status
- * @property string|null $eway_bill_no
- * @property Carbon|null $eway_valid_until
  * @property-read Party $party
  * @property-read Product $product
  * @property-read Sauda $sauda
@@ -80,8 +76,8 @@ class SalesBill extends Model
 
     protected $fillable = [
         'gate_entry_id', 'dispatch_order_id', 'sauda_id', 'party_id', 'product_id', 'bill_date', 'due_date', 'quantity_kg',
-        'rate_paise_per_quintal', 'hsn_code', 'gst_rate_bp', 'supplier_state', 'place_of_supply', 'buyer_gstin',
-        'taxable_paise', 'cgst_paise', 'sgst_paise', 'igst_paise', 'round_off_paise', 'total_paise', 'snapshot',
+        'rate_paise_per_maund', 'invoice_type', 'pct_code', 'tax_rate_bp', 'tax_exempt', 'further_tax_rate_bp', 'seller_strn', 'buyer_strn', 'buyer_ntn',
+        'taxable_paise', 'sales_tax_paise', 'further_tax_paise', 'round_off_paise', 'total_paise', 'snapshot',
     ];
 
     /** @var array<string, mixed> */
@@ -90,16 +86,21 @@ class SalesBill extends Model
     protected function casts(): array
     {
         return [
-            'bill_date' => 'date', 'due_date' => 'date', 'quantity_kg' => 'decimal:3', 'rate_paise_per_quintal' => 'integer',
-            'gst_rate_bp' => 'integer', 'taxable_paise' => 'integer', 'cgst_paise' => 'integer', 'sgst_paise' => 'integer',
-            'igst_paise' => 'integer', 'round_off_paise' => 'integer', 'total_paise' => 'integer', 'snapshot' => 'array',
-            'posted_at' => 'datetime', 'version' => 'integer', 'irn_ack_at' => 'datetime', 'eway_valid_until' => 'datetime',
+            'bill_date' => 'date', 'due_date' => 'date', 'quantity_kg' => 'decimal:3', 'rate_paise_per_maund' => 'integer',
+            'tax_rate_bp' => 'integer', 'tax_exempt' => 'boolean', 'further_tax_rate_bp' => 'integer', 'taxable_paise' => 'integer',
+            'sales_tax_paise' => 'integer', 'further_tax_paise' => 'integer', 'round_off_paise' => 'integer', 'total_paise' => 'integer',
+            'snapshot' => 'array', 'posted_at' => 'datetime', 'version' => 'integer',
         ];
     }
 
-    public function isInterState(): bool
+    public function isSalesTaxInvoice(): bool
     {
-        return $this->igst_paise > 0 || ($this->supplier_state !== null && $this->place_of_supply !== null && $this->supplier_state !== $this->place_of_supply);
+        return $this->invoice_type === 'sales_tax';
+    }
+
+    public function taxTotal(): int
+    {
+        return $this->sales_tax_paise + $this->further_tax_paise;
     }
 
     /** @return BelongsTo<Party, $this> */

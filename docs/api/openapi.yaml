@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Rice Mill ERP — device API (auth + sync)
+  title: Al Mustafa Rice Mills ERP — device API (auth + sync)
   version: "1.0.0"
   description: |
     One contract for the PWA, the Flutter app and the gate hardware agent.
@@ -318,6 +318,76 @@ paths:
         '201': { description: Request created, content: { application/json: { schema: { type: object, properties: { status: { type: string } } } } } }
         '200': { description: 'Already pending or approved' }
         '422': { description: No employee record }
+  /leave/me:
+    get:
+      summary: Own leave types, balances for this year and recent requests (needs hr.leave.request)
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      responses:
+        '200':
+          description: 'Balances are sums of the append-only leave ledger; unpaid types have no balance'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  year: { type: integer }
+                  types: { type: array, items: { type: object, properties: { id: { type: string }, code: { type: string }, name: { type: string }, paid: { type: boolean }, half_day_allowed: { type: boolean }, balance: { type: [string, 'null'] } } } }
+                  requests: { type: array, items: { type: object, properties: { id: { type: string }, type: { type: string }, from: { type: string, format: date }, to: { type: string, format: date }, half_day: { type: string }, days: { type: string }, status: { type: string, enum: [pending, approved, rejected, cancelled] }, note: { type: [string, 'null'] } } } }
+        '403': { description: 'No hr.leave.request' }
+  /leave/requests:
+    post:
+      summary: Ask for leave (days exclude holidays and weekly offs; decided by someone with hr.leave.approve)
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [leave_type_id, from, to, reason]
+              properties:
+                leave_type_id: { type: string, format: uuid }
+                from: { type: string, format: date }
+                to: { type: string, format: date }
+                half_day: { type: string, enum: [none, first, second] }
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '201': { description: 'Requested', content: { application/json: { schema: { type: object, properties: { id: { type: string }, days: { type: string }, status: { type: string } } } } } }
+        '422': { description: 'Overlap, crosses the year end, only holidays, half day on several days, or not linked to an employee' }
+  /leave/requests/{leaveRequest}/withdraw:
+    post:
+      summary: Withdraw own pending leave request (approved leave is cancelled by an approver)
+      parameters:
+        - { $ref: '#/components/parameters/DeviceId' }
+        - { name: leaveRequest, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: 'Withdrawn' }
+        '404': { description: 'Not your request' }
+        '422': { description: 'Not pending' }
+  /documents/me:
+    get:
+      summary: Own current documents (payslips, certificates…), newest first, at most 60; replaced revisions are left out
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      responses:
+        '200':
+          description: 'An empty list, with a message, when the login is not linked to an employee'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents: { type: array, items: { type: object, properties: { id: { type: string, format: uuid }, type: { type: string }, title: { type: string }, number: { type: string }, period: { type: [string, 'null'] }, issued_at: { type: string, format: date-time }, verify_code: { type: string } } } }
+                  message: { type: string }
+  /documents/{document}/pdf:
+    get:
+      summary: The original PDF of a document (the download is logged; Cache-Control no-store)
+      parameters:
+        - { $ref: '#/components/parameters/DeviceId' }
+        - { name: document, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: 'The PDF', content: { application/pdf: { schema: { type: string, format: binary } } } }
+        '403': { description: 'Someone else''s document, without hr.documents.generate' }
+        '404': { description: 'No such document' }
 components:
   securitySchemes:
     bearer: { type: http, scheme: bearer }

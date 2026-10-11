@@ -23,7 +23,7 @@ class ListBankFiles extends ListRecords
         return [
             Action::make('create')->label('Create bank file')->icon('heroicon-o-plus')
                 ->visible(fn () => Filament::auth()->user()?->can('payment.approve') ?? false)
-                ->modalDescription('Collects all released NEFT / RTGS / UPI payments from this account that are not in a file yet.')
+                ->modalDescription('Collects all released IBFT / RTGS / Raast payments from this account that are not in a file yet.')
                 ->form([
                     Select::make('bank')->label('Mill bank account')->required()
                         ->options(fn () => LedgerAccount::query()->where('kind', 'bank')->where('status', 'active')->get()

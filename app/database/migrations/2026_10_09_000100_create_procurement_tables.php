@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Procurement: requirements → quotes (append-only revisions) → saudas (append-only events).
- * Quantities in kg (decimal 15,3), rates in paise per quintal (integer).
+ * Quantities in kg (decimal 15,3), rates in paisa per maund (integer).
  */
 return new class extends Migration
 {
@@ -27,7 +27,7 @@ return new class extends Migration
             $table->string('number', 40);
             $table->foreignUuid('product_id')->constrained('products');
             $table->decimal('quantity_kg', 15, 3);
-            $table->unsignedBigInteger('target_rate_paise_per_quintal')->nullable();
+            $table->unsignedBigInteger('target_rate_paise_per_maund')->nullable();
             $table->json('quality_spec')->nullable();     // {"moisture_max_bp":1700,...}
             $table->date('delivery_from')->nullable();
             $table->date('delivery_to')->nullable();
@@ -66,7 +66,7 @@ return new class extends Migration
             $table->string('status', 16)->default('submitted');
             $table->unsignedInteger('current_revision')->default(1);
             $table->decimal('quantity_kg', 15, 3);                            // latest offer
-            $table->unsignedBigInteger('rate_paise_per_quintal');
+            $table->unsignedBigInteger('rate_paise_per_maund');
             $table->string('last_offer_by', 8);                               // mill | seller
             $table->dateTime('valid_until')->nullable();
             $table->uuid('sauda_id')->nullable();
@@ -84,7 +84,7 @@ return new class extends Migration
             $table->unsignedInteger('revision');
             $table->string('offered_by', 8);                                  // mill | seller
             $table->decimal('quantity_kg', 15, 3);
-            $table->unsignedBigInteger('rate_paise_per_quintal');
+            $table->unsignedBigInteger('rate_paise_per_maund');
             $table->json('terms')->nullable();
             $table->text('note')->nullable();
             $table->uuid('created_by')->nullable();
@@ -104,8 +104,8 @@ return new class extends Migration
             $table->foreignUuid('product_id')->constrained('products');
             $table->decimal('quantity_kg', 15, 3);
             $table->unsignedInteger('tolerance_bp')->default(500);            // ± allowed delivery deviation
-            $table->unsignedBigInteger('rate_paise_per_quintal');
-            $table->unsignedBigInteger('brokerage_paise_per_quintal')->default(0);
+            $table->unsignedBigInteger('rate_paise_per_maund');
+            $table->unsignedBigInteger('brokerage_paise_per_maund')->default(0);
             $table->json('quality_terms')->nullable();
             $table->date('delivery_from')->nullable();
             $table->date('delivery_to')->nullable();

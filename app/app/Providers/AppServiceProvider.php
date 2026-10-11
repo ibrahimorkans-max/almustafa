@@ -10,8 +10,6 @@ use App\Domain\Auth\ApiTokenGuard;
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Auth\SessionService;
 use App\Domain\Auth\TenantAwareUserProvider;
-use App\Domain\Gst\EInvoiceProvider;
-use App\Domain\Gst\SandboxEInvoiceProvider;
 use App\Domain\Hr\Attendance\DeviceClock;
 use App\Domain\Hr\Attendance\IntegrityVerifier;
 use App\Domain\Hr\Attendance\UnconfiguredIntegrityVerifier;
@@ -26,6 +24,8 @@ use App\Models\Accounts;
 use App\Models\Alert;
 use App\Models\AuthSession;
 use App\Models\Claims\Claim;
+use App\Models\Documents\DocumentTemplate;
+use App\Models\Documents\GeneratedDocument;
 use App\Models\Gate\DeductionRule;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\Scale;
@@ -42,8 +42,10 @@ use App\Models\Production;
 use App\Models\Sales\DispatchOrder;
 use App\Models\Sales\SalesBill;
 use App\Policies;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Actions\Action as NotificationAction;
 use Filament\Notifications\Notification;
+use Filament\Tables\Columns\TextColumn;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Events\ScheduledTaskFailed;
@@ -72,19 +74,17 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(SyncRegistry::class);
         $this->app->scoped(DeviceClock::class);
         $this->app->singleton(Google2FA::class);
-        // E-invoice / e-way bill: sandbox until the mill's GSP adapter and credentials are configured.
         // Play Integrity / App Attest verification needs the mill's own credentials; until then: "unverified".
         $this->app->bindIf(IntegrityVerifier::class, UnconfiguredIntegrityVerifier::class);
-        $this->app->bind(EInvoiceProvider::class, fn () => match (config('ricemill.gst.provider')) {
-            'sandbox' => new SandboxEInvoiceProvider,
-            default => throw new \RuntimeException('Unknown e-invoice provider '.config('ricemill.gst.provider').'; add its adapter first.'),
-        });
     }
 
     public function boot(): void
     {
         Model::preventSilentlyDiscardingAttributes(! $this->app->isProduction());
         Model::preventAccessingMissingAttributes(! $this->app->isProduction());
+        // Times are stored in UTC; every screen shows them in Pakistan time unless a column says otherwise.
+        TextColumn::configureUsing(fn (TextColumn $column) => $column->timezone('Asia/Karachi'));
+        TextEntry::configureUsing(fn (TextEntry $entry) => $entry->timezone('Asia/Karachi'));
 
         $this->registerAuth();
         $this->registerRateLimits();
@@ -152,6 +152,19 @@ class AppServiceProvider extends ServiceProvider
             Hr\AttendanceLog::class => Policies\Hr\EmployeeDocumentPolicy::class,
             Hr\EmployeeDevice::class => Policies\Hr\EmployeeDocumentPolicy::class,
             Hr\Site::class => Policies\Hr\HrMasterPolicy::class,
+            Hr\Shift::class => Policies\Hr\HrMasterPolicy::class,
+            Hr\Holiday::class => Policies\Hr\HrMasterPolicy::class,
+            Hr\LeaveType::class => Policies\Hr\HrMasterPolicy::class,
+            Hr\LeaveRequest::class => Policies\Hr\LeaveRequestPolicy::class,
+            Hr\LeaveLedgerEntry::class => Policies\Hr\EmployeeDocumentPolicy::class,
+            Hr\Advance::class => Policies\Hr\PayrollPolicy::class,
+            Hr\PieceWorkEntry::class => Policies\Hr\PieceWorkPolicy::class,
+            Hr\AllowanceRule::class => Policies\Hr\PayrollRulePolicy::class,
+            Hr\PayAdjustment::class => Policies\Hr\PayrollPolicy::class,
+            Hr\PayrollRun::class => Policies\Hr\PayrollPolicy::class,
+            Hr\PayrollItem::class => Policies\Hr\PayrollPolicy::class,
+            GeneratedDocument::class => Policies\Hr\DocumentPolicy::class,
+            DocumentTemplate::class => Policies\Hr\DocumentTemplatePolicy::class,
         ] as $model => $policy) {
             Gate::policy($model, $policy);
         }

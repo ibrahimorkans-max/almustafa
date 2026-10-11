@@ -50,7 +50,7 @@ class CreatePayment extends CreateRecord
                 (string) $data['mode'],
                 LedgerAccount::query()->findOrFail($data['from_ledger_id']),
                 $amount,
-                CarbonImmutable::parse($data['payment_date'], 'Asia/Kolkata'),
+                CarbonImmutable::parse($data['payment_date'], 'Asia/Karachi'),
                 $allocations,
                 $data['narration'] ?? null,
             );

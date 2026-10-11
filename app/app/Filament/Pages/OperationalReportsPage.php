@@ -47,8 +47,8 @@ class OperationalReportsPage extends Page
 
     public function mount(): void
     {
-        $this->from = $this->from ?: now('Asia/Kolkata')->startOfMonth()->toDateString();
-        $this->to = $this->to ?: now('Asia/Kolkata')->toDateString();
+        $this->from = $this->from ?: now('Asia/Karachi')->startOfMonth()->toDateString();
+        $this->to = $this->to ?: now('Asia/Karachi')->toDateString();
         if (! isset(OperationalReports::REPORTS[$this->report])) {
             $this->report = 'gate_register';
         }

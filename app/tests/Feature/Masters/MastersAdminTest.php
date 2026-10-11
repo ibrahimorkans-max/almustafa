@@ -55,33 +55,34 @@ it('lets the gate operator register a vehicle but not edit parties', function ()
     signIn($this, $gate);
 
     Livewire::test(ManageVehicles::class)
-        ->callAction('create', ['registration_no' => 'up 32 ab 4567', 'vehicle_type' => 'truck', 'status' => 'active'])
+        ->callAction('create', ['registration_no' => 'les 22 4567', 'vehicle_type' => 'truck', 'status' => 'active'])
         ->assertHasNoActionErrors();
-    expect(Vehicle::query()->sole()->registration_no)->toBe('UP32AB4567');
+    expect(Vehicle::query()->sole()->registration_no)->toBe('LES224567');
 
     Livewire::test(ManageVehicles::class)
-        ->callAction('create', ['registration_no' => 'UP-32-AB-4567', 'vehicle_type' => 'truck', 'status' => 'active'])
+        ->callAction('create', ['registration_no' => 'LES-22-4567', 'vehicle_type' => 'truck', 'status' => 'active'])
         ->assertHasActionErrors(['registration_no']);
 
     $this->get('/admin/masters/parties/create')->assertForbidden();
 });
 
-it('creates a party with roles, credit limit in paise and validated GSTIN', function () {
+it('creates a party with roles, credit limit in paisa and a validated NTN / STRN', function () {
     $acc = Make::account($this->entity, 'ACCOUNTANT');
     signIn($this, $acc);
 
     Livewire::test(CreateParty::class)
         ->fillForm([
-            'code' => 'C-001', 'name' => 'Gupta Rice Traders', 'roles' => ['is_customer', 'is_broker'],
-            'gst_registration_type' => 'regular', 'gstin' => '27AAPFU0939F1ZW', 'status' => 'active',
+            'code' => 'C-001', 'name' => 'Lodhran Rice Traders', 'roles' => ['is_customer', 'is_broker'],
+            'ntn' => '1234567', 'strn' => '32778765', 'atl_status' => 'unknown', 'status' => 'active',
         ])
         ->call('create')
-        ->assertHasFormErrors(['gstin']);
+        ->assertHasFormErrors(['ntn', 'strn']);
 
     Livewire::test(CreateParty::class)
         ->fillForm([
-            'code' => 'C-001', 'name' => 'Gupta Rice Traders', 'roles' => ['is_customer', 'is_broker'],
-            'phone' => '98765 43210', 'gst_registration_type' => 'regular', 'gstin' => '27aapfu0939f1zv',
+            'code' => 'C-001', 'name' => 'Lodhran Rice Traders', 'roles' => ['is_customer', 'is_broker'],
+            'phone' => '0300 6834588', 'ntn' => '1234567-8', 'strn' => '32-77-8765-432-10', 'cnic' => '36203-1234567-1',
+            'province' => 'Punjab', 'atl_status' => 'active', 'atl_checked_on' => now()->toDateString(),
             'credit_limit_rupees' => '250000.50', 'credit_days' => 30, 'status' => 'active',
         ])
         ->call('create')
@@ -90,20 +91,23 @@ it('creates a party with roles, credit limit in paise and validated GSTIN', func
     $party = Party::query()->sole();
     expect($party->is_customer && $party->is_broker && ! $party->is_vendor)->toBeTrue()
         ->and($party->credit_limit_paise)->toBe(25000050)
-        ->and($party->phone)->toBe('+919876543210')
-        ->and($party->gstin)->toBe('27AAPFU0939F1ZV')
-        ->and($party->state_code)->toBe('27');
+        ->and($party->phone)->toBe('+923006834588')
+        ->and($party->ntn)->toBe('12345678')
+        ->and($party->strn)->toBe('3277876543210')
+        ->and($party->cnic)->toBe('3620312345671')
+        ->and($party->tax_registration)->toBe('registered')
+        ->and($party->isFiler())->toBeTrue();
 });
 
 it('files a bank account request instead of saving it', function () {
     $owner = Make::account($this->entity, 'OWNER');
     signIn($this, $owner);
-    $party = Party::query()->create(['code' => 'V1', 'name' => 'Vendor', 'is_vendor' => true, 'gst_registration_type' => 'unregistered']);
+    $party = Party::query()->create(['code' => 'V1', 'name' => 'Vendor', 'is_vendor' => true]);
 
     Livewire::test(BankAccountsRelationManager::class, ['ownerRecord' => $party, 'pageClass' => EditParty::class])
         ->callTableAction('request_add', data: [
-            'account_holder' => 'Vendor', 'account_number' => '123456789012', 'account_number_confirmation' => '123456789012',
-            'ifsc' => 'HDFC0001234', 'reason' => 'Onboarding',
+            'account_holder' => 'Vendor', 'account_number' => 'PK36SCBL0000001123456702', 'account_number_confirmation' => 'PK36SCBL0000001123456702',
+            'bank_name' => 'Standard Chartered', 'reason' => 'Onboarding',
         ])
         ->assertHasNoTableActionErrors();
 
@@ -113,7 +117,7 @@ it('files a bank account request instead of saving it', function () {
         ->and($party->bankAccounts()->count())->toBe(0);
 
     // The approval screen never shows the encrypted number.
-    $this->get('/admin/approvals/'.$request->id)->assertOk()->assertSee('XXXX9012')->assertDontSee('123456789012');
+    $this->get('/admin/approvals/'.$request->id)->assertOk()->assertSee('XXXX6702')->assertDontSee('PK36SCBL0000001123456702');
 });
 
 it('lets a supervisor apply or dismiss items in the review queue', function () {
@@ -126,7 +130,7 @@ it('lets a supervisor apply or dismiss items in the review queue', function () {
     $device = Device::query()->sole();
     $events = fn (int $seq, string $id, string $type) => [[
         'event_id' => (string) Str::uuid(), 'client_seq' => $seq, 'occurred_at' => now()->toIso8601ZuluString(),
-        'type' => 'vehicle.upsert', 'record_id' => $id, 'payload' => ['registration_no' => 'HR05AB1234', 'vehicle_type' => $type],
+        'type' => 'vehicle.upsert', 'record_id' => $id, 'payload' => ['registration_no' => 'MNA211234', 'vehicle_type' => $type],
     ]];
     app(SyncService::class)->push($gate, $device, $events(1, (string) Str::uuid(), 'truck'));
     app(SyncService::class)->push($gate, $device, $events(2, (string) Str::uuid(), 'tempo'));
@@ -141,7 +145,7 @@ it('lets a supervisor apply or dismiss items in the review queue', function () {
     expect($conflict->fresh()->review_status)->toBe('open');
 
     Livewire::test(ViewSyncConflict::class, ['record' => $conflict->id])
-        ->callAction('dismiss', ['note' => 'Duplicate of existing truck HR05AB1234']);
+        ->callAction('dismiss', ['note' => 'Duplicate of existing truck MNA211234']);
     expect($conflict->fresh())->review_status->toBe('dismissed')
         ->and($conflict->fresh()->reviewed_by)->toBe($supervisor->id);
 });

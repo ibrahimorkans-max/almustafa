@@ -41,7 +41,7 @@ final class AccessReview
                     'role' => $a->role->name ?? '',
                     'status' => $a->status,
                     'two_factor' => $a->hasMfa() ? 'yes' : ($a->mfaRequired() ? 'required, not set up' : 'no'),
-                    'last_login' => $a->last_login_at ? CarbonImmutable::parse($a->last_login_at)->timezone('Asia/Kolkata')->format('d M Y H:i') : 'never',
+                    'last_login' => $a->last_login_at ? CarbonImmutable::parse($a->last_login_at)->timezone('Asia/Karachi')->format('d M Y H:i') : 'never',
                     'flags' => implode(', ', array_filter([
                         $a->isActive() && $a->last_login_at === null ? 'never signed in' : null,
                         $a->isActive() && $a->last_login_at !== null && $a->last_login_at->lt($cutoff) ? 'dormant' : null,

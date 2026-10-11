@@ -10,7 +10,6 @@ use App\Models\Entity;
 use App\Models\Hr\Department;
 use App\Models\Hr\Employee;
 use App\Models\LoginAccount;
-use App\Support\Values\IndianIds;
 
 /** An entity with the people HR work involves, and realistic employee data. */
 final class HrFixtures
@@ -41,21 +40,16 @@ final class HrFixtures
         app(AuthContextBinder::class)->bind($account);
     }
 
-    /** A valid Aadhaar number (Verhoeff check digit) that differs per call. */
-    public static function aadhaar(?int $n = null): string
+    /** A valid 13-digit CNIC (Punjab region) that differs per call. */
+    public static function cnic(?int $n = null): string
     {
-        $base = sprintf('5%010d', $n ?? ++self::$seq + random_int(1, 9_999_999));
-        for ($d = 0; $d <= 9; $d++) {
-            if (IndianIds::isValidAadhaar($base.$d)) {
-                return $base.$d;
-            }
-        }
-        throw new \LogicException('unreachable');
+        return sprintf('36%011d', $n ?? ++self::$seq * 7919 + random_int(1, 9_999_999));
     }
 
-    public static function pan(): string
+    /** A valid NTN (7 digits and the check digit). */
+    public static function ntn(): string
     {
-        return sprintf('ABCP%s%04dK', chr(65 + random_int(0, 25)), random_int(1000, 9999));
+        return sprintf('%08d', random_int(1_000_000, 99_999_999));
     }
 
     /** @param  array<string, mixed>  $overrides */
@@ -65,10 +59,10 @@ final class HrFixtures
         $dept = Department::query()->where('code', 'PROD')->value('id');
 
         return app(EmployeeService::class)->create($overrides + [
-            'full_name' => 'Ramesh Kumar', 'phone' => '9812345678', 'department_id' => $dept,
+            'full_name' => 'Muhammad Iqbal', 'phone' => '03001234567', 'department_id' => $dept,
             'employment_type' => 'permanent', 'joining_date' => '2026-04-01', 'date_of_birth' => '1990-05-17',
-            'address' => 'Ward 4, Taraori, Karnal', 'aadhaar' => self::aadhaar(), 'pan' => self::pan(),
-            'emergency_contact_name' => 'Sita Devi', 'emergency_contact_phone' => '9812300000',
+            'address' => 'Mohalla Islampura, Lodhran', 'cnic' => self::cnic(), 'ntn' => self::ntn(),
+            'emergency_contact_name' => 'Rashida Bibi', 'emergency_contact_phone' => '03001230000',
         ]);
     }
 }

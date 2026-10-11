@@ -41,7 +41,7 @@ class BarrierServer:
 def setup(server: BarrierServer | None, plates: list[str] | None = None, barrier_fail: bool = False):
     store = LocalStore(Path(tempfile.mkdtemp()) / "s.sqlite3", LocalStore.new_key())
     api = ApiClient("http://127.0.0.1:8000", Credentials("gate", "pw", "gate-pc-1", "s3cret"), transport=server) if server else None
-    camera = SimulatedAnprCamera(plates or ["HR05AB1234"])
+    camera = SimulatedAnprCamera(plates or ["MNA211234"])
     barrier = SimulatedBarrier(fail=barrier_fail)
     display = SimulatedDisplay()
     return store, GateController(store, api, camera, barrier, display), barrier, display
@@ -56,8 +56,8 @@ class GateControlTest(unittest.TestCase):
 
         self.assertTrue(result.opened)
         self.assertEqual(barrier.commands, ["open"])
-        self.assertEqual(server.barrier_requests, [{"side": "in", "plate": "HR05AB1234"}])
-        self.assertEqual(display.current, ("HR05AB1234", "PROCEED"))
+        self.assertEqual(server.barrier_requests, [{"side": "in", "plate": "MNA211234"}])
+        self.assertEqual(display.current, ("MNA211234", "PROCEED"))
         events = [e.body for e in store.pending()]
         self.assertEqual(events[0]["type"], "gate_entry.plate_read")
         self.assertEqual(events[0]["payload"]["confidence_bp"], 9600)
@@ -72,7 +72,7 @@ class GateControlTest(unittest.TestCase):
         self.assertFalse(result.opened)
         self.assertEqual(result.reason, "no_gate_pass")
         self.assertEqual(barrier.commands, [])
-        self.assertEqual(display.current, ("HR05AB1234", "STOP-NO GATEPASS"))
+        self.assertEqual(display.current, ("MNA211234", "STOP-NO GATEPASS"))
 
     def test_fails_closed_offline_or_on_errors_but_keeps_the_plate_read(self) -> None:
         for server in (BarrierServer(offline=True), BarrierServer(status=500, decision={"message": "boom"}), None):
@@ -81,7 +81,7 @@ class GateControlTest(unittest.TestCase):
             self.assertFalse(result.opened)
             self.assertEqual(result.reason, "server_unreachable")
             self.assertEqual(barrier.commands, [])
-            self.assertEqual(display.current, ("HR05AB1234", "STOP-CALL GUARD"))
+            self.assertEqual(display.current, ("MNA211234", "STOP-CALL GUARD"))
             self.assertEqual(store.unsynced_count(), 1)  # plate read queued for later
 
     def test_reports_a_dead_relay_instead_of_pretending_it_opened(self) -> None:
@@ -91,7 +91,7 @@ class GateControlTest(unittest.TestCase):
 
         self.assertFalse(result.opened)
         self.assertEqual(result.reason, "barrier_fault")
-        self.assertEqual(display.current, ("HR05AB1234", "BARRIER FAULT"))
+        self.assertEqual(display.current, ("MNA211234", "BARRIER FAULT"))
 
     def test_manual_open_needs_a_reason_and_is_queued(self) -> None:
         store, gate, barrier, _ = setup(None)
@@ -108,19 +108,19 @@ class GateControlTest(unittest.TestCase):
 
     def test_a_misread_plate_is_forwarded_as_read(self) -> None:
         camera = SimulatedAnprCamera([])
-        camera.queue("HR05AB1234", misread=True)
+        camera.queue("MNA211234", misread=True)
         store = LocalStore(Path(tempfile.mkdtemp()) / "s.sqlite3", LocalStore.new_key())
         gate = GateController(store, None, camera, SimulatedBarrier(), SimulatedDisplay())
 
         plate = gate.read_plate("e1")
 
-        self.assertEqual(plate, "HR05AB1238")  # the server compares and flags; the agent never "fixes" it
+        self.assertEqual(plate, "MNA211238")  # the server compares and flags; the agent never "fixes" it
         self.assertEqual(store.pending()[0].body["payload"]["gate_entry_id"], "e1")
 
     def test_shows_the_weight(self) -> None:
         _, gate, _, display = setup(None)
-        gate.show_weight("HR05AB1234", Decimal("25480.000"))
-        self.assertEqual(display.current, ("HR05AB1234", "25480 KG"))
+        gate.show_weight("MNA211234", Decimal("25480.000"))
+        self.assertEqual(display.current, ("MNA211234", "25480 KG"))
 
 
 if __name__ == "__main__":
@@ -137,6 +137,6 @@ class GateLockdownTest(unittest.TestCase):
         self.assertFalse(result.opened)
         self.assertEqual(result.reason, "system_locked")
         self.assertEqual(barrier.commands, [])
-        self.assertEqual(display.current, ("HR05AB1234", "SYSTEM LOCKED"))
+        self.assertEqual(display.current, ("MNA211234", "SYSTEM LOCKED"))
         self.assertEqual(store.get_meta("stopped"), "system_locked")
         self.assertEqual(store.unsynced_count(), 1, "the plate read is still queued")

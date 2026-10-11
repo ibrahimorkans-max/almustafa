@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Domain\Gate;
 
 use App\Domain\Audit\CanonicalJson;
+use App\Domain\Documents\PdfRenderer;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
+use App\Models\Gate\LabTest;
 use App\Models\Gate\Weighment;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 /**
  * Weighment slip as PDF, rendered from the slip_issued event snapshot (what was true when the
@@ -20,7 +21,10 @@ use Barryvdh\DomPDF\Facade\Pdf;
  */
 final class SlipRenderer
 {
-    public function __construct(private readonly TenantContext $tenant) {}
+    public function __construct(
+        private readonly TenantContext $tenant,
+        private readonly PdfRenderer $pdf,
+    ) {}
 
     public function pdf(GateEntry $entry): string
     {
@@ -30,14 +34,16 @@ final class SlipRenderer
         $weighments = Weighment::query()->where('gate_entry_id', $entry->id)->orderBy('captured_at')->get();
         $entity = $this->tenant->runAsSystem(fn () => Entity::query()->find($entry->entity_id));
 
-        return Pdf::loadView('slips.weighment', [
-            'entity' => $entity,
-            'entry' => $entry->loadMissing(['party', 'product', 'sauda']),
+        $code = self::verificationCode($entry->id, $slip->data ?? []);
+
+        return $this->pdf->render('slips.weighment', [
+            'title' => 'Weighment slip '.$entry->number,
+            'entry' => $entry->loadMissing(['party', 'product', 'sauda', 'driver', 'vehicle.defaultDriver']),
             'slip' => $slip->data,
             'issuedAt' => $slip->occurred_at,
             'weighments' => $weighments,
-            'code' => self::verificationCode($entry->id, $slip->data ?? []),
-        ])->setPaper('a5')->output();
+            'lab' => LabTest::query()->where('gate_entry_id', $entry->id)->orderByDesc('tested_at')->first(),
+        ], $entity, 'A5', (string) $entry->number, $code);
     }
 
     /** @param  array<string, mixed>  $snapshot */

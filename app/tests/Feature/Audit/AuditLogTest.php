@@ -42,7 +42,7 @@ it('records who, what, when, device, IP, old and new values', function () {
 
 it('masks confidential values and never stores secrets', function () {
     Make::system(function () {
-        $this->entity->pan = 'ABCDE1234F';
+        $this->entity->ntn = '12345678';
         $this->entity->save();
         $this->owner->password = 'Another-Secret-99!';
         $this->owner->save();
@@ -51,7 +51,7 @@ it('masks confidential values and never stores secrets', function () {
     $panLog = AuditLog::query()->where('action', 'entity.updated')->latest('occurred_at')->firstOrFail();
     $pwLog = AuditLog::query()->where('action', 'login_account.updated')->latest('occurred_at')->firstOrFail();
 
-    expect($panLog->new_values['pan'])->toBe('******234F')
+    expect($panLog->new_values['ntn'])->toBe('****5678')
         ->and(json_encode($pwLog->new_values))->not->toContain('Another-Secret')
         ->and($pwLog->new_values['password'])->toBe('[set]');
 });

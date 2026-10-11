@@ -88,14 +88,14 @@ final class PermissionCatalog
         // Reports
         'dashboard.view' => ['reports', 'View dashboards'],
         'report.view' => ['reports', 'View operational reports'],
-        'report.gst' => ['reports', 'View and export GST reports'],
+        'report.tax' => ['reports', 'View and export sales-tax and withholding registers'],
         // Archive
         'archive.search' => ['archive', 'Search archived records'],
         'archive.restore' => ['archive', 'Restore archived records (reason required)'],
         // HR and payroll
         'hr.employee.view' => ['hr', 'View employees (identifiers masked)'],
         'hr.employee.edit' => ['hr', 'Create and edit employees, documents and exits'],
-        'hr.employee.sensitive.view' => ['hr', 'See full Aadhaar, PAN, bank account and date of birth (each reveal audited)', true],
+        'hr.employee.sensitive.view' => ['hr', 'See full CNIC, NTN, bank account and date of birth (each reveal audited)', true],
         'hr.salary.view' => ['hr', 'View salary structures', true],
         'hr.salary.edit' => ['hr', 'Change salary structures (new effective-dated version)', true],
         'hr.payroll.run' => ['hr', 'Prepare payroll runs'],
@@ -103,6 +103,8 @@ final class PermissionCatalog
         'hr.attendance.override' => ['hr', 'Request manual attendance and corrections'],
         'hr.attendance.punch' => ['hr', 'Mark own attendance from own approved phone'],
         'hr.attendance.review' => ['hr', 'Accept or reject flagged attendance punches (with a reason)'],
+        'hr.leave.request' => ['hr', 'Request own leave'],
+        'hr.leave.approve' => ['hr', 'Approve, refuse or cancel leave of others'],
         'hr.documents.generate' => ['hr', 'Generate payslips and HR documents'],
         'hr.documents.share' => ['hr', 'Share HR documents (email, link, WhatsApp)'],
         'hr.documents.template.manage' => ['hr', 'Manage HR document templates'],

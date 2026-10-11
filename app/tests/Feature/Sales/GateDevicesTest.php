@@ -22,20 +22,20 @@ beforeEach(function () {
 });
 
 it('matches a plate read to the open vehicle and flags a typed number that differs', function () {
-    $entry = app(GateService::class)->arrive(['registration_no' => 'HR05AB1234']);
+    $entry = app(GateService::class)->arrive(['registration_no' => 'MNA211234']);
 
-    $r = $this->devices->plateRead('hr 05 ab 1234', 9700, str_repeat('e', 64), null, now());
+    $r = $this->devices->plateRead('mna 21 1234', 9700, str_repeat('e', 64), null, now());
     expect($r['gate_entry']?->id)->toBe($entry->id)->and($r['mismatch'])->toBeFalse();
 
-    $r = $this->devices->plateRead('HR05AB1284', 6100, null, $entry, now()); // camera read a different plate for this entry
+    $r = $this->devices->plateRead('MNA211284', 6100, null, $entry, now()); // camera read a different plate for this entry
     expect($r['mismatch'])->toBeTrue()
         ->and($entry->fresh()->flags)->toContain('plate_mismatch')
-        ->and($entry->fresh()->registration_no)->toBe('HR05AB1234'); // never "corrected"
+        ->and($entry->fresh()->registration_no)->toBe('MNA211234'); // never "corrected"
 });
 
 it('opens the barrier only by the rules and logs every decision', function () {
     $gate = app(GateService::class);
-    $inbound = $gate->arrive(['registration_no' => 'HR05AB1234']);
+    $inbound = $gate->arrive(['registration_no' => 'MNA211234']);
 
     expect($this->devices->barrier($inbound, 'in', now()))->toMatchArray(['open' => true, 'reason' => 'arrival_registered'])
         ->and($this->devices->barrier($inbound, 'out', now()))->toMatchArray(['open' => false, 'reason' => 'no_slip'])
@@ -54,7 +54,7 @@ it('opens the barrier only by the rules and logs every decision', function () {
 });
 
 it('records a manual open with a reason, flags the vehicle and audits it', function () {
-    $entry = app(GateService::class)->arrive(['registration_no' => 'HR05AB1234']);
+    $entry = app(GateService::class)->arrive(['registration_no' => 'MNA211234']);
     expect(fn () => $this->devices->manualOpen($entry, 'out', 'oops', now()))->toThrow(BusinessRuleViolation::class, 'reason');
 
     $this->devices->manualOpen($entry, 'out', 'Power cut, ambulance waiting behind', now());
@@ -68,9 +68,9 @@ it('records a manual open with a reason, flags the vehicle and audits it', funct
 it('answers the agent over the signed API and takes plate reads and manual opens by sync', function () {
     $headers = Make::apiHeaders(Make::apiTokens($this->f->dispatcher, 'gate-agent-0001-abcd'), 'gate-agent-0001-abcd');
     $this->f->as($this->f->dispatcher);
-    $entry = app(GateService::class)->arrive(['registration_no' => 'HR05AB1234']);
+    $entry = app(GateService::class)->arrive(['registration_no' => 'MNA211234']);
 
-    $this->withHeaders($headers)->postJson('/api/v1/gate/barrier', ['side' => 'in', 'plate' => 'HR 05 AB 1234'])
+    $this->withHeaders($headers)->postJson('/api/v1/gate/barrier', ['side' => 'in', 'plate' => 'MNA 21 1234'])
         ->assertOk()->assertJson(['open' => true, 'gate_entry_id' => $entry->id]);
     $this->withHeaders($headers)->postJson('/api/v1/gate/barrier', ['side' => 'out', 'gate_entry_id' => $entry->id])
         ->assertOk()->assertJson(['open' => false, 'reason' => 'no_slip']);
@@ -83,7 +83,7 @@ it('answers the agent over the signed API and takes plate reads and manual opens
         ]]])->assertOk()->json('results.0');
     };
 
-    expect($push('gate_entry.plate_read', ['plate' => 'HR05AB1234', 'confidence_bp' => 9800]))->toMatchArray(['status' => 'applied']);
+    expect($push('gate_entry.plate_read', ['plate' => 'MNA211234', 'confidence_bp' => 9800]))->toMatchArray(['status' => 'applied']);
     expect($push('barrier.manual_open', ['side' => 'out', 'reason' => 'Server unreachable, perishable load', 'gate_entry_id' => $entry->id]))
         ->toMatchArray(['status' => 'applied']);
 

@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Validator;
  *  - base_version == current version     → apply
  *  - versions differ (concurrent edits)  → last write wins on event time; loser logged as a conflict
  *  - record archived on the server       → supervisor review
- *  - unique clash (code, reg. no, GSTIN) → supervisor review
+ *  - unique clash (code, reg. no, STRN) → supervisor review
  *  - invalid data                        → rejected with field errors
  */
 final class MasterUpsertHandler implements SyncHandler

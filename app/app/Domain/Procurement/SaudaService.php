@@ -53,7 +53,7 @@ final class SaudaService
             'broker_party_id' => $quote->broker_party_id,
             'product_id' => $quote->product_id,
             'quantity_kg' => $quote->quantity_kg,
-            'rate_paise_per_quintal' => $quote->rate_paise_per_quintal,
+            'rate_paise_per_maund' => $quote->rate_paise_per_maund,
             'quality_terms' => $quote->requirement?->quality_spec,
             'delivery_from' => $quote->requirement?->delivery_from,
             'delivery_to' => $quote->requirement?->delivery_to,
@@ -140,7 +140,7 @@ final class SaudaService
     /** Scheduled: deals whose delivery period ended are closed as expired, remaining quantity recorded. */
     public function expireOverdue(?CarbonImmutable $today = null): int
     {
-        $today ??= CarbonImmutable::now('Asia/Kolkata')->startOfDay();
+        $today ??= CarbonImmutable::now('Asia/Karachi')->startOfDay();
         $overdue = Sauda::query()
             ->whereIn('status', [Sauda::STATUS_CONFIRMED, Sauda::STATUS_IN_DELIVERY])
             ->whereDate('delivery_to', '<', $today->toDateString())

@@ -94,7 +94,7 @@ final class DuressService
 
         $who = ($account->person->full_name ?? $account->username)." ({$account->username})";
         $this->notifier->owners($account->entity_id, "Duress sign-in: {$who}",
-            "{$who} entered their duress PIN at ".now()->timezone('Asia/Kolkata')->format('d M Y H:i:s').' IST'
+            "{$who} entered their duress PIN at ".now()->timezone('Asia/Karachi')->format('d M Y H:i:s').' PKT'
             .' from IP '.($ip ?? 'unknown').', device '.($device->name ?? $deviceUid ?? 'unknown').'.'
             .($account->duress_suspends ? ' The account has been suspended.' : ' The account is flagged.')
             .($account->duress_wipes_device && $device !== null ? ' A wipe of that device has been queued.' : '')

@@ -50,7 +50,7 @@ class DeductionRuleResource extends Resource
                 ->hidden(fn (Get $get) => $get('method') === 'per_bag'),
             TextInput::make('factor')->required()->integer()->minValue(0)
                 ->label(fn (Get $get) => match ($get('method')) {
-                    'rate_cut' => 'Paise per quintal per full 1 %',
+                    'rate_cut' => 'Paisa per maund per full 1 %',
                     'per_bag' => 'Grams per bag',
                     default => 'Weight factor (10000 = 1 % weight per 1 % excess)',
                 }),
@@ -59,7 +59,7 @@ class DeductionRuleResource extends Resource
             Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
             Placeholder::make('example')->columnSpanFull()->content(fn (Get $get) => match ($get('method')) {
                 'excess_weight' => 'Example: free 17 %, factor 10000 → at 18.5 % moisture, 1.5 % of the net weight is deducted.',
-                'rate_cut' => 'Example: free 2 %, factor 1000 → at 4.7 %, the rate is cut by ₹20 per quintal (2 full points × ₹10).',
+                'rate_cut' => 'Example: free 2 %, factor 1000 → at 4.7 %, the rate is cut by ₹20 per maund (2 full points × ₹10).',
                 'per_bag' => 'Example: factor 600 → 400 bags × 0.6 kg = 240 kg deducted for bag weight.',
                 default => '',
             }),

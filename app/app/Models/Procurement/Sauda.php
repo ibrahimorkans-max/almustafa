@@ -35,8 +35,8 @@ use LogicException;
  * @property string $product_id
  * @property string $quantity_kg
  * @property int $tolerance_bp
- * @property int $rate_paise_per_quintal
- * @property int $brokerage_paise_per_quintal
+ * @property int $rate_paise_per_maund
+ * @property int $brokerage_paise_per_maund
  * @property array<string, int>|null $quality_terms
  * @property Carbon|null $delivery_from
  * @property Carbon|null $delivery_to
@@ -84,13 +84,13 @@ class Sauda extends Model
 
     /** Terms that may never change after approval. */
     public const FROZEN_TERMS = [
-        'party_id', 'broker_party_id', 'product_id', 'quantity_kg', 'tolerance_bp', 'rate_paise_per_quintal',
-        'brokerage_paise_per_quintal', 'quality_terms', 'delivery_from', 'delivery_to', 'payment_days', 'direction',
+        'party_id', 'broker_party_id', 'product_id', 'quantity_kg', 'tolerance_bp', 'rate_paise_per_maund',
+        'brokerage_paise_per_maund', 'quality_terms', 'delivery_from', 'delivery_to', 'payment_days', 'direction',
     ];
 
     protected $fillable = [
         'number', 'direction', 'party_id', 'broker_party_id', 'product_id', 'quantity_kg', 'tolerance_bp',
-        'rate_paise_per_quintal', 'brokerage_paise_per_quintal', 'quality_terms', 'delivery_from', 'delivery_to',
+        'rate_paise_per_maund', 'brokerage_paise_per_maund', 'quality_terms', 'delivery_from', 'delivery_to',
         'payment_days', 'quote_id', 'requirement_id',
     ];
 
@@ -103,8 +103,8 @@ class Sauda extends Model
             'quantity_kg' => 'decimal:3',
             'delivered_kg' => 'decimal:3',
             'tolerance_bp' => 'integer',
-            'rate_paise_per_quintal' => 'integer',
-            'brokerage_paise_per_quintal' => 'integer',
+            'rate_paise_per_maund' => 'integer',
+            'brokerage_paise_per_maund' => 'integer',
             'quality_terms' => 'array',
             'delivery_from' => 'date',
             'delivery_to' => 'date',
@@ -208,7 +208,7 @@ class Sauda extends Model
             'quality_terms' => $this->quality_terms,
         ];
         if ($viewer->hasPermission('deal.view')) {
-            $data['rate_paise_per_quintal'] = $this->rate_paise_per_quintal;
+            $data['rate_paise_per_maund'] = $this->rate_paise_per_maund;
         }
 
         return $data;

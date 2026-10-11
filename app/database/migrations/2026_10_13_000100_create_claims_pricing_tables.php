@@ -69,7 +69,7 @@ return new class extends Migration
             $table->foreignUuid('entity_id')->constrained('entities');
             $table->foreignUuid('price_list_id')->constrained('price_lists');
             $table->foreignUuid('product_id')->constrained('products');
-            $table->unsignedBigInteger('rate_paise_per_quintal');
+            $table->unsignedBigInteger('rate_paise_per_maund');
             $table->uuid('supersedes_id')->nullable();
             $table->uuid('approval_request_id')->nullable();
             $table->text('reason')->nullable();

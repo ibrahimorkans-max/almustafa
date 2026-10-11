@@ -24,24 +24,24 @@ beforeEach(function () {
 });
 
 it('numbers documents per entity, series and financial year without gaps', function () {
-    $a = app(SaudaService::class)->create(['party_id' => $this->f->seller->id, 'product_id' => $this->f->paddy->id, 'quantity_kg' => '1000', 'rate_paise_per_quintal' => 200000]);
+    $a = app(SaudaService::class)->create(['party_id' => $this->f->seller->id, 'product_id' => $this->f->paddy->id, 'quantity_kg' => '1000', 'rate_paise_per_maund' => 200000]);
     try {
         DB::transaction(function () {
-            app(SaudaService::class)->create(['party_id' => $this->f->seller->id, 'product_id' => $this->f->paddy->id, 'quantity_kg' => '1000', 'rate_paise_per_quintal' => 200000]);
+            app(SaudaService::class)->create(['party_id' => $this->f->seller->id, 'product_id' => $this->f->paddy->id, 'quantity_kg' => '1000', 'rate_paise_per_maund' => 200000]);
             throw new RuntimeException('rolled back');
         });
     } catch (RuntimeException) {
     }
-    $b = app(SaudaService::class)->create(['party_id' => $this->f->seller->id, 'product_id' => $this->f->paddy->id, 'quantity_kg' => '1000', 'rate_paise_per_quintal' => 200000]);
+    $b = app(SaudaService::class)->create(['party_id' => $this->f->seller->id, 'product_id' => $this->f->paddy->id, 'quantity_kg' => '1000', 'rate_paise_per_maund' => 200000]);
 
     $fy = DocumentNumbers::financialYear(now());
     expect($a->number)->toBe("PRC/P/{$fy}/0001")->and($b->number)->toBe("PRC/P/{$fy}/0002");
 });
 
 it('broadcasts a requirement to brokers and farmers only, once each', function () {
-    $customer = Party::query()->create(['code' => 'C1', 'name' => 'Customer', 'is_customer' => true, 'gst_registration_type' => 'unregistered']);
+    $customer = Party::query()->create(['code' => 'C1', 'name' => 'Customer', 'is_customer' => true]);
     $req = app(RequirementService::class)->create([
-        'product_id' => $this->f->paddy->id, 'quantity_kg' => '500000', 'target_rate_paise_per_quintal' => 260000,
+        'product_id' => $this->f->paddy->id, 'quantity_kg' => '500000', 'target_rate_paise_per_maund' => 260000,
         'quality_spec' => ['moisture_max_bp' => 1700],
     ]);
 
@@ -57,7 +57,7 @@ describe('negotiation', function () {
     beforeEach(function () {
         $this->quote = app(QuoteService::class)->submit([
             'party_id' => $this->f->seller->id, 'broker_party_id' => $this->f->broker->id, 'product_id' => $this->f->paddy->id,
-            'quantity_kg' => '50000', 'rate_paise_per_quintal' => 270000,
+            'quantity_kg' => '50000', 'rate_paise_per_maund' => 270000,
         ], Quote::BY_SELLER, 'Opening offer');
     });
 
@@ -66,7 +66,7 @@ describe('negotiation', function () {
         $q = app(QuoteService::class)->counter($q, '45000', 262000, Quote::BY_SELLER);
 
         expect($q->current_revision)->toBe(3)
-            ->and($q->revisions()->pluck('rate_paise_per_quintal')->all())->toBe([270000, 255000, 262000])
+            ->and($q->revisions()->pluck('rate_paise_per_maund')->all())->toBe([270000, 255000, 262000])
             ->and($q->revisions()->pluck('offered_by')->all())->toBe(['seller', 'mill', 'seller']);
     });
 
@@ -80,7 +80,7 @@ describe('negotiation', function () {
         $sauda = app(QuoteService::class)->accept($q, Quote::BY_SELLER);
 
         expect($sauda->status)->toBe(Sauda::STATUS_PENDING)
-            ->and($sauda->rate_paise_per_quintal)->toBe(262500)
+            ->and($sauda->rate_paise_per_maund)->toBe(262500)
             ->and($sauda->quantity_kg)->toBe('50000.000')
             ->and($sauda->broker_party_id)->toBe($this->f->broker->id)
             ->and($q->fresh()->status)->toBe(Quote::STATUS_ACCEPTED)
@@ -93,7 +93,7 @@ describe('sauda lifecycle', function () {
     beforeEach(function () {
         $this->sauda = app(SaudaService::class)->submit(app(SaudaService::class)->create([
             'party_id' => $this->f->seller->id, 'broker_party_id' => $this->f->broker->id, 'product_id' => $this->f->paddy->id,
-            'quantity_kg' => '20000', 'tolerance_bp' => 500, 'rate_paise_per_quintal' => 250000,
+            'quantity_kg' => '20000', 'tolerance_bp' => 500, 'rate_paise_per_maund' => 250000,
             'delivery_from' => now()->toDateString(), 'delivery_to' => now()->addDays(10)->toDateString(),
         ]));
     });
@@ -114,7 +114,7 @@ describe('sauda lifecycle', function () {
         $this->f->as($this->f->owner2);
         $s = app(SaudaService::class)->approve($this->sauda);
 
-        $s->rate_paise_per_quintal = 1;
+        $s->rate_paise_per_maund = 1;
         expect(fn () => $s->save())->toThrow(LogicException::class, 'cannot be changed');
     });
 
@@ -170,7 +170,7 @@ describe('sauda lifecycle', function () {
         $brokerAccount = Make::account($this->f->entity, 'BROKER');
         Make::system(fn () => $this->f->broker->forceFill(['login_account_id' => $brokerAccount->id])->save());
         $this->f->as($this->f->owner);
-        $other = app(SaudaService::class)->create(['party_id' => $this->f->seller->id, 'product_id' => $this->f->paddy->id, 'quantity_kg' => '1000', 'rate_paise_per_quintal' => 1]);
+        $other = app(SaudaService::class)->create(['party_id' => $this->f->seller->id, 'product_id' => $this->f->paddy->id, 'quantity_kg' => '1000', 'rate_paise_per_maund' => 1]);
 
         $this->f->as($brokerAccount);
         $visible = Sauda::query()->visibleTo($brokerAccount)->pluck('id')->all();

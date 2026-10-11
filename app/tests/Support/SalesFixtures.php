@@ -16,12 +16,12 @@ use App\Models\Masters\TaxRate;
 use App\Models\Procurement\Sauda;
 use App\Models\Sales\DispatchOrder;
 use App\Models\Sales\SalesBill;
-use App\Support\Values\IndianIds;
 
 /**
- * Accounts fixtures plus sales: the mill is in Haryana (06); a Delhi buyer (07, inter-state,
- * credit limit ₹5 lakh) and a Haryana buyer (no limit); rice at 5 % GST, 20,000 kg in the store;
- * a confirmed sales sauda at ₹4,000 / qtl, 30 days' credit, ±5 %.
+ * Accounts fixtures plus sales: the mill is registered for sales tax (STRN); a Karachi buyer
+ * (registered, credit limit Rs 500,000) and a Multan buyer (registered, no limit); rice at a 5 %
+ * sales-tax rate, 20,000 kg in the store; a confirmed sales sauda at Rs 1,600 / maund (Rs 4,000 /
+ * quintal), 30 days' credit, ±5 %.
  */
 final class SalesFixtures
 {
@@ -29,9 +29,9 @@ final class SalesFixtures
 
     public InventoryFixtures $inv;
 
-    public Party $delhiBuyer;
+    public Party $karachiBuyer;
 
-    public Party $localBuyer;
+    public Party $multanBuyer;
 
     public Sauda $sauda;
 
@@ -39,24 +39,24 @@ final class SalesFixtures
 
     public function __construct(public Entity $entity)
     {
-        app(TenantContext::class)->runAsSystem(fn () => Entity::query()->whereKey($entity->id)->update(['state_code' => '06']));
+        app(TenantContext::class)->runAsSystem(fn () => Entity::query()->findOrFail($entity->id)->forceFill(['ntn' => '12345678', 'strn' => self::strn(1)])->save());
         $this->acc = new AccountsFixtures($entity);
         $this->inv = $this->acc->inv;
         $this->dispatcher = $this->inv->supervisor; // supervisor: dispatch.manage, gatepass.issue, gate + weighbridge
 
         $this->as($this->acc->owner);
-        $gst5 = TaxRate::query()->create(['name' => 'GST 5%', 'gst_rate_bp' => 500]);
-        $this->inv->rice->forceFill(['tax_rate_id' => $gst5->id, 'hsn_code' => '10063020'])->save();
-        $this->delhiBuyer = Party::query()->create([
-            'code' => 'C-DEL', 'name' => 'Delhi Rice House', 'is_customer' => true, 'state_code' => '07',
-            'gst_registration_type' => 'regular', 'gstin' => self::gstin('07', 'AAACD1234', 'C'), 'credit_limit_paise' => 5_00_000_00,
+        $tax5 = TaxRate::query()->create(['name' => 'Reduced 5%', 'sales_tax_rate_bp' => 500]);
+        $this->inv->rice->forceFill(['tax_rate_id' => $tax5->id, 'pct_code' => '1006.3000'])->save();
+        $this->karachiBuyer = Party::query()->create([
+            'code' => 'C-KHI', 'name' => 'Karachi Rice House', 'is_customer' => true, 'city' => 'Karachi', 'province' => 'Sindh',
+            'ntn' => '23456789', 'strn' => self::strn(2), 'atl_status' => 'active', 'credit_limit_paise' => 500_000_00,
         ]);
-        $this->localBuyer = Party::query()->create([
-            'code' => 'C-KNL', 'name' => 'Karnal Traders', 'is_customer' => true, 'state_code' => '06',
-            'gst_registration_type' => 'regular', 'gstin' => self::gstin('06', 'AAAFK1234', 'F'),
+        $this->multanBuyer = Party::query()->create([
+            'code' => 'C-MUX', 'name' => 'Multan Traders', 'is_customer' => true, 'city' => 'Multan', 'province' => 'Punjab',
+            'ntn' => '34567890', 'strn' => self::strn(3), 'atl_status' => 'active',
         ]);
         $this->inv->stock($this->inv->rice, $this->inv->store, '20000');
-        $this->sauda = $this->saleSauda($this->delhiBuyer);
+        $this->sauda = $this->saleSauda($this->karachiBuyer);
         Make::reset();
     }
 
@@ -65,20 +65,19 @@ final class SalesFixtures
         $this->inv->as($account);
     }
 
-    public static function gstin(string $state, string $panBody9, string $panLast): string
+    /** A 13-digit STRN that differs per $n. */
+    public static function strn(int $n): string
     {
-        $first14 = $state.substr($panBody9.'000000000', 0, 9).$panLast.'1Z';
-
-        return $first14.IndianIds::gstinCheckChar($first14);
+        return '32778765'.str_pad((string) $n, 5, '0', STR_PAD_LEFT);
     }
 
-    public function saleSauda(Party $buyer, string $quantityKg = '50000', int $rate = 400000): Sauda
+    public function saleSauda(Party $buyer, string $quantityKg = '50000', int $rate = 160000): Sauda
     {
         $this->as($this->acc->owner);
         $saudas = app(SaudaService::class);
         $sauda = $saudas->create([
             'direction' => 'sale', 'party_id' => $buyer->id, 'product_id' => $this->inv->rice->id, 'quantity_kg' => $quantityKg,
-            'rate_paise_per_quintal' => $rate, 'payment_days' => 30,
+            'rate_paise_per_maund' => $rate, 'payment_days' => 30,
             'delivery_from' => now()->toDateString(), 'delivery_to' => now()->addDays(30)->toDateString(),
         ]);
         $saudas->submit($sauda);
@@ -99,7 +98,7 @@ final class SalesFixtures
     {
         $this->as($this->dispatcher);
         $g = app(GateService::class);
-        $e = $g->arrive(['registration_no' => 'HR05AB1234', 'dispatch_order_id' => $order->id]);
+        $e = $g->arrive(['registration_no' => 'MNA211234', 'dispatch_order_id' => $order->id]);
         $g->recordWeighment($e, 'tare', '9000', $this->inv->gate->scale, GateFixtures::readings('9000'), str_repeat('c', 64));
         $g->markLoaded($e, $bags);
         $gross = bcadd('9000', $netKg, 3);

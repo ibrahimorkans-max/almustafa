@@ -17,6 +17,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Support\BlindIndex;
 use App\Support\Eloquent\StaleModelException;
+use App\Support\Values\PakistanIds;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -28,28 +29,32 @@ beforeEach(function () {
     app(AuthContextBinder::class)->bind($this->owner);
 });
 
-function vendor(string $code = 'V1', ?string $gstin = '27AAPFU0939F1ZV'): Party
+function vendor(string $code = 'V1', ?string $strn = '3277876543210'): Party
 {
     return Party::query()->create([
-        'code' => $code, 'name' => 'Sharma Traders', 'is_vendor' => true,
-        'gst_registration_type' => $gstin ? 'regular' : 'unregistered', 'gstin' => $gstin,
+        'code' => $code, 'name' => 'Lodhran Traders', 'is_vendor' => true,
+        'strn' => $strn, 'ntn' => '1234567-8', 'cnic' => '36203-1234567-1',
     ]);
 }
 
 describe('parties', function () {
-    it('encrypts GSTIN/PAN at rest, derives PAN and state, and indexes them for search', function () {
-        $party = vendor(gstin: '27aapfu0939f1zv');
+    it('encrypts NTN, CNIC and STRN at rest, marks the sales-tax registration, and indexes them for search', function () {
+        $party = vendor(strn: '32-77-8765-432-10');
         $raw = DB::table('parties')->where('id', $party->id)->first();
 
-        expect($party->gstin)->toBe('27AAPFU0939F1ZV')
-            ->and($party->pan)->toBe('AAPFU0939F')
-            ->and($party->state_code)->toBe('27')
-            ->and($raw->gstin)->not->toContain('AAPFU0939F')
-            ->and($raw->pan)->not->toContain('AAPFU0939F')
-            ->and(Party::query()->where('gstin_index', BlindIndex::of('27AAPFU0939F1ZV', 'gstin'))->value('id'))->toBe($party->id);
+        expect($party->strn)->toBe('3277876543210')
+            ->and($party->ntn)->toBe('12345678')
+            ->and($party->cnic)->toBe('3620312345671')
+            ->and($party->tax_registration)->toBe('registered')
+            ->and($party->isFiler())->toBeFalse()             // not checked on the ATL yet
+            ->and($raw->strn)->not->toContain('3277876543210')
+            ->and($raw->cnic)->not->toContain('3620312345671')
+            ->and(Party::query()->where('strn_index', BlindIndex::of('3277876543210', 'strn'))->value('id'))->toBe($party->id)
+            ->and(Party::query()->where('cnic_index', BlindIndex::of('3620312345671', 'cnic'))->value('id'))->toBe($party->id)
+            ->and(vendor('V9', null)->tax_registration)->toBe('unregistered');
     });
 
-    it('keeps GSTIN unique per entity but allows it in another entity', function () {
+    it('keeps the STRN unique per entity but allows it in another entity', function () {
         vendor('V1');
         expect(fn () => vendor('V2'))->toThrow(UniqueConstraintViolationException::class);
 
@@ -62,13 +67,14 @@ describe('parties', function () {
         $party = vendor();
         $log = AuditLog::query()->where('action', 'party.created')->where('subject_id', $party->id)->sole();
 
-        expect($log->new_values['gstin'])->toBe('***********F1ZV')
-            ->and($log->new_values['pan'])->toBe('******939F')
-            ->and(json_encode($log->new_values))->not->toContain('AAPFU0939F1ZV');
+        expect($log->new_values['strn'])->toBe('*********3210')
+            ->and($log->new_values['cnic'])->toBe('*********5671')
+            ->and(json_encode($log->new_values))->not->toContain('3277876543210')
+            ->and(json_encode($log->new_values))->not->toContain('3620312345671');
     });
 
     it('hides archived masters from normal queries', function () {
-        $v = Vehicle::query()->create(['registration_no' => 'HR05AB1234', 'vehicle_type' => 'truck']);
+        $v = Vehicle::query()->create(['registration_no' => 'MNA211234', 'vehicle_type' => 'truck']);
         $v->forceFill(['archived_at' => now()])->save();
 
         expect(Vehicle::query()->count())->toBe(0)
@@ -76,7 +82,7 @@ describe('parties', function () {
     });
 
     it('rejects stale edits (optimistic locking)', function () {
-        $a = Vehicle::query()->create(['registration_no' => 'HR05AB1234', 'vehicle_type' => 'truck']);
+        $a = Vehicle::query()->create(['registration_no' => 'MNA211234', 'vehicle_type' => 'truck']);
         $b = Vehicle::query()->findOrFail($a->id);
         $a->update(['vehicle_type' => 'tempo']);
 
@@ -95,9 +101,9 @@ describe('bank accounts (maker-checker)', function () {
     function requestAdd(object $t, array $extra = []): ApprovalRequest
     {
         return $t->approvals->submit(PartyBankAccountChange::KEY, $extra + [
-            'op' => 'add', 'party_id' => $t->party->id, 'account_holder' => 'Sharma Traders',
-            'account_number' => '123456789012', 'ifsc' => 'sbin0001234', 'is_primary' => true,
-        ], 'Add bank account for Sharma Traders', 'New vendor onboarding');
+            'op' => 'add', 'party_id' => $t->party->id, 'account_holder' => 'Lodhran Traders',
+            'account_number' => 'pk36 scbl 0000 0011 2345 6702', 'is_primary' => true,
+        ], 'Add bank account for Lodhran Traders', 'New vendor onboarding');
     }
 
     it('creates nothing until a different person with bank.view approves', function () {
@@ -106,8 +112,8 @@ describe('bank accounts (maker-checker)', function () {
 
         expect(PartyBankAccount::query()->count())->toBe(0)
             // the account number is never stored in clear text in the request or the audit log
-            ->and(json_encode($request->payload))->not->toContain('123456789012')
-            ->and(AuditLog::query()->where('subject_id', $request->id)->get()->pluck('new_values')->toJson())->not->toContain('123456789012');
+            ->and(json_encode($request->payload))->not->toContain('PK36SCBL0000001123456702')
+            ->and(AuditLog::query()->where('subject_id', $request->id)->get()->pluck('new_values')->toJson())->not->toContain('PK36SCBL0000001123456702');
 
         // Owner2 without bank.view? Owners have bank.view; use an Executive as checker → refused.
         $exec2 = Make::account($this->entity, 'EXECUTIVE');
@@ -119,11 +125,11 @@ describe('bank accounts (maker-checker)', function () {
         $account = PartyBankAccount::query()->sole();
         $raw = DB::table('party_bank_accounts')->where('id', $account->id)->first();
         expect($done->status)->toBe('executed')
-            ->and($account->account_number)->toBe('123456789012')
-            ->and($account->ifsc)->toBe('SBIN0001234')
-            ->and($account->maskedNumber())->toBe('XXXX9012')
+            ->and($account->account_number)->toBe('PK36SCBL0000001123456702')
+            ->and($account->bank_code)->toBe('SCBL')
+            ->and($account->maskedNumber())->toBe('XXXX6702')
             ->and($account->approval_request_id)->toBe($request->id)
-            ->and($raw->account_number)->not->toContain('123456789012');
+            ->and($raw->account_number)->not->toContain('PK36SCBL0000001123456702');
     });
 
     it('requires the maker permission and valid details', function () {
@@ -132,7 +138,7 @@ describe('bank accounts (maker-checker)', function () {
         expect(fn () => requestAdd($this))->toThrow(ApprovalDenied::class);
 
         app(AuthContextBinder::class)->bind($this->exec);
-        expect(fn () => requestAdd($this, ['ifsc' => 'BAD']))->toThrow(ValidationException::class)
+        expect(fn () => requestAdd($this, ['account_number' => 'PK37SCBL0000001123456702']))->toThrow(ValidationException::class) // wrong check digits
             ->and(fn () => requestAdd($this, ['account_number' => '12ab']))->toThrow(ValidationException::class);
     });
 
@@ -144,7 +150,7 @@ describe('bank accounts (maker-checker)', function () {
         $acc1 = PartyBankAccount::query()->sole();
 
         app(AuthContextBinder::class)->bind($this->exec);
-        $second = requestAdd($this, ['account_number' => '998877665544']);
+        $second = requestAdd($this, ['account_number' => PakistanIds::ibanFor('HABB', '0000000099887766')]);
         $deactivate = $this->approvals->submit(PartyBankAccountChange::KEY, [
             'op' => 'deactivate', 'party_id' => $this->party->id, 'bank_account_id' => $acc1->id,
         ], 'Deactivate old account');
@@ -154,9 +160,9 @@ describe('bank accounts (maker-checker)', function () {
         $this->approvals->approve($deactivate, $this->owner);
 
         $accounts = PartyBankAccount::query()->get()->keyBy('account_last4');
-        expect($accounts['9012']->status)->toBe('inactive')
-            ->and($accounts['9012']->is_primary)->toBeFalse()
-            ->and($accounts['5544']->is_primary)->toBeTrue()
+        expect($accounts['6702']->status)->toBe('inactive')
+            ->and($accounts['6702']->is_primary)->toBeFalse()
+            ->and($accounts['7766']->is_primary)->toBeTrue()
             ->and(PartyBankAccount::query()->count())->toBe(2); // nothing deleted
     });
 });

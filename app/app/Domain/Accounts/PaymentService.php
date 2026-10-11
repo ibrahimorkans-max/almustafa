@@ -71,7 +71,7 @@ final class PaymentService
                 if ($account === null || $account->party_id !== $party->id || $account->status !== 'active') {
                     throw new BusinessRuleViolation("{$party->name} has no approved bank account. Add one (it needs a second person's approval) before paying by bank.");
                 }
-                $payee = ['holder' => $account->account_holder, 'ifsc' => $account->ifsc, 'last4' => $account->account_last4, 'bank_name' => $account->bank_name];
+                $payee = ['holder' => $account->account_holder, 'bank_code' => $account->bank_code, 'last4' => $account->account_last4, 'bank_name' => $account->bank_name];
                 $payeeNumber = $account->account_number;
                 $bankAccount = $account;
             } elseif ($mode === 'cash') {
@@ -99,7 +99,7 @@ final class PaymentService
                 'mode' => $mode,
                 'from_ledger_id' => $from->id,
                 'amount_paise' => $amountPaise,
-                'payment_date' => CarbonImmutable::instance($date)->setTimezone('Asia/Kolkata')->toDateString(),
+                'payment_date' => CarbonImmutable::instance($date)->setTimezone('Asia/Karachi')->toDateString(),
                 'party_bank_account_id' => $bankAccount?->id,
                 'payee' => $payee,
                 'payee_account_number' => $payeeNumber,
@@ -139,9 +139,9 @@ final class PaymentService
         }
         $lines[] = ['account' => $from, 'cr' => $payment->amount_paise, 'memo' => $payment->number];
 
-        $date = CarbonImmutable::parse($payment->payment_date->toDateString(), 'Asia/Kolkata');
-        if ($date->lessThan(now('Asia/Kolkata')->startOfDay())) {
-            $date = now('Asia/Kolkata')->startOfDay(); // released later than planned: book on the release day
+        $date = CarbonImmutable::parse($payment->payment_date->toDateString(), 'Asia/Karachi');
+        if ($date->lessThan(now('Asia/Karachi')->startOfDay())) {
+            $date = now('Asia/Karachi')->startOfDay(); // released later than planned: book on the release day
         }
         $voucher = $this->books->post('payment', $date, $lines,
             sprintf('%s payment to %s%s', Payment::MODES[$payment->mode], $party->name, $payment->narration ? " — {$payment->narration}" : ''),
@@ -152,7 +152,7 @@ final class PaymentService
         return $payment;
     }
 
-    /** UTR / cheque number once the bank has executed the transfer. */
+    /** Bank transaction ID / cheque number once the bank has executed the transfer. */
     public function recordReference(Payment $payment, string $reference): Payment
     {
         $this->require('payment.create');
@@ -169,13 +169,13 @@ final class PaymentService
 
     private function assertCashLimit(Party $party, int $amountPaise, CarbonInterface $date): void
     {
-        $day = CarbonImmutable::instance($date)->setTimezone('Asia/Kolkata')->toDateString();
+        $day = CarbonImmutable::instance($date)->setTimezone('Asia/Karachi')->toDateString();
         $already = (int) Payment::query()->where('party_id', $party->id)->where('mode', 'cash')->where('payment_date', $day)
             ->whereIn('status', [Payment::PENDING, Payment::FIRST_APPROVED, Payment::APPROVED])->sum('amount_paise');
         $limit = (int) config('ricemill.accounts.cash_limit_per_day_paise');
         if ($already + $amountPaise > $limit) {
             throw new BusinessRuleViolation(sprintf(
-                'Cash to one person in one day is limited to %s (Income-tax s. 40A(3)); %s already requested today. Pay by bank.',
+                'Cash to one person in one day is limited to %s (Income Tax Ordinance s. 21(l)); %s already requested today. Pay by bank.',
                 Money::paise($limit)->format(), Money::paise($already)->format(),
             ));
         }

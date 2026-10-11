@@ -43,7 +43,7 @@ class BankAccountsRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('account_holder'),
                 TextColumn::make('account_last4')->label('Account')->formatStateUsing(fn (string $state) => 'XXXX'.$state)->fontFamily('mono'),
-                TextColumn::make('ifsc')->label('IFSC')->fontFamily('mono'),
+                TextColumn::make('bank_code')->label('Bank')->fontFamily('mono'),
                 TextColumn::make('bank_name')->placeholder('—'),
                 IconColumn::make('is_primary')->label('Primary')->boolean(),
                 TextColumn::make('status')->badge(),
@@ -61,12 +61,11 @@ class BankAccountsRelationManager extends RelationManager
     {
         $details = $op === 'deactivate' ? [] : [
             TextInput::make('account_holder')->required()->maxLength(160),
-            TextInput::make('account_number')->label('Account number')->required()->regex('/^\d{9,18}$/')->password()->revealable(),
-            TextInput::make('account_number_confirmation')->label('Repeat account number')->required()->same('account_number')->password(),
-            TextInput::make('ifsc')->label('IFSC')->required()->maxLength(11),
-            TextInput::make('bank_name')->maxLength(120),
-            TextInput::make('branch')->maxLength(120),
-            TextInput::make('upi_id')->label('UPI ID')->maxLength(100),
+            TextInput::make('account_number')->label('IBAN')->required()->maxLength(34)->placeholder('PK36 SCBL 0000 0011 2345 6702')->password()->revealable(),
+            TextInput::make('account_number_confirmation')->label('Repeat IBAN')->required()->same('account_number')->password(),
+            TextInput::make('bank_name')->maxLength(120)->placeholder('e.g. Meezan Bank'),
+            TextInput::make('branch')->maxLength(120)->placeholder('e.g. Lodhran main'),
+            TextInput::make('raast_id')->label('Raast ID (mobile)')->maxLength(13),
             Toggle::make('is_primary')->label('Primary account'),
         ];
 
@@ -78,7 +77,7 @@ class BankAccountsRelationManager extends RelationManager
             ->action(function (array $data, ?PartyBankAccount $record) use ($op): void {
                 /** @var Party $party */
                 $party = $this->getOwnerRecord();
-                $payload = array_intersect_key($data, array_flip(['account_holder', 'account_number', 'ifsc', 'bank_name', 'branch', 'upi_id', 'is_primary']))
+                $payload = array_intersect_key($data, array_flip(['account_holder', 'account_number', 'bank_name', 'branch', 'raast_id', 'is_primary']))
                     + ['op' => $op, 'party_id' => $party->id, 'bank_account_id' => $record?->id];
                 if ($op === 'add') {
                     unset($payload['bank_account_id']);

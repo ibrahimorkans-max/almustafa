@@ -6,19 +6,24 @@ namespace App\Models\Masters;
 
 use App\Models\LoginAccount;
 use App\Support\BlindIndex;
-use App\Support\Values\IndianIds;
+use App\Support\Values\PakistanIds;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 
 /**
- * Customer, vendor, broker/agent, farmer or transporter (one party may be several).
- * GSTIN and PAN are encrypted at rest with blind indexes for uniqueness and search.
+ * Customer, vendor, broker / arhti, farmer or transporter (one party may be several).
+ * NTN, CNIC and STRN are encrypted at rest with blind indexes for uniqueness and search.
+ *
+ * Tax status decides what the mill does on invoices and payments: a buyer without an STRN is
+ * "unregistered" (further tax may apply), and a supplier who is not on FBR's Active Taxpayer List
+ * ("non-filer") suffers the higher withholding rate.
  *
  * @property string $code
  * @property string $name
  * @property string|null $legal_name
  * @property bool $is_customer
- * @property bool $tds_194q_exempt
+ * @property bool $wht_exempt
  * @property bool $is_vendor
  * @property bool $is_broker
  * @property bool $is_farmer
@@ -28,13 +33,16 @@ use Illuminate\Validation\Rule;
  * @property string|null $email
  * @property string|null $address
  * @property string|null $city
- * @property string|null $state_code
- * @property string|null $pincode
- * @property string $gst_registration_type
- * @property string|null $gstin
- * @property string|null $gstin_index
- * @property string|null $pan
- * @property string|null $pan_index
+ * @property string|null $province
+ * @property string $tax_registration
+ * @property string|null $strn
+ * @property string|null $strn_index
+ * @property string|null $ntn
+ * @property string|null $ntn_index
+ * @property string|null $cnic
+ * @property string|null $cnic_index
+ * @property string $atl_status
+ * @property Carbon|null $atl_checked_on
  * @property int|null $credit_limit_paise
  * @property int|null $credit_days
  * @property string|null $login_account_id
@@ -47,25 +55,30 @@ class Party extends MasterModel
 
     public const ROLES = ['is_customer', 'is_vendor', 'is_broker', 'is_farmer', 'is_transporter'];
 
-    public const REGISTRATION_TYPES = ['regular', 'composition', 'unregistered', 'consumer'];
+    /** registered = has an STRN (sales tax); unregistered = everyone else. */
+    public const REGISTRATION_TYPES = ['registered', 'unregistered'];
+
+    /** FBR Active Taxpayer List: active = filer, inactive = non-filer, unknown = not checked yet (treated as non-filer). */
+    public const ATL_STATUSES = ['active', 'inactive', 'unknown'];
 
     protected $fillable = [
         'code', 'name', 'legal_name', 'is_customer', 'is_vendor', 'is_broker', 'is_farmer', 'is_transporter',
-        'contact_person', 'phone', 'email', 'address', 'city', 'state_code', 'pincode',
-        'gst_registration_type', 'gstin', 'pan', 'credit_limit_paise', 'credit_days', 'status', 'notes', 'tds_194q_exempt',
+        'contact_person', 'phone', 'email', 'address', 'city', 'province',
+        'tax_registration', 'strn', 'ntn', 'cnic', 'atl_status', 'atl_checked_on',
+        'credit_limit_paise', 'credit_days', 'status', 'notes', 'wht_exempt',
     ];
 
-    protected $hidden = ['gstin_index', 'pan_index'];
+    protected $hidden = ['strn_index', 'ntn_index', 'cnic_index'];
 
     /** @var list<string> */
-    protected array $auditMasked = ['gstin', 'pan'];
+    protected array $auditMasked = ['strn', 'ntn', 'cnic'];
 
     protected function casts(): array
     {
         return [
-            'tds_194q_exempt' => 'boolean', 'is_customer' => 'boolean', 'is_vendor' => 'boolean', 'is_broker' => 'boolean',
+            'wht_exempt' => 'boolean', 'is_customer' => 'boolean', 'is_vendor' => 'boolean', 'is_broker' => 'boolean',
             'is_farmer' => 'boolean', 'is_transporter' => 'boolean',
-            'gstin' => 'encrypted', 'pan' => 'encrypted',
+            'strn' => 'encrypted', 'ntn' => 'encrypted', 'cnic' => 'encrypted', 'atl_checked_on' => 'date',
             'credit_limit_paise' => 'integer', 'credit_days' => 'integer',
             'version' => 'integer', 'archived_at' => 'datetime',
         ];
@@ -76,19 +89,28 @@ class Party extends MasterModel
         parent::booted();
 
         static::saving(function (Party $party): void {
-            $party->gstin = IndianIds::normalizeGstin($party->gstin);
-            $party->pan = $party->pan !== null ? (strtoupper(trim($party->pan)) ?: null) : null;
-            // A registered party's PAN is part of its GSTIN.
-            if ($party->gstin !== null && $party->pan === null) {
-                $party->pan = IndianIds::panFromGstin($party->gstin);
-            }
-            if ($party->gstin !== null && $party->state_code === null) {
-                $party->state_code = substr($party->gstin, 0, 2);
-            }
-            $party->phone = IndianIds::normalizeMobile($party->phone) ?? $party->phone;
-            $party->gstin_index = BlindIndex::of($party->gstin, 'gstin');
-            $party->pan_index = BlindIndex::of($party->pan, 'pan');
+            $party->strn = PakistanIds::digits($party->strn);
+            $party->ntn = PakistanIds::digits($party->ntn);
+            $party->cnic = PakistanIds::digits($party->cnic);
+            // An STRN means the party is registered for sales tax.
+            $party->tax_registration = $party->strn !== null ? 'registered' : 'unregistered';
+            $party->atl_status ??= 'unknown';
+            $party->phone = PakistanIds::normalizeMobile($party->phone) ?? $party->phone;
+            $party->strn_index = BlindIndex::of($party->strn, 'strn');
+            $party->ntn_index = BlindIndex::of($party->ntn, 'ntn');
+            $party->cnic_index = BlindIndex::of($party->cnic, 'cnic');
         });
+    }
+
+    /** On FBR's Active Taxpayer List (a "filer"). Unknown counts as non-filer. */
+    public function isFiler(): bool
+    {
+        return $this->atl_status === 'active';
+    }
+
+    public function isSalesTaxRegistered(): bool
+    {
+        return $this->strn !== null;
     }
 
     /** @return HasMany<PartyBankAccount, $this> */
@@ -125,19 +147,24 @@ class Party extends MasterModel
             'email' => ['nullable', 'email', 'max:160'],
             'address' => ['nullable', 'string', 'max:500'],
             'city' => ['nullable', 'string', 'max:80'],
-            'state_code' => ['nullable', 'regex:/^\d{2}$/'],
-            'pincode' => ['nullable', 'regex:/^[1-9]\d{5}$/'],
-            'gst_registration_type' => ['required', Rule::in(self::REGISTRATION_TYPES)],
-            'gstin' => [
-                'nullable', 'required_if:gst_registration_type,regular,composition',
-                fn (string $attr, mixed $value, \Closure $fail) => IndianIds::isValidGstin((string) IndianIds::normalizeGstin((string) $value))
-                    ? null : $fail('The GSTIN is not valid (format or check digit).'),
-            ],
-            'pan' => [
+            'province' => ['nullable', Rule::in(PakistanIds::PROVINCES)],
+            'strn' => [
                 'nullable',
-                fn (string $attr, mixed $value, \Closure $fail) => IndianIds::isValidPan(strtoupper(trim((string) $value)))
-                    ? null : $fail('The PAN is not valid.'),
+                fn (string $attr, mixed $value, \Closure $fail) => PakistanIds::isValidStrn((string) PakistanIds::digits((string) $value))
+                    ? null : $fail('The STRN must have 13 digits.'),
             ],
+            'ntn' => [
+                'nullable',
+                fn (string $attr, mixed $value, \Closure $fail) => PakistanIds::isValidNtn((string) PakistanIds::digits((string) $value))
+                    ? null : $fail('The NTN must be 7 digits and the check digit (1234567-8), or a 13-digit CNIC.'),
+            ],
+            'cnic' => [
+                'nullable',
+                fn (string $attr, mixed $value, \Closure $fail) => PakistanIds::isValidCnic((string) PakistanIds::digits((string) $value))
+                    ? null : $fail('The CNIC must have 13 digits (35202-1234567-1).'),
+            ],
+            'atl_status' => ['sometimes', Rule::in(self::ATL_STATUSES)],
+            'atl_checked_on' => ['nullable', 'date'],
             'credit_limit_paise' => ['nullable', 'integer', 'min:0'],
             'credit_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'status' => ['sometimes', Rule::in(['active', 'blocked'])],
@@ -149,12 +176,12 @@ class Party extends MasterModel
     {
         return [
             'code', 'name', 'legal_name', 'is_customer', 'is_vendor', 'is_broker', 'is_farmer', 'is_transporter',
-            'contact_person', 'phone', 'email', 'address', 'city', 'state_code', 'pincode',
-            'gst_registration_type', 'gstin', 'pan', 'credit_limit_paise', 'credit_days', 'status', 'notes',
+            'contact_person', 'phone', 'email', 'address', 'city', 'province',
+            'strn', 'ntn', 'cnic', 'atl_status', 'atl_checked_on', 'credit_limit_paise', 'credit_days', 'status', 'notes',
         ];
     }
 
-    /** GSTIN appears on invoices and is shown in full; PAN is masked unless the viewer may see bank details. */
+    /** NTN and STRN appear on invoices and are shown in full; the CNIC is masked unless the viewer may see bank details. */
     public function toSyncArray(LoginAccount $viewer): array
     {
         $data = $this->syncEnvelope();
@@ -162,7 +189,7 @@ class Party extends MasterModel
             $data[$field] = $this->getAttribute($field);
         }
         if (! $viewer->hasPermission('bank.view')) {
-            $data['pan'] = self::masked($this->pan);
+            $data['cnic'] = self::masked($this->cnic);
         }
 
         return $data;
