@@ -61,4 +61,4 @@ The server set-up itself is in [infra/vps/README.md](../infra/vps/README.md). Th
 * `poppler-utils` (installed by `provision.sh`) gives PNG copies of documents; PDFs work without it.
 * **Payroll settings**: EOBI, PESSI, the minimum wage and the s. 149 slabs are settings. Leave them at the defaults until the tax adviser confirms them for the current Finance Act.
 * Restarting the workers during a deploy stops a running bulk-document batch; it continues where it stopped once the job is retried. Avoid deploying while a large payslip batch is running.
-* Staff claims and labour-contractor bills (phase 10) exist as services and are tested, but have no screens yet.
+* Staff claims, labour-contractor bills and expense categories (phase 10) have screens: **HR → Staff claims**, **HR → Contractor bills**, **Accounts → Expense categories**. Link each contractor's workers with **Assign workers** before the first bill.

@@ -9,15 +9,27 @@ use App\Domain\Hr\ContractorBilling;
 use App\Domain\Hr\Payroll\PieceWorkService;
 use App\Domain\Hr\Reimbursements;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Filament\Resources\Accounts\ExpenseCategoryResource\Pages\CreateExpenseCategory;
+use App\Filament\Resources\Accounts\ExpenseCategoryResource\Pages\ListExpenseCategories;
+use App\Filament\Resources\Hr\ContractorBillResource\Pages\CreateContractorBill;
+use App\Filament\Resources\Hr\ContractorBillResource\Pages\ListContractorBills;
+use App\Filament\Resources\Hr\ContractorBillResource\Pages\ViewContractorBill;
+use App\Filament\Resources\Hr\ReimbursementResource\Pages\CreateReimbursement;
+use App\Filament\Resources\Hr\ReimbursementResource\Pages\ListReimbursements;
+use App\Filament\Resources\Hr\ReimbursementResource\Pages\ViewReimbursement;
 use App\Models\Accounts\ExpenseCategory;
 use App\Models\Hr\AttendanceLog;
 use App\Models\Hr\ContractorBill;
 use App\Models\Hr\Employee;
 use App\Models\Hr\Reimbursement;
 use App\Models\Hr\Shift;
+use App\Models\LoginAccount;
 use App\Models\Masters\Party;
 use Carbon\CarbonImmutable;
+use Filament\Facades\Filament;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
+use Livewire\Livewire;
 use Tests\Support\HrFixtures;
 use Tests\Support\Make;
 
@@ -193,5 +205,117 @@ describe('labour contractor bills', function () {
         $this->f->as($this->f->accountant);
         expect($this->bills->reject($bill, 'Rate not agreed')->status)->toBe('rejected')
             ->and(ContractorBill::query()->where('status', 'approved')->count())->toBe(0);
+    });
+});
+
+describe('screens', function () {
+    beforeEach(function () {
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+    });
+
+    function ccSignIn(object $t, LoginAccount $a): void
+    {
+        app('auth')->forgetGuards();
+        $t->flushSession();
+        $t->actingAs($a, 'web')->withSession(Make::webSession($a));
+        $t->f->as($a);
+    }
+
+    it('opens the claim, contractor bill and category screens only for the roles that work with them', function () {
+        $seen = [];
+        foreach (['hr' => $this->f->hr, 'accountant' => $this->f->accountant, 'supervisor' => $this->f->supervisor, 'gate' => $this->f->gate] as $who => $a) {
+            ccSignIn($this, $a);
+            $seen[$who] = implode('/', array_map(fn (string $p) => $this->get($p)->status(),
+                ['/admin/hr/staff-claims', '/admin/hr/contractor-bills', '/admin/expense-categories']));
+        }
+        expect($seen)->toBe(['hr' => '200/200/403', 'accountant' => '200/200/200', 'supervisor' => '200/403/403', 'gate' => '403/403/403']);
+    });
+
+    it('takes a claim with a receipt on screen and moves it through check, approval, payment and the voucher', function () {
+        ccSignIn($this, $this->f->hr);
+        $today = CarbonImmutable::now('Asia/Karachi')->toDateString();
+        Livewire::test(CreateReimbursement::class)->fillForm([
+            'employee_id' => $this->e->id, 'purpose' => 'Spare parts from Multan',
+            'lines' => [
+                ['category_id' => ccCategory('TRAVEL'), 'spent_on' => $today, 'description' => 'Bus fare', 'amount' => '450'],
+                // Upload state is a list of files, as the browser sends it.
+                ['category_id' => ccCategory('REPAIRS'), 'spent_on' => $today, 'description' => 'Bearing 6205', 'amount' => '2500.50',
+                    'receipt' => [UploadedFile::fake()->image('bearing.png', 40, 40)]],
+            ],
+        ])->call('create')->assertHasNoFormErrors();
+        $claim = Reimbursement::query()->sole();
+        expect($claim->total_paise)->toBe(2_950_50)
+            ->and($claim->lines()->whereNotNull('receipt_file_id')->count())->toBe(1);
+
+        // Accounts cannot approve before the supervisor checks.
+        ccSignIn($this, $this->f->accountant);
+        Livewire::test(ListReimbursements::class)->assertTableActionHidden('approve', $claim->id)->assertTableActionVisible('reject', $claim->id);
+
+        ccSignIn($this, $this->f->supervisor);
+        Livewire::test(ListReimbursements::class)->callTableAction('check', $claim->id, ['note' => 'Seen the parts'])->assertNotified('Claim checked; it goes to accounts.');
+
+        ccSignIn($this, $this->f->accountant);
+        Livewire::test(ListReimbursements::class)->callTableAction('approve', $claim->id)->assertNotified('Claim approved and posted.')
+            ->callTableAction('pay', $claim->id, ['from' => $this->chart->system('cash')->id, 'date' => $today])->assertNotified('Claim paid and posted.');
+        expect($claim->fresh()->status)->toBe(Reimbursement::PAID)
+            ->and($this->books->balance($this->chart->system('staff_claims_payable')))->toBe(0);
+
+        Livewire::test(ViewReimbursement::class, ['record' => $claim->id])->assertSee('Bearing 6205')->assertSee('2,500.50');
+        ccSignIn($this, $this->f->hr);
+        Livewire::test(ListReimbursements::class)->callTableAction('voucher', $claim->id)->assertFileDownloaded();
+    });
+
+    it('shows a claim the rules refuse as a form error, not a crash', function () {
+        ccSignIn($this, $this->f->hr);
+        Livewire::test(CreateReimbursement::class)->fillForm([
+            'employee_id' => $this->e->id, 'purpose' => 'Diesel for the generator',
+            'lines' => [['category_id' => ccCategory('FUEL'), 'spent_on' => CarbonImmutable::now('Asia/Karachi')->toDateString(), 'description' => 'Diesel', 'amount' => '3000', 'receipt' => null]],
+        ])->call('create')->assertHasFormErrors(['lines']);
+        expect(Reimbursement::query()->count())->toBe(0);
+    });
+
+    it('links workers, prepares a bill on screen and approves it from the list', function () {
+        $contractor = Party::query()->create(['code' => 'LC2', 'name' => 'Bashir Labour Supply', 'is_vendor' => true]);
+        $w = $this->f->employee(['joining_date' => '2026-01-01', 'employment_type' => 'contract']);
+        $w->forceFill(['shift_id' => Shift::query()->where('code', 'GEN')->value('id')])->save();
+        $from = CarbonImmutable::now('Asia/Karachi')->subWeeks(2)->startOfWeek();
+        ccPunch($w, [$from->toDateString(), $from->addDay()->toDateString()]);
+
+        ccSignIn($this, $this->f->hr);
+        Livewire::test(ListContractorBills::class)
+            ->callAction('workers', ['party_id' => $contractor->id, 'employees' => [$w->id]])->assertNotified('1 worker(s) linked to Bashir Labour Supply.');
+        expect($w->fresh()->contractor_party_id)->toBe($contractor->id);
+
+        Livewire::test(CreateContractorBill::class)->fillForm([
+            'party_id' => $contractor->id, 'period_from' => $from->toDateString(), 'period_to' => $from->addDays(5)->toDateString(),
+            'basis' => 'man_days', 'rate' => '1500', 'sales_tax' => '0', 'wht' => '10',
+        ])->call('create')->assertHasNoFormErrors();
+        $bill = ContractorBill::query()->sole();
+        expect($bill->gross_paise)->toBe(3_000_00)->and($bill->payable_paise)->toBe(2_700_00);
+        Livewire::test(ListContractorBills::class)->assertTableActionHidden('approve', $bill->id);
+
+        ccSignIn($this, $this->f->accountant);
+        Livewire::test(ListContractorBills::class)->callTableAction('approve', $bill->id)->assertNotified('Bill approved and posted.')
+            ->callTableAction('print', $bill->id)->assertFileDownloaded();
+        Livewire::test(ViewContractorBill::class, ['record' => $bill->id])->assertSee('man-day')->assertSee('2,700.00');
+
+        // Taking the worker off the list returns them to the mill's own staff.
+        ccSignIn($this, $this->f->hr);
+        Livewire::test(ListContractorBills::class)->callAction('workers', ['party_id' => $contractor->id, 'employees' => []]);
+        expect($w->fresh()->contractor_party_id)->toBeNull();
+    });
+
+    it('adds an expense category against an expense ledger only', function () {
+        ccSignIn($this, $this->f->accountant);
+        Livewire::test(ListExpenseCategories::class)->assertSee('Travel and conveyance');
+        Livewire::test(CreateExpenseCategory::class)->fillForm([
+            'code' => 'guards', 'name' => 'Night guards', 'kind' => 'expense', 'claimable' => false,
+            'ledger_account_id' => ExpenseCategory::query()->where('code', 'MISC')->value('ledger_account_id'),
+        ])->call('create')->assertHasNoFormErrors();
+        Livewire::test(CreateExpenseCategory::class)->fillForm([
+            'code' => 'BAD', 'name' => 'Wrong ledger', 'kind' => 'expense', 'ledger_account_id' => $this->chart->system('cash')->id,
+        ])->call('create')->assertHasFormErrors();
+        expect(ExpenseCategory::query()->where('code', 'GUARDS')->value('claimable'))->toBeFalse()
+            ->and(ExpenseCategory::query()->where('code', 'BAD')->exists())->toBeFalse();
     });
 });
