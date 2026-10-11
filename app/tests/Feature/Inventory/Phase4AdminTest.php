@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Alerts\AlertService;
 use App\Domain\Production\ProductionService;
+use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\AlertResource\Pages\ListAlerts;
 use App\Filament\Resources\Inventory\RequisitionResource\Pages\CreateRequisition;
 use App\Filament\Resources\Inventory\RequisitionResource\Pages\ViewRequisition;
@@ -132,9 +133,11 @@ it('acknowledges alerts with a note, by the responsible role only', function () 
     $batch = app(ProductionService::class)->open($this->f->paddy);
     $alert = app(AlertService::class)->raise('unaccounted_loss', 'critical', 'Batch loss', null, $batch, [], 'batch.manage');
 
+    // Since HR phase 12 an alert is listed only for holders of its permission; the service still refuses others.
     signInP4($this, $this->f->storeManager);
-    Livewire::test(ListAlerts::class)->callTableAction('acknowledge', $alert, ['note' => 'Not mine to close'])
-        ->assertNotified("You need 'batch.manage' to acknowledge this alert.");
+    Livewire::test(ListAlerts::class)->assertCanNotSeeTableRecords([$alert])->assertDontSee('Batch loss');
+    expect(fn () => app(AlertService::class)->acknowledge($alert, 'Not mine to close'))
+        ->toThrow(BusinessRuleViolation::class, "You need 'batch.manage' to acknowledge this alert.");
 
     signInP4($this, $this->f->supervisor);
     Livewire::test(ListAlerts::class)->assertSee('Batch loss')

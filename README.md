@@ -56,5 +56,11 @@ cd ../agent && python -m unittest discover -s tests   # gate agent
 | 6 | Sales, dispatch, invoices, ANPR / barrier / display | **done** — [summary](docs/phase-6-summary.md) |
 | 7 | Claims (credit / debit notes), pricing with confidential margin, archive | **done** — [summary](docs/phase-7-summary.md) |
 | 8 | Tax registers, reports, dashboard, anomaly alerts, document verification (Indian GST parts replaced: see [Pakistan localisation](docs/pakistan-localisation-summary.md)) | **done** — [summary](docs/phase-8-summary.md) |
-| 9 | Hardening, backups, monitoring, deployment | next |
-| 5–10 | see [docs/phase-1-plan.md](docs/phase-1-plan.md) and the project brief | planned |
+| 9 | Hardening, backups, monitoring, deployment | **done** — [summary](docs/phase-9-summary.md) |
+| — | Access security (suspend / revoke, lockdown, duress PIN, stolen devices, maintenance, access review) | **done** — [summary](docs/access-security-summary.md) |
+| — | Pakistan localisation (PKT, July–June tax year, Rs and maund, sales tax, s. 153, Urdu documents) | **done** — [summary](docs/pakistan-localisation-summary.md) |
+| HR 1–4 | Employees, attendance on phones with integrity checks, review queue, leave, shifts, holidays, register | **done** — [1](docs/hr-phase-1-summary.md) · [2](docs/hr-phase-2-summary.md) · [3](docs/hr-phase-3-summary.md) · [4](docs/hr-phase-4-summary.md) |
+| HR 5–9 | Wages, payroll with EOBI / PESSI / s. 149, payslips and documents, delivery and self-service | **done** — [5](docs/hr-phase-5-summary.md) · [6–7](docs/hr-phase-6-7-summary.md) · [8](docs/hr-phase-8-summary.md) · [9](docs/hr-phase-9-summary.md) |
+| HR 10–12 | Staff claims, contractor bills, expenses, profit and loss, dashboards, hardening | **done** — [10](docs/hr-phase-10-summary.md) · [11](docs/hr-phase-11-summary.md) · [12](docs/hr-phase-12-summary.md) |
+
+**Going live:** [docs/go-live.md](docs/go-live.md).

@@ -54,7 +54,7 @@ class HrOverview extends StatsOverviewWidget
             $stats[] = Stat::make('Payroll', $hr['payroll_month'] ?? 'none yet')
                 ->description($hr['payroll_status'] !== null ? (PayrollRun::STATUSES[$hr['payroll_status']] ?? $hr['payroll_status']) : 'Start the month under Payroll')
                 ->url(PayrollRunResource::getUrl('index'));
-            $stats[] = Stat::make('Advances to recover', 'Rs '.Units::paiseToRupees($hr['advances_outstanding']))->url(AdvanceResource::getUrl('index'));
+            $stats[] = Stat::make('Advances to recover', Units::paiseToRupees($hr['advances_outstanding']))->url(AdvanceResource::getUrl('index'));
         }
         if ($sees('hr.documents.generate')) {
             $stats[] = Stat::make('Payslips not delivered', (string) $hr['undelivered_payslips'])

@@ -81,7 +81,7 @@ class ExpenseCategoryResource extends Resource
                         TextInput::make('month')->required()->regex('/^\d{4}-(0[1-9]|1[0-2])$/')->default(fn () => now('Asia/Karachi')->format('Y-m'))->live(),
                         TextInput::make('amount')->label('Budget (Rs)')->required()->regex(Units::DECIMAL_2)
                             ->helperText(fn (ExpenseCategory $record, Get $get) => ($b = ExpenseBudget::query()->where('expense_category_id', $record->id)
-                                ->where('month', (string) $get('month'))->value('amount_paise')) !== null ? 'Now: Rs '.Units::paiseToRupees((int) $b) : 'No budget yet for this month.'),
+                                ->where('month', (string) $get('month'))->value('amount_paise')) !== null ? 'Now: '.Units::paiseToRupees((int) $b) : 'No budget yet for this month.'),
                     ])
                     ->action(function (ExpenseCategory $record, array $data): void {
                         try {

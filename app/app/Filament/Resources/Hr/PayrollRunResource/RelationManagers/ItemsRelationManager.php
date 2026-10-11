@@ -108,7 +108,7 @@ class ItemsRelationManager extends RelationManager
                         ->action(fn (PayrollItem $record, array $data) => DocumentActions::run('cash_receipt', (string) PayrollPayment::query()->where('payroll_item_id', $record->id)
                             ->whereIn('mode', ['cash', 'cheque'])->orderByDesc('created_at')->value('id'), $data)),
                     Action::make('payCash')->label('Pay cash')->icon('heroicon-o-banknotes')->visible($due)
-                        ->modalDescription(fn (PayrollItem $r) => 'Due: Rs '.Units::paiseToRupees($pay()->due($r)).'. Above the cash limit, salary must go through the bank (s. 21(m)).')
+                        ->modalDescription(fn (PayrollItem $r) => 'Due: '.Units::paiseToRupees($pay()->due($r)).'. Above the cash limit, salary must go through the bank (s. 21(m)).')
                         ->form([
                             Select::make('cash')->label('Paid from')->required()
                                 ->options(fn () => LedgerAccount::query()->where('kind', 'cash')->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
