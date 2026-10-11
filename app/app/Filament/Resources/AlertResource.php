@@ -8,6 +8,8 @@ use App\Domain\Alerts\AlertService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\AlertResource\Pages;
 use App\Models\Alert;
+use App\Models\LoginAccount;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -15,6 +17,7 @@ use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 /** Things someone must look at. Acknowledged with a note, never deleted. */
 class AlertResource extends Resource
@@ -29,9 +32,22 @@ class AlertResource extends Resource
 
     protected static ?int $navigationSort = 5;
 
+    /**
+     * Each person sees only the alerts raised for permissions they hold.
+     *
+     * @return Builder<Alert>
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        $user = Filament::auth()->user();
+        $query = Alert::query();
+
+        return $user instanceof LoginAccount ? $query->visibleTo($user) : $query->whereRaw('1 = 0');
+    }
+
     public static function getNavigationBadge(): ?string
     {
-        $open = Alert::query()->where('status', 'open')->count();
+        $open = static::getEloquentQuery()->where('status', 'open')->count();
 
         return $open > 0 ? (string) $open : null;
     }
@@ -58,6 +74,8 @@ class AlertResource extends Resource
                 SelectFilter::make('status')->options(['open' => 'Open', 'acknowledged' => 'Acknowledged'])->default('open'),
                 SelectFilter::make('type')->options([
                     'outturn_drift' => 'Outturn drift', 'unaccounted_loss' => 'Unaccounted loss', 'shrinkage' => 'Shrinkage',
+                    'abnormal_overtime' => 'Abnormal overtime', 'payroll_variance' => 'Payroll change', 'minimum_wage_shortfall' => 'Below minimum wage',
+                    'failed_delivery' => 'Failed document delivery',
                 ]),
             ])
             ->actions([

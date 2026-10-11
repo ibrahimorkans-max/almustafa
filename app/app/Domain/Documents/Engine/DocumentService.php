@@ -35,6 +35,9 @@ use Illuminate\Support\Str;
  */
 final class DocumentService
 {
+    /** Document types that show an employee's pay. */
+    public const PAY_TYPES = ['payslip', 'salary_certificate', 'advance_voucher', 'bonus_slip', 'cash_receipt', 'payroll_register'];
+
     public function __construct(
         private readonly ActorContext $actor,
         private readonly TenantContext $tenant,
@@ -53,7 +56,7 @@ final class DocumentService
      */
     public function preview(string $type, string $sourceId, array $options = []): array
     {
-        $this->require('hr.documents.generate');
+        $this->requireFor($type);
         $t = DocumentTypes::get($type);
         $source = $this->source($t, $sourceId);
         $payload = $t->build($source, (array) ($options['type'] ?? [])) + ['number' => $t->number($source) ?? '—'];
@@ -70,7 +73,7 @@ final class DocumentService
      */
     public function issue(string $type, string $sourceId, array $options = []): GeneratedDocument
     {
-        $this->require('hr.documents.generate');
+        $this->requireFor($type);
         $t = DocumentTypes::get($type);
 
         return DB::transaction(function () use ($t, $type, $sourceId, $options): GeneratedDocument {
@@ -121,7 +124,7 @@ final class DocumentService
      */
     public function revise(GeneratedDocument $doc, string $reason): GeneratedDocument
     {
-        $this->require('hr.documents.generate');
+        $this->requireFor($doc->doc_type);
         if (mb_strlen(trim($reason)) < 5) {
             throw new BusinessRuleViolation('Give the reason for the correction.');
         }
@@ -254,12 +257,16 @@ final class DocumentService
             return;
         }
         $account = $this->actor->account() ?? throw new BusinessRuleViolation('Sign in to see this document.');
-        if ($account->hasPermission('hr.documents.generate')) {
+        $own = $doc->employee_id !== null && Employee::query()->whereKey($doc->employee_id)->where('person_id', $account->person_id)->exists();
+        if ($own) {
             return;
         }
-        $own = $doc->employee_id !== null && Employee::query()->whereKey($doc->employee_id)->where('person_id', $account->person_id)->exists();
-        if (! $own) {
+        if (! $account->hasPermission('hr.documents.generate')) {
             throw new BusinessRuleViolation('You can see only your own documents.');
+        }
+        // Someone else's pay is for those who may see salaries, even when a role was given documents alone.
+        if (in_array($doc->doc_type, self::PAY_TYPES, true) && ! $account->hasPermission('hr.salary.view')) {
+            throw new BusinessRuleViolation('This document shows pay; seeing it needs the permission hr.salary.view.');
         }
     }
 
@@ -425,6 +432,15 @@ final class DocumentService
         $class = $t->sourceClass();
 
         return $class::query()->find($id) ?? throw new BusinessRuleViolation('The record of this document was not found.');
+    }
+
+    /** Making a document needs hr.documents.generate; one that shows pay needs hr.salary.view as well. */
+    public function requireFor(string $type): void
+    {
+        $this->require('hr.documents.generate');
+        if (in_array($type, self::PAY_TYPES, true)) {
+            $this->require('hr.salary.view');
+        }
     }
 
     private function require(string $permission): void

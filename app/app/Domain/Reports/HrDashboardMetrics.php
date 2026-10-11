@@ -6,6 +6,7 @@ namespace App\Domain\Reports;
 
 use App\Domain\Accounts\FinancialReports;
 use App\Domain\Hr\Attendance\AttendanceCalculator;
+use App\Domain\Tenancy\TenantContext;
 use App\Models\Documents\DocumentAccessLog;
 use App\Models\Documents\GeneratedDocument;
 use App\Models\Hr\Advance;
@@ -14,6 +15,7 @@ use App\Models\Hr\Employee;
 use App\Models\Hr\LeaveRequest;
 use App\Models\Hr\PayrollRun;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
 
 /** Figures for the HR and owner dashboards, for the working entity. */
 final class HrDashboardMetrics
@@ -21,6 +23,7 @@ final class HrDashboardMetrics
     public function __construct(
         private readonly AttendanceCalculator $attendance,
         private readonly FinancialReports $reports,
+        private readonly TenantContext $tenant,
     ) {}
 
     /**
@@ -32,6 +35,15 @@ final class HrDashboardMetrics
     public function today(?CarbonImmutable $day = null): array
     {
         $day ??= CarbonImmutable::now('Asia/Karachi')->startOfDay();
+        // Every employee's day is worked out from the punches; the dashboard polls, so keep it a minute.
+        $key = 'hr-today:'.($this->tenant->entityId() ?? '-').':'.$day->toDateString();
+
+        return Cache::remember($key, 60, fn (): array => $this->countDay($day));
+    }
+
+    /** @return array{headcount: int, present: int, late: int, on_leave: int, off: int, absent: int} */
+    private function countDay(CarbonImmutable $day): array
+    {
         $out = ['headcount' => 0, 'present' => 0, 'late' => 0, 'on_leave' => 0, 'off' => 0, 'absent' => 0];
         $employees = Employee::query()->with('shift')->where('status', '!=', Employee::EXITED)->where('joining_date', '<=', $day->toDateString())->get();
         foreach ($employees as $e) {
