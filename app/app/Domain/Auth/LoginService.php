@@ -9,6 +9,7 @@ use App\Domain\Auth\Exceptions\AuthenticationFailed;
 use App\Domain\Security\DuressService;
 use App\Domain\Security\Lockdown;
 use App\Domain\Security\SecurityNotifier;
+use App\Domain\Security\SignInAlerts;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\AuthSession;
 use App\Models\LoginAccount;
@@ -93,6 +94,43 @@ final class LoginService
             throw AuthenticationFailed::credentials('bad_password');
         }
 
+        $this->admit($account, $password, $ip, $deviceUid);
+
+        return $account;
+    }
+
+    /**
+     * Sign-in with a passkey the browser has already proven (PasskeyService): the same account checks as
+     * a password, without the password. The passkey is something the person has and is unlocked with
+     * their fingerprint, face or device PIN, so it stands for both factors.
+     *
+     * @throws AuthenticationFailed
+     */
+    public function verifyPasskey(LoginAccount $account, ?string $ip, ?string $deviceUid = null): LoginAccount
+    {
+        $this->binder->bind($account);
+        $this->actor->clear();
+        if ($account->isLocked()) {
+            $this->blocked($account, 'locked');
+        }
+        if (! $account->isActive() && ! $account->isAccessWithdrawn()) {
+            $this->blocked($account, 'account_'.$account->status);
+        }
+        if (! $account->isSuperAdmin() && ! $account->entity->isActive()) {
+            $this->blocked($account, 'entity_'.$account->entity->status);
+        }
+        $this->admit($account, null, $ip, $deviceUid);
+
+        return $account;
+    }
+
+    /**
+     * Once the person has proven who they are: withdrawn access, lockdown and the IP allow-list.
+     *
+     * @throws AuthenticationFailed
+     */
+    private function admit(LoginAccount $account, ?string $password, ?string $ip, ?string $deviceUid): void
+    {
         // Only after the right password: a suspended / revoked person is told plainly, and nothing else.
         if ($account->isAccessWithdrawn()) {
             $this->audit->record('auth.login.blocked', $account, meta: [
@@ -108,7 +146,7 @@ final class LoginService
             throw new AuthenticationFailed(AuthenticationFailed::SYSTEM_LOCKED, 'lockdown', 423);
         }
 
-        if (Hash::needsRehash($account->password)) {
+        if ($password !== null && Hash::needsRehash($account->password)) {
             $account->password = $password;
             $account->password_changed_at = $account->getOriginal('password_changed_at');
             $account->save();
@@ -119,8 +157,6 @@ final class LoginService
 
             throw new AuthenticationFailed(AuthenticationFailed::NETWORK_NOT_ALLOWED, 'ip_not_allowed', 403);
         }
-
-        return $account;
     }
 
     public function mfaStep(LoginAccount $account): string
@@ -150,9 +186,11 @@ final class LoginService
         ?string $ip,
         ?string $userAgent,
         bool $mfaPassed,
+        string $method = 'password',
     ): AuthSession {
         $device = $this->devices->resolveForLogin($account, $deviceInfo, $ip);
-        $session = $this->sessions->start($account, $channel, $device, $ip, $userAgent, $mfaPassed);
+        $session = $this->sessions->start($account, $channel, $device, $ip, $userAgent, $mfaPassed, $method);
+        app(SignInAlerts::class)->afterSignIn($account, $session, $device);
 
         $account->forceFill([
             'failed_attempts' => 0,
@@ -163,7 +201,8 @@ final class LoginService
 
         $this->binder->bind($account, $session, $device->id);
         $this->audit->record('auth.login.succeeded', $account, meta: [
-            'channel' => $channel, 'session_id' => $session->id, 'mfa' => $mfaPassed,
+            'channel' => $channel, 'session_id' => $session->id, 'mfa' => $mfaPassed, 'method' => $method,
+            'ip' => $ip, 'place' => $session->placeLabel(),
         ]);
 
         return $session;

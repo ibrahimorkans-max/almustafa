@@ -12,9 +12,11 @@
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
         "league/flysystem-aws-s3-v3": "^3.0",
+        "maxmind-db/reader": "^1.12",
         "mpdf/mpdf": "^8.2",
         "mpdf/qrcode": "^1.2",
-        "pragmarx/google2fa": "^8.0"
+        "pragmarx/google2fa": "^8.0",
+        "spatie/laravel-passkeys": "^1.8"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

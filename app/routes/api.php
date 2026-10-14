@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\FileController;
 use App\Http\Controllers\Api\V1\GateBarrierController;
 use App\Http\Controllers\Api\V1\LeaveController;
+use App\Http\Controllers\Api\V1\LiveWeightController;
 use App\Http\Controllers\Api\V1\SessionController;
 use App\Http\Controllers\Api\V1\SyncController;
 use App\Http\Middleware\EnforceRemoteWipe;
@@ -31,6 +32,8 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('sync/wipe-ack', [SyncController::class, 'wipeAck'])->name('sync.wipe-ack');
         Route::post('files', [FileController::class, 'store'])->name('files.store');
         Route::post('gate/barrier', [GateBarrierController::class, 'decide'])->name('gate.barrier');
+        // About one reading a second from each weighbridge PC; its own limit so it never eats the sync budget.
+        Route::post('gate/live-weight', [LiveWeightController::class, 'store'])->withoutMiddleware('throttle:api')->middleware('throttle:120,1')->name('gate.live_weight');
 
         Route::get('attendance/me', [AttendanceController::class, 'me'])->name('attendance.me');
         Route::post('attendance/consent', [AttendanceController::class, 'consent'])->name('attendance.consent');

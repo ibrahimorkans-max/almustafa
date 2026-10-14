@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Domain\Auth;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Security\GeoIp;
 use App\Models\ApiToken;
 use App\Models\AuthSession;
 use App\Models\Device;
 use App\Models\LoginAccount;
+use App\Support\Values\UserAgentInfo;
 use Illuminate\Support\Facades\DB;
 
 final class SessionService
@@ -18,9 +20,22 @@ final class SessionService
         private readonly ActorContext $actor,
     ) {}
 
-    public function start(LoginAccount $account, string $channel, ?Device $device, ?string $ip, ?string $userAgent, bool $mfaPassed): AuthSession
+    /** @param  string  $method  how the person proved who they are: password | passkey */
+    public function start(LoginAccount $account, string $channel, ?Device $device, ?string $ip, ?string $userAgent, bool $mfaPassed, string $method = 'password'): AuthSession
     {
+        $ua = UserAgentInfo::parse($userAgent);
+        $geo = app(GeoIp::class)->lookup($ip);
+
         return AuthSession::query()->create([
+            'browser' => $ua->browser,
+            'os' => $ua->os,
+            'country' => $geo['country'] ?? null,
+            'region' => $geo['region'] ?? null,
+            'city' => $geo['city'] ?? null,
+            'latitude' => $geo['latitude'] ?? null,
+            'longitude' => $geo['longitude'] ?? null,
+            'location_source' => $geo['source'] ?? null,
+            'sign_in_method' => $method,
             'entity_id' => $account->entity_id,
             'login_account_id' => $account->id,
             'device_id' => $device?->id,

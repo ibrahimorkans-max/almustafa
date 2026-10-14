@@ -26,7 +26,9 @@ class IpAllowlistRelationManager extends RelationManager
     {
         $me = Filament::auth()->user();
 
-        return $me instanceof LoginAccount && $me->isSuperAdmin() && $me->hasPermission('user.manage');
+        // Any account can be limited to listed networks; a Super Admin's list only by a Super Admin.
+        return $me instanceof LoginAccount && $me->hasPermission('user.manage')
+            && ($me->isSuperAdmin() || ($ownerRecord instanceof LoginAccount && ! $ownerRecord->isSuperAdmin()));
     }
 
     public function form(Form $form): Form

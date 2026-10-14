@@ -17,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Spatie\LaravelPasskeys\Models\Concerns\HasPasskeys;
+use Spatie\LaravelPasskeys\Models\Concerns\InteractsWithPasskeys;
 
 /**
  * The authenticatable user. Bound to exactly one entity and one role,
@@ -38,6 +40,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $last_login_ip
  * @property Carbon|null $password_changed_at
  * @property bool $must_change_password
+ * @property bool $require_trusted_device
  * @property string|null $duress_pin_hash
  * @property Carbon|null $duress_pin_set_at
  * @property bool $duress_suspends
@@ -50,12 +53,13 @@ use Illuminate\Support\Carbon;
  * @property-read Role $role
  * @property-read Entity $entity
  */
-class LoginAccount extends Authenticatable implements FilamentUser, HasName
+class LoginAccount extends Authenticatable implements FilamentUser, HasName, HasPasskeys
 {
     use Auditable;
     use BelongsToEntity;
     use HasOptimisticLock;
     use HasUuids;
+    use InteractsWithPasskeys;
     use Notifiable;
     use TracksCreator;
 
@@ -94,6 +98,7 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName
             'last_login_at' => 'datetime',
             'password_changed_at' => 'datetime',
             'must_change_password' => 'boolean',
+            'require_trusted_device' => 'boolean',
             'duress_pin_set_at' => 'datetime',
             'duress_suspends' => 'boolean',
             'duress_wipes_device' => 'boolean',
@@ -215,5 +220,21 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName
     public function getFilamentName(): string
     {
         return $this->person->full_name ?? $this->username;
+    }
+
+    /** Shown on the device when choosing a passkey. */
+    public function getPasskeyName(): string
+    {
+        return $this->username;
+    }
+
+    public function getPasskeyId(): string
+    {
+        return $this->id;
+    }
+
+    public function getPasskeyDisplayName(): string
+    {
+        return ($this->person->full_name ?? $this->username).' ('.(config('ricemill.brand.name')).')';
     }
 }

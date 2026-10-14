@@ -7,6 +7,7 @@ namespace App\Providers\Filament;
 use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\ChangePassword;
 use App\Filament\Pages\DuressPin;
+use App\Filament\Pages\MyPasskeys;
 use App\Filament\Pages\SwitchContext;
 use App\Filament\Pages\TwoFactor;
 use App\Filament\Widgets\HrOverview;
@@ -14,6 +15,7 @@ use App\Filament\Widgets\MoneyOverview;
 use App\Filament\Widgets\OperationsOverview;
 use App\Filament\Widgets\OwnerOverview;
 use App\Filament\Widgets\StockOverview;
+use App\Http\Controllers\SessionLocationController;
 use App\Http\Middleware\EnsureWebAuthSession;
 use App\Http\Middleware\RequireWorkingEntityForCreate;
 use Filament\Http\Middleware\Authenticate;
@@ -25,12 +27,14 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -66,9 +70,16 @@ class AdminPanelProvider extends PanelProvider
                     ->url(fn () => TwoFactor::getUrl()),
                 MenuItem::make()->label('Change password')->icon('heroicon-o-key')
                     ->url(fn () => ChangePassword::getUrl()),
+                MenuItem::make()->label('Passkeys')->icon('heroicon-o-finger-print')
+                    ->url(fn () => MyPasskeys::getUrl()),
                 MenuItem::make()->label('Duress PIN')->icon('heroicon-o-exclamation-triangle')
                     ->url(fn () => DuressPin::getUrl())->visible(fn () => DuressPin::canAccess()),
             ])
+            // Passkeys on the sign-in page and "My passkeys"; the browser's position once after sign-in.
+            ->renderHook(PanelsRenderHook::BODY_END, fn () => view('filament.hooks.security-scripts'))
+            ->authenticatedRoutes(function (): void {
+                Route::post('session-location', SessionLocationController::class)->middleware('throttle:10,1')->name('session-location');
+            })
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

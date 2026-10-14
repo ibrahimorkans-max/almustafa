@@ -15,6 +15,7 @@ Runs on the weighbridge PC. It is the only component that talks to gate hardware
 | `drivers/anpr.py` | Number-plate camera (HTTP result + snapshot); **simulator** (can misread a character on purpose) |
 | `drivers/barrier.py` | Boom barrier via network relay (TCP text command); **simulator** (can simulate a dead relay) |
 | `drivers/display.py` | Two-line LED board (TCP text); **simulator** |
+| `live.py` | Live weight for the screens: the indicator reading about once a second to `POST /gate/live-weight`, marked stable when the last readings agree within one step; display only, never queued |
 | `gate_control.py` | Plate read → queued `gate_entry.plate_read`; asks the server `POST /gate/barrier`; opens only on yes; **fails closed** offline; guard override queued as `barrier.manual_open` |
 
 ## Setup (Windows weighbridge PC)
@@ -45,6 +46,8 @@ ricemill-agent --config agent.toml status
 ricemill-agent --config agent.toml simulate MNA211234 24560 9870     # simulator end-to-end
 ricemill-agent --config agent.toml gate in --plate MNA211234           # plate read + barrier decision
 ricemill-agent --config agent.toml manual-open out "Server down, ambulance behind"   # guard override (flagged)
+ricemill-agent --config agent.toml live                                # live weight on the screens (run as a service)
+ricemill-agent --config agent.toml live --simulate 24560 --count 10    # simulator
 ```
 
 Run `sync` from Task Scheduler every minute (or as a service); everything else works without network.

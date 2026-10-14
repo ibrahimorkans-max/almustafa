@@ -20,6 +20,7 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -102,6 +103,10 @@ class LoginAccountResource extends Resource
                 TextInput::make('password')->label('Temporary password')->password()->revealable()
                     ->required()->rule(Password::defaults())->visibleOn('create')
                     ->helperText('The user must change it at first sign-in.'),
+                Toggle::make('require_trusted_device')->label('Only from approved devices')
+                    ->helperText('A new phone or computer must first be approved by the owner. Applies when Security → Sign-in rules is set to "selected accounts"; with "everyone" it applies to all accounts anyway.')
+                    ->disabled(fn (?LoginAccount $record) => $record !== null && $record->person_id === auth()->user()?->person_id)
+                    ->columnSpanFull(),
             ]),
         ]);
     }

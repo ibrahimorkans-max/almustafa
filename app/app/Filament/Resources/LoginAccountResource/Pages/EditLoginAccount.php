@@ -30,6 +30,10 @@ class EditLoginAccount extends EditRecord
         return DB::transaction(function () use ($record, $data): LoginAccount {
             $roleChanged = $record->role_id !== $data['role_id'];
             $record->role_id = $data['role_id'];
+            // Nobody relaxes the device rule on their own account (the field is disabled for them too).
+            if (array_key_exists('require_trusted_device', $data) && $record->person_id !== auth()->user()?->person_id) {
+                $record->require_trusted_device = (bool) $data['require_trusted_device'];
+            }
             $record->save();
 
             // New permissions take effect on next sign-in; end current sessions so nobody keeps old rights.

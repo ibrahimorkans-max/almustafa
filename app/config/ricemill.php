@@ -43,6 +43,11 @@ return [
         'super_admin_require_trusted_device' => (bool) env('RICEMILL_SA_REQUIRE_TRUSTED_DEVICE', true),
         // First-ever Super Admin device is trusted automatically (installation only; set false afterwards).
         'bootstrap_trust_first_device' => (bool) env('RICEMILL_BOOTSTRAP_TRUST_FIRST_DEVICE', false),
+        // Which accounts may sign in only from an approved device, until the owner changes it under
+        // Security → Sign-in rules: everyone | selected (accounts switched on one by one) | off.
+        'trusted_devices_default' => env('RICEMILL_TRUSTED_DEVICES', 'off'),
+        // Roles left out of "everyone": employees punch from a phone HR already approves (attendance devices).
+        'trusted_devices_exempt_roles' => ['EMPLOYEE'],
         'hsts' => (bool) env('RICEMILL_HSTS', true),
         // Key for searchable hashes of encrypted identifiers (NTN, CNIC, STRN, IBAN). Empty = derived from APP_KEY.
         'blind_index_key' => env('RICEMILL_BLIND_INDEX_KEY', ''),
@@ -119,6 +124,19 @@ return [
     'documents' => [
         // pdftoppm (poppler-utils) turns a PDF into a PNG for quick sharing; found on the PATH when empty.
         'pdftoppm' => env('RICEMILL_PDFTOPPM'),
+    ],
+
+    // Where sign-ins come from: DB-IP "IP to City Lite" (CC BY 4.0), downloaded monthly by geoip:update.
+    'geoip' => [
+        'path' => env('RICEMILL_GEOIP_PATH', storage_path('app/geoip/dbip-city-lite.mmdb')),
+        // %s = year-month (2026-10); the file is published at the start of each month.
+        'url' => env('RICEMILL_GEOIP_URL', 'https://download.db-ip.com/free/dbip-city-lite-%s.mmdb.gz'),
+    ],
+
+    // Live weight on screen: the gate agent sends the indicator reading about once a second; a reading
+    // older than this many seconds is shown as "no signal".
+    'live_weight' => [
+        'stale_after_seconds' => 5,
     ],
 
     'anomalies' => [

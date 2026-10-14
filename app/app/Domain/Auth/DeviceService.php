@@ -9,6 +9,7 @@ use App\Domain\Approvals\ApprovalService;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\Exceptions\AuthenticationFailed;
 use App\Domain\Security\SecurityNotifier;
+use App\Domain\Settings\SettingsService;
 use App\Models\ApprovalRequest;
 use App\Models\AuthSession;
 use App\Models\Device;
@@ -58,8 +59,8 @@ final class DeviceService
             throw new AuthenticationFailed(AuthenticationFailed::DEVICE_NOT_ALLOWED, 'device_'.$device->status, 403);
         }
 
-        if ($account->isSuperAdmin() && config('ricemill.security.super_admin_require_trusted_device') && ! $device->isTrusted()) {
-            $this->handleUntrustedSuperAdminDevice($account, $device);
+        if (! $device->isTrusted() && $this->requiresTrustedDevice($account, $device)) {
+            $this->handleUntrustedDevice($account, $device);
         }
 
         $device->forceFill(['last_seen_at' => now(), 'last_ip' => $ip])->save();
@@ -174,11 +175,33 @@ final class DeviceService
      *
      * @throws AuthenticationFailed
      */
-    private function handleUntrustedSuperAdminDevice(LoginAccount $account, Device $device): void
+    /**
+     * Super Admins always (when configured); everyone else by the mill's rule under Security → Sign-in
+     * rules: "everyone" (except attendance-only employees, whose phone HR approves), "selected"
+     * accounts, or off. Registered gate agents are trusted when they are registered.
+     */
+    public function requiresTrustedDevice(LoginAccount $account, ?Device $device = null): bool
+    {
+        if ($account->isSuperAdmin()) {
+            return (bool) config('ricemill.security.super_admin_require_trusted_device');
+        }
+        if ($device?->platform === 'agent') {
+            return false;
+        }
+
+        return match (app(SettingsService::class)->trustedDevicesMode($account->entity_id)) {
+            'everyone' => ! in_array($account->role?->code, (array) config('ricemill.security.trusted_devices_exempt_roles'), true),
+            'selected' => $account->require_trusted_device,
+            default => false,
+        };
+    }
+
+    private function handleUntrustedDevice(LoginAccount $account, Device $device): void
     {
         $hasTrusted = Device::query()->where('login_account_id', $account->id)->whereNotNull('trusted_at')->exists();
 
-        if (! $hasTrusted && config('ricemill.security.bootstrap_trust_first_device')) {
+        // Installation only: the very first Super Admin device, so somebody can sign in at all.
+        if (! $hasTrusted && $account->isSuperAdmin() && config('ricemill.security.bootstrap_trust_first_device')) {
             $this->trust($device, null, 'bootstrap_first_device');
 
             return;
@@ -192,7 +215,7 @@ final class DeviceService
 
         if (! $pending) {
             $this->approvals->submitFor($account, TrustDevice::KEY, ['device_id' => $device->id],
-                "Trust new Super Admin device '".($device->name ?? $device->platform)."' for {$account->username}",
+                ($account->isSuperAdmin() ? 'Trust new Super Admin device' : 'Trust new device')." '".($device->name ?? $device->platform)."' for {$account->username}",
                 'Automatic request: sign-in attempt from an untrusted device', systemInitiated: true);
         }
 

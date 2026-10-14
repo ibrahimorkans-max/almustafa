@@ -49,8 +49,8 @@ it('marking a phone lost queues the wipe, blocks everything but the wipe, and ca
     $this->getJson('/api/v1/sync/pull?cursor=0', Make::apiHeaders($phone, 'lost-phone-00000001'))->assertStatus(403)->assertJson(['error' => 'wipe_required']);
     // The user's other device was signed out.
     $this->getJson('/api/v1/auth/me', Make::apiHeaders($other, 'other-tablet-0000001'))->assertUnauthorized();
-    // Owners were told.
-    expect(DB::table('notifications')->where('notifiable_id', $this->owner->id)->value('data'))->toContain('Left in a taxi');
+    // Owners were told (they may also have new-sign-in notices from the second device).
+    expect(DB::table('notifications')->where('notifiable_id', $this->owner->id)->pluck('data')->implode(' '))->toContain('Left in a taxi');
 });
 
 it('offers Mark lost on the Devices screen', function () {

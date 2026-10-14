@@ -24,9 +24,11 @@ final class EntityPolicy
         return $user->isSuperAdmin() && $user->hasPermission('entity.manage');
     }
 
+    /** All firms with entity.manage (Super Admin); the own mill only with entity.edit_own (Owner). */
     public function update(LoginAccount $user, Entity $entity): bool
     {
-        return $user->hasPermission('entity.manage');
+        return $user->hasPermission('entity.manage')
+            || ($user->hasPermission('entity.edit_own') && $entity->id === $user->entity_id);
     }
 
     /** Entities are never deleted (legal retention); suspend instead. */

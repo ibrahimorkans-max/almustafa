@@ -41,9 +41,15 @@ final class TrustDevice implements ApprovalAction
         return ['device_id' => $device->id, 'login_account_id' => $device->login_account_id];
     }
 
+    /** A Super Admin's device needs another Super Admin; anyone else's, a holder of device.manage (the owner). */
     public function checkerMayDecide(LoginAccount $checker, ApprovalRequest $request): bool
     {
-        return $checker->isSuperAdmin();
+        $owner = LoginAccount::query()->withoutGlobalScopes()->find($request->payload['login_account_id'] ?? null);
+        if ($owner === null || $owner->isSuperAdmin()) {
+            return $checker->isSuperAdmin();
+        }
+
+        return $checker->id !== $owner->id && ($checker->isSuperAdmin() || $checker->hasPermission('device.manage'));
     }
 
     public function execute(ApprovalRequest $request, LoginAccount $checker): array

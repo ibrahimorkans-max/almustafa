@@ -26,5 +26,7 @@ Schedule::call(fn () => app(OpsAlerts::class)->checkFailedLoginBurst())->everyFi
 Schedule::command('hr:document-expiry')->dailyAt('07:30')->timezone('Asia/Karachi')->withoutOverlapping();
 Schedule::command('hr:salary-ack-reminders')->dailyAt('07:45')->timezone('Asia/Karachi')->withoutOverlapping();
 Schedule::command('expenses:recurring')->dailyAt('06:30')->timezone('Asia/Karachi')->withoutOverlapping();
+// Where sign-ins come from: the free city database is republished each month.
+Schedule::command('geoip:update')->monthlyOn(5, '04:30')->timezone('Asia/Karachi')->withoutOverlapping();
 // 1 January (PKT): close the year that just ended for leave balances.
 Schedule::command('hr:leave-year-end '.(now('Asia/Karachi')->year - 1))->yearlyOn(1, 1, '00:30')->timezone('Asia/Karachi')->withoutOverlapping();
