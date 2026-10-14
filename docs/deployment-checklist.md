@@ -67,3 +67,13 @@ The server set-up itself is in [infra/vps/README.md](../infra/vps/README.md). Th
 * Opening stock is entered on the stock ledger on go-live day. A profit and loss period that starts before that day counts it as a gain (it has no purchase bill), so start profit and loss periods on or after the go-live day.
 * Set up the recurring expenses (rent, electricity, guards) under **Accounts → Recurring expenses**; the scheduler drafts them at 06:30 PKT.
 * Optional alert thresholds: `RICEMILL_OVERTIME_ALERT_HOURS` (default 60 hours a month) and `RICEMILL_PAYROLL_VARIANCE_BP` (default 1500 = 15 %).
+
+## Sign-in security and live weight
+* `RICEMILL_TRUSTED_DEVICES=everyone` (production template): every new phone or computer must be approved before it can sign in. On the first day:
+  1. the Super Admin signs in (first device trusted by `RICEMILL_BOOTSTRAP_TRUST_FIRST_DEVICE=true`, then set it back to `false`);
+  2. the owner signs in once: it is stopped and a request appears under **Approvals**; the Super Admin approves it;
+  3. from then on the owner approves staff devices. Attendance-only employees are left out (HR approves their phones under Attendance devices).
+  The owner can change the rule under **Security → Sign-in rules**.
+* Run `php artisan geoip:update` once after the first deploy (it needs to reach download.db-ip.com); the scheduler refreshes it on the 5th of each month. Without it, sessions show no city.
+* Passkeys work on the HTTPS domain set in `APP_URL`; a passkey made for one domain does not work on another. After go-live, ask the owner and the accountant to add one under the user menu → **Passkeys**.
+* Live weight: on the weighbridge PC run `ricemill-agent --config agent.toml live` as a service (Task Scheduler "at startup", restart on failure), next to the minute-by-minute `sync`.

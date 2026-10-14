@@ -9,11 +9,14 @@ use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Auth\DeviceInfo;
 use App\Domain\Auth\Exceptions\AuthenticationFailed;
 use App\Domain\Auth\LoginService;
+use App\Domain\Auth\PasskeyService;
 use App\Domain\Tenancy\TenantContext;
 use App\Http\Middleware\EnsureWebAuthSession;
 use App\Models\AuthSession;
 use App\Models\LoginAccount;
 use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
@@ -24,7 +27,8 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Two-step sign-in: username + password, then a TOTP/recovery code when the account has 2FA.
+ * Two-step sign-in: username + password, then a TOTP/recovery code when the account has 2FA; or one
+ * step with a passkey (fingerprint, face or device PIN), which counts as both factors.
  * Accounts whose role requires 2FA but have not enrolled are signed in with no permissions
  * and confined to the 2FA setup page (see EnsureWebAuthSession).
  *
@@ -121,7 +125,47 @@ class Login extends BaseLogin
         $this->form->fill();
     }
 
-    private function finish(LoginAccount $account, bool $mfaPassed): LoginResponse
+    /** Step 1 of a passkey sign-in: a one-time challenge for the device to sign (public/js/passkeys.js). */
+    public function passkeyOptions(): string
+    {
+        return app(PasskeyService::class)->authenticationOptions();
+    }
+
+    /** Step 2: the signed challenge. The passkey names the account; the usual account checks follow. */
+    public function passkeyLogin(string $credential): ?LoginResponse
+    {
+        try {
+            $this->rateLimit(5);
+        } catch (TooManyRequestsException $exception) {
+            $this->getRateLimitedNotification($exception)?->send();
+
+            return null;
+        }
+        try {
+            $account = app(PasskeyService::class)->authenticate(mb_substr($credential, 0, 20_000))
+                ?? throw AuthenticationFailed::credentials('passkey_not_recognised');
+            app(LoginService::class)->verifyPasskey($account, request()->ip(), (string) request()->cookie(self::DEVICE_COOKIE) ?: null);
+            $this->assertPanelAccess($account);
+            session()->forget(self::PENDING_KEY);
+
+            return $this->finish($account, true, 'passkey');
+        } catch (AuthenticationFailed $e) {
+            throw ValidationException::withMessages(['data.username' => $e->publicMessage()]);
+        }
+    }
+
+    /** @return array<Action|ActionGroup> */
+    protected function getFormActions(): array
+    {
+        return [
+            ...parent::getFormActions(),
+            Action::make('passkey')->label('Sign in with a passkey')->icon('heroicon-o-finger-print')->color('gray')->outlined()
+                ->alpineClickHandler('rmPasskeyLogin($wire)')
+                ->visible(fn () => ! $this->awaitingCode),
+        ];
+    }
+
+    private function finish(LoginAccount $account, bool $mfaPassed, string $method = 'password'): LoginResponse
     {
         $session = app(LoginService::class)->completeLogin(
             $account,
@@ -130,6 +174,7 @@ class Login extends BaseLogin
             request()->ip(),
             request()->userAgent(),
             $mfaPassed,
+            $method,
         );
 
         Filament::auth()->login($account);

@@ -22,12 +22,23 @@ final class SettingsService
 
     public const LOGIN_MODE_SWITCHER = 'switcher';
 
+    /** Who may sign in only from an approved device: everyone | selected accounts | off. */
+    public const TRUSTED_DEVICES = 'security.trusted_devices';
+
+    public const TRUSTED_DEVICES_MODES = ['everyone', 'selected', 'off'];
+
     /** @var array<string, array{default: mixed, allowed?: list<mixed>, scope: 'global'|'entity'}> */
     public const DEFINITIONS = [
         self::LOGIN_MODE => [
             'default' => self::LOGIN_MODE_MULTI_ACCOUNT,
             'allowed' => [self::LOGIN_MODE_MULTI_ACCOUNT, self::LOGIN_MODE_SWITCHER],
             'scope' => 'global',
+        ],
+        // The default comes from RICEMILL_TRUSTED_DEVICES (production: everyone); see trustedDevicesMode().
+        self::TRUSTED_DEVICES => [
+            'default' => null,
+            'allowed' => self::TRUSTED_DEVICES_MODES,
+            'scope' => 'entity',
         ],
     ];
 
@@ -83,6 +94,13 @@ final class SettingsService
     public function loginMode(): string
     {
         return (string) $this->get(self::LOGIN_MODE);
+    }
+
+    public function trustedDevicesMode(?string $entityId): string
+    {
+        $mode = $this->get(self::TRUSTED_DEVICES, $entityId) ?? config('ricemill.security.trusted_devices_default');
+
+        return in_array($mode, self::TRUSTED_DEVICES_MODES, true) ? (string) $mode : 'off';
     }
 
     /** @return array{default: mixed, allowed?: list<mixed>, scope: 'global'|'entity'} */

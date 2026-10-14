@@ -7,6 +7,7 @@
     simulate REG GROSS TARE      full inbound weighing with the simulated indicator
     gate in|out [--entry ID]     plate read + server decision; opens the barrier only on yes
     manual-open in|out REASON    guard override (recorded and flagged)
+    live [--simulate KG]         send the indicator reading about once a second for the screens
     new-store-key                print a fresh encryption key for [store].key
 """
 
@@ -27,6 +28,7 @@ from .drivers.display import SimulatedDisplay, TcpTextDisplay
 from .drivers.indicator import FrameParser, SerialIndicator, SimulatedIndicator, TcpIndicator
 from .gate import GateAgent
 from .gate_control import GateController
+from .live import LiveWeightStreamer
 from . import secrets
 from .queue import LocalStore
 from .sync import SyncWorker
@@ -99,6 +101,9 @@ def main(argv: list[str] | None = None) -> int:
     m.add_argument("side", choices=["in", "out"])
     m.add_argument("reason")
     m.add_argument("--entry")
+    lv = sub.add_parser("live")
+    lv.add_argument("--simulate", type=Decimal, help="simulated indicator: a truck of this many kg, again and again")
+    lv.add_argument("--count", type=int, help="stop after this many sends (default: run until stopped)")
     args = p.parse_args(argv)
 
     if args.cmd == "new-store-key":
@@ -144,6 +149,17 @@ def main(argv: list[str] | None = None) -> int:
         result = build_gate(cfg, store, api, args.plate).request_passage(args.side, args.entry)
         print(json.dumps(result.__dict__))
         return 0 if result.opened else 2
+    if args.cmd == "live":
+        if args.simulate is not None:
+            def repeat():
+                while True:
+                    yield from SimulatedIndicator(args.simulate, cfg.resolution_kg).samples()
+            samples = repeat()
+        else:
+            samples = build_indicator(cfg).samples()
+        stats = LiveWeightStreamer(samples, api, cfg.scale_id, cfg.resolution_kg).run(args.count)
+        print(json.dumps({"readings": stats.readings, "sent": stats.sent, "dropped": stats.dropped, "last_error": stats.last_error}))
+        return 0
     if args.cmd == "manual-open":
         build_gate(cfg, store, api).manual_open(args.side, args.reason, args.entry)
         print("barrier opened manually; the event is queued for sync")

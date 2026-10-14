@@ -28,6 +28,16 @@ use Illuminate\Support\Carbon;
  * @property string|null $revoked_by
  * @property string|null $revoked_reason
  * @property Carbon $created_at
+ * @property string|null $browser
+ * @property string|null $os
+ * @property string|null $country
+ * @property string|null $region
+ * @property string|null $city
+ * @property float|null $latitude
+ * @property float|null $longitude
+ * @property int|null $location_accuracy_m
+ * @property string|null $location_source ip | browser | local
+ * @property string|null $sign_in_method password | passkey
  * @property-read LoginAccount $loginAccount
  * @property-read Device|null $device
  */
@@ -42,6 +52,7 @@ class AuthSession extends Model
 
     protected $fillable = [
         'entity_id', 'login_account_id', 'device_id', 'channel', 'ip', 'user_agent', 'mfa_passed_at', 'expires_at', 'last_seen_at',
+        'browser', 'os', 'country', 'region', 'city', 'latitude', 'longitude', 'location_accuracy_m', 'location_source', 'sign_in_method',
     ];
 
     protected function casts(): array
@@ -51,7 +62,29 @@ class AuthSession extends Model
             'expires_at' => 'datetime',
             'last_seen_at' => 'datetime',
             'revoked_at' => 'datetime',
+            'latitude' => 'float',
+            'longitude' => 'float',
+            'location_accuracy_m' => 'integer',
         ];
+    }
+
+    /** "Lodhran, Punjab, PK", "Mill network" or null when unknown. */
+    public function placeLabel(): ?string
+    {
+        if ($this->location_source === 'local') {
+            return 'Mill network (local address)';
+        }
+        $place = implode(', ', array_filter([$this->city, $this->region, $this->country]));
+
+        return $place !== '' ? $place : null;
+    }
+
+    /** A map link to the browser's own position, or the IP's rough one. */
+    public function mapUrl(): ?string
+    {
+        return $this->latitude !== null && $this->longitude !== null
+            ? sprintf('https://www.openstreetmap.org/?mlat=%.5F&mlon=%.5F#map=13/%.5F/%.5F', $this->latitude, $this->longitude, $this->latitude, $this->longitude)
+            : null;
     }
 
     /** @return BelongsTo<LoginAccount, $this> */

@@ -7,6 +7,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\EntityResource\Pages;
 use App\Models\Entity;
 use App\Support\Values\PakistanIds;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -55,7 +56,9 @@ class EntityResource extends Resource
                 Select::make('status')->options([
                     Entity::STATUS_ACTIVE => 'Active',
                     Entity::STATUS_SUSPENDED => 'Suspended',
-                ])->default(Entity::STATUS_ACTIVE)->required()->selectablePlaceholder(false),
+                ])->default(Entity::STATUS_ACTIVE)->required()->selectablePlaceholder(false)
+                    // Suspending a firm is for whoever manages all firms, not the mill's own owner.
+                    ->disabled(fn () => ! (Filament::auth()->user()?->hasPermission('entity.manage') ?? false)),
             ]),
         ]);
     }

@@ -20,6 +20,7 @@ final class PermissionCatalog
         // Admin
         'entity.view' => ['admin', 'View entity (firm/mill) details'],
         'entity.manage' => ['admin', 'Create and edit entities'],
+        'entity.edit_own' => ['admin', 'Edit the details of the own mill (name, NTN, STRN, address, phone)'],
         'user.view' => ['admin', 'View users and login accounts'],
         'user.manage' => ['admin', 'Create, disable, unlock and reset login accounts'],
         'role.view' => ['admin', 'View roles and permission grants'],

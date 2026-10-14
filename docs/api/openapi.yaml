@@ -266,6 +266,25 @@ paths:
                   reason: { type: string, examples: [arrival_registered, slip_issued, gate_pass_issued, no_slip, no_gate_pass, blocked_vehicle, no_matching_vehicle] }
                   gate_entry_id: { type: [string, 'null'], format: uuid }
         '403': { description: No gate permission (barrier stays closed) }
+  /gate/live-weight:
+    post:
+      summary: The weighbridge indicator's current reading, about once a second (gate agent; signed; display only, never recorded)
+      parameters: [{ $ref: '#/components/parameters/DeviceId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scale_id, kg, stable]
+              properties:
+                scale_id: { type: string, format: uuid }
+                kg: { type: string, description: 'Decimal kg as read' }
+                stable: { type: boolean, description: 'The last few readings agree within one scale step' }
+                at: { type: string, format: date-time }
+      responses:
+        '200': { description: 'Shown on Gate & weighbridge → Live weight until a newer reading or 5 seconds of silence' }
+        '422': { description: 'Unknown or inactive weighbridge, a reading outside its range, or a login without weighment.capture' }
   /attendance/me:
     get:
       summary: The employee's attendance set-up and today's punches (needs hr.attendance.punch)
