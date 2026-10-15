@@ -19,11 +19,11 @@ final class DevicePolicy
         return $this->viewAny($user);
     }
 
-    /** Revoke / request remote wipe. A Super Admin's devices only by a Super Admin. */
+    /** Revoke / request remote wipe. An Owner's devices only by an Owner. */
     public function manage(LoginAccount $user, Device $device): bool
     {
         return $user->hasPermission('device.manage')
-            && ($user->isSuperAdmin() || ! ($device->loginAccount?->isSuperAdmin() ?? true));
+            && ($user->isOwner() || ! ($device->loginAccount?->isOwner() ?? true));
     }
 
     public function create(LoginAccount $user): bool

@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
 /**
  * Planned maintenance windows ("Under maintenance, back at 6 PM"). While one is active, the web
  * answers with an honest 503 page and the API with 503 + Retry-After; phones, PWA and gate agents
- * keep queueing and sync afterwards. Holders of the secret bypass link (given to the Super Admin
+ * keep queueing and sync afterwards. Holders of the secret bypass link (given to the Owner
  * who schedules it) keep working.
  */
 final class MaintenanceService
@@ -36,8 +36,8 @@ final class MaintenanceService
     public function schedule(string $message, CarbonInterface $startsAt, CarbonInterface $endsAt): array
     {
         $admin = $this->actor->account();
-        if ($admin === null || ! $admin->isSuperAdmin()) {
-            throw new BusinessRuleViolation('Only a Super Admin can schedule maintenance.');
+        if ($admin === null || ! $admin->isOwner()) {
+            throw new BusinessRuleViolation('Only an Owner can schedule maintenance.');
         }
         $message = trim($message);
         if (mb_strlen($message) < 5) {
@@ -67,8 +67,8 @@ final class MaintenanceService
     public function end(string $id): void
     {
         $admin = $this->actor->account();
-        if ($admin === null || ! $admin->isSuperAdmin()) {
-            throw new BusinessRuleViolation('Only a Super Admin can end maintenance.');
+        if ($admin === null || ! $admin->isOwner()) {
+            throw new BusinessRuleViolation('Only an Owner can end maintenance.');
         }
         $updated = DB::table('maintenance_windows')->where('id', $id)->whereNull('ended_at')
             ->update(['ended_by' => $admin->id, 'ended_at' => now()->utc()->format('Y-m-d H:i:s.v')]);

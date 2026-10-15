@@ -31,7 +31,7 @@ function hrSignIn(object $t, LoginAccount $account): void
 dataset('hr screens', ['/admin/hr/employees', '/admin/hr/departments', '/admin/hr/designations', '/admin/hr/salary-components']);
 
 it('opens the HR screens for HR, owners, accountants and supervisors only', function (string $path) {
-    $expected = ['HR_MANAGER' => 200, 'OWNER' => 200, 'ACCOUNTANT' => 200, 'SUPERVISOR' => 200, 'GATE_OPERATOR' => 403, 'LAB_TECHNICIAN' => 403];
+    $expected = ['HR_MANAGER' => 200, 'SUPER_ADMIN' => 200, 'ACCOUNTANT' => 200, 'SUPERVISOR' => 200, 'GATE_OPERATOR' => 403, 'LAB_TECHNICIAN' => 403];
     $actual = [];
     foreach ($expected as $role => $status) {
         $account = Make::account($this->f->entity, $role, ['mfa' => true]);

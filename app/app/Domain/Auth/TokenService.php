@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Opaque API tokens bound to an auth session and a device.
  *
- *  - access token: short-lived (15 min; 5 min for Super Admin)
+ *  - access token: short-lived (15 min; 5 min for Owner)
  *  - refresh token: single use. Each refresh returns a new pair. Presenting an
  *    already-used refresh token means it was stolen or replayed, so the whole
  *    session is revoked (refresh token rotation with reuse detection).
@@ -32,7 +32,7 @@ final class TokenService
 
     public function issue(AuthSession $session, Device $device, LoginAccount $account, ?string $parentId = null): TokenPair
     {
-        $accessTtl = $account->isSuperAdmin()
+        $accessTtl = $account->isOwner()
             ? (int) config('ricemill.auth.super_admin_access_token_ttl')
             : (int) config('ricemill.auth.access_token_ttl');
 

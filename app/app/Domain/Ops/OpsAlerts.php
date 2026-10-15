@@ -14,7 +14,7 @@ use Throwable;
 /**
  * System-level alerts (failed backup or scheduled task, failed-login burst). They concern every
  * firm on the installation, so one is raised in each active entity for holders of 'audit.verify'
- * (Super Admins and owners). The same open alert is not repeated within an hour.
+ * (Owners and Super Admins). The same open alert is not repeated within an hour.
  */
 final class OpsAlerts
 {

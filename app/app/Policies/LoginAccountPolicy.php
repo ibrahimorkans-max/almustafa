@@ -24,11 +24,11 @@ final class LoginAccountPolicy
         return $user->hasPermission('user.manage');
     }
 
-    /** Only a Super Admin may manage Super Admin accounts. */
+    /** Only an Owner may manage Owner accounts. */
     public function update(LoginAccount $user, LoginAccount $account): bool
     {
         return $user->hasPermission('user.manage')
-            && ($user->isSuperAdmin() || ! $account->isSuperAdmin());
+            && ($user->isOwner() || ! $account->isOwner());
     }
 
     /** Managing your own account through the admin screens is not allowed (no self-unlock, self-role-change). */
@@ -39,11 +39,11 @@ final class LoginAccountPolicy
 
     /**
      * A role may be assigned only if the assigner holds every permission in it
-     * (prevents privilege escalation); the Super Admin role only by a Super Admin.
+     * (prevents privilege escalation); the Owner role only by an Owner.
      */
     public function assignRole(LoginAccount $user, Role $role): bool
     {
-        if ($user->isSuperAdmin()) {
+        if ($user->isOwner()) {
             return true;
         }
         if ($role->is_super_admin) {

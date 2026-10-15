@@ -42,7 +42,7 @@
 
 ```bash
 php artisan access:sync [--export=permissions.json]   # sync permission catalog; run on every deploy
-php artisan ricemill:create-super-admin <username>    # installation bootstrap (asks for password)
+php artisan ricemill:create-owner <username>          # installation bootstrap (asks for password)
 php artisan audit:verify [--entity=<uuid>]            # recompute audit hash chains (scheduled daily)
 php artisan procurement:expire                        # expire quotes / saudas (scheduled daily)
 php artisan scales:certificate-reminders              # weighbridge certificate expiry (scheduled daily)

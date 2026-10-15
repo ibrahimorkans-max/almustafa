@@ -55,6 +55,7 @@ class GateEntryResource extends Resource
         'plate_mismatch' => 'Plate read ≠ typed number', 'barrier_manual_open' => 'Barrier opened by hand',
         'quantity_out_of_tolerance' => 'Load outside order tolerance', 'bag_weight_mismatch' => 'Bags × size ≠ net',
         'dispatch_order_not_open' => 'Dispatch order not cleared',
+        'live_screen' => 'Recorded on the Live weight screen', 'reweighed' => 'Weighed again',
     ];
 
     public static function form(Form $form): Form

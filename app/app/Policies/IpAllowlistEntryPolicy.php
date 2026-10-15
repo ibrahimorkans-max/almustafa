@@ -7,12 +7,12 @@ namespace App\Policies;
 use App\Models\IpAllowlistEntry;
 use App\Models\LoginAccount;
 
-/** Network restrictions are a Super Admin control. */
+/** Network restrictions are an Owner control. */
 final class IpAllowlistEntryPolicy
 {
     private function allowed(LoginAccount $user): bool
     {
-        return $user->isSuperAdmin() && $user->hasPermission('user.manage');
+        return $user->isOwner() && $user->hasPermission('user.manage');
     }
 
     public function viewAny(LoginAccount $user): bool

@@ -21,8 +21,8 @@ use Filament\Pages\Page;
 use Illuminate\Support\Facades\Cookie;
 
 /**
- * Super Admin emergency controls: lockdown of everything or of one entity, and maintenance mode.
- * Every action needs the current 2FA code and is audited; owners are told.
+ * Owner emergency controls: lockdown of everything or of one entity, and maintenance mode.
+ * Every action needs the current 2FA code and is audited; the Owner and Super Admins are told.
  */
 class SecurityCentre extends Page
 {
@@ -42,7 +42,7 @@ class SecurityCentre extends Page
     {
         $user = Filament::auth()->user();
 
-        return $user instanceof LoginAccount && $user->isSuperAdmin() && ! $user->hasPendingSecuritySetup();
+        return $user instanceof LoginAccount && $user->isOwner() && ! $user->hasPendingSecuritySetup();
     }
 
     /** @return list<object> */
@@ -65,7 +65,7 @@ class SecurityCentre extends Page
         return [
             Action::make('lockdown')->label('Emergency lockdown')->color('danger')->icon('heroicon-o-lock-closed')
                 ->modalHeading('Emergency lockdown')
-                ->modalDescription('Signs everyone in the chosen scope out at once (browser, phone, PWA, gate agent) and blocks sign-in for all except Super Admins. Nothing is deleted. Owners are told by e-mail and in the app.')
+                ->modalDescription('Signs everyone in the chosen scope out at once (browser, phone, PWA, gate agent) and blocks sign-in for all except Owners. Nothing is deleted. The Owner and Super Admins are told by e-mail and in the app.')
                 ->form([
                     Select::make('scope')->label('Lock')->required()->default('system')
                         ->options(['system' => 'Whole system (all entities)'] + Entity::query()->orderBy('code')->get()->mapWithKeys(fn (Entity $e) => [$e->id => "{$e->code} — {$e->name}"])->all()),

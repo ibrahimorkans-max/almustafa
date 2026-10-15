@@ -53,7 +53,7 @@ describe('sign-in page', function () {
     });
 
     it('asks for the 2FA code in a second step', function () {
-        $owner = Make::account($this->entity, 'OWNER');
+        $owner = Make::account($this->entity, 'SUPER_ADMIN');
 
         $page = Livewire::test(Login::class)
             ->fillForm(['username' => $owner->username, 'password' => Make::PASSWORD])
@@ -69,7 +69,7 @@ describe('sign-in page', function () {
     });
 
     it('cannot jump to the code step without passing the password step', function () {
-        Make::account($this->entity, 'OWNER');
+        Make::account($this->entity, 'SUPER_ADMIN');
 
         Livewire::test(Login::class)
             ->set('awaitingCode', true)
@@ -92,7 +92,7 @@ describe('sign-in page', function () {
 
 describe('after sign-in', function () {
     it('confines a role that requires 2FA to the setup page until enrolled', function () {
-        $owner = Make::account($this->entity, 'OWNER', ['mfa' => false]);
+        $owner = Make::account($this->entity, 'SUPER_ADMIN', ['mfa' => false]);
         $session = Make::webSession($owner);
 
         $this->actingAs($owner, 'web')->withSession($session)->get('/admin/users')
@@ -101,7 +101,7 @@ describe('after sign-in', function () {
     });
 
     it('enrolls 2FA and returns one-time recovery codes', function () {
-        $owner = Make::account($this->entity, 'OWNER', ['mfa' => false]);
+        $owner = Make::account($this->entity, 'SUPER_ADMIN', ['mfa' => false]);
         $this->actingAs($owner, 'web')->withSession(Make::webSession($owner));
         app(AuthContextBinder::class)->bind($owner);
 
@@ -141,14 +141,15 @@ describe('after sign-in', function () {
     });
 
     it('signs out when the role\'s absolute session limit is reached', function () {
-        $sa = Make::superAdmin($this->entity);
+        $sa = Make::owner($this->entity);
         $this->actingAs($sa, 'web')->withSession(Make::webSession($sa));
 
-        foreach (range(1, 3) as $i) {
+        $limit = $sa->role->session_max_minutes; // the Owner: 12 hours
+        foreach (range(1, intdiv($limit, 15) - 1) as $i) {
             $this->travel(15)->minutes(); // active, so the 30-minute idle limit never triggers
             $this->get('/admin')->assertOk();
         }
-        $this->travel(20)->minutes(); // 65 minutes since sign-in; SA limit is 60
+        $this->travel(20)->minutes(); // 5 minutes past the limit
         $this->get('/admin')->assertRedirect(Filament::getLoginUrl());
     });
 
@@ -162,7 +163,7 @@ describe('after sign-in', function () {
 
 describe('user administration', function () {
     it('creates a user with a temporary password and audits it', function () {
-        $owner = Make::account($this->entity, 'OWNER');
+        $owner = Make::account($this->entity, 'SUPER_ADMIN');
         $this->actingAs($owner, 'web')->withSession(Make::webSession($owner));
         app(AuthContextBinder::class)->bind($owner);
         $gateRole = Role::query()->where('code', 'GATE_OPERATOR')->firstOrFail();
@@ -184,7 +185,7 @@ describe('user administration', function () {
     it('rejects a username taken in another entity', function () {
         $other = Make::entity('OTH');
         Make::account($other, 'GATE_OPERATOR', ['username' => 'taken.name']);
-        $owner = Make::account($this->entity, 'OWNER');
+        $owner = Make::account($this->entity, 'SUPER_ADMIN');
         $this->actingAs($owner, 'web')->withSession(Make::webSession($owner));
         app(AuthContextBinder::class)->bind($owner);
         $gateRole = Role::query()->where('code', 'GATE_OPERATOR')->firstOrFail();
@@ -198,7 +199,7 @@ describe('user administration', function () {
     it('does not offer roles with more rights than the creator holds', function () {
         $supervisor = Make::account($this->entity, 'SUPERVISOR');
         Role::query(); // noop
-        app(AuthContextBinder::class)->bind(Make::account($this->entity, 'OWNER'));
+        app(AuthContextBinder::class)->bind(Make::account($this->entity, 'SUPER_ADMIN'));
         // Give the supervisor user.manage only, through the real approval path being out of scope here:
         Make::system(fn () => DB::table('role_permissions')->insert([
             'role_id' => $supervisor->role_id, 'permission_code' => 'user.manage', 'entity_id' => $this->entity->id, 'created_at' => now(),

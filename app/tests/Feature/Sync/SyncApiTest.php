@@ -269,7 +269,7 @@ describe('pull', function () {
 
     it('hides confidential fields from viewers without permission', function () {
         $party = Make::system(function () {
-            app(AuthContextBinder::class)->bind(Make::account($this->entity, 'OWNER'));
+            app(AuthContextBinder::class)->bind(Make::account($this->entity, 'SUPER_ADMIN'));
 
             return Party::query()->create([
                 'code' => 'V1', 'name' => 'Lodhran Traders', 'is_vendor' => true,

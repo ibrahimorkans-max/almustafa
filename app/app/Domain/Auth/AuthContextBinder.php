@@ -10,7 +10,7 @@ use App\Models\LoginAccount;
 
 /**
  * Establishes tenant + actor context for an authenticated account.
- * Super Admin gets isolation bypass with its home entity (or a chosen working entity).
+ * Owner gets isolation bypass with its home entity (or a chosen working entity).
  */
 final class AuthContextBinder
 {
@@ -19,12 +19,12 @@ final class AuthContextBinder
         private readonly ActorContext $actor,
     ) {}
 
-    /** Session value meaning "Super Admin works across all entities". */
+    /** Session value meaning "Owner works across all entities". */
     public const ALL_ENTITIES = 'all';
 
     public function bind(LoginAccount $account, ?AuthSession $session = null, ?string $deviceId = null, ?string $workingEntityId = null): void
     {
-        if ($account->isSuperAdmin()) {
+        if ($account->isOwner()) {
             $this->tenant->enterSuperAdmin(match ($workingEntityId) {
                 null => $account->entity_id,
                 self::ALL_ENTITIES => null,

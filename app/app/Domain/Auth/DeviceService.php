@@ -171,18 +171,18 @@ final class DeviceService
 
     /**
      * Either trusts the device (first device during installation) or files a
-     * maker-checker request for another Super Admin and refuses the login.
+     * maker-checker request for another Owner and refuses the login.
      *
      * @throws AuthenticationFailed
      */
     /**
-     * Super Admins always (when configured); everyone else by the mill's rule under Security → Sign-in
+     * Owners always (when configured); everyone else by the mill's rule under Security → Sign-in
      * rules: "everyone" (except attendance-only employees, whose phone HR approves), "selected"
      * accounts, or off. Registered gate agents are trusted when they are registered.
      */
     public function requiresTrustedDevice(LoginAccount $account, ?Device $device = null): bool
     {
-        if ($account->isSuperAdmin()) {
+        if ($account->isOwner()) {
             return (bool) config('ricemill.security.super_admin_require_trusted_device');
         }
         if ($device?->platform === 'agent') {
@@ -200,8 +200,8 @@ final class DeviceService
     {
         $hasTrusted = Device::query()->where('login_account_id', $account->id)->whereNotNull('trusted_at')->exists();
 
-        // Installation only: the very first Super Admin device, so somebody can sign in at all.
-        if (! $hasTrusted && $account->isSuperAdmin() && config('ricemill.security.bootstrap_trust_first_device')) {
+        // Installation only: the very first Owner device, so somebody can sign in at all.
+        if (! $hasTrusted && $account->isOwner() && config('ricemill.security.bootstrap_trust_first_device')) {
             $this->trust($device, null, 'bootstrap_first_device');
 
             return;
@@ -215,7 +215,7 @@ final class DeviceService
 
         if (! $pending) {
             $this->approvals->submitFor($account, TrustDevice::KEY, ['device_id' => $device->id],
-                ($account->isSuperAdmin() ? 'Trust new Super Admin device' : 'Trust new device')." '".($device->name ?? $device->platform)."' for {$account->username}",
+                ($account->isOwner() ? 'Trust new Owner device' : 'Trust new device')." '".($device->name ?? $device->platform)."' for {$account->username}",
                 'Automatic request: sign-in attempt from an untrusted device', systemInitiated: true);
         }
 

@@ -51,7 +51,7 @@ const HR_MATRIX = [
     '/admin/alerts' => 'Y Y Y Y Y Y . Y .',
 ];
 
-const HR_MATRIX_ROLES = ['OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'HR_MANAGER', 'SUPERVISOR', 'INVENTORY_MANAGER', 'GATE_OPERATOR', 'LAB_TECHNICIAN', 'EMPLOYEE'];
+const HR_MATRIX_ROLES = ['SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'HR_MANAGER', 'SUPERVISOR', 'INVENTORY_MANAGER', 'GATE_OPERATOR', 'LAB_TECHNICIAN', 'EMPLOYEE'];
 
 beforeEach(function () {
     Filament::setCurrentPanel(Filament::getPanel('admin'));

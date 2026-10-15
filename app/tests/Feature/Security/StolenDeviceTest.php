@@ -19,7 +19,7 @@ use Tests\Support\Make;
 beforeEach(function () {
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     $this->entity = Make::entity('LST');
-    $this->owner = Make::account($this->entity, 'OWNER');
+    $this->owner = Make::account($this->entity, 'SUPER_ADMIN');
     $this->user = Make::account($this->entity, 'SUPERVISOR');
 });
 

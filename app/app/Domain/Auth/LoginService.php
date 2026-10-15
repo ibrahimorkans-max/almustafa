@@ -84,7 +84,7 @@ final class LoginService
         if (! $account->isActive() && ! $account->isAccessWithdrawn()) {
             $this->blocked($account, 'account_'.$account->status);
         }
-        if (! $account->isSuperAdmin() && ! $account->entity->isActive()) {
+        if (! $account->isOwner() && ! $account->entity->isActive()) {
             $this->blocked($account, 'entity_'.$account->entity->status);
         }
 
@@ -116,7 +116,7 @@ final class LoginService
         if (! $account->isActive() && ! $account->isAccessWithdrawn()) {
             $this->blocked($account, 'account_'.$account->status);
         }
-        if (! $account->isSuperAdmin() && ! $account->entity->isActive()) {
+        if (! $account->isOwner() && ! $account->entity->isActive()) {
             $this->blocked($account, 'entity_'.$account->entity->status);
         }
         $this->admit($account, null, $ip, $deviceUid);
@@ -249,7 +249,7 @@ final class LoginService
                 $needsAdmin
                     ? "{$account->username} was locked {$lockouts} times within 24 hours. It now stays locked until an administrator unlocks it (Users → Unlock)."
                     : "{$account->username} is locked for ".config('ricemill.auth.lockout_minutes').' minutes after '.$max.' wrong attempts.',
-                includeSuperAdmins: $account->isSuperAdmin());
+                includeOwners: $account->isOwner());
         }
     }
 

@@ -227,7 +227,7 @@ it('keeps punches and consents append-only at the database', function () {
 });
 
 it('grants punching to every staff role but not to brokers, and creates the Employee role', function () {
-    foreach (['EMPLOYEE', 'GATE_OPERATOR', 'SUPERVISOR', 'ACCOUNTANT', 'HR_MANAGER', 'OWNER'] as $role) {
+    foreach (['EMPLOYEE', 'GATE_OPERATOR', 'SUPERVISOR', 'ACCOUNTANT', 'HR_MANAGER', 'SUPER_ADMIN'] as $role) {
         expect(Make::account($this->f->entity, $role, ['mfa' => true])->hasPermission('hr.attendance.punch'))->toBeTrue($role);
     }
     expect(Make::account($this->f->entity, 'BROKER')->hasPermission('hr.attendance.punch'))->toBeFalse()

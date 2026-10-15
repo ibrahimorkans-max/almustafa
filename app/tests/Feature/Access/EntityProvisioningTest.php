@@ -27,7 +27,7 @@ it('creates an entity with every default role and its grants', function () {
 
 it('lets a Super Admin create an entity from the admin panel, storing NTN/STRN encrypted', function () {
     $home = Make::entity('HQ');
-    $sa = Make::superAdmin($home);
+    $sa = Make::owner($home);
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     $this->actingAs($sa, 'web')->withSession(Make::webSession($sa));
     app(AuthContextBinder::class)->bind($sa);
@@ -55,7 +55,7 @@ it('lets a Super Admin create an entity from the admin panel, storing NTN/STRN e
 
 it('does not let an Owner create entities', function () {
     $entity = Make::entity('OWN');
-    $owner = Make::account($entity, 'OWNER');
+    $owner = Make::account($entity, 'SUPER_ADMIN');
 
     $this->actingAs($owner, 'web')->withSession(Make::webSession($owner))
         ->get('/admin/entities/create')->assertForbidden();

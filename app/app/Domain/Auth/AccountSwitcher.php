@@ -68,7 +68,7 @@ final class AccountSwitcher
             ?? throw new AuthenticationFailed(AuthenticationFailed::INVALID_CREDENTIALS, 'switch_target_not_allowed', 403);
         $target->loadMissing('person');
 
-        if (! $target->isSuperAdmin() && ! $target->entity->isActive()) {
+        if (! $target->isOwner() && ! $target->entity->isActive()) {
             throw AuthenticationFailed::credentials('switch_target_entity_inactive');
         }
 

@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Per-entity role (or the global Super Admin role when entity_id is NULL).
+ * Per-entity role (or the global Owner role when entity_id is NULL).
  *
  * @property string $id
  * @property string|null $entity_id

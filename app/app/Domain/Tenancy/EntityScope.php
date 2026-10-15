@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Scope;
 /**
  * Application-level isolation (works on every database driver):
  *  - entity selected            → rows of that entity (+ global rows for models that allow them)
- *  - no entity, bypass enabled  → everything (system / Super Admin "all entities")
+ *  - no entity, bypass enabled  → everything (system / Owner "all entities")
  *  - no context at all          → nothing (fail closed)
  */
 final class EntityScope implements Scope

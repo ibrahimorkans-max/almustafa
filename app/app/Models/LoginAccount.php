@@ -176,7 +176,7 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
         return in_array($this->role?->code, (array) config('ricemill.security.duress_roles'), true);
     }
 
-    public function isSuperAdmin(): bool
+    public function isOwner(): bool
     {
         return (bool) $this->role?->is_super_admin;
     }

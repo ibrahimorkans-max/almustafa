@@ -39,8 +39,8 @@ final class AuditController extends Controller
 
         /** @var LoginAccount $account */
         $account = $request->user();
-        // Super Admin may verify every chain (`?all=1`), everyone else their entity's chain.
-        $result = $account->isSuperAdmin() && $request->boolean('all')
+        // Owner may verify every chain (`?all=1`), everyone else their entity's chain.
+        $result = $account->isOwner() && $request->boolean('all')
             ? $verifier->verify()
             : $verifier->verifyEntity($tenant->requireEntityId());
 

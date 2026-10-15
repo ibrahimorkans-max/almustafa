@@ -229,7 +229,7 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * A button pressed by a Super Admin in "All firms" mode that has to write into one firm explains
+     * A button pressed by an Owner in "All firms" mode that has to write into one firm explains
      * itself instead of showing an error page. Nothing is written; the rule itself stays.
      */
     private function registerFriendlyContextErrors(): void
@@ -244,7 +244,7 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
-    /** A failed scheduled task or queued job alerts the Super Admins / owners (ops monitoring). */
+    /** A failed scheduled task or queued job alerts the Owners / Super Admins (ops monitoring). */
     private function registerOpsAlerts(): void
     {
         $alert = fn (string $what, string $detail) => $this->app->make(OpsAlerts::class)->raise('ops_failure', 'critical',

@@ -19,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * The only way to put a typed weight on record (e.g. indicator failure): requested by a
- * Super Admin with a mandatory reason, approved by a different person holding
+ * Owner with a mandatory reason, approved by a different person holding
  * `weighment.override`. Stored as source = manual_override and flagged everywhere.
  */
 final class ManualWeighmentOverride implements ApprovalAction
@@ -45,8 +45,8 @@ final class ManualWeighmentOverride implements ApprovalAction
 
     public function validate(array $payload, LoginAccount $maker): array
     {
-        if (! $maker->isSuperAdmin()) {
-            throw ValidationException::withMessages(['maker' => 'Only a Super Admin may request a manual weight.']);
+        if (! $maker->isOwner()) {
+            throw ValidationException::withMessages(['maker' => 'Only an Owner may request a manual weight.']);
         }
 
         $data = Validator::make($payload, [

@@ -41,8 +41,8 @@ final class Make
     public static function account(Entity $entity, string $roleCode, array $options = []): LoginAccount
     {
         return self::system(function () use ($entity, $roleCode, $options): LoginAccount {
-            $role = $roleCode === 'SUPER_ADMIN'
-                ? app(AccessCatalogSync::class)->superAdminRole()
+            $role = $roleCode === 'OWNER'
+                ? app(AccessCatalogSync::class)->ownerRole()
                 : Role::query()->where('entity_id', $entity->id)->where('code', $roleCode)->firstOrFail();
 
             $person = $options['person'] ?? null;
@@ -73,9 +73,9 @@ final class Make
         });
     }
 
-    public static function superAdmin(Entity $home, bool $trustedDeviceUid = true): LoginAccount
+    public static function owner(Entity $home, bool $trustedDeviceUid = true): LoginAccount
     {
-        return self::account($home, 'SUPER_ADMIN');
+        return self::account($home, 'OWNER');
     }
 
     public static function totp(LoginAccount $account): string
@@ -83,7 +83,7 @@ final class Make
         return app(Google2FA::class)->getCurrentOtp((string) $account->mfa_secret);
     }
 
-    /** Pre-approves a device for a Super Admin (as if another Super Admin had approved it). */
+    /** Pre-approves a device for an Owner (as if another Owner had approved it). */
     public static function trustedDevice(LoginAccount $account, string $uid, string $platform = 'web'): Device
     {
         return self::system(function () use ($account, $uid, $platform): Device {
@@ -100,7 +100,7 @@ final class Make
     /** Full API login through the real services; returns the token pair. */
     public static function apiTokens(LoginAccount $account, string $deviceUid = 'test-device-0001-abcdef'): TokenPair
     {
-        if ($account->isSuperAdmin()) {
+        if ($account->isOwner()) {
             self::trustedDevice($account, $deviceUid, 'android');
         }
 
@@ -127,7 +127,7 @@ final class Make
     public static function webSession(LoginAccount $account): array
     {
         $uid = (string) Str::uuid();
-        if ($account->isSuperAdmin()) {
+        if ($account->isOwner()) {
             self::trustedDevice($account, $uid);
         }
 

@@ -69,7 +69,7 @@ describe('ops alerts', function () {
     beforeEach(function () {
         $this->e1 = Make::entity('OA1');
         $this->e2 = Make::entity('OA2');
-        $this->owner = Make::account($this->e1, 'OWNER');
+        $this->owner = Make::account($this->e1, 'SUPER_ADMIN');
     });
 
     it('alerts every firm when sign-ins fail in a burst, without repeating within the hour', function () {
@@ -145,7 +145,7 @@ describe('preflight', function () {
         ]);
         $r = app(Preflight::class)->run();
         foreach (['APP_ENV is production', 'APP_DEBUG is off', 'APP_URL uses https', 'Session cookie is secure-only', 'Queue runs in workers', 'Queue does not rerun long jobs',
-            'Mail is really sent', 'Super Admin IP allow-list required', 'First-device bootstrap is off', 'Backup key is set',
+            'Mail is really sent', 'Owner IP allow-list required', 'First-device bootstrap is off', 'Backup key is set',
             'Off-site backup copy', 'All migrations have run'] as $name) {
             expect(preflightCheck($r, $name)['ok'])->toBeTrue("{$name}: ".preflightCheck($r, $name)['detail']);
         }

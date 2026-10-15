@@ -15,7 +15,7 @@ use Tests\Support\Make;
 
 beforeEach(function () {
     $this->entity = Make::entity('AUD');
-    $this->owner = Make::account($this->entity, 'OWNER');
+    $this->owner = Make::account($this->entity, 'SUPER_ADMIN');
     app(AuthContextBinder::class)->bind($this->owner);
 });
 

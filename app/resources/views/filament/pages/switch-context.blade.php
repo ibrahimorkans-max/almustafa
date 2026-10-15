@@ -1,5 +1,5 @@
 <x-filament-panels::page>
-    @if ($this->account()->isSuperAdmin())
+    @if ($this->account()->isOwner())
         <x-filament::section>
             <x-slot name="heading">Working entity</x-slot>
             <x-slot name="description">Lists and new records use the working entity. Every change of working entity is audited.</x-slot>

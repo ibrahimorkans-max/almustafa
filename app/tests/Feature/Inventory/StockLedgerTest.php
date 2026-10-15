@@ -93,7 +93,7 @@ it('detects a balance that no longer matches the ledger', function () {
 it('keeps each mill’s stock to itself', function () {
     $this->f->stock($this->f->paddy, $this->f->silo, '100');
     $other = Make::entity('OTH');
-    $outsider = Make::account($other, 'OWNER');
+    $outsider = Make::account($other, 'SUPER_ADMIN');
     $this->f->as($outsider);
 
     expect(StockEntry::query()->count())->toBe(0)

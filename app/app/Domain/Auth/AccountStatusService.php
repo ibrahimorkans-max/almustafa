@@ -50,8 +50,8 @@ final class AccountStatusService
         if ($actor->id === $account->id || $actor->person_id === $account->person_id) {
             throw new BusinessRuleViolation('You cannot change the access of your own account.');
         }
-        if ($account->isSuperAdmin() && ! $actor->isSuperAdmin()) {
-            throw new BusinessRuleViolation('Only a Super Admin can change the access of a Super Admin account.');
+        if ($account->isOwner() && ! $actor->isOwner()) {
+            throw new BusinessRuleViolation('Only an Owner can change the access of an Owner account.');
         }
         if (mb_strlen(trim($reason)) < 5) {
             throw new BusinessRuleViolation('Give the reason (at least a few words); it is kept in the audit log.');

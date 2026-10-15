@@ -18,7 +18,7 @@ Route::get('/d/{token}', SharedDocumentController::class)->middleware('throttle:
 // Uptime monitoring: states and ages only, no secrets or versions.
 Route::get('/health', HealthController::class)->middleware('throttle:60,1')->name('health');
 
-// Secret link given to the Super Admin who schedules maintenance: keeps working during the window.
+// Secret link given to the Owner who schedules maintenance: keeps working during the window.
 Route::get('/maintenance/bypass/{token}', function (string $token, MaintenanceService $maintenance) {
     $window = collect($maintenance->current())->first(fn (object $w) => $maintenance->bypassValid($token, $w));
     abort_if($window === null, 404);

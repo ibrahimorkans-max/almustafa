@@ -140,7 +140,7 @@ describe('two-factor authentication', function () {
     });
 
     it('blocks app login for a role that requires 2FA until it is enrolled', function () {
-        $owner = Make::account($this->entity, 'OWNER', ['mfa' => false]);
+        $owner = Make::account($this->entity, 'SUPER_ADMIN', ['mfa' => false]);
 
         $this->postJson('/api/v1/auth/login', loginBody($owner))->assertStatus(403)
             ->assertJsonPath('error', 'mfa_enrollment_required');
@@ -251,7 +251,7 @@ describe('tokens and sessions', function () {
 
 describe('Super Admin controls', function () {
     beforeEach(function () {
-        $this->sa = Make::superAdmin($this->entity);
+        $this->sa = Make::owner($this->entity);
     });
 
     it('requires a device approved by another Super Admin', function () {
@@ -266,7 +266,7 @@ describe('Super Admin controls', function () {
         expect(Make::system(fn () => app(ApprovalService::class)->canDecide($this->sa, $request)))->toBeFalse();
 
         // A second Super Admin approves; login then works.
-        $sa2 = Make::superAdmin($this->entity);
+        $sa2 = Make::owner($this->entity);
         Make::system(function () use ($request, $sa2) {
             app(AuthContextBinder::class)->bind($sa2);
             app(ApprovalService::class)->approve($request, $sa2, 'Known laptop');
@@ -298,12 +298,12 @@ describe('Super Admin controls', function () {
         $this->postJson('/api/v1/auth/login', loginBody($this->sa, ['otp' => Make::totp($this->sa)]))->assertStatus(403);
     });
 
-    it('gets 5-minute access tokens and a 60-minute session', function () {
+    it('gets 5-minute access tokens and a 12-hour session', function () {
         Make::trustedDevice($this->sa, DEVICE, 'android');
         $pair = $this->postJson('/api/v1/auth/login', loginBody($this->sa, ['otp' => Make::totp($this->sa)]))->assertOk()->json();
 
         expect(now()->diffInMinutes($pair['access_token_expires_at']))->toBeLessThanOrEqual(5.0)
-            ->and(now()->diffInMinutes($pair['refresh_token_expires_at']))->toBeLessThanOrEqual(60.0);
+            ->and(now()->diffInMinutes($pair['refresh_token_expires_at']))->toBeLessThanOrEqual(720.0);
     });
 
     it('can pick a working entity with X-Entity-Id', function () {

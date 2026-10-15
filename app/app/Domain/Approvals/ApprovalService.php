@@ -127,7 +127,7 @@ final class ApprovalService
 
     /**
      * Why this account may not approve / reject the request, in words for the screen; null = it may.
-     * The same rules are enforced on approve() and reject(); they apply to Super Admins too.
+     * The same rules are enforced on approve() and reject(); they apply to Owners too.
      */
     public function decisionBlocker(LoginAccount $checker, ApprovalRequest $request): ?string
     {

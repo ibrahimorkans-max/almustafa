@@ -28,7 +28,7 @@ final class HrFixtures
 
     public function __construct(public Entity $entity)
     {
-        $this->owner = Make::account($entity, 'OWNER');
+        $this->owner = Make::account($entity, 'SUPER_ADMIN');
         $this->hr = Make::account($entity, 'HR_MANAGER');
         $this->accountant = Make::account($entity, 'ACCOUNTANT');
         $this->supervisor = Make::account($entity, 'SUPERVISOR');

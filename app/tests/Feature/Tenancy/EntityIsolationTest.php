@@ -20,8 +20,8 @@ use Tests\Support\Make;
 beforeEach(function () {
     $this->a = Make::entity('AAA');
     $this->b = Make::entity('BBB');
-    $this->ownerA = Make::account($this->a, 'OWNER');
-    $this->ownerB = Make::account($this->b, 'OWNER');
+    $this->ownerA = Make::account($this->a, 'SUPER_ADMIN');
+    $this->ownerB = Make::account($this->b, 'SUPER_ADMIN');
     Make::trustedDevice($this->ownerB, 'device-of-b-0000001', 'android');
     Make::reset();
 });
@@ -79,7 +79,7 @@ describe('application scope (all databases)', function () {
     });
 
     it('lets Super Admin read across entities and narrow to a working entity', function () {
-        $sa = Make::superAdmin($this->a);
+        $sa = Make::owner($this->a);
         Make::reset();
 
         app(AuthContextBinder::class)->bind($sa, workingEntityId: AuthContextBinder::ALL_ENTITIES);
@@ -122,7 +122,7 @@ describe('PostgreSQL row-level security', function () {
             ->and(DB::table('audit_log')->count())->toBe(0)
             ->and(DB::table('approval_requests')->count())->toBe(0)
             // only the global Super Admin role is readable without context
-            ->and(DB::table('roles')->pluck('code')->all())->toBe(['SUPER_ADMIN']);
+            ->and(DB::table('roles')->pluck('code')->all())->toBe(['OWNER']);
     });
 
     it('rejects a raw insert into another entity', function () {

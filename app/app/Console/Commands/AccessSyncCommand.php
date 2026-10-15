@@ -13,7 +13,7 @@ final class AccessSyncCommand extends Command
 {
     protected $signature = 'access:sync {--export= : Also write the catalog as JSON to this path (for PWA / Flutter / agent)}';
 
-    protected $description = 'Sync the permission catalog and the global Super Admin role from code';
+    protected $description = 'Sync the permission catalog and the global Owner role from code';
 
     public function handle(AccessCatalogSync $sync): int
     {

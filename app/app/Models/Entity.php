@@ -48,7 +48,7 @@ class Entity extends Model
 
     protected static function booted(): void
     {
-        // An entity row is visible to its own members; Super Admin / system see all entities
+        // An entity row is visible to its own members; Owner / system see all entities
         // regardless of the working entity (so they can pick one).
         static::addGlobalScope('entity', function (Builder $builder): void {
             $context = app(TenantContext::class);

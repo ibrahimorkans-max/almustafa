@@ -15,8 +15,8 @@ use Tests\Support\Make;
 
 beforeEach(function () {
     $this->entity = Make::entity('MC');
-    $this->owner = Make::account($this->entity, 'OWNER');
-    $this->owner2 = Make::account($this->entity, 'OWNER');
+    $this->owner = Make::account($this->entity, 'SUPER_ADMIN');
+    $this->owner2 = Make::account($this->entity, 'SUPER_ADMIN');
     $this->gateRole = Make::system(fn () => Role::query()->where('entity_id', $this->entity->id)->where('code', 'GATE_OPERATOR')->firstOrFail());
     $this->service = app(ApprovalService::class);
 });
@@ -61,7 +61,7 @@ it('does not let the same person approve through a second login account', functi
     $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
 
     // Same human, Owner account in another entity, and a Super Admin account too.
-    $samePersonSa = Make::account($other, 'SUPER_ADMIN', ['person' => $this->owner->person]);
+    $samePersonSa = Make::account($other, 'OWNER', ['person' => $this->owner->person]);
     expect($this->service->canDecide($samePersonSa, $request))->toBeFalse()
         ->and(fn () => $this->service->approve($request, $samePersonSa))->toThrow(ApprovalDenied::class);
 });
@@ -90,7 +90,7 @@ it('blocks granting permissions the maker does not hold', function () {
 });
 
 it('keeps the Super Admin role out of reach of entity users', function () {
-    $saRole = Make::system(fn () => Role::query()->whereNull('entity_id')->where('code', 'SUPER_ADMIN')->firstOrFail());
+    $saRole = Make::system(fn () => Role::query()->whereNull('entity_id')->where('code', 'OWNER')->firstOrFail());
     as_($this->owner);
 
     expect(fn () => $this->service->submit(ChangeRolePermissions::KEY, ['role_id' => $saRole->id, 'permissions' => []], 'x'))

@@ -15,7 +15,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 
-/** IP allowlist per account. Managed by Super Admins only. */
+/** IP allowlist per account. Managed by Owners only. */
 class IpAllowlistRelationManager extends RelationManager
 {
     protected static string $relationship = 'ipAllowlist';
@@ -26,9 +26,9 @@ class IpAllowlistRelationManager extends RelationManager
     {
         $me = Filament::auth()->user();
 
-        // Any account can be limited to listed networks; a Super Admin's list only by a Super Admin.
+        // Any account can be limited to listed networks; an Owner's list only by an Owner.
         return $me instanceof LoginAccount && $me->hasPermission('user.manage')
-            && ($me->isSuperAdmin() || ($ownerRecord instanceof LoginAccount && ! $ownerRecord->isSuperAdmin()));
+            && ($me->isOwner() || ($ownerRecord instanceof LoginAccount && ! $ownerRecord->isOwner()));
     }
 
     public function form(Form $form): Form

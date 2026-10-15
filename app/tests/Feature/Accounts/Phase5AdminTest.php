@@ -39,18 +39,18 @@ function signInP5(object $t, LoginAccount $account): void
 }
 
 dataset('phase 5 screens', [
-    'purchase bills' => ['/admin/purchase-bills', ['SUPER_ADMIN', 'OWNER', 'ACCOUNTANT']],
-    'payments' => ['/admin/payments', ['SUPER_ADMIN', 'OWNER', 'ACCOUNTANT']],
-    'vouchers' => ['/admin/vouchers', ['SUPER_ADMIN', 'OWNER', 'ACCOUNTANT']],
-    'ledgers' => ['/admin/ledgers', ['SUPER_ADMIN', 'OWNER', 'ACCOUNTANT']],
-    'bank files' => ['/admin/bank-files', ['SUPER_ADMIN', 'OWNER', 'ACCOUNTANT']],
-    'reconciliation' => ['/admin/bank-reconciliation', ['SUPER_ADMIN', 'OWNER', 'ACCOUNTANT']],
-    'reports' => ['/admin/accounts-reports', ['SUPER_ADMIN', 'OWNER', 'ACCOUNTANT']],
-    'period locks' => ['/admin/period-locks', ['SUPER_ADMIN', 'OWNER', 'ACCOUNTANT']],
+    'purchase bills' => ['/admin/purchase-bills', ['OWNER', 'SUPER_ADMIN', 'ACCOUNTANT']],
+    'payments' => ['/admin/payments', ['OWNER', 'SUPER_ADMIN', 'ACCOUNTANT']],
+    'vouchers' => ['/admin/vouchers', ['OWNER', 'SUPER_ADMIN', 'ACCOUNTANT']],
+    'ledgers' => ['/admin/ledgers', ['OWNER', 'SUPER_ADMIN', 'ACCOUNTANT']],
+    'bank files' => ['/admin/bank-files', ['OWNER', 'SUPER_ADMIN', 'ACCOUNTANT']],
+    'reconciliation' => ['/admin/bank-reconciliation', ['OWNER', 'SUPER_ADMIN', 'ACCOUNTANT']],
+    'reports' => ['/admin/accounts-reports', ['OWNER', 'SUPER_ADMIN', 'ACCOUNTANT']],
+    'period locks' => ['/admin/period-locks', ['OWNER', 'SUPER_ADMIN', 'ACCOUNTANT']],
 ]);
 
 it('opens accounts screens only for the right roles', function (string $path, array $allowed) {
-    foreach (['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR'] as $role) {
+    foreach (['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR'] as $role) {
         $account = Make::account($this->f->entity, $role, ['mfa' => true]);
         $status = $this->actingAs($account, 'web')->withSession(Make::webSession($account))->get($path)->getStatusCode();
         app('auth')->forgetGuards();

@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\IpUtils;
 
 /**
  * An account with allowlist entries may only be used from those networks.
- * Super Admin accounts additionally require an allowlist when configured.
+ * Owner accounts additionally require an allowlist when configured.
  */
 final class IpAllowlistPolicy
 {
@@ -23,7 +23,7 @@ final class IpAllowlistPolicy
             ->all();
 
         if ($cidrs === []) {
-            return ! ($account->isSuperAdmin() && config('ricemill.security.super_admin_require_ip_allowlist'));
+            return ! ($account->isOwner() && config('ricemill.security.super_admin_require_ip_allowlist'));
         }
 
         return $ip !== null && IpUtils::checkIp($ip, $cidrs);

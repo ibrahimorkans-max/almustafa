@@ -21,11 +21,11 @@ beforeEach(function () {
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     $this->e1 = Make::entity('LK1');
     $this->e2 = Make::entity('LK2');
-    $this->owner1 = Make::account($this->e1, 'OWNER');
-    $this->owner2 = Make::account($this->e2, 'OWNER');
+    $this->owner1 = Make::account($this->e1, 'SUPER_ADMIN');
+    $this->owner2 = Make::account($this->e2, 'SUPER_ADMIN');
     $this->gate1 = Make::account($this->e1, 'GATE_OPERATOR');
     $this->gate2 = Make::account($this->e2, 'GATE_OPERATOR');
-    $this->sa = Make::superAdmin($this->e1);
+    $this->sa = Make::owner($this->e1);
 });
 
 function lockAs(LoginAccount $sa, ?string $entityId, string $reason = 'Suspected break-in at the weighbridge PC'): object
@@ -48,7 +48,7 @@ function loginFails(LoginAccount $a): ?AuthenticationFailed
 
 it('needs a Super Admin, the current 2FA code and a reason', function () {
     app(AuthContextBinder::class)->bind($this->owner1);
-    expect(fn () => app(Lockdown::class)->lock(null, 'Owner tries', '123456'))->toThrow(BusinessRuleViolation::class, 'Only a Super Admin');
+    expect(fn () => app(Lockdown::class)->lock(null, 'Owner tries', '123456'))->toThrow(BusinessRuleViolation::class, 'Only an Owner');
 
     app(AuthContextBinder::class)->bind($this->sa);
     expect(fn () => app(Lockdown::class)->lock(null, 'Wrong code used', '000000'))->toThrow(BusinessRuleViolation::class, 'code is not valid');
