@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * A Super Admin in "All firms" mode reads across firms, but every new record belongs to exactly one
+ * An Owner in "All firms" mode reads across firms, but every new record belongs to exactly one
  * firm. Instead of letting a create form open and fail on save, send them to choose the firm first.
  */
 final class RequireWorkingEntityForCreate
@@ -29,7 +29,7 @@ final class RequireWorkingEntityForCreate
     {
         $route = (string) $request->route()?->getName();
         if ($request->isMethod('GET') && str_ends_with($route, '.create')
-            && $this->tenant->entityId() === null && ($this->actor->account()?->isSuperAdmin() ?? false)) {
+            && $this->tenant->entityId() === null && ($this->actor->account()?->isOwner() ?? false)) {
             Notification::make()->title(self::MESSAGE)->warning()->persistent()->send();
 
             return redirect(SwitchContext::getUrl());

@@ -7,14 +7,15 @@ namespace App\Domain\Access;
 use InvalidArgumentException;
 
 /**
- * Default roles copied into every new entity (SUPER_ADMIN is global).
+ * Default roles copied into every new entity. OWNER is global: the top account over every mill, with
+ * every right. SUPER_ADMIN is each mill's administrator: everything inside that mill only.
  * After provisioning, grants change only through maker-checker approval.
  */
 final class RoleTemplates
 {
-    public const SUPER_ADMIN = 'SUPER_ADMIN';
-
     public const OWNER = 'OWNER';
+
+    public const SUPER_ADMIN = 'SUPER_ADMIN';
 
     public const EXECUTIVE = 'EXECUTIVE';
 
@@ -43,14 +44,14 @@ final class RoleTemplates
         $except = static fn (string ...$excluded): array => array_values(array_diff($all, $excluded));
 
         $templates = [
-            self::SUPER_ADMIN => [
-                'name' => 'Super Admin',
+            self::OWNER => [
+                'name' => 'Owner',
                 'global' => true,
                 'mfa_required' => true,
-                'session_max_minutes' => 60,
+                'session_max_minutes' => 720,
                 'permissions' => $except('deal.view_own', 'commission.view_own'),
             ],
-            self::OWNER => [
+            self::SUPER_ADMIN => [
                 'name' => 'Owner',
                 'global' => false,
                 'mfa_required' => true,
@@ -158,7 +159,7 @@ final class RoleTemplates
         // Every staff role marks its own attendance and asks for its own leave (brokers are not employees; Owner / Super Admin
         // already hold every permission).
         foreach ($templates as $code => $template) {
-            if ($template['global'] || in_array($code, [self::BROKER, self::OWNER], true)) {
+            if ($template['global'] || in_array($code, [self::BROKER, self::SUPER_ADMIN], true)) {
                 continue;
             }
             foreach (['hr.attendance.punch', 'hr.leave.request'] as $own) {

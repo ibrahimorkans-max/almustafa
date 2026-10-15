@@ -24,8 +24,8 @@ use Tests\Support\Make;
 beforeEach(function () {
     $this->entity = Make::entity('BKS');
     $this->accountant = Make::account($this->entity, 'ACCOUNTANT');
-    $this->owner = Make::account($this->entity, 'OWNER');
-    $this->owner2 = Make::account($this->entity, 'OWNER');
+    $this->owner = Make::account($this->entity, 'SUPER_ADMIN');
+    $this->owner2 = Make::account($this->entity, 'SUPER_ADMIN');
     app(AuthContextBinder::class)->bind($this->accountant);
     $this->books = app(Books::class);
     $this->chart = app(ChartOfAccounts::class);

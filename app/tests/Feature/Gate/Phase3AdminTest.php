@@ -33,16 +33,16 @@ function signInAs(object $t, LoginAccount $account): void
 }
 
 dataset('phase 3 screens', [
-    'gate' => ['/admin/gate', ['SUPER_ADMIN', 'OWNER', 'SUPERVISOR', 'LAB_TECHNICIAN', 'GATE_OPERATOR']],
-    'saudas' => ['/admin/procurement/saudas', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR']],
-    'quotes' => ['/admin/procurement/quotes', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT']],
-    'requirements' => ['/admin/requirements', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT']],
-    'weighbridges' => ['/admin/weighbridges', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR']],
-    'deductions' => ['/admin/quality-deductions', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR']],
+    'gate' => ['/admin/gate', ['OWNER', 'SUPER_ADMIN', 'SUPERVISOR', 'LAB_TECHNICIAN', 'GATE_OPERATOR']],
+    'saudas' => ['/admin/procurement/saudas', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR']],
+    'quotes' => ['/admin/procurement/quotes', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT']],
+    'requirements' => ['/admin/requirements', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT']],
+    'weighbridges' => ['/admin/weighbridges', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR']],
+    'deductions' => ['/admin/quality-deductions', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR']],
 ]);
 
 it('opens procurement and gate screens only for the right roles', function (string $path, array $allowed) {
-    foreach (['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR'] as $role) {
+    foreach (['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR'] as $role) {
         $account = Make::account($this->f->entity, $role, ['mfa' => true]);
         $status = $this->actingAs($account, 'web')->withSession(Make::webSession($account))->get($path)->getStatusCode();
         app('auth')->forgetGuards();
@@ -118,7 +118,7 @@ it('does not offer any way to type a weight except the Super Admin override', fu
 
     Livewire::test(ViewGateEntry::class, ['record' => $entry->id])->assertActionHidden('manualWeight');
 
-    $sa = Make::superAdmin($this->f->entity);
+    $sa = Make::owner($this->f->entity);
     app('auth')->forgetGuards();
     $this->flushSession();
     signInAs($this, $sa);

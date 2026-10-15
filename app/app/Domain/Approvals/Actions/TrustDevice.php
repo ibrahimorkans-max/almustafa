@@ -13,7 +13,7 @@ use App\Models\LoginAccount;
 use Illuminate\Validation\ValidationException;
 
 /**
- * A new Super Admin device must be approved by a different Super Admin.
+ * A new Owner device must be approved by a different Owner.
  */
 final class TrustDevice implements ApprovalAction
 {
@@ -41,15 +41,15 @@ final class TrustDevice implements ApprovalAction
         return ['device_id' => $device->id, 'login_account_id' => $device->login_account_id];
     }
 
-    /** A Super Admin's device needs another Super Admin; anyone else's, a holder of device.manage (the owner). */
+    /** An Owner's device needs another Owner; anyone else's, a holder of device.manage (the mill's Super Admin). */
     public function checkerMayDecide(LoginAccount $checker, ApprovalRequest $request): bool
     {
         $owner = LoginAccount::query()->withoutGlobalScopes()->find($request->payload['login_account_id'] ?? null);
-        if ($owner === null || $owner->isSuperAdmin()) {
-            return $checker->isSuperAdmin();
+        if ($owner === null || $owner->isOwner()) {
+            return $checker->isOwner();
         }
 
-        return $checker->id !== $owner->id && ($checker->isSuperAdmin() || $checker->hasPermission('device.manage'));
+        return $checker->id !== $owner->id && ($checker->isOwner() || $checker->hasPermission('device.manage'));
     }
 
     public function execute(ApprovalRequest $request, LoginAccount $checker): array

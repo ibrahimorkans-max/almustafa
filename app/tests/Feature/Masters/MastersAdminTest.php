@@ -33,14 +33,14 @@ function signIn(object $test, LoginAccount $account): void
 
 dataset('master screens', [
     // path, roles that may open it
-    'parties' => ['/admin/masters/parties', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR']],
-    'vehicles' => ['/admin/masters/vehicles', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR']],
-    'products' => ['/admin/masters/products', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR']],
-    'sync review' => ['/admin/sync-review', ['SUPER_ADMIN', 'OWNER', 'SUPERVISOR']],
+    'parties' => ['/admin/masters/parties', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR']],
+    'vehicles' => ['/admin/masters/vehicles', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR']],
+    'products' => ['/admin/masters/products', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR']],
+    'sync review' => ['/admin/sync-review', ['OWNER', 'SUPER_ADMIN', 'SUPERVISOR']],
 ]);
 
 it('opens master screens only for permitted roles', function (string $path, array $allowed) {
-    foreach (['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR'] as $role) {
+    foreach (['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR'] as $role) {
         $account = Make::account($this->entity, $role, ['mfa' => true]);
         $status = $this->actingAs($account, 'web')->withSession(Make::webSession($account))->get($path)->getStatusCode();
         app('auth')->forgetGuards();
@@ -100,7 +100,7 @@ it('creates a party with roles, credit limit in paisa and a validated NTN / STRN
 });
 
 it('files a bank account request instead of saving it', function () {
-    $owner = Make::account($this->entity, 'OWNER');
+    $owner = Make::account($this->entity, 'SUPER_ADMIN');
     signIn($this, $owner);
     $party = Party::query()->create(['code' => 'V1', 'name' => 'Vendor', 'is_vendor' => true]);
 

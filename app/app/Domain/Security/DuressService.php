@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Hash;
 /**
  * Duress (panic) PIN. Someone forced to sign in types the PIN instead of the password. The sign-in
  * ends with a neutral "Signed out. Please try again later." — no fake data, no fake error — while
- * the owners, Super Admins and security contacts are alerted, the account is flagged and, if the
+ * the Super Admins, the Owners and security contacts are alerted, the account is flagged and, if the
  * user chose so, suspended and the device in use queued for a remote wipe.
  */
 final class DuressService
@@ -35,7 +35,7 @@ final class DuressService
     public function setPin(LoginAccount $account, string $currentPassword, string $pin, bool $suspend, bool $wipeDevice): void
     {
         if (! $account->mayUseDuressPin()) {
-            throw new BusinessRuleViolation('A duress PIN is available to Owner, Accountant and Super Admin accounts.');
+            throw new BusinessRuleViolation('A duress PIN is available to Owner, Super Admin and Accountant accounts.');
         }
         if (! Hash::check($currentPassword, $account->password)) {
             throw new BusinessRuleViolation('Your current password is not correct.');

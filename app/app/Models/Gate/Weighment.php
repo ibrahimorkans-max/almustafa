@@ -6,16 +6,18 @@ namespace App\Models\Gate;
 
 use App\Domain\Audit\Auditable;
 use App\Domain\Tenancy\BelongsToEntity;
+use App\Models\LoginAccount;
 use App\Support\Eloquent\AppendOnly;
 use App\Support\Eloquent\TracksCreator;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
  * A weight taken from the weighbridge indicator (append-only). A manual value exists only as
- * a Super Admin override approved by a second person (source = manual_override, with reason).
+ * an Owner override approved by a second person (source = manual_override, with reason).
  *
  * @property string $id
  * @property string $entity_id
@@ -35,6 +37,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon $captured_at
  * @property Carbon $created_at
  * @property-read Scale|null $scale
+ * @property-read GateEntry|null $gateEntry
+ * @property-read LoginAccount|null $creator
  */
 class Weighment extends Model
 {
@@ -78,5 +82,25 @@ class Weighment extends Model
     public function gateEntry(): BelongsTo
     {
         return $this->belongsTo(GateEntry::class);
+    }
+
+    /** @return BelongsTo<LoginAccount, $this> */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(LoginAccount::class, 'created_by');
+    }
+
+    /** @return HasMany<WeighmentCheck, $this> */
+    public function checks(): HasMany
+    {
+        return $this->hasMany(WeighmentCheck::class);
+    }
+
+    /** The check that counts now: the latest one (uses the loaded checks when they are loaded). */
+    public function lastCheck(): ?WeighmentCheck
+    {
+        $checks = $this->relationLoaded('checks') ? $this->checks : $this->checks()->get();
+
+        return $checks->sortBy(fn (WeighmentCheck $c) => $c->checked_at->format('Uu'))->last();
     }
 }

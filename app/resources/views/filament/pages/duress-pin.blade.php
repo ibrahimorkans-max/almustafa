@@ -3,7 +3,7 @@
         <x-slot name="heading">{{ $this->hasPin() ? 'Your duress PIN is set' : 'Set a duress PIN' }}</x-slot>
         <x-slot name="description">
             If you are ever forced to sign in, type this PIN in the password field instead of your password.
-            The screen only says "Signed out. Please try again later." Meanwhile the owners, Super Admins and
+            The screen only says "Signed out. Please try again later." Meanwhile the Super Admins, the Owners and
             security contacts are alerted with the time, IP address and device. The system never shows made-up
             figures or fake errors.
         </x-slot>

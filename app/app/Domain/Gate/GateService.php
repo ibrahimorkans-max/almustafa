@@ -124,9 +124,11 @@ final class GateService
 
     /**
      * A weight from the indicator. `readings` is the stable-window evidence sent by the agent:
-     * {"samples": ["25480.000", …], "window_ms": 3000}.
+     * {"samples": ["25480.000", …], "window_ms": 3000}. `$extraFlags` mark how it was taken
+     * (`live_screen`: from the Live weight screen).
      *
      * @param  array<string, mixed>|null  $readings
+     * @param  list<string>  $extraFlags
      */
     public function recordWeighment(
         GateEntry $entry,
@@ -141,6 +143,7 @@ final class GateService
         string $source = Weighment::SOURCE_INDICATOR,
         ?string $reason = null,
         ?string $approvalRequestId = null,
+        array $extraFlags = [],
     ): Weighment {
         if ($source === Weighment::SOURCE_INDICATOR) {
             $this->require('weighment.capture');
@@ -151,9 +154,9 @@ final class GateService
         $capturedAt ??= now();
         $weight = Weight::kg($weightKg);
 
-        return DB::transaction(function () use ($entry, $kind, $weight, $scale, $readings, $photoSha256, $capturedAt, $strict, $id, $source, $reason, $approvalRequestId): Weighment {
+        return DB::transaction(function () use ($entry, $kind, $weight, $scale, $readings, $photoSha256, $capturedAt, $strict, $id, $source, $reason, $approvalRequestId, $extraFlags): Weighment {
             $entry = $this->lock($entry);
-            $flags = [];
+            $flags = array_values($extraFlags);
 
             if (bccomp($weight->kg, '0', 3) <= 0) {
                 throw new BusinessRuleViolation('A weight must be greater than zero.');

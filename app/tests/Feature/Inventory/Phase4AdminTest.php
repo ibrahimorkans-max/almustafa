@@ -39,17 +39,17 @@ function signInP4(object $t, LoginAccount $account): void
 }
 
 dataset('phase 4 screens', [
-    'stock' => ['/admin/stock', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER']],
-    'ledger' => ['/admin/stock-ledger', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER']],
-    'requisitions' => ['/admin/requisitions', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER']],
-    'batches' => ['/admin/batches', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN']],
-    'outturn' => ['/admin/outturn-standards', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN']],
-    'counts' => ['/admin/stock-counts', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER']],
-    'alerts' => ['/admin/alerts', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN']],
+    'stock' => ['/admin/stock', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER']],
+    'ledger' => ['/admin/stock-ledger', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER']],
+    'requisitions' => ['/admin/requisitions', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER']],
+    'batches' => ['/admin/batches', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN']],
+    'outturn' => ['/admin/outturn-standards', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN']],
+    'counts' => ['/admin/stock-counts', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER']],
+    'alerts' => ['/admin/alerts', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN']],
 ]);
 
 it('opens stock and production screens only for the right roles', function (string $path, array $allowed) {
-    foreach (['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR'] as $role) {
+    foreach (['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR'] as $role) {
         $account = Make::account($this->f->entity, $role, ['mfa' => true]);
         $status = $this->actingAs($account, 'web')->withSession(Make::webSession($account))->get($path)->getStatusCode();
         app('auth')->forgetGuards();

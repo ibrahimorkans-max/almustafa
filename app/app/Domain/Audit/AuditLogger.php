@@ -50,7 +50,7 @@ final class AuditLogger
             'occurred_at' => AuditHasher::formatTimestamp(CarbonImmutable::now('UTC')),
             'actor_login_account_id' => $this->actor->accountId(),
             'actor_person_id' => $this->actor->personId(),
-            'acting_as_super_admin' => $this->actor->isSuperAdmin(),
+            'acting_as_super_admin' => $this->actor->isOwner(),
             'device_id' => $this->actor->deviceId(),
             'ip' => $this->actor->ip(),
             'user_agent' => $this->actor->userAgent(),
@@ -63,7 +63,7 @@ final class AuditLogger
         ];
 
         // Audit writes are trusted internal code: they may target the global chain or,
-        // for Super Admin, another entity's chain, so they run with isolation bypassed.
+        // for Owner, another entity's chain, so they run with isolation bypassed.
         $this->tenant->runAsSystem(function () use (&$row, $chain): void {
             DB::transaction(function () use (&$row, $chain): void {
                 DB::table('audit_chain_heads')->insertOrIgnore([

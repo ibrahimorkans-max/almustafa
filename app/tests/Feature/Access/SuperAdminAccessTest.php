@@ -20,7 +20,7 @@ beforeEach(function () {
     $this->f = new SalesFixtures(Make::entity('SAA'));
     $this->f->acc->receiveLot();
     Filament::setCurrentPanel(Filament::getPanel('admin'));
-    $this->sa = Make::superAdmin(Make::entity('HOME'));
+    $this->sa = Make::owner(Make::entity('HOME'));
     $this->session = Make::webSession($this->sa);
 });
 
@@ -57,7 +57,7 @@ it('holds every catalogued permission except the "own records only" narrowing on
     $missing = array_values(array_diff(PermissionCatalog::codes(), Make::system(fn () => $this->sa->fresh()->permissionCodes())));
     sort($missing);
     expect($missing)->toBe(['commission.view_own', 'deal.view_own'])
-        ->and(RoleTemplates::get(RoleTemplates::SUPER_ADMIN)['permissions'])->not->toContain('deal.view_own');
+        ->and(RoleTemplates::get(RoleTemplates::OWNER)['permissions'])->not->toContain('deal.view_own');
 });
 
 it('opens every admin screen of the working firm without a 403 or an error', function () {

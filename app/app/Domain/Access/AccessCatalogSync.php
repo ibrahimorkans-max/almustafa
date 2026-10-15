@@ -12,7 +12,7 @@ use App\Models\Role;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Brings the `permissions` table and the global Super Admin role in line with the code.
+ * Brings the `permissions` table and the global Owner role in line with the code.
  * Idempotent; run on every deploy (`php artisan access:sync`).
  * Entity roles are NOT touched: their grants change only through maker-checker.
  */
@@ -30,11 +30,11 @@ final class AccessCatalogSync
                     Permission::query()->updateOrCreate(['code' => $row['code']], $row);
                 }
 
-                $template = RoleTemplates::get(RoleTemplates::SUPER_ADMIN);
-                $role = Role::query()->whereNull('entity_id')->where('code', RoleTemplates::SUPER_ADMIN)->first()
+                $template = RoleTemplates::get(RoleTemplates::OWNER);
+                $role = Role::query()->whereNull('entity_id')->where('code', RoleTemplates::OWNER)->first()
                     ?? Role::query()->create([
                         'entity_id' => null,
-                        'code' => RoleTemplates::SUPER_ADMIN,
+                        'code' => RoleTemplates::OWNER,
                         'name' => $template['name'],
                         'is_system' => true,
                         'is_super_admin' => true,
@@ -113,10 +113,10 @@ final class AccessCatalogSync
         }
     }
 
-    public function superAdminRole(): Role
+    public function ownerRole(): Role
     {
         return $this->tenant->runAsSystem(
-            fn () => Role::query()->whereNull('entity_id')->where('code', RoleTemplates::SUPER_ADMIN)->firstOrFail(),
+            fn () => Role::query()->whereNull('entity_id')->where('code', RoleTemplates::OWNER)->firstOrFail(),
         );
     }
 }

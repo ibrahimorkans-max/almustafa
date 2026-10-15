@@ -9,7 +9,7 @@ use Tests\Support\Make;
 
 it('shows the Al Mustafa branding and the narrow, collapsible sidebar in the admin panel', function () {
     $entity = Make::entity('BRD');
-    $owner = Make::account($entity, 'OWNER', ['mfa' => true]);
+    $owner = Make::account($entity, 'SUPER_ADMIN', ['mfa' => true]);
 
     $html = $this->actingAs($owner, 'web')->withSession(Make::webSession($owner))->get('/admin')->assertOk()->getContent();
 

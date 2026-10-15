@@ -17,7 +17,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 
 /**
- * Owner / Accountant / Super Admin: set or remove their own duress PIN.
+ * Owner / Super Admin / Accountant: set or remove their own duress PIN.
  *
  * @property Form $form
  */

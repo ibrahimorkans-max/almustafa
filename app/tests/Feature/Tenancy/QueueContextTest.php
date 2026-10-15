@@ -12,7 +12,7 @@ use Tests\Support\Make;
 
 it('keeps the request context when a job runs inline on the sync connection', function () {
     $entity = Make::entity('QSY');
-    $account = Make::account($entity, 'OWNER');
+    $account = Make::account($entity, 'SUPER_ADMIN');
     app(AuthContextBinder::class)->bind($account);
 
     dispatch(fn () => null)->onConnection('sync');
@@ -23,7 +23,7 @@ it('keeps the request context when a job runs inline on the sync connection', fu
 
 it('clears the context around jobs on a worker connection', function () {
     $entity = Make::entity('QWK');
-    app(AuthContextBinder::class)->bind(Make::account($entity, 'OWNER'));
+    app(AuthContextBinder::class)->bind(Make::account($entity, 'SUPER_ADMIN'));
     $job = Mockery::mock(Job::class);
     $job->allows('payload')->andReturn([]);
 
@@ -31,7 +31,7 @@ it('clears the context around jobs on a worker connection', function () {
     expect(app(TenantContext::class)->entityId())->toBeNull()
         ->and(app(ActorContext::class)->accountId())->toBeNull();
 
-    app(AuthContextBinder::class)->bind(Make::account($entity, 'OWNER'));
+    app(AuthContextBinder::class)->bind(Make::account($entity, 'SUPER_ADMIN'));
     event(new JobProcessed('database', $job));
     expect(app(TenantContext::class)->entityId())->toBeNull();
 });

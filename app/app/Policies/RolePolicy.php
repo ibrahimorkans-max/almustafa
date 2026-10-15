@@ -22,7 +22,7 @@ final class RolePolicy
 
     public function requestChange(LoginAccount $user, Role $role): bool
     {
-        return $user->hasPermission('role.manage') && (! $role->is_super_admin || $user->isSuperAdmin());
+        return $user->hasPermission('role.manage') && (! $role->is_super_admin || $user->isOwner());
     }
 
     public function create(LoginAccount $user): bool

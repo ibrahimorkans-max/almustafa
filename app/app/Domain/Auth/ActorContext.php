@@ -78,8 +78,8 @@ final class ActorContext
         return $this->userAgent;
     }
 
-    public function isSuperAdmin(): bool
+    public function isOwner(): bool
     {
-        return $this->account?->isSuperAdmin() ?? false;
+        return $this->account?->isOwner() ?? false;
     }
 }

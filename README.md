@@ -31,7 +31,7 @@ php artisan serve                     # back office: http://127.0.0.1:8000/admin
 ```
 
 Demo passwords are random and written to `app/storage/app/private/demo-credentials.txt` (git-ignored).
-Every demo user must change the password at first sign-in; Owner/Accountant/Super Admin must set up 2FA.
+Every demo user must change the password at first sign-in; Owner, Super Admin and Accountant must set up 2FA.
 
 ## Tests
 

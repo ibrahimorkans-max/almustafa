@@ -41,7 +41,7 @@ function attSignIn(object $t, LoginAccount $account): void
 }
 
 it('opens the attendance screens for HR and owners, read-only for supervisors, not for gate operators', function () {
-    $expected = ['HR_MANAGER' => 200, 'OWNER' => 200, 'SUPERVISOR' => 200, 'GATE_OPERATOR' => 403, 'EMPLOYEE' => 403];
+    $expected = ['HR_MANAGER' => 200, 'SUPER_ADMIN' => 200, 'SUPERVISOR' => 200, 'GATE_OPERATOR' => 403, 'EMPLOYEE' => 403];
     $actual = [];
     foreach ($expected as $role => $status) {
         attSignIn($this, Make::account($this->f->entity, $role, ['mfa' => true]));

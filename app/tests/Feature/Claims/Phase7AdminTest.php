@@ -35,14 +35,14 @@ function signInP7(object $t, LoginAccount $account): void
 }
 
 dataset('phase 7 screens', [
-    'claims' => ['/admin/claims', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR']],
-    'price lists' => ['/admin/price-lists', ['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT']],
-    'markups' => ['/admin/markups', ['SUPER_ADMIN', 'OWNER']],
-    'archive' => ['/admin/archive', ['SUPER_ADMIN', 'OWNER', 'ACCOUNTANT']],
+    'claims' => ['/admin/claims', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR']],
+    'price lists' => ['/admin/price-lists', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT']],
+    'markups' => ['/admin/markups', ['OWNER', 'SUPER_ADMIN']],
+    'archive' => ['/admin/archive', ['OWNER', 'SUPER_ADMIN', 'ACCOUNTANT']],
 ]);
 
 it('opens claims, pricing and archive screens only for the right roles', function (string $path, array $allowed) {
-    foreach (['SUPER_ADMIN', 'OWNER', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR'] as $role) {
+    foreach (['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER', 'LAB_TECHNICIAN', 'GATE_OPERATOR'] as $role) {
         $account = Make::account($this->f->entity, $role, ['mfa' => true]);
         $status = $this->actingAs($account, 'web')->withSession(Make::webSession($account))->get($path)->getStatusCode();
         app('auth')->forgetGuards();

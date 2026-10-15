@@ -63,7 +63,7 @@ class LoginAccountResource extends Resource
         $me = Filament::auth()->user();
         $entityId = app(TenantContext::class)->entityId();
         if ($entityId === null) {
-            return []; // Super Admin in "all entities" mode must pick a working entity first.
+            return []; // Owner in "all entities" mode must pick a working entity first.
         }
 
         return Role::query()
@@ -104,7 +104,7 @@ class LoginAccountResource extends Resource
                     ->required()->rule(Password::defaults())->visibleOn('create')
                     ->helperText('The user must change it at first sign-in.'),
                 Toggle::make('require_trusted_device')->label('Only from approved devices')
-                    ->helperText('A new phone or computer must first be approved by the owner. Applies when Security → Sign-in rules is set to "selected accounts"; with "everyone" it applies to all accounts anyway.')
+                    ->helperText('A new phone or computer must first be approved by the Super Admin or the Owner. Applies when Security → Sign-in rules is set to "selected accounts"; with "everyone" it applies to all accounts anyway.')
                     ->disabled(fn (?LoginAccount $record) => $record !== null && $record->person_id === auth()->user()?->person_id)
                     ->columnSpanFull(),
             ]),

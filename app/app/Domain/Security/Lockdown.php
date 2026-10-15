@@ -40,9 +40,9 @@ final class Lockdown
     /** @return object the new lock row */
     public function lock(?string $entityId, string $reason, string $code): object
     {
-        $admin = $this->superAdminWithCode($code);
+        $admin = $this->ownerWithCode($code);
         if (mb_strlen(trim($reason)) < 5) {
-            throw new BusinessRuleViolation('Give the reason for the lockdown; owners will see it.');
+            throw new BusinessRuleViolation('Give the reason for the lockdown; the Owner and Super Admins will see it.');
         }
         if ($this->isLocked($entityId) && ($entityId === null || $this->activeLock($entityId)?->entity_id === $entityId)) {
             throw new BusinessRuleViolation('This scope is already locked.');
@@ -67,14 +67,14 @@ final class Lockdown
 
         $where = $entityName ?? 'all firms';
         $this->notifier->owners($entityId, "Lockdown started ({$where})",
-            "{$admin->username} locked {$where}. Reason: {$reason}. Everyone except Super Admins has been signed out until it is unlocked.");
+            "{$admin->username} locked {$where}. Reason: {$reason}. Everyone except Owners has been signed out until it is unlocked.");
 
         return $lock;
     }
 
     public function unlock(string $lockId, string $reason, string $code): void
     {
-        $admin = $this->superAdminWithCode($code);
+        $admin = $this->ownerWithCode($code);
         $lock = DB::table('system_locks')->where('id', $lockId)->whereNull('unlocked_at')->first()
             ?? throw new BusinessRuleViolation('This lockdown is not active.');
         if (mb_strlen(trim($reason)) < 5) {
@@ -114,17 +114,17 @@ final class Lockdown
         return Cache::remember(self::CACHE_KEY, 30, fn () => DB::table('system_locks')->whereNull('unlocked_at')->orderBy('locked_at')->get()->all());
     }
 
-    /** Applies to everybody except Super Admins. */
+    /** Applies to everybody except Owners. */
     public function blocks(LoginAccount $account): bool
     {
-        return ! $account->isSuperAdmin() && $this->isLocked($account->entity_id);
+        return ! $account->isOwner() && $this->isLocked($account->entity_id);
     }
 
-    private function superAdminWithCode(string $code): LoginAccount
+    private function ownerWithCode(string $code): LoginAccount
     {
         $admin = $this->actor->account();
-        if ($admin === null || ! $admin->isSuperAdmin()) {
-            throw new BusinessRuleViolation('Only a Super Admin can lock or unlock the system.');
+        if ($admin === null || ! $admin->isOwner()) {
+            throw new BusinessRuleViolation('Only an Owner can lock or unlock the system.');
         }
         if (! $admin->hasMfa() || ! $this->mfa->verifyCode($admin, $code)) {
             $this->tenant->runAsSystem(fn () => $this->audit->record('security.lockdown.reauth_failed', $admin));

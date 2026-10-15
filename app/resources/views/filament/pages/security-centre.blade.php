@@ -1,7 +1,7 @@
 <x-filament-panels::page>
     <x-filament::section>
         <x-slot name="heading">Lockdown</x-slot>
-        <x-slot name="description">While locked, only Super Admins can sign in (with 2FA). Gate agents show the lock and keep their readings queued; nothing is lost.</x-slot>
+        <x-slot name="description">While locked, only Owners can sign in (with 2FA). Gate agents show the lock and keep their readings queued; nothing is lost.</x-slot>
         @php($locks = $this->locks())
         @if ($locks === [])
             <p class="text-sm text-gray-600 dark:text-gray-300">No lockdown is active.</p>

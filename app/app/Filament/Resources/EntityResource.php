@@ -57,7 +57,7 @@ class EntityResource extends Resource
                     Entity::STATUS_ACTIVE => 'Active',
                     Entity::STATUS_SUSPENDED => 'Suspended',
                 ])->default(Entity::STATUS_ACTIVE)->required()->selectablePlaceholder(false)
-                    // Suspending a firm is for whoever manages all firms, not the mill's own owner.
+                    // Suspending a firm is for whoever manages all firms, not the mill's own Super Admin.
                     ->disabled(fn () => ! (Filament::auth()->user()?->hasPermission('entity.manage') ?? false)),
             ]),
         ]);

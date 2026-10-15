@@ -170,7 +170,7 @@ describe('weighment evidence', function () {
 describe('manual weight override', function () {
     beforeEach(function () {
         $this->e = $this->gate->arrive(['registration_no' => 'MNA211234']);
-        $this->sa = Make::superAdmin($this->f->entity);
+        $this->sa = Make::owner($this->f->entity);
     });
 
     it('is not available to anyone but a Super Admin', function () {

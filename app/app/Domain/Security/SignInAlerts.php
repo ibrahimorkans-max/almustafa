@@ -11,7 +11,7 @@ use App\Models\LoginAccount;
 use Filament\Notifications\Notification;
 
 /**
- * Tells a person, and the mill's owners, when their account signs in from a device it has never used
+ * Tells a person, and the mill's Super Admins, when their account signs in from a device it has never used
  * or from a city or country it has not signed in from in the last 90 days. The very first sign-in of
  * an account is not news. The person can then sign that session out from Security → Sessions.
  */
@@ -49,8 +49,8 @@ final class SignInAlerts
             Notification::make()->warning()->title('New sign-in to your account')
                 ->body("Your account signed in from {$detail}. If this was not you, sign it out under Security → Sessions and change your password.")
                 ->sendToDatabase($account);
-            if (! $account->isSuperAdmin() && $account->role?->code !== 'OWNER') {
-                $this->notifier->owners($account->entity_id, "New sign-in: {$account->username}", "{$account->username} signed in from {$detail}.", includeSuperAdmins: false);
+            if (! $account->isOwner() && $account->role?->code !== 'SUPER_ADMIN') {
+                $this->notifier->owners($account->entity_id, "New sign-in: {$account->username}", "{$account->username} signed in from {$detail}.", includeOwners: false);
             }
         });
     }

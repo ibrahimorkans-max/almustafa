@@ -21,9 +21,9 @@ beforeEach(function () {
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     config(['ricemill.security.contact_emails' => 'security@mill.example']);
     $this->entity = Make::entity('DUR');
-    $this->owner = Make::account($this->entity, 'OWNER');
+    $this->owner = Make::account($this->entity, 'SUPER_ADMIN');
     $this->accountant = Make::account($this->entity, 'ACCOUNTANT');
-    $this->sa = Make::superAdmin($this->entity);
+    $this->sa = Make::owner($this->entity);
 });
 
 function setPin(LoginAccount $a, string $pin = '480917', bool $suspend = true, bool $wipe = false): void
@@ -47,7 +47,7 @@ function duressSignIn(LoginAccount $a, string $secret, string $device = 'phone-0
 it('is for Owner, Accountant and Super Admin only, and the PIN must be a real secret', function () {
     $svc = app(DuressService::class);
     $gate = Make::account($this->entity, 'GATE_OPERATOR');
-    expect(fn () => $svc->setPin($gate, Make::PASSWORD, '480917', true, false))->toThrow(BusinessRuleViolation::class, 'Owner, Accountant and Super Admin')
+    expect(fn () => $svc->setPin($gate, Make::PASSWORD, '480917', true, false))->toThrow(BusinessRuleViolation::class, 'Owner, Super Admin and Accountant')
         ->and(fn () => $svc->setPin($this->owner, 'wrong', '480917', true, false))->toThrow(BusinessRuleViolation::class, 'current password')
         ->and(fn () => $svc->setPin($this->owner, Make::PASSWORD, '1234', true, false))->toThrow(BusinessRuleViolation::class, '6 to 8 digits')
         ->and(fn () => $svc->setPin($this->owner, Make::PASSWORD, '123456', true, false))->toThrow(BusinessRuleViolation::class, 'sequence')

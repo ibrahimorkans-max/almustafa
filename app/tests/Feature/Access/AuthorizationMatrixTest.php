@@ -40,7 +40,7 @@ it('grants exactly the template permissions', function (string $role) {
 it('shows confidential margin data only to roles holding pricing.margin.view', function (string $role) {
     $account = accountFor($role, $this->entity);
 
-    expect($account->hasPermission('pricing.margin.view'))->toBe(in_array($role, ['SUPER_ADMIN', 'OWNER'], true));
+    expect($account->hasPermission('pricing.margin.view'))->toBe(in_array($role, ['OWNER', 'SUPER_ADMIN'], true));
 })->with('roles');
 
 it('limits brokers to their own deals and commissions', function () {
@@ -53,7 +53,7 @@ it('limits brokers to their own deals and commissions', function () {
 });
 
 it('grants nothing while 2FA enrollment or a password change is pending', function () {
-    $owner = Make::account($this->entity, 'OWNER', ['mfa' => false]);
+    $owner = Make::account($this->entity, 'SUPER_ADMIN', ['mfa' => false]);
     $gate = Make::account($this->entity, 'GATE_OPERATOR', ['must_change_password' => true]);
 
     expect($owner->hasPermission('entity.view'))->toBeFalse()
@@ -117,7 +117,7 @@ it('shows the settings page to Super Admin only', function (string $role) {
     $status = $this->actingAs($account, 'web')->withSession(Make::webSession($account))
         ->get('/admin/security-settings')->getStatusCode();
 
-    expect($status)->toBe($role === 'SUPER_ADMIN' ? 200 : 403);
+    expect($status)->toBe($role === 'OWNER' ? 200 : 403);
 })->with('roles');
 
 it('protects the audit API by permission', function (string $role) {

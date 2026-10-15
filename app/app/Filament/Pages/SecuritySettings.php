@@ -15,7 +15,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 
 /**
- * Global settings (Super Admin only).
+ * Global settings (Owner only).
  *
  * @property Form $form
  */
@@ -40,7 +40,7 @@ class SecuritySettings extends Page implements HasForms
     {
         $user = Filament::auth()->user();
 
-        return $user instanceof LoginAccount && $user->isSuperAdmin() && $user->hasPermission('settings.manage');
+        return $user instanceof LoginAccount && $user->isOwner() && $user->hasPermission('settings.manage');
     }
 
     public function mount(): void

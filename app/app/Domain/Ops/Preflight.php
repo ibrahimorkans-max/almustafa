@@ -55,8 +55,8 @@ final class Preflight
         $add('Log level is not debug', 'warning', config('logging.channels.'.config('logging.default').'.level', 'debug') !== 'debug', 'LOG_LEVEL');
 
         // Security switches
-        $add('Super Admin IP allow-list required', 'error', (bool) config('ricemill.security.super_admin_require_ip_allowlist'), 'RICEMILL_SA_REQUIRE_IP_ALLOWLIST=true');
-        $add('Super Admin trusted devices required', 'error', (bool) config('ricemill.security.super_admin_require_trusted_device'), 'RICEMILL_SA_REQUIRE_TRUSTED_DEVICE=true');
+        $add('Owner IP allow-list required', 'error', (bool) config('ricemill.security.super_admin_require_ip_allowlist'), 'RICEMILL_SA_REQUIRE_IP_ALLOWLIST=true');
+        $add('Owner trusted devices required', 'error', (bool) config('ricemill.security.super_admin_require_trusted_device'), 'RICEMILL_SA_REQUIRE_TRUSTED_DEVICE=true');
         $add('First-device bootstrap is off', 'error', ! config('ricemill.security.bootstrap_trust_first_device'), 'RICEMILL_BOOTSTRAP_TRUST_FIRST_DEVICE=false after installation');
         $add('Separate blind-index key', 'warning', (string) config('ricemill.security.blind_index_key') !== '', 'RICEMILL_BLIND_INDEX_KEY (otherwise derived from APP_KEY)');
         $add('No demo credentials file', 'error', ! is_file(storage_path('app/private/demo-credentials.txt')), 'delete storage/app/private/demo-credentials.txt');

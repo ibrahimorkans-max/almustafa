@@ -42,7 +42,7 @@ final class TenantContext
         $this->set($entityId, false);
     }
 
-    /** Super Admin: may read across entities; $entityId is the working entity (null = all). */
+    /** Owner: may read across entities; $entityId is the working entity (null = all). */
     public function enterSuperAdmin(?string $entityId): void
     {
         $this->set($entityId, true);

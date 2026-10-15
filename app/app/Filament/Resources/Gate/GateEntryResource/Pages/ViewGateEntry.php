@@ -31,7 +31,7 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * One vehicle visit. Weights are NOT typed here: they arrive from the weighbridge indicator
- * through the gate agent. The only manual path is a Super Admin override request.
+ * through the gate agent. The only manual path is an Owner override request.
  */
 class ViewGateEntry extends ViewRecord
 {
@@ -118,8 +118,8 @@ class ViewGateEntry extends ViewRecord
                 ->requiresConfirmation()
                 ->action(fn (GateEntry $e) => $this->run(fn (GateService $g) => $g->exit($e), 'Exit recorded')),
             ActionGroup::make([
-                Action::make('manualWeight')->label('Request manual weight (Super Admin)')->icon('heroicon-o-exclamation-triangle')->color('danger')
-                    ->visible(fn (GateEntry $e) => $e->isOpen() && $this->me()->isSuperAdmin() && $can('weighment.override'))
+                Action::make('manualWeight')->label('Request manual weight (Owner)')->icon('heroicon-o-exclamation-triangle')->color('danger')
+                    ->visible(fn (GateEntry $e) => $e->isOpen() && $this->me()->isOwner() && $can('weighment.override'))
                     ->modalDescription('Only when the indicator cannot be read. Needs a reason and approval by a second person; the weight stays marked as manual.')
                     ->form([
                         Select::make('kind')->options(['gross' => 'Gross', 'tare' => 'Tare'])->required(),

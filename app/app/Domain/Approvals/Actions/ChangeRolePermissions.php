@@ -19,7 +19,7 @@ use Illuminate\Validation\ValidationException;
  * Replace a role's permission set.
  *
  * Privilege-escalation guards:
- *  - the global Super Admin role can only be changed with a Super Admin as checker;
+ *  - the global Owner role can only be changed with an Owner as checker;
  *  - a non-Super-Admin maker or checker can only grant permissions they hold themselves.
  */
 final class ChangeRolePermissions implements ApprovalAction, ExplainsCheckerRule
@@ -44,8 +44,8 @@ final class ChangeRolePermissions implements ApprovalAction, ExplainsCheckerRule
         if ($role === null) {
             throw ValidationException::withMessages(['role_id' => 'Role not found.']);
         }
-        if ($role->is_super_admin && ! $maker->isSuperAdmin()) {
-            throw ValidationException::withMessages(['role_id' => 'Only a Super Admin can request changes to the Super Admin role.']);
+        if ($role->is_super_admin && ! $maker->isOwner()) {
+            throw ValidationException::withMessages(['role_id' => 'Only an Owner can request changes to the Owner role.']);
         }
 
         $permissions = array_values(array_unique(array_map('strval', (array) ($payload['permissions'] ?? []))));
@@ -74,8 +74,8 @@ final class ChangeRolePermissions implements ApprovalAction, ExplainsCheckerRule
         if ($role === null) {
             return 'The role in this request no longer exists.';
         }
-        if ($role->is_super_admin && ! $checker->isSuperAdmin()) {
-            return 'Only another Super Admin can decide changes to the Super Admin role.';
+        if ($role->is_super_admin && ! $checker->isOwner()) {
+            return 'Only another Owner can decide changes to the Owner role.';
         }
 
         return 'You can only grant permissions you hold yourself: '
@@ -88,7 +88,7 @@ final class ChangeRolePermissions implements ApprovalAction, ExplainsCheckerRule
         if ($role === null) {
             return false;
         }
-        if ($role->is_super_admin && ! $checker->isSuperAdmin()) {
+        if ($role->is_super_admin && ! $checker->isOwner()) {
             return false;
         }
 
@@ -137,7 +137,7 @@ final class ChangeRolePermissions implements ApprovalAction, ExplainsCheckerRule
      */
     private function beyondOwnGrants(LoginAccount $account, Role $role, array $requested): array
     {
-        if ($account->isSuperAdmin()) {
+        if ($account->isOwner()) {
             return [];
         }
 

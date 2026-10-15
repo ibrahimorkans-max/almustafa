@@ -21,7 +21,7 @@ use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 
 /**
- * Super Admin: choose the working entity (or all entities).
+ * Owner: choose the working entity (or all entities).
  * Switcher login mode: move to another login account of the same person.
  */
 class SwitchContext extends Page
@@ -45,7 +45,7 @@ class SwitchContext extends Page
     /** @return Collection<int, Entity> */
     public function entities(): Collection
     {
-        return $this->account()->isSuperAdmin() ? Entity::query()->orderBy('code')->get() : new Collection;
+        return $this->account()->isOwner() ? Entity::query()->orderBy('code')->get() : new Collection;
     }
 
     public function workingEntityId(): ?string
@@ -62,7 +62,7 @@ class SwitchContext extends Page
     public function chooseEntity(string $entityId): void
     {
         $account = $this->account();
-        abort_unless($account->isSuperAdmin(), 403);
+        abort_unless($account->isOwner(), 403);
 
         if ($entityId !== AuthContextBinder::ALL_ENTITIES) {
             abort_unless(Entity::query()->whereKey($entityId)->exists(), 404);

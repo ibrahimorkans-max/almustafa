@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
  * Resolves `Authorization: Bearer rma_…` + `X-Device-Id` into a login account
  * (registered with Auth::viaRequest as the "ricemill-token" driver).
  *
- * Optional `X-Entity-Id`: Super Admin picks the working entity; for everyone else
+ * Optional `X-Entity-Id`: Owner picks the working entity; for everyone else
  * it must equal their own entity.
  */
 final class ApiTokenGuard
@@ -49,7 +49,7 @@ final class ApiTokenGuard
 
         $working = $request->header('X-Entity-Id');
         if ($working !== null) {
-            if ($account->isSuperAdmin()) {
+            if ($account->isOwner()) {
                 $exists = $this->tenant->runAsSystem(fn () => Entity::query()->whereKey($working)->exists());
                 if (! $exists) {
                     return null;
@@ -59,7 +59,7 @@ final class ApiTokenGuard
             }
         }
 
-        $this->binder->bind($account, $session, $device->id, $account->isSuperAdmin() ? $working : null);
+        $this->binder->bind($account, $session, $device->id, $account->isOwner() ? $working : null);
 
         if (! $this->ipAllowlist->allows($account, $request->ip())) {
             return null;

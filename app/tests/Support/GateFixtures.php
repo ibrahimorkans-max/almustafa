@@ -33,8 +33,8 @@ final class GateFixtures
 
     public function __construct(public Entity $entity)
     {
-        $this->owner = Make::account($entity, 'OWNER');
-        $this->owner2 = Make::account($entity, 'OWNER');
+        $this->owner = Make::account($entity, 'SUPER_ADMIN');
+        $this->owner2 = Make::account($entity, 'SUPER_ADMIN');
         $this->as($this->owner);
 
         $this->paddy = Product::query()->create(['code' => 'PDY-1121', 'name' => 'Paddy 1121', 'category' => 'paddy', 'sale_unit' => 'quintal']);

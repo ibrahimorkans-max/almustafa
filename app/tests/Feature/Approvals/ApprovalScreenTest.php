@@ -18,8 +18,8 @@ use Tests\Support\Make;
 beforeEach(function () {
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     $this->entity = Make::entity('APS');
-    $this->maker = Make::account($this->entity, 'OWNER');
-    $this->checker = Make::account($this->entity, 'OWNER');
+    $this->maker = Make::account($this->entity, 'SUPER_ADMIN');
+    $this->checker = Make::account($this->entity, 'SUPER_ADMIN');
     $role = Make::system(fn () => Role::query()->where('entity_id', $this->entity->id)->where('code', 'GATE_OPERATOR')->firstOrFail());
     app(AuthContextBinder::class)->bind($this->maker);
     $this->request = app(ApprovalService::class)->submit(ChangeRolePermissions::KEY,
@@ -46,7 +46,7 @@ it('shows the requester a disabled Approve button that says why', function () {
 });
 
 it('explains a pending account setup instead of hiding the buttons', function () {
-    $fresh = Make::account($this->entity, 'OWNER', ['must_change_password' => true]);
+    $fresh = Make::account($this->entity, 'SUPER_ADMIN', ['must_change_password' => true]);
     expect(app(ApprovalService::class)->decisionBlocker($fresh, $this->request))->toContain('Finish your account setup');
     $exec = Make::account($this->entity, 'EXECUTIVE');
     expect(app(ApprovalService::class)->decisionBlocker($exec, $this->request))->toContain("'approval.decide'");
@@ -97,7 +97,7 @@ it('approves from the list row', function () {
 });
 
 it('applies the self-approval rule to a Super Admin too', function () {
-    $sa = Make::superAdmin($this->entity);
+    $sa = Make::owner($this->entity);
     app(AuthContextBinder::class)->bind($sa);
     $own = app(ApprovalService::class)->submit(ChangeRolePermissions::KEY,
         ['role_id' => $this->role->id, 'permissions' => [...$this->role->permissionCodes(), 'stock.view']], 'Gate sees stock');

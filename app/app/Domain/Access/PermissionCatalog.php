@@ -51,6 +51,7 @@ final class PermissionCatalog
         'gate.entry' => ['gate', 'Record gate entries'],
         'weighment.capture' => ['gate', 'Capture weighments from the weighbridge'],
         'weighment.override' => ['gate', 'Request manual weight override (reason + approval required)'],
+        'weighment.review' => ['gate', 'Check recorded weights: mark OK or query them'],
         'lab.test' => ['gate', 'Record lab tests'],
         'lab.decide' => ['gate', 'Accept or reject a lot after lab test'],
         // Production

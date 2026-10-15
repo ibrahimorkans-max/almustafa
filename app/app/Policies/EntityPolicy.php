@@ -21,10 +21,10 @@ final class EntityPolicy
 
     public function create(LoginAccount $user): bool
     {
-        return $user->isSuperAdmin() && $user->hasPermission('entity.manage');
+        return $user->isOwner() && $user->hasPermission('entity.manage');
     }
 
-    /** All firms with entity.manage (Super Admin); the own mill only with entity.edit_own (Owner). */
+    /** All firms with entity.manage (Owner); the own mill only with entity.edit_own (Super Admin). */
     public function update(LoginAccount $user, Entity $entity): bool
     {
         return $user->hasPermission('entity.manage')

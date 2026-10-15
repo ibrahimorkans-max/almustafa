@@ -58,7 +58,7 @@ class DeviceResource extends Resource
                         Toggle::make('sign_out_everywhere')->label('Also sign this user out on all their other devices')->default(true),
                     ])
                     ->requiresConfirmation()
-                    ->modalDescription("Phones, PWA and gate PCs erase their local data at their next connection and can do nothing else until then; a browser is signed out. Owners are alerted. Consider resetting the user's password too.")
+                    ->modalDescription("Phones, PWA and gate PCs erase their local data at their next connection and can do nothing else until then; a browser is signed out. The Owner and Super Admins are alerted. Consider resetting the user's password too.")
                     ->action(function (Device $r, array $data): void {
                         app(DeviceService::class)->markLost($r, $data['reason'], (bool) $data['sign_out_everywhere']);
                         Notification::make()->title('Device marked lost. Wipe queued.')->success()->send();

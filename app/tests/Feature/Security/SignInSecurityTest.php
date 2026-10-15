@@ -63,7 +63,7 @@ function secSignOut(object $t): void
 
 describe('passkeys', function () {
     it('registers a passkey on the device and signs in with it alone, as two factors', function () {
-        $owner = Make::account($this->entity, 'OWNER', ['mfa' => true]);
+        $owner = Make::account($this->entity, 'SUPER_ADMIN', ['mfa' => true]);
         $device = new VirtualAuthenticator;
 
         secSignIn($this, $owner);
@@ -85,7 +85,7 @@ describe('passkeys', function () {
     });
 
     it('refuses an unknown passkey, a replayed challenge and a locked account', function () {
-        $owner = Make::account($this->entity, 'OWNER', ['mfa' => true]);
+        $owner = Make::account($this->entity, 'SUPER_ADMIN', ['mfa' => true]);
         $device = new VirtualAuthenticator;
         secSignIn($this, $owner);
         $page = Livewire::test(MyPasskeys::class);
@@ -118,7 +118,7 @@ describe('passkeys', function () {
     });
 
     it('lets a person remove their own passkey and an administrator remove anyone\'s', function () {
-        $owner = Make::account($this->entity, 'OWNER', ['mfa' => true]);
+        $owner = Make::account($this->entity, 'SUPER_ADMIN', ['mfa' => true]);
         $clerk = Make::account($this->entity, 'GATE_OPERATOR');
         $device = new VirtualAuthenticator;
         secSignIn($this, $clerk);
@@ -150,7 +150,7 @@ function secPasswordLogin(LoginAccount $a, string $deviceUid, ?string $code = nu
 
 describe('trusted devices', function () {
     it('stops a new device until the owner approves it, when the rule is "everyone"', function () {
-        $owner = Make::account($this->entity, 'OWNER', ['mfa' => true]);
+        $owner = Make::account($this->entity, 'SUPER_ADMIN', ['mfa' => true]);
         $clerk = Make::account($this->entity, 'GATE_OPERATOR');
         Make::system(fn () => app(SettingsService::class)->put(SettingsService::TRUSTED_DEVICES, 'everyone', $this->entity->id));
         $pc = (string) Str::uuid();
@@ -189,7 +189,7 @@ describe('trusted devices', function () {
     });
 
     it('lets the owner set the rule on screen, and keeps others off that screen', function () {
-        $owner = Make::account($this->entity, 'OWNER', ['mfa' => true]);
+        $owner = Make::account($this->entity, 'SUPER_ADMIN', ['mfa' => true]);
         secSignIn($this, Make::account($this->entity, 'GATE_OPERATOR'));
         $this->get(SignInRules::getUrl())->assertForbidden();
 
@@ -224,7 +224,7 @@ describe('sessions', function () {
     });
 
     it('tells the person and the owner about a sign-in from a new device', function () {
-        $owner = Make::account($this->entity, 'OWNER', ['mfa' => true]);
+        $owner = Make::account($this->entity, 'SUPER_ADMIN', ['mfa' => true]);
         $clerk = Make::account($this->entity, 'GATE_OPERATOR');
         secPasswordLogin($clerk, (string) Str::uuid())->assertRedirect();      // first sign-in ever: not news
         secSignOut($this);
@@ -236,7 +236,7 @@ describe('sessions', function () {
     });
 
     it('signs out all other sessions of the person, keeps this one, and lists failed sign-ins for the owner', function () {
-        $owner = Make::account($this->entity, 'OWNER', ['mfa' => true]);
+        $owner = Make::account($this->entity, 'SUPER_ADMIN', ['mfa' => true]);
         $clerk = Make::account($this->entity, 'GATE_OPERATOR');
         Livewire::test(Login::class)->fillForm(['username' => $clerk->username, 'password' => 'wrong'])->call('authenticate');
         foreach ([1, 2] as $i) {
@@ -255,13 +255,13 @@ describe('sessions', function () {
 
 describe('owner rights', function () {
     it('gives the owner every mill permission, including any added later, but not other firms or the narrowing ones', function () {
-        $missing = array_values(array_diff(PermissionCatalog::codes(), RoleTemplates::get(RoleTemplates::OWNER)['permissions']));
+        $missing = array_values(array_diff(PermissionCatalog::codes(), RoleTemplates::get(RoleTemplates::SUPER_ADMIN)['permissions']));
         sort($missing);
         expect($missing)->toBe(['commission.view_own', 'deal.view_own', 'entity.manage']);
     });
 
     it('lets the owner edit the own mill details but not its status, nor another firm', function () {
-        $owner = Make::account($this->entity, 'OWNER', ['mfa' => true]);
+        $owner = Make::account($this->entity, 'SUPER_ADMIN', ['mfa' => true]);
         $other = Make::entity('OTH');
         secSignIn($this, $owner);
         Livewire::test(EditEntity::class, ['record' => $this->entity->id])
@@ -275,7 +275,7 @@ describe('owner rights', function () {
 
 describe('live weight', function () {
     it('takes the gate agent reading and shows it live, then "no signal" when it stops', function () {
-        $owner = Make::account($this->entity, 'OWNER', ['mfa' => true]);
+        $owner = Make::account($this->entity, 'SUPER_ADMIN', ['mfa' => true]);
         $agent = Make::account($this->entity, 'GATE_OPERATOR', ['username' => 'sec.agent']);
         app(AuthContextBinder::class)->bind($owner);
         $scale = Scale::query()->create(['code' => 'WB1', 'name' => 'Main weighbridge', 'capacity_kg' => '60000', 'resolution_kg' => '10']);

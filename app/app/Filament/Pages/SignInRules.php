@@ -20,9 +20,9 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 
 /**
- * The mill's sign-in rules, set by the owner: whether a new phone or computer must be approved
+ * The mill's sign-in rules, set by the mill's Super Admin (or the Owner): whether a new phone or computer must be approved
  * before it can be used (everyone / selected accounts / off). IP limits are per account under
- * Users; Super Admin rules come from the server configuration and are not changed here.
+ * Users; Owner rules come from the server configuration and are not changed here.
  *
  * @property Form $form
  */
@@ -54,7 +54,7 @@ class SignInRules extends Page implements HasForms
         return $user instanceof LoginAccount && $user->hasPermission('settings.manage');
     }
 
-    /** The rule belongs to one mill; a Super Admin in "All firms" mode chooses one first. */
+    /** The rule belongs to one mill; an Owner in "All firms" mode chooses one first. */
     public function millChosen(): bool
     {
         return app(TenantContext::class)->entityId() !== null;
@@ -84,7 +84,7 @@ class SignInRules extends Page implements HasForms
                 ])
                 ->descriptions([
                     'everyone' => 'Strictest. Attendance-only employee logins are left out: HR already approves their phone under Attendance devices.',
-                    'selected' => 'For example only the owner, accountant and HR.',
+                    'selected' => 'For example only the Super Admin, accountant and HR.',
                     'off' => 'Not recommended once the mill is live.',
                 ]),
         ]);

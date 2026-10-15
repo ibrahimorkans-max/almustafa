@@ -16,14 +16,17 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 
 /**
- * Installation bootstrap: creates the first Super Admin (and a home entity if none exists).
+ * Installation bootstrap: creates the first Owner (and a home entity if none exists).
  * The password is asked interactively and never passed on the command line.
  */
 final class CreateSuperAdminCommand extends Command
 {
-    protected $signature = 'ricemill:create-super-admin {username} {--name=} {--entity-code=HQ}';
+    protected $signature = 'ricemill:create-owner {username} {--name=} {--entity-code=HQ}';
 
-    protected $description = 'Create a Super Admin login account (installation bootstrap)';
+    protected $description = 'Create an Owner login account (installation bootstrap)';
+
+    /** The name used before the Owner became the top role. */
+    protected $aliases = ['ricemill:create-super-admin'];
 
     public function handle(TenantContext $tenant, AccessCatalogSync $catalog, EntityProvisioner $provisioner): int
     {
@@ -58,7 +61,7 @@ final class CreateSuperAdminCommand extends Command
                 LoginAccount::query()->create([
                     'entity_id' => $entity->id,
                     'person_id' => $person->id,
-                    'role_id' => $catalog->superAdminRole()->id,
+                    'role_id' => $catalog->ownerRole()->id,
                     'username' => $username,
                     'password' => $password,
                     'status' => LoginAccount::STATUS_ACTIVE,
@@ -66,7 +69,7 @@ final class CreateSuperAdminCommand extends Command
             });
         });
 
-        $this->info("Super Admin '{$username}' created. 2FA enrollment is required at first sign-in.");
+        $this->info("Owner '{$username}' created. 2FA enrollment is required at first sign-in.");
 
         return self::SUCCESS;
     }

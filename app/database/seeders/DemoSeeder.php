@@ -18,7 +18,7 @@ use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
- * Local/demo data: Al Mustafa Rice Mills (Lodhran) with one user per role, plus one Super Admin.
+ * Local/demo data: Al Mustafa Rice Mills (Lodhran) with one user per role, plus one Owner.
  * Passwords are random and written to storage/app/private/demo-credentials.txt
  * (git-ignored). Every demo user must change the password at first sign-in.
  * Refuses to run in production.
@@ -46,7 +46,7 @@ class DemoSeeder extends Seeder
             }
 
             $first = reset($entities);
-            $lines[] = $this->makeAccount($first, $catalog->superAdminRole(), 'superadmin', 'Demo Super Admin');
+            $lines[] = $this->makeAccount($first, $catalog->ownerRole(), 'owner', 'Demo Owner');
 
             foreach ($entities as $code => $entity) {
                 foreach (RoleTemplates::entityRoleCodes() as $roleCode) {

@@ -82,7 +82,7 @@ it('refuses bank payments without an approved account, over-payment and over-all
 it('needs two different approvers above the limit', function () {
     config(['ricemill.accounts.second_approval_above_paise' => 1_00_000_00]); // Rs 100,000
     // Requested by an owner (who could approve payments in general) to prove the requester is excluded.
-    $third = Make::account($this->f->entity, 'OWNER');
+    $third = Make::account($this->f->entity, 'SUPER_ADMIN');
     $this->f->as($this->f->owner2);
     $payment = app(PaymentService::class)->request($this->seller, 'ibft', $this->f->bank, 36_805_300, now(), [$this->bill->id => 36_805_300]);
     $approvals = app(ApprovalService::class);

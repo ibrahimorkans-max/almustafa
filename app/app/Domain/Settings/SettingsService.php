@@ -27,6 +27,13 @@ final class SettingsService
 
     public const TRUSTED_DEVICES_MODES = ['everyone', 'selected', 'off'];
 
+    /**
+     * Screen protection (watermark, hidden when out of focus, no printing). The all-mills row (set by
+     * the Owner) is on, off or enforced; a mill's own row (set by its Super Admin) is on or off and
+     * counts unless the Owner enforced it.
+     */
+    public const SCREEN_GUARD = 'security.screen_guard';
+
     /** @var array<string, array{default: mixed, allowed?: list<mixed>, scope: 'global'|'entity'}> */
     public const DEFINITIONS = [
         self::LOGIN_MODE => [
@@ -38,6 +45,12 @@ final class SettingsService
         self::TRUSTED_DEVICES => [
             'default' => null,
             'allowed' => self::TRUSTED_DEVICES_MODES,
+            'scope' => 'entity',
+        ],
+        // The default comes from RICEMILL_SCREEN_GUARD; see screenGuard().
+        self::SCREEN_GUARD => [
+            'default' => null,
+            'allowed' => ['on', 'off', 'enforced'],
             'scope' => 'entity',
         ],
     ];
@@ -87,7 +100,7 @@ final class SettingsService
             });
         };
 
-        // Global rows are writable only with isolation bypass (Super Admin / system).
+        // Global rows are writable only with isolation bypass (Owner / system).
         $entityId === null ? $this->tenant->runAsSystem($write) : $write();
     }
 
@@ -101,6 +114,31 @@ final class SettingsService
         $mode = $this->get(self::TRUSTED_DEVICES, $entityId) ?? config('ricemill.security.trusted_devices_default');
 
         return in_array($mode, self::TRUSTED_DEVICES_MODES, true) ? (string) $mode : 'off';
+    }
+
+    /**
+     * Screen protection for one mill (null = "All firms" mode): the all-mills choice, the mill's own
+     * choice (null = follows all mills) and the result.
+     *
+     * @return array{all: string, mill: string|null, enforced: bool, on: bool}
+     */
+    public function screenGuard(?string $entityId): array
+    {
+        $all = $this->tenant->runAsSystem(fn () => Setting::query()->whereNull('entity_id')->where('key', self::SCREEN_GUARD)->first()?->value)
+            ?? (config('ricemill.security.screen_guard') ? 'on' : 'off');
+        $mill = $entityId === null ? null
+            : $this->tenant->runAsSystem(fn () => Setting::query()->where('entity_id', $entityId)->where('key', self::SCREEN_GUARD)->first()?->value);
+        $enforced = $all === 'enforced';
+
+        return ['all' => (string) $all, 'mill' => $mill === null ? null : (string) $mill, 'enforced' => $enforced,
+            'on' => $enforced || ($mill ?? $all) !== 'off'];
+    }
+
+    /** Removes a mill's own value, so the all-mills value applies again. */
+    public function forget(string $key, string $entityId): void
+    {
+        $this->definition($key);
+        Setting::query()->where('entity_id', $entityId)->where('key', $key)->delete();
     }
 
     /** @return array{default: mixed, allowed?: list<mixed>, scope: 'global'|'entity'} */

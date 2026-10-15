@@ -167,13 +167,13 @@ describe('screens', function () {
     it('opens leave, shifts, holidays, leave types and the register for HR, owners and supervisors only', function () {
         $paths = ['/admin/hr/leave-requests', '/admin/hr/shifts', '/admin/hr/holidays', '/admin/hr/leave-types', '/admin/hr/attendance-register'];
         $actual = [];
-        foreach (['HR_MANAGER' => 200, 'OWNER' => 200, 'SUPERVISOR' => 200, 'GATE_OPERATOR' => 403, 'EMPLOYEE' => 403] as $role => $status) {
+        foreach (['HR_MANAGER' => 200, 'SUPER_ADMIN' => 200, 'SUPERVISOR' => 200, 'GATE_OPERATOR' => 403, 'EMPLOYEE' => 403] as $role => $status) {
             lvSignIn($this, Make::account($this->f->entity, $role, ['mfa' => true]));
             $actual[$role] = implode('/', array_map(fn ($p) => $this->get($p)->status(), $paths));
             app('auth')->forgetGuards();
             $this->flushSession();
         }
-        expect($actual)->toBe(['HR_MANAGER' => '200/200/200/200/200', 'OWNER' => '200/200/200/200/200', 'SUPERVISOR' => '200/200/200/200/200',
+        expect($actual)->toBe(['HR_MANAGER' => '200/200/200/200/200', 'SUPER_ADMIN' => '200/200/200/200/200', 'SUPERVISOR' => '200/200/200/200/200',
             'GATE_OPERATOR' => '403/403/403/403/403', 'EMPLOYEE' => '403/403/403/403/403']);
     });
 

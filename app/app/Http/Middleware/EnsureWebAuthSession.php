@@ -21,7 +21,7 @@ use Symfony\Component\HttpFoundation\Response;
  * Runs after Filament's Authenticate middleware on every panel request:
  *  - the web session must map to a live auth_sessions row (revocation, absolute + idle expiry);
  *  - IP allowlist is re-checked;
- *  - Super Admin's working entity is applied;
+ *  - Owner's working entity is applied;
  *  - accounts that must enroll 2FA or change their password are confined to those pages.
  */
 final class EnsureWebAuthSession
@@ -57,7 +57,7 @@ final class EnsureWebAuthSession
         $ownSession = $session !== null && $session->login_account_id === $account->id;
 
         // Establish context first, so even the sign-out path below writes inside the right entity.
-        $working = $account->isSuperAdmin() ? $request->session()->get(self::WORKING_ENTITY_KEY) : null;
+        $working = $account->isOwner() ? $request->session()->get(self::WORKING_ENTITY_KEY) : null;
         $this->binder->bind($account, $ownSession ? $session : null, $ownSession ? $session->device_id : null, $working);
 
         if (! $account->isActive()) {

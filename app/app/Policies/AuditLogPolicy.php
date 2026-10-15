@@ -7,7 +7,7 @@ namespace App\Policies;
 use App\Models\AuditLog;
 use App\Models\LoginAccount;
 
-/** No role, including Super Admin, can change or delete audit rows. */
+/** No role, including Owner, can change or delete audit rows. */
 final class AuditLogPolicy
 {
     public function viewAny(LoginAccount $user): bool

@@ -37,18 +37,22 @@ return [
     ],
 
     'security' => [
-        // Super Admin may only sign in from an allow-listed IP (production: true).
+        // Owner may only sign in from an allow-listed IP (production: true).
         'super_admin_require_ip_allowlist' => (bool) env('RICEMILL_SA_REQUIRE_IP_ALLOWLIST', false),
-        // Super Admin may only sign in from a device approved by another Super Admin.
+        // Owner may only sign in from a device approved by another Owner.
         'super_admin_require_trusted_device' => (bool) env('RICEMILL_SA_REQUIRE_TRUSTED_DEVICE', true),
-        // First-ever Super Admin device is trusted automatically (installation only; set false afterwards).
+        // First-ever Owner device is trusted automatically (installation only; set false afterwards).
         'bootstrap_trust_first_device' => (bool) env('RICEMILL_BOOTSTRAP_TRUST_FIRST_DEVICE', false),
-        // Which accounts may sign in only from an approved device, until the owner changes it under
+        // Which accounts may sign in only from an approved device, until a Super Admin changes it under
         // Security → Sign-in rules: everyone | selected (accounts switched on one by one) | off.
         'trusted_devices_default' => env('RICEMILL_TRUSTED_DEVICES', 'off'),
         // Roles left out of "everyone": employees punch from a phone HR already approves (attendance devices).
         'trusted_devices_exempt_roles' => ['EMPLOYEE'],
         'hsts' => (bool) env('RICEMILL_HSTS', true),
+        // Discourage screenshots and recordings in the browser: watermark with the user's name, IP and
+        // time, page hidden while the window is not in focus, printing blocked (public/js/screen-guard.js).
+        // Only the starting value: the Owner and each mill's Super Admin switch it under Security → Screen protection.
+        'screen_guard' => (bool) env('RICEMILL_SCREEN_GUARD', true),
         // Key for searchable hashes of encrypted identifiers (NTN, CNIC, STRN, IBAN). Empty = derived from APP_KEY.
         'blind_index_key' => env('RICEMILL_BLIND_INDEX_KEY', ''),
         // Who else hears about lockdowns, duress sign-ins and lost devices (comma-separated).
@@ -56,7 +60,7 @@ return [
         'contact_sms' => env('RICEMILL_SECURITY_CONTACT_SMS', ''),
         'sms_log_channel' => env('RICEMILL_SECURITY_SMS_LOG_CHANNEL', 'stack'),
         // Roles that may set a duress PIN.
-        'duress_roles' => ['SUPER_ADMIN', 'OWNER', 'ACCOUNTANT'],
+        'duress_roles' => ['OWNER', 'SUPER_ADMIN', 'ACCOUNTANT'],
         // Failed sign-ins: progressive delay (seconds) from this many failures on; after this many
         // temporary lockouts within 24 h the account stays locked until an administrator unlocks it.
         'progressive_delay_after' => 3,
@@ -157,7 +161,7 @@ return [
         'queue_max_minutes' => 20,
         'backup_max_hours' => 26,
         'min_free_disk_percent' => 10,
-        // Failed logins across the system within 15 minutes that trigger an alert to Super Admins.
+        // Failed logins across the system within 15 minutes that trigger an alert to Owners.
         'failed_login_burst' => (int) env('RICEMILL_FAILED_LOGIN_BURST', 30),
     ],
 

@@ -49,7 +49,7 @@ final class AuthenticationFailed extends RuntimeException
         return match ($this->publicCode) {
             self::INVALID_MFA_CODE => 'The authentication code is not valid.',
             self::DEVICE_NOT_ALLOWED => 'This device is not allowed to sign in.',
-            self::DEVICE_PENDING_APPROVAL => 'This device is new to your account. A request to approve it has been sent; sign in again once the owner (or, for a Super Admin, another Super Admin) has approved it.',
+            self::DEVICE_PENDING_APPROVAL => 'This device is new to your account. A request to approve it has been sent; sign in again once your mill\'s Super Admin (or, for an Owner, another Owner) has approved it.',
             self::NETWORK_NOT_ALLOWED => 'Sign-in is not allowed from this network.',
             self::SESSION_INVALID => 'Your session has ended. Please sign in again.',
             self::ACCESS_DISABLED => 'Access disabled, contact your administrator.',

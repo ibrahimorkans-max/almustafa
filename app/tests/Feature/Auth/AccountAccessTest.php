@@ -18,7 +18,7 @@ use Tests\Support\Make;
 beforeEach(function () {
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     $this->entity = Make::entity('ACC');
-    $this->owner = Make::account($this->entity, 'OWNER');
+    $this->owner = Make::account($this->entity, 'SUPER_ADMIN');
     $this->user = Make::account($this->entity, 'GATE_OPERATOR');
 });
 
@@ -87,8 +87,8 @@ it('does not let people lock themselves out, act without user.manage, or touch a
     actAs($this->owner);
     expect(fn () => $svc->suspend($this->owner, 'testing myself'))->toThrow(BusinessRuleViolation::class, 'your own account');
     expect(fn () => $svc->suspend($this->user, 'no'))->toThrow(BusinessRuleViolation::class, 'reason');
-    $sa = Make::superAdmin($this->entity);
-    expect(fn () => $svc->suspend($sa, 'owner tries'))->toThrow(BusinessRuleViolation::class, 'Only a Super Admin');
+    $sa = Make::owner($this->entity);
+    expect(fn () => $svc->suspend($sa, 'owner tries'))->toThrow(BusinessRuleViolation::class, 'Only an Owner');
 
     actAs(Make::account($this->entity, 'EXECUTIVE'));
     expect(fn () => $svc->suspend($this->user, 'not my job'))->toThrow(BusinessRuleViolation::class, "'user.manage'");

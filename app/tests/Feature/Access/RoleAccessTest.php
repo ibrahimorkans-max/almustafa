@@ -16,7 +16,7 @@ beforeEach(function () {
     $this->entity = Make::entity('RLA');
 });
 
-dataset('back office roles', fn () => array_values(array_diff(array_keys(RoleTemplates::all()), ['SUPER_ADMIN', 'BROKER'])));
+dataset('back office roles', fn () => array_values(array_diff(array_keys(RoleTemplates::all()), ['OWNER', 'BROKER'])));
 
 it('answers every screen a role may not open with an explaining 403 page, never an error or an empty page', function (string $role) {
     $account = Make::account($this->entity, $role, ['mfa' => true]);
@@ -39,7 +39,7 @@ it('answers every screen a role may not open with an explaining 403 page, never 
 })->with('back office roles');
 
 it('lists accounts that need attention, with real sign-in facts', function () {
-    $owner = Make::account($this->entity, 'OWNER');
+    $owner = Make::account($this->entity, 'SUPER_ADMIN');
     $dormant = Make::account($this->entity, 'SUPERVISOR');
     $never = Make::account($this->entity, 'LAB_TECHNICIAN');
     $pending = Make::account($this->entity, 'EXECUTIVE', ['must_change_password' => true]);
@@ -61,7 +61,7 @@ it('lists accounts that need attention, with real sign-in facts', function () {
 });
 
 it('is open to holders of user.view only, and its CSV export is audited', function () {
-    $owner = Make::account($this->entity, 'OWNER');
+    $owner = Make::account($this->entity, 'SUPER_ADMIN');
     $gate = Make::account($this->entity, 'GATE_OPERATOR');
     app(AuthContextBinder::class)->bind($owner);
     expect(AccessReviewPage::canAccess())->toBeFalse(); // nobody signed in on the web guard
