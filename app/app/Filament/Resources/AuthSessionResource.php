@@ -69,11 +69,22 @@ class AuthSessionResource extends Resource
                 TextColumn::make('sign_in_method')->label('By')->badge()->placeholder('password')
                     ->color(fn (?string $state) => $state === 'passkey' ? 'success' : 'gray'),
                 TextColumn::make('ip')->label('IP')->searchable(),
-                TextColumn::make('city')->label('Location')
-                    ->state(fn (AuthSession $r) => $r->placeLabel() ?? ($r->location_source === 'browser' ? 'Position given by the browser' : 'Unknown'))
-                    ->description(fn (AuthSession $r) => $r->location_source === 'browser'
-                        ? 'Browser position'.($r->location_accuracy_m !== null ? ' ±'.number_format($r->location_accuracy_m).' m' : '') : null)
+                TextColumn::make('city')->label('Location (area, city, region, country)')->wrap()->searchable(['area', 'city', 'region', 'country_name', 'ip_city'])
+                    ->state(fn (AuthSession $r) => $r->placeLabel()
+                        ?? ($r->location_source === 'browser' ? sprintf('%.5F, %.5F', $r->latitude, $r->longitude) : 'Unknown'))
+                    ->icon(fn (AuthSession $r) => $r->mapUrl() !== null ? 'heroicon-o-map-pin' : null)
+                    ->description(fn (AuthSession $r) => implode(' · ', array_filter([
+                        $r->location_source === 'browser'
+                            ? 'Exact (device GPS / Wi-Fi)'.($r->location_accuracy_m !== null ? ' ±'.number_format($r->location_accuracy_m).' m' : '')
+                                .($r->location_at !== null ? ', '.$r->location_at->timezone('Asia/Karachi')->format('d M H:i') : '')
+                            : ($r->location_source === 'ip' ? 'Rough, from the IP address — the person did not share the exact position' : null),
+                        $r->location_source === 'browser' && $r->ipPlaceLabel() !== null ? 'IP: '.$r->ipPlaceLabel() : null,
+                    ])) ?: null)
+                    ->tooltip(fn (AuthSession $r) => $r->address)
                     ->url(fn (AuthSession $r) => $r->mapUrl(), shouldOpenInNewTab: true),
+                TextColumn::make('address')->label('Full address')->wrap()->placeholder('—')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('latitude')->label('Coordinates')->toggleable(isToggledHiddenByDefault: true)
+                    ->state(fn (AuthSession $r) => $r->latitude !== null ? sprintf('%.6F, %.6F', $r->latitude, $r->longitude) : null)->placeholder('—'),
                 TextColumn::make('created_at')->label('Signed in')->formatStateUsing(fn ($state, AuthSession $r) => $pkt($r->created_at))->sortable(),
                 TextColumn::make('last_seen_at')->label('Last active')->formatStateUsing(fn ($state, AuthSession $r) => $pkt($r->last_seen_at))->sortable(),
                 TextColumn::make('status')->badge()

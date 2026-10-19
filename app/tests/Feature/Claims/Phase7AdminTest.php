@@ -38,7 +38,7 @@ dataset('phase 7 screens', [
     'claims' => ['/admin/claims', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR']],
     'price lists' => ['/admin/price-lists', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT']],
     'markups' => ['/admin/markups', ['OWNER', 'SUPER_ADMIN']],
-    'archive' => ['/admin/archive', ['OWNER', 'SUPER_ADMIN', 'ACCOUNTANT']],
+    'archive' => ['/admin/office-desk', ['OWNER', 'SUPER_ADMIN']],
 ]);
 
 it('opens claims, pricing and archive screens only for the right roles', function (string $path, array $allowed) {
@@ -77,7 +77,7 @@ it('runs a claim from the screens: raise with a photo, approve, post the credit 
     expect($claim->fresh()->status)->toBe('settled')->and($claim->fresh()->voucher_id)->not->toBeNull();
 });
 
-it('creates a price list and requests a rate change for approval', function () {
+it('creates a price list and applies a rate change requested by the Super Admin', function () {
     signInP7($this, $this->f->acc->owner);
     Livewire::test(CreatePriceList::class)
         ->fillForm(['name' => 'Rice rates', 'valid_from' => now()->startOfMonth()->toDateString()])
@@ -86,8 +86,8 @@ it('creates a price list and requests a rate change for approval', function () {
 
     Livewire::test(ViewPriceList::class, ['record' => $list->id])
         ->callAction('rate', ['product_id' => $this->f->inv->rice->id, 'rate' => '4200', 'reason' => 'Market rate'])
-        ->assertNotified('Rate change sent for approval');
-    expect(ApprovalRequest::query()->where('action', 'pricing.rate_change')->sole()->status)->toBe('pending');
+        ->assertNotified('Done: applied at once');
+    expect(ApprovalRequest::query()->where('action', 'pricing.rate_change')->sole()->status)->toBe('executed');
 });
 
 it('hides cost and margin from roles without permission while every other figure stays identical', function () {
@@ -101,11 +101,11 @@ it('hides cost and margin from roles without permission while every other figure
 
     signInP7($this, $this->f->acc->accountant);
     $accountantView = Livewire::test(ViewSalesBill::class, ['record' => $invoice->id])
-        ->assertSee('422,100.00')->assertSee('402,000.00')->assertDontSee('Cost and margin')->assertDontSee('1,200.00');
+        ->assertSee('4,22,100.00')->assertSee('4,02,000.00')->assertDontSee('Cost and margin')->assertDontSee('1,200.00');
 
     signInP7($this, $this->f->acc->owner);
     Livewire::test(ViewSalesBill::class, ['record' => $invoice->id])
-        ->assertSee('422,100.00')->assertSee('402,000.00')
+        ->assertSee('4,22,100.00')->assertSee('4,02,000.00')
         ->assertSee('Cost and margin')->assertSee('1,200.00')->assertSee('400.00')->assertSee('25%'); // per maund: cost Rs 30 × 40 kg
     expect($accountantView)->not->toBeNull();
 });

@@ -113,6 +113,6 @@
 </table>
 
 @include('pdf.verify', ['small' => $small, 'note' => 'Computed from the weighment slip and the confirmed deal; amounts cannot be typed by hand.'])
-@include('pdf.signatures', ['signs' => [['Prepared by', 'تیار کنندہ'], ['Received by (buyer)', 'وصول کنندہ'], ['For '.$brand['name'], 'دستخط مجاز']]])
+@include('pdf.signatures', ['signs' => [['Prepared by', 'تیار کنندہ'], ['Checked by (second person)', 'جانچ کنندہ'], ['Received by (buyer)', 'وصول کنندہ'], ['For '.$brand['name'], 'دستخط مجاز']]])
 </body>
 </html>

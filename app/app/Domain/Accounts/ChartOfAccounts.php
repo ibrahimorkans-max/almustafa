@@ -69,6 +69,9 @@ final class ChartOfAccounts
         'staff_other_deductions' => ['STAFF-DED', 'Other deductions from staff (fines, canteen)', 'INDIRECT_INCOMES', 'system'],
         'staff_claims_payable' => ['STAFF-CLAIMS', 'Staff expense claims payable', 'CUR_LIAB', 'system'],
         'contract_labour' => ['EXP-CONTRACT-LAB', 'Contract labour (incl. sales tax on services)', 'DIRECT_EXPENSES', 'system'],
+        // Daily wages of unregistered casual labour (labour groups under a mukadam).
+        'daily_wages' => ['EXP-DAILY-WAGES', 'Daily wages (casual labour)', 'DIRECT_EXPENSES', 'system'],
+        'daily_wages_payable' => ['DW-PAYABLE', 'Daily wages payable', 'CUR_LIAB', 'system'],
     ];
 
     public function __construct(private readonly TenantContext $tenant) {}

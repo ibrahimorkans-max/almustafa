@@ -115,7 +115,12 @@ final class PaymentService
                 sprintf('Pay %s to %s (%s)', Money::paise($amountPaise)->format(), $party->name, Payment::MODES[$mode]),
                 $narration,
             );
-            $payment->forceFill(['approval_request_id' => $request->id])->save();
+            // Re-read: a request by the Owner or a Super Admin is applied at once (SelfApproval) and may
+            // already have released the payment and linked the second-stage request.
+            $payment = Payment::query()->whereKey($payment->id)->lockForUpdate()->firstOrFail();
+            if ($payment->approval_request_id === null) {
+                $payment->forceFill(['approval_request_id' => $request->id])->save();
+            }
 
             return $payment;
         });

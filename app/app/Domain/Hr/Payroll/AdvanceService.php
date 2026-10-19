@@ -6,6 +6,7 @@ namespace App\Domain\Hr\Payroll;
 
 use App\Domain\Accounts\Books;
 use App\Domain\Accounts\ChartOfAccounts;
+use App\Domain\Approvals\SelfApproval;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
@@ -185,7 +186,7 @@ final class AdvanceService
 
         return DB::transaction(function () use ($advance, $status, $note, $approver): Advance {
             $advance = $this->lock($advance, Advance::REQUESTED);
-            if ($advance->requested_by === $approver->id) {
+            if ($advance->requested_by === $approver->id && ! SelfApproval::allowed($approver)) {
                 throw new BusinessRuleViolation('A different person must decide the advance you requested.');
             }
             if (Employee::query()->whereKey($advance->employee_id)->value('person_id') === $approver->person_id) {

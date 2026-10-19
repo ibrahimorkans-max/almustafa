@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Claims\ClaimResource\Pages;
 
 use App\Domain\Claims\ClaimService;
 use App\Filament\Resources\Claims\ClaimResource;
+use App\Filament\Support\PrintButton;
 use App\Filament\Support\RequestsVoucherReversal;
 use App\Filament\Support\RunsDomainActions;
 use App\Filament\Support\Units;
@@ -30,11 +31,12 @@ class ViewClaim extends ViewRecord
         $service = fn () => app(ClaimService::class);
 
         return [
+            PrintButton::header('claim'),
             Action::make('approve')->label('Approve settlement')->icon('heroicon-o-check')->color('success')
                 ->visible(fn (Claim $c) => $c->status === Claim::OPEN && $can('claim.approve'))
                 ->modalDescription('Fix how much is settled (at most the amount claimed). Accounts then posts the credit or debit note.')
                 ->form([
-                    TextInput::make('amount')->label('Settle (₹)')->required()->regex(Units::DECIMAL_2)
+                    TextInput::make('amount')->label('Settle (Rs)')->required()->regex(Units::DECIMAL_2)
                         ->default(fn (Claim $record) => bcdiv((string) $record->claimed_paise, '100', 2)),
                     Textarea::make('note')->maxLength(1000),
                 ])

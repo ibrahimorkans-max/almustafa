@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Sales;
 
 use App\Filament\Resources\Inventory\RequisitionResource;
 use App\Filament\Resources\Sales\DispatchOrderResource\Pages;
+use App\Filament\Support\PrintButton;
 use App\Filament\Support\Units;
 use App\Models\Procurement\Sauda;
 use App\Models\Sales\DispatchOrder;
@@ -81,7 +82,7 @@ class DispatchOrderResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([SelectFilter::make('status')->options(self::STATUS_LABELS)])
-            ->actions([ViewAction::make()]);
+            ->actions([ViewAction::make(), PrintButton::row('dispatch')]);
     }
 
     public static function infolist(Infolist $infolist): Infolist

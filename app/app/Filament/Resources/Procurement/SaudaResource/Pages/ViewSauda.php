@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Procurement\SaudaResource\Pages;
 use App\Domain\Procurement\SaudaService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Procurement\SaudaResource;
+use App\Filament\Support\PrintButton;
 use App\Models\Procurement\Sauda;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -24,6 +25,7 @@ class ViewSauda extends ViewRecord
         $reason = [Textarea::make('reason')->required()->maxLength(1000)];
 
         return [
+            PrintButton::header('sauda'),
             Action::make('submit')->label('Send for approval')->icon('heroicon-o-paper-airplane')
                 ->visible(fn (Sauda $record) => $record->status === Sauda::STATUS_DRAFT && $can('deal.create'))
                 ->requiresConfirmation()

@@ -6,6 +6,7 @@ namespace App\Domain\Approvals\Actions;
 
 use App\Domain\Approvals\Contracts\ApprovalAction;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
+use App\Domain\Approvals\SelfApproval;
 use App\Domain\Gate\GateService;
 use App\Models\ApprovalRequest;
 use App\Models\Gate\GateEntry;
@@ -45,8 +46,8 @@ final class ManualWeighmentOverride implements ApprovalAction
 
     public function validate(array $payload, LoginAccount $maker): array
     {
-        if (! $maker->isOwner()) {
-            throw ValidationException::withMessages(['maker' => 'Only an Owner may request a manual weight.']);
+        if (! SelfApproval::allowed($maker)) {
+            throw ValidationException::withMessages(['maker' => 'Only the Owner or the mill\'s Super Admin may request a manual weight.']);
         }
 
         $data = Validator::make($payload, [

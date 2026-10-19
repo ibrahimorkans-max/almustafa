@@ -34,8 +34,20 @@ final class SettingsService
      */
     public const SCREEN_GUARD = 'security.screen_guard';
 
+    /** How many months after closing a record moves from the working screens to the Office Desk (Owner, all mills). */
+    public const ARCHIVE_RETENTION = 'archive.retention_months';
+
+    /** The choices offered; at least 3 months so records still being worked on are never moved. */
+    public const ARCHIVE_RETENTION_CHOICES = [3, 6, 12, 18, 24, 36, 48, 60];
+
     /** @var array<string, array{default: mixed, allowed?: list<mixed>, scope: 'global'|'entity'}> */
     public const DEFINITIONS = [
+        // The default comes from RICEMILL_ARCHIVE_RETENTION_MONTHS; see archiveRetentionMonths().
+        self::ARCHIVE_RETENTION => [
+            'default' => null,
+            'allowed' => self::ARCHIVE_RETENTION_CHOICES,
+            'scope' => 'global',
+        ],
         self::LOGIN_MODE => [
             'default' => self::LOGIN_MODE_MULTI_ACCOUNT,
             'allowed' => [self::LOGIN_MODE_MULTI_ACCOUNT, self::LOGIN_MODE_SWITCHER],
@@ -102,6 +114,14 @@ final class SettingsService
 
         // Global rows are writable only with isolation bypass (Owner / system).
         $entityId === null ? $this->tenant->runAsSystem($write) : $write();
+    }
+
+    /** Months after closing before a record moves to the Office Desk: the Owner's choice, else RICEMILL_ARCHIVE_RETENTION_MONTHS. */
+    public function archiveRetentionMonths(): int
+    {
+        $months = $this->get(self::ARCHIVE_RETENTION) ?? config('ricemill.archive.retention_months');
+
+        return max(3, (int) $months);
     }
 
     public function loginMode(): string

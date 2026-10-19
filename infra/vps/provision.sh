@@ -1,13 +1,27 @@
 #!/usr/bin/env bash
-# One-time (idempotent) server setup for Rice Mill ERP on Ubuntu 24.04 (Hostinger VPS).
-# Run as root from a checkout of this repository:
+# One-time (idempotent) server setup for Rice Mill ERP on Ubuntu 24.04.
+# Run as root from a checkout of this repository.
+#
+# Internet server (VPS), certificate from Let's Encrypt:
 #   DOMAIN=erp.example.in ADMIN_EMAIL=you@example.in DEPLOY_KEY="ssh-ed25519 AAAA..." bash infra/vps/provision.sh
+#
+# Mill server (a PC inside the mill; works with NO internet), certificate from the mill's own authority:
+#   TLS_MODE=local DOMAIN=ricemill.local bash infra/vps/provision.sh
+#   Every PC and phone of the mill opens https://ricemill.local (or https://<fixed IP>); install the mill
+#   certificate once on each from http://ricemill.local/mill-ca.crt. See docs/mill-server.md.
 # Re-running is safe; it only fills in what is missing. Generated secrets go to /etc/ricemill only.
 set -euo pipefail
 
-: "${DOMAIN:?set DOMAIN (e.g. erp.example.in)}"
-: "${ADMIN_EMAIL:?set ADMIN_EMAIL (for the TLS certificate)}"
-: "${DEPLOY_KEY:?set DEPLOY_KEY (public SSH key used by the deploy workflow)}"
+TLS_MODE="${TLS_MODE:-letsencrypt}"          # letsencrypt (internet server) | local (mill server, no internet needed)
+: "${DOMAIN:?set DOMAIN (e.g. erp.example.in, or ricemill.local for a mill server)}"
+if [[ "$TLS_MODE" == "letsencrypt" ]]; then
+  : "${ADMIN_EMAIL:?set ADMIN_EMAIL (for the TLS certificate)}"
+  : "${DEPLOY_KEY:?set DEPLOY_KEY (public SSH key used by the deploy workflow)}"
+elif [[ "$TLS_MODE" != "local" ]]; then
+  echo "TLS_MODE must be letsencrypt or local." >&2; exit 1
+fi
+DEPLOY_KEY="${DEPLOY_KEY:-}"
+TLS_DIR=/etc/ricemill/tls
 APP_USER=ricemill
 APP_ROOT=/srv/ricemill
 ENV_DIR=/etc/ricemill
@@ -25,7 +39,7 @@ if ! apt-cache policy "php${PHP}-fpm" | grep -q 'Candidate: [0-9]'; then
   apt-get update -q
 fi
 apt-get install -yq nginx certbot python3-certbot-nginx postgresql postgresql-contrib supervisor ufw fail2ban \
-  unattended-upgrades logrotate poppler-utils \
+  unattended-upgrades logrotate poppler-utils avahi-daemon chrony \
   "php${PHP}-fpm" "php${PHP}-cli" "php${PHP}-pgsql" "php${PHP}-intl" "php${PHP}-bcmath" "php${PHP}-mbstring" \
   "php${PHP}-xml" "php${PHP}-zip" "php${PHP}-gd" "php${PHP}-curl" "php${PHP}-opcache"
 if ! command -v composer >/dev/null; then
@@ -50,7 +64,9 @@ echo "== application user (SSH keys only)"
 id "$APP_USER" >/dev/null 2>&1 || adduser --disabled-password --gecos "Rice Mill ERP" "$APP_USER"
 install -d -m 700 -o "$APP_USER" -g "$APP_USER" "/home/$APP_USER/.ssh"
 touch "/home/$APP_USER/.ssh/authorized_keys"
-grep -qF "$DEPLOY_KEY" "/home/$APP_USER/.ssh/authorized_keys" || echo "$DEPLOY_KEY" >> "/home/$APP_USER/.ssh/authorized_keys"
+if [[ -n "$DEPLOY_KEY" ]]; then
+  grep -qF "$DEPLOY_KEY" "/home/$APP_USER/.ssh/authorized_keys" || echo "$DEPLOY_KEY" >> "/home/$APP_USER/.ssh/authorized_keys"
+fi
 chown "$APP_USER:$APP_USER" "/home/$APP_USER/.ssh/authorized_keys"
 chmod 600 "/home/$APP_USER/.ssh/authorized_keys"
 # The deploy user may reload PHP-FPM and restart the queue worker, nothing else.
@@ -117,19 +133,58 @@ systemctl restart "php${PHP}-fpm"
 
 echo "== TLS certificate + nginx"
 rm -f /etc/nginx/sites-enabled/default
-if [[ ! -d "/etc/letsencrypt/live/${DOMAIN}" ]]; then
-  systemctl stop nginx
-  certbot certonly --standalone -n --agree-tos -m "$ADMIN_EMAIL" -d "$DOMAIN"
+if [[ "$TLS_MODE" == "letsencrypt" ]]; then
+  if [[ ! -d "/etc/letsencrypt/live/${DOMAIN}" ]]; then
+    systemctl stop nginx
+    certbot certonly --standalone -n --agree-tos -m "$ADMIN_EMAIL" -d "$DOMAIN"
+  fi
+  CERT="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+  KEY="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
+else
+  # The mill's own certificate authority (10 years) and a server certificate (2 years, renewed by
+  # re-running this script) for the name and the fixed IP. Devices trust it once mill-ca.crt is installed.
+  LAN_IP="${LAN_IP:-$(hostname -I | awk '{print $1}')}"
+  install -d -m 750 -o root -g root "$TLS_DIR"
+  if [[ ! -f "$TLS_DIR/mill-ca.key" ]]; then
+    openssl req -x509 -newkey rsa:3072 -sha256 -days 3650 -nodes -keyout "$TLS_DIR/mill-ca.key" -out "$TLS_DIR/mill-ca.crt" \
+      -subj "/O=Rice Mill ERP/CN=Rice Mill ERP mill certificate authority" \
+      -addext "basicConstraints=critical,CA:TRUE,pathlen:0" -addext "keyUsage=critical,keyCertSign,cRLSign"
+    chmod 600 "$TLS_DIR/mill-ca.key"
+  fi
+  if [[ ! -f "$TLS_DIR/server.crt" ]] || ! openssl x509 -checkend 2592000 -noout -in "$TLS_DIR/server.crt" >/dev/null \
+     || ! openssl x509 -noout -text -in "$TLS_DIR/server.crt" | grep -q "IP Address:${LAN_IP}"; then
+    openssl req -newkey rsa:2048 -nodes -keyout "$TLS_DIR/server.key" -out "$TLS_DIR/server.csr" -subj "/CN=${DOMAIN}"
+    printf 'subjectAltName=DNS:%s,DNS:%s,IP:%s,IP:127.0.0.1\nbasicConstraints=CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n' \
+      "$DOMAIN" "${DOMAIN%%.*}" "$LAN_IP" > "$TLS_DIR/server.ext"
+    openssl x509 -req -in "$TLS_DIR/server.csr" -CA "$TLS_DIR/mill-ca.crt" -CAkey "$TLS_DIR/mill-ca.key" -CAcreateserial \
+      -days 730 -sha256 -extfile "$TLS_DIR/server.ext" -out "$TLS_DIR/server.crt"
+    chmod 600 "$TLS_DIR/server.key"
+  fi
+  CERT="$TLS_DIR/server.crt"
+  KEY="$TLS_DIR/server.key"
+  # The CA certificate is public: devices download it over plain HTTP to install it.
+  install -m 644 "$TLS_DIR/mill-ca.crt" /var/www/html/mill-ca.crt
+  # The server itself trusts it too (the deploy health check calls https://${DOMAIN}).
+  install -m 644 "$TLS_DIR/mill-ca.crt" /usr/local/share/ca-certificates/ricemill-mill-ca.crt
+  update-ca-certificates >/dev/null
+  # "ricemill.local" on the mill network without a DNS server (mDNS): the PC's name is the first label.
+  hostnamectl set-hostname "${DOMAIN%%.*}"
+  systemctl enable --now avahi-daemon
+  # No internet, no time servers: chrony keeps the clock (hardware clock) and uses servers when online.
+  systemctl enable --now chrony
 fi
-sed -e "s/{{DOMAIN}}/${DOMAIN}/g" -e "s/{{PHP}}/${PHP}/g" "$HERE/nginx-ricemill.conf" > /etc/nginx/sites-available/ricemill
+sed -e "s/{{DOMAIN}}/${DOMAIN}/g" -e "s/{{PHP}}/${PHP}/g" -e "s#{{CERT}}#${CERT}#g" -e "s#{{KEY}}#${KEY}#g" \
+  "$HERE/nginx-ricemill.conf" > /etc/nginx/sites-available/ricemill
 ln -sf /etc/nginx/sites-available/ricemill /etc/nginx/sites-enabled/ricemill
 nginx -t
 systemctl restart nginx
-# Renewals use the running nginx (webroot under /var/www/html for the ACME challenge).
-sed -i 's/^authenticator = standalone/authenticator = webroot\nwebroot_path = \/var\/www\/html/' "/etc/letsencrypt/renewal/${DOMAIN}.conf" || true
-mkdir -p /etc/letsencrypt/renewal-hooks/deploy
-printf '#!/bin/sh\nsystemctl reload nginx\n' > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx
-chmod 755 /etc/letsencrypt/renewal-hooks/deploy/reload-nginx
+if [[ "$TLS_MODE" == "letsencrypt" ]]; then
+  # Renewals use the running nginx (webroot under /var/www/html for the ACME challenge).
+  sed -i 's/^authenticator = standalone/authenticator = webroot\nwebroot_path = \/var\/www\/html/' "/etc/letsencrypt/renewal/${DOMAIN}.conf" || true
+  mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+  printf '#!/bin/sh\nsystemctl reload nginx\n' > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx
+  chmod 755 /etc/letsencrypt/renewal-hooks/deploy/reload-nginx
+fi
 
 echo "== queue worker, scheduler, log rotation"
 cp "$HERE/supervisor-ricemill.conf" /etc/supervisor/conf.d/ricemill.conf
@@ -138,6 +193,23 @@ supervisorctl update
 cp "$HERE/cron-ricemill" /etc/cron.d/ricemill
 chmod 644 /etc/cron.d/ricemill
 cp "$HERE/logrotate-ricemill" /etc/logrotate.d/ricemill
+
+if [[ "$TLS_MODE" == "local" ]]; then
+  # A mill server: open to the mill network only; nothing has to come in from the internet.
+  ufw delete allow 'Nginx Full' >/dev/null 2>&1 || true
+  for net in 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16; do
+    ufw allow from "$net" to any port 80,443 proto tcp >/dev/null
+  done
+  sed -i -e 's/^RICEMILL_SA_REQUIRE_IP_ALLOWLIST=.*/RICEMILL_SA_REQUIRE_IP_ALLOWLIST=false/' "$ENV_DIR/ricemill.env" || true
+  if grep -q '^RICEMILL_MILL_SERVER=' "$ENV_DIR/ricemill.env"; then
+    sed -i 's/^RICEMILL_MILL_SERVER=.*/RICEMILL_MILL_SERVER=true/' "$ENV_DIR/ricemill.env"
+  else
+    echo 'RICEMILL_MILL_SERVER=true' >> "$ENV_DIR/ricemill.env"
+  fi
+  echo
+  echo "Mill server ready at https://${DOMAIN} and https://${LAN_IP}"
+  echo "  Install the mill certificate on every PC and phone: http://${DOMAIN}/mill-ca.crt (docs/mill-server.md)."
+fi
 
 echo
 echo "Done. Next:"

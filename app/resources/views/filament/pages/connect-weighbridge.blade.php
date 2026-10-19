@@ -4,7 +4,7 @@
         <div wire:poll.5s>
             @php $scales = $this->scales(); @endphp
             @if ($scales === [])
-                <p class="text-sm text-gray-500">No weighbridge is set up yet: start with step 4.</p>
+                <p class="text-sm text-gray-500">No weighbridge is set up yet: follow the steps below.</p>
             @else
                 <ul class="space-y-1 text-sm">
                     @foreach ($scales as $s)
@@ -22,49 +22,104 @@
                     @endforeach
                 </ul>
             @endif
+            <p class="mt-3 text-xs text-gray-500">Load cells → <strong>indicator</strong> → RS-232 cable → <strong>weighbridge PC</strong> (gate agent, camera) → internet → this ERP.</p>
         </div>
     </x-filament::section>
 
-    <x-filament::section>
-        <x-slot name="heading">How it connects</x-slot>
-        <p class="text-sm">Load cells → <strong>indicator</strong> (the box showing the weight) → RS-232 cable or network → <strong>weighbridge PC</strong> running the gate agent → internet → this ERP. The agent sends the reading about once a second and keeps working offline.</p>
-    </x-filament::section>
-
     @php
-        $steps = [
-        ['What you need', 'An indicator with an RS-232 (9-pin) or Ethernet output; a Windows 10/11 PC at the weighbridge, always on and on the internet (a UPS is advised); the cable (straight or null-modem, as the indicator manual says, up to about 15 m; longer needs an RS-232-to-Ethernet converter); a USB-to-RS232 adapter (FTDI chip) if the PC has no COM port; a valid stamping certificate.'],
-        ['Set up the indicator', 'In its settings (or ask the scale engineer): serial output CONTINUOUS (not "print on key"), baud rate 9600 (or note it), 8 data bits, no parity, 1 stop bit, unit kg. Note the division (smallest step, e.g. 10 kg).'],
-        ['Check the data reaches the PC', 'Plug the cable in. Device Manager → Ports (COM & LPT): note the port, e.g. COM3. Open PuTTY → Serial, that port and baud rate: lines like "ST,GS,+0025480kg" must scroll by. Nothing: wrong port, cable type or output mode. Strange characters: wrong baud rate. Close PuTTY afterwards.'],
-        ['Prepare the ERP', 'Weighbridges → New (code, name, capacity, stamping certificate) and copy its id. Users → a login only for the PC with the role Weighbridge / Gate Operator (e.g. wb.agent). Devices → Register gate agent for that login: copy the device_uid and the signing secret (shown only once).'],
-        ['Install the gate agent on the PC', 'Install Python 3.12, copy the agent folder to C:\\RiceMillAgent, then in PowerShell there: py -3.12 -m venv .venv · .venv\\Scripts\\pip install -e .[serial] · .venv\\Scripts\\ricemill-agent new-store-key · copy agent.example.toml agent.toml.'],
-        ['Fill in agent.toml', 'server url = '.$this->serverUrl().' · username, device_uid, the weighbridge id · [indicator] type = "serial", port = "COM3", baudrate = 9600 (network indicator: type = "tcp", host, port) · resolution_kg = the division. Run ricemill-agent protect for the password, signing secret and store key and paste the dpapi:… values.'],
-        ['Test', 'ricemill-agent --config agent.toml sync must finish without an error. Then ricemill-agent --config agent.toml live and open Live weight: the number must follow the indicator within a second and show Stable when it settles. Check with a known weight.'],
-        ['Keep it running', 'Task Scheduler: at startup (restart on failure) … ricemill-agent.exe --config C:\\RiceMillAgent\\agent.toml live; every minute … sync. Both as the PC\'s service account, whether or not someone is signed in.'],
-        ['Record and check weights', 'Live weight: choose the vehicle on the platform, press Record gross / Record tare when it shows Stable. Weight checks: the Super Admin (or the Owner) marks each weight OK or queries it.'],
-    ];
+        $steps = $this->steps();
+        $current = $steps[$step - 1];
+        $doneCount = collect($steps)->where('done', true)->count();
     @endphp
-    <x-filament::section>
-        <x-slot name="heading">Steps</x-slot>
-        <ol class="list-decimal space-y-3 pl-5 text-sm">
-            @foreach ($steps as [$title, $body])
-                <li><strong>{{ $title }}.</strong> {{ $body }}</li>
-            @endforeach
-        </ol>
-        <p class="mt-4 text-sm">
-            Shortcuts: <a class="text-primary-600 underline" href="{{ $this->scalesUrl() }}">Weighbridges</a> ·
-            <a class="text-primary-600 underline" href="{{ $this->usersUrl() }}">Users</a> ·
-            <a class="text-primary-600 underline" href="{{ $this->devicesUrl() }}">Devices</a> ·
-            <a class="text-primary-600 underline" href="{{ $this->liveUrl() }}">Live weight</a>
-        </p>
-    </x-filament::section>
 
-    <x-filament::section>
+    <div class="grid gap-6 lg:grid-cols-3">
+        <x-filament::section class="lg:col-span-1">
+            <x-slot name="heading">Steps · {{ $doneCount }} of {{ count($steps) }} done</x-slot>
+            <ol class="space-y-1">
+                @foreach ($steps as $i => $s)
+                    <li>
+                        <button type="button" wire:click="go({{ $i + 1 }})"
+                            @class([
+                                'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm',
+                                'bg-primary-50 font-semibold text-primary-700 dark:bg-primary-500/10 dark:text-primary-400' => $i + 1 === $step,
+                                'hover:bg-gray-50 dark:hover:bg-white/5' => $i + 1 !== $step,
+                            ])>
+                            <span @class([
+                                'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                                'bg-success-600 text-white' => $s['done'],
+                                'bg-gray-200 text-gray-700 dark:bg-white/10 dark:text-gray-300' => ! $s['done'],
+                            ])>{{ $s['done'] ? '✓' : $i + 1 }}</span>
+                            <span class="flex-1">{{ $s['title'] }}</span>
+                        </button>
+                    </li>
+                @endforeach
+            </ol>
+        </x-filament::section>
+
+        <x-filament::section class="lg:col-span-2">
+            <x-slot name="heading">Step {{ $step }} of {{ count($steps) }}: {{ $current['title'] }}</x-slot>
+            <x-slot name="description">{{ $current['device'] }}</x-slot>
+
+            <div class="space-y-4 text-sm">
+                <p>{{ $current['intro'] }}</p>
+
+                <ol class="list-decimal space-y-2 pl-5">
+                    @foreach ($current['do'] as $line)
+                        <li>{{ $line }}</li>
+                    @endforeach
+                </ol>
+
+                @if ($current['commands'] !== [])
+                    <div>
+                        <div class="mb-1 text-xs font-medium text-gray-500">Type on the weighbridge PC (PowerShell, in the agent folder):</div>
+                        @foreach ($current['commands'] as $cmd)
+                            <div class="mb-2 flex items-center gap-2" x-data="{ copied: false }">
+                                <code class="flex-1 overflow-x-auto rounded-lg bg-gray-950 px-3 py-2 font-mono text-xs text-gray-100">{{ $cmd }}</code>
+                                <x-filament::button size="xs" color="gray" x-on:click="navigator.clipboard.writeText(@js($cmd)); copied = true; setTimeout(() => copied = false, 1500)">
+                                    <span x-text="copied ? 'Copied' : 'Copy'">Copy</span>
+                                </x-filament::button>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
+                @if ($current['links'] !== [])
+                    <div class="flex flex-wrap gap-2">
+                        @foreach ($current['links'] as $link)
+                            <x-filament::button tag="a" :href="$link['url']" color="gray" size="sm" icon="heroicon-o-arrow-top-right-on-square">{{ $link['label'] }}</x-filament::button>
+                        @endforeach
+                    </div>
+                @endif
+
+                <div class="rounded-lg border border-gray-200 p-3 dark:border-white/10">
+                    @if ($current['auto'] === true)
+                        <x-filament::badge color="success" icon="heroicon-o-check-circle">Done — the system can see this step is finished</x-filament::badge>
+                    @elseif ($current['auto'] === false)
+                        <x-filament::badge color="warning" icon="heroicon-o-clock">Not yet — this is ticked by itself once it is done</x-filament::badge>
+                    @else
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" wire:click="toggle({{ $step }})" @checked($current['done']) class="rounded border-gray-300 text-primary-600">
+                            <span>I have done this step</span>
+                        </label>
+                    @endif
+                </div>
+
+                <div class="flex justify-between">
+                    <x-filament::button color="gray" wire:click="back" :disabled="$step === 1" icon="heroicon-o-arrow-left">Back</x-filament::button>
+                    <x-filament::button wire:click="next" :disabled="$step === count($steps)" icon="heroicon-o-arrow-right" icon-position="after">Next step</x-filament::button>
+                </div>
+            </div>
+        </x-filament::section>
+    </div>
+
+    <x-filament::section collapsible collapsed>
         <x-slot name="heading">If something is wrong</x-slot>
         <ul class="list-disc space-y-1 pl-5 text-sm">
             <li><strong>No signal</strong>: is the agent running (live)? Is the PC online, the cable in, the indicator on?</li>
-            <li><strong>Wrong numbers</strong> (×1000, missing digits): the indicator's frame differs; set frame_pattern in agent.toml (the scale engineer knows the format).</li>
-            <li><strong>Always Moving</strong>: resolution_kg smaller than the indicator's division, or a wobbling platform.</li>
-            <li><strong>"Outside the weighbridge range"</strong>: the capacity under Weighbridges is wrong, or the frame is misread.</li>
+            <li><strong>detect finds nothing</strong>: continuous output is off, wrong cable (try null-modem), or another program uses the COM port.</li>
+            <li><strong>Wrong numbers</strong> (×1000, missing digits): run detect again with a weight on; for unusual indicators set frame_pattern in agent.toml.</li>
+            <li><strong>Always Moving</strong>: resolution_kg in agent.toml is smaller than the indicator's division, or the platform wobbles.</li>
+            <li><strong>No camera photo</strong>: run camera-test; check the camera name / RTSP address and that ffmpeg is installed.</li>
             <li><strong>"This device is new to your account"</strong> for the agent: approve it under Approvals, or register it again under Devices.</li>
         </ul>
     </x-filament::section>

@@ -10,7 +10,9 @@ use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Accounts\Payment;
 use App\Models\Accounts\PurchaseBill;
+use App\Models\ApprovalRequest;
 use App\Models\Entity;
+use App\Models\LoginAccount;
 use App\Support\Values\AmountInWords;
 
 /**
@@ -45,11 +47,24 @@ final class AccountsDocuments
         }
         $entity = $this->tenant->runAsSystem(fn () => Entity::query()->find($payment->entity_id));
 
+        // Who made it and who approved it (the last approval stage), printed above the signature lines.
+        $checker = $payment->approval_request_id === null ? null
+            : $this->tenant->runAsSystem(fn () => ApprovalRequest::query()->find($payment->approval_request_id)?->checker_login_account_id);
+
         return $this->pdf->render('accounts.payment-voucher', [
             'title' => 'Payment voucher '.$payment->number,
             'payment' => $payment->loadMissing(['party', 'fromLedger', 'allocations.bill']),
             'words' => AmountInWords::rupees($payment->amount_paise),
+            'preparedBy' => $this->personName($payment->created_by),
+            'approvedBy' => $this->personName($checker),
         ], $entity, 'A5', $payment->number, self::paymentCode($payment));
+    }
+
+    private function personName(?string $accountId): ?string
+    {
+        $account = $accountId === null ? null : $this->tenant->runAsSystem(fn () => LoginAccount::query()->with('person')->find($accountId));
+
+        return $account === null ? null : ($account->person->full_name ?? $account->username);
     }
 
     public static function purchaseBillCode(PurchaseBill $bill): string

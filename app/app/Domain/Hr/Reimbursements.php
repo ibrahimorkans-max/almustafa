@@ -7,6 +7,7 @@ namespace App\Domain\Hr;
 use App\Domain\Accounts\Books;
 use App\Domain\Accounts\ChartOfAccounts;
 use App\Domain\Accounts\ExpenseCategories;
+use App\Domain\Approvals\SelfApproval;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
@@ -18,6 +19,7 @@ use App\Models\Hr\Employee;
 use App\Models\Hr\Reimbursement;
 use App\Models\Hr\ReimbursementLine;
 use App\Models\LoginAccount;
+use App\Support\Values\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -82,7 +84,7 @@ final class Reimbursements
                 throw new BusinessRuleViolation("Line {$n}: describe the expense.");
             }
             if ((int) $l['amount_paise'] > self::RECEIPT_REQUIRED_ABOVE_PAISE && blank($l['receipt'] ?? null)) {
-                throw new BusinessRuleViolation("Line {$n}: attach the receipt (needed above Rs ".number_format(self::RECEIPT_REQUIRED_ABOVE_PAISE / 100).').');
+                throw new BusinessRuleViolation("Line {$n}: attach the receipt (needed above ".Money::paise(self::RECEIPT_REQUIRED_ABOVE_PAISE)->format().').');
             }
             $checked[] = [$category, $spent, $l];
         }
@@ -197,7 +199,7 @@ final class Reimbursements
 
     private function notClaimant(Reimbursement $c, LoginAccount $who): void
     {
-        if ($c->employee->person_id === $who->person_id || $c->submitted_by === $who->id) {
+        if ($c->employee->person_id === $who->person_id || ($c->submitted_by === $who->id && ! SelfApproval::allowed($who))) {
             throw new BusinessRuleViolation('You cannot decide on a claim you made or submitted.');
         }
     }

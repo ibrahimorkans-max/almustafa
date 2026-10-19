@@ -129,10 +129,20 @@ it('lets the Super Admin check each weight: OK, or a query with a note, never th
 });
 
 it('keeps the person who recorded a weight, and staff without the right, from checking it', function () {
-    $this->f->as($this->f->owner);
+    // Staff with the right to check still may not check their own weight…
+    $sup = Make::account($this->f->entity, 'SUPERVISOR');
+    Make::system(fn () => DB::table('role_permissions')->insertOrIgnore([
+        'role_id' => $sup->role_id, 'permission_code' => 'weighment.review', 'entity_id' => $this->f->entity->id, 'created_at' => now(),
+    ]));
+    $sup->role->flushPermissionCache();
+    $this->f->as($sup);
     $w = app(GateService::class)->recordWeighment($this->entry, 'gross', '25480', $this->f->scale, GateFixtures::readings('25480'), null);
-
     expect(fn () => app(WeighmentChecks::class)->decide($w, 'ok', null))->toThrow(BusinessRuleViolation::class, 'someone else');
+
+    // …while the mill's Super Admin may check a weight they recorded themselves.
+    $this->f->as($this->f->owner);
+    $tare = app(GateService::class)->recordWeighment($this->entry, 'gross', '25490', $this->f->scale, GateFixtures::readings('25490'), null);
+    expect(app(WeighmentChecks::class)->decide($tare, 'ok', null)->decision)->toBe('ok');
 
     $this->f->as($this->operator);
     expect(fn () => app(WeighmentChecks::class)->decide($w, 'ok', null))->toThrow(BusinessRuleViolation::class, 'weighment.review');
@@ -147,7 +157,7 @@ it('keeps the person who recorded a weight, and staff without the right, from ch
 
 it('shows the connection steps and whether each weighbridge sends readings', function () {
     lwcSignIn($this, $this->f->owner);
-    $this->get(ConnectWeighbridge::getUrl())->assertOk()->assertSee('Set up the indicator')->assertSee('No signal');
+    $this->get(ConnectWeighbridge::getUrl())->assertOk()->assertSee('Check the indicator has a data port')->assertSee('Switch on continuous output')->assertSee('No signal');
 
     lwcFeed($this, [25480]);
     lwcSignIn($this, $this->f->owner);
@@ -171,4 +181,25 @@ it('counts the gross and tare an inbound and an outbound vehicle need', function
         ->and(LiveCapture::nextKind(tap(clone $in, fn ($e) => $e->status = 'gross_weighed')))->toBeNull()
         ->and(LiveCapture::nextKind(tap($out, fn ($e) => $e->status = 'arrived')))->toBe('tare')
         ->and(LiveCapture::nextKind(tap(clone $out, fn ($e) => $e->status = 'loaded')))->toBe('gross');
+});
+
+it('walks through connecting the devices step by step, ticking what the system can see', function () {
+    lwcSignIn($this, $this->f->owner);
+    $page = Livewire::test(ConnectWeighbridge::class);
+    $steps = collect($page->instance()->steps());
+
+    // The fixture has a weighbridge and a gate operator login: those steps are done by themselves.
+    expect($steps->pluck('done', 'title')->all())->toMatchArray([
+        'Add the weighbridge in the ERP' => true, 'Create the PC\'s login' => true, 'Register the gate agent' => false,
+    ])->and($page->get('step'))->toBe(1);   // the first step not done yet
+
+    $page->assertSee('Step 1 of 12')->call('toggle', 1)->assertSet('step', 2)->assertSee('Switch on continuous output')
+        ->call('next')->call('next')->assertSee('Step 4 of 12')->assertSee('Done — the system can see')
+        ->call('go', 7)->assertSee('setup-windows.ps1')->call('back')->assertSet('step', 6);
+    expect(Livewire::test(ConnectWeighbridge::class)->instance()->steps()[0]['done'])->toBeTrue();   // kept for this sign-in
+
+    lwcFeed($this, [25480]);
+    lwcSignIn($this, $this->f->owner);
+    $steps = collect(Livewire::test(ConnectWeighbridge::class)->instance()->steps())->pluck('done', 'title');
+    expect($steps['Find the indicator'])->toBeTrue()->and($steps['Test the connection and the live weight'])->toBeTrue();
 });

@@ -10,6 +10,7 @@ use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\ApprovalRequestResource;
 use App\Filament\Resources\Gate\GateEntryResource;
 use App\Filament\Resources\Sales\DispatchOrderResource;
+use App\Filament\Support\PrintButton;
 use App\Filament\Support\RunsDomainActions;
 use App\Models\Sales\DispatchOrder;
 use Filament\Actions\Action;
@@ -30,6 +31,7 @@ class ViewDispatchOrder extends ViewRecord
         $can = fn (string $p) => Filament::auth()->user()?->can($p) ?? false;
 
         return [
+            PrintButton::header('dispatch'),
             Action::make('arrived')->label('Vehicle arrived')->icon('heroicon-o-truck')
                 ->visible(fn (DispatchOrder $o) => $o->status === DispatchOrder::OPEN && $can('gate.entry'))
                 ->form([

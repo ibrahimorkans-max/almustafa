@@ -51,9 +51,9 @@ describe('Money', function () {
     });
 
     it('formats with Pakistani (thousands) grouping', function () {
-        expect(Money::paise(123456789)->format())->toBe('Rs 1,234,567.89')
+        expect(Money::paise(123456789)->format())->toBe('Rs 12,34,567.89')
             ->and(Money::paise(99900)->format())->toBe('Rs 999.00')
-            ->and(Money::paise(-1000000000)->format())->toBe('-Rs 10,000,000.00')
+            ->and(Money::paise(-1000000000)->format())->toBe('-Rs 1,00,00,000.00')
             ->and(Money::paise(5)->grouped())->toBe('0.05');
     });
 

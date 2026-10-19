@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Domain\Archive\ArchiveService;
 use App\Domain\Security\Lockdown;
+use App\Domain\Settings\SettingsService;
 use App\Domain\Tenancy\TenantContext;
 use Illuminate\Console\Command;
 
@@ -22,7 +23,7 @@ final class ArchiveRunCommand extends Command
 
             return self::SUCCESS;
         }
-        $months = (int) ($this->option('months') ?? config('ricemill.archive.retention_months'));
+        $months = (int) ($this->option('months') ?? app(SettingsService::class)->archiveRetentionMonths());
         $cutoff = now()->subMonths(max(1, $months));
         $counts = $tenant->runAsSystem(fn () => $archive->run($cutoff, (bool) $this->option('dry-run')));
 

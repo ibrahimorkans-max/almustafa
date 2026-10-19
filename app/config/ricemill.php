@@ -137,8 +137,34 @@ return [
         'url' => env('RICEMILL_GEOIP_URL', 'https://download.db-ip.com/free/dbip-city-lite-%s.mmdb.gz'),
     ],
 
+    // Exact place of a sign-in from the browser's position (area, city, region, country). "nominatim" asks
+    // OpenStreetMap (internet) or the mill's own Nominatim server at RICEMILL_GEOCODER_URL; "off" uses only
+    // the mill's sites (offline). Without either, the coordinates and the IP's city are shown.
+    'geocoder' => [
+        'driver' => env('RICEMILL_GEOCODER', 'nominatim'),
+        'url' => env('RICEMILL_GEOCODER_URL', 'https://nominatim.openstreetmap.org/reverse'),
+        'email' => env('RICEMILL_GEOCODER_EMAIL'),
+        'user_agent' => env('RICEMILL_GEOCODER_USER_AGENT', 'AlMustafaRiceMills-ERP/1.0'),
+        'timeout' => (int) env('RICEMILL_GEOCODER_TIMEOUT', 4),
+    ],
+
     // Live weight on screen: the gate agent sends the indicator reading about once a second; a reading
     // older than this many seconds is shown as "no signal".
+    // Mill server: the ERP runs on a PC inside the mill and is reached over the mill network only
+    // (infra/vps/provision.sh TLS_MODE=local, docs/mill-server.md). Everything works without internet;
+    // off-site backups and e-mail go out when the internet is back.
+    'mill_server' => (bool) env('RICEMILL_MILL_SERVER', false),
+
+    // The action chatbot (Assistant). Without an API key it works offline with short commands;
+    // with ANTHROPIC_API_KEY it understands normal sentences (the question, earlier turns and tool
+    // results are sent to Anthropic).
+    'assistant' => [
+        'enabled' => (bool) env('RICEMILL_ASSISTANT', true),
+        'api_key' => env('ANTHROPIC_API_KEY', ''),
+        'model' => env('RICEMILL_ASSISTANT_MODEL', 'claude-sonnet-5-5'),
+        'api_url' => env('RICEMILL_ASSISTANT_API_URL', 'https://api.anthropic.com/v1/messages'),
+    ],
+
     'live_weight' => [
         'stale_after_seconds' => 5,
     ],

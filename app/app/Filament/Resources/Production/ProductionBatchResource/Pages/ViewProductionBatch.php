@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Production\ProductionBatchResource\Pages;
 use App\Domain\Production\ProductionService;
 use App\Filament\Resources\Inventory\RequisitionResource;
 use App\Filament\Resources\Production\ProductionBatchResource;
+use App\Filament\Support\PrintButton;
 use App\Filament\Support\RunsDomainActions;
 use App\Filament\Support\Units;
 use App\Models\Masters\Godown;
@@ -45,6 +46,7 @@ class ViewProductionBatch extends ViewRecord
         $at = fn (array $data, string $key) => CarbonImmutable::parse($data[$key]);
 
         return [
+            PrintButton::header('batch'),
             Action::make('input')->label('Log paddy fed')->icon('heroicon-o-arrow-down-on-square')
                 ->visible(fn (ProductionBatch $b) => $open($b) && $can('production.log'))
                 ->modalDescription('Takes the paddy out of the godown now. For stores-controlled issue use a requisition.')

@@ -13,6 +13,7 @@ use App\Models\Accounts\Payment;
 use App\Models\Accounts\VoucherLine;
 use App\Models\ApprovalRequest;
 use App\Models\AuditLog;
+use App\Models\LoginAccount;
 use App\Models\Masters\PartyBankAccount;
 use App\Support\Values\PakistanIds;
 use Illuminate\Support\Facades\DB;
@@ -81,23 +82,38 @@ it('refuses bank payments without an approved account, over-payment and over-all
 
 it('needs two different approvers above the limit', function () {
     config(['ricemill.accounts.second_approval_above_paise' => 1_00_000_00]); // Rs 100,000
-    // Requested by an owner (who could approve payments in general) to prove the requester is excluded.
-    $third = Make::account($this->f->entity, 'SUPER_ADMIN');
-    $this->f->as($this->f->owner2);
+    // Staff accountants who may also approve payments: the requester and the first approver are excluded.
+    $staffApprover = function (): LoginAccount {
+        $a = Make::account($this->f->entity, 'ACCOUNTANT');
+        Make::system(fn () => DB::table('role_permissions')->insertOrIgnore(array_map(fn (string $p) => [
+            'role_id' => $a->role_id, 'permission_code' => $p, 'entity_id' => $this->f->entity->id, 'created_at' => now(),
+        ], ['payment.approve', 'approval.decide'])));
+        $a->role->flushPermissionCache();
+
+        return $a;
+    };
+    $requester = $staffApprover();
+    $first = $staffApprover();
+    $this->f->as($requester);
     $payment = app(PaymentService::class)->request($this->seller, 'ibft', $this->f->bank, 36_805_300, now(), [$this->bill->id => 36_805_300]);
     $approvals = app(ApprovalService::class);
 
-    $result = $approvals->approve(ApprovalRequest::query()->findOrFail($payment->approval_request_id), $this->f->owner);
+    $result = $approvals->approve(ApprovalRequest::query()->findOrFail($payment->approval_request_id), $first);
     $payment->refresh();
     $second = ApprovalRequest::query()->findOrFail($payment->approval_request_id);
 
     expect($result->status)->toBe('executed')->and($payment->status)->toBe('first_approved')->and($payment->voucher_id)->toBeNull()
-        ->and($approvals->canDecide($this->f->owner, $second))->toBeFalse()   // first approver
-        ->and($approvals->canDecide($this->f->owner2, $second))->toBeFalse()  // requester
-        ->and($approvals->canDecide($third, $second))->toBeTrue();
+        ->and($approvals->canDecide($first, $second))->toBeFalse()       // first approver
+        ->and($approvals->canDecide($requester, $second))->toBeFalse()   // requester
+        ->and($approvals->canDecide($this->f->owner, $second))->toBeTrue();
 
-    $approvals->approve($second, $third);
+    $approvals->approve($second, $this->f->owner);
     expect($payment->fresh()->status)->toBe('approved')->and($payment->fresh()->voucher_id)->not->toBeNull();
+
+    // The mill's Super Admin needs no second person: their payment is released at once, both stages.
+    $this->f->as($this->f->owner2);
+    $direct = app(PaymentService::class)->request($this->seller, 'ibft', $this->f->bank, 20_000_000, now(), []);
+    expect($direct->fresh()->status)->toBe('approved');
 });
 
 it('limits cash to one person per day (s. 21(l))', function () {

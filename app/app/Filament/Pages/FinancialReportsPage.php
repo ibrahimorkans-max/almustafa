@@ -108,6 +108,7 @@ class FinancialReportsPage extends Page implements HasForms
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('allReports')->label('All reports')->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
             Action::make('ytd')->label('This tax year')->color('gray')->icon('heroicon-o-calendar')
                 ->visible(fn () => in_array($this->data['report'] ?? 'pl', ['pl', 'monthly', 'payroll', 'cashflow'], true))
                 ->action(fn () => $this->data = ['from' => self::taxYearStart($this->data['to'] ?? null)] + ($this->data ?? [])),

@@ -2,12 +2,19 @@
 # Zero-downtime deploy: new release directory -> checks -> atomic `current` symlink -> health check,
 # with automatic rollback when the new release is unhealthy. Run on the server as the ricemill user:
 #   bash deploy.sh <git-ref>        (REPO defaults to the origin of the current release)
+# A mill server without internet installs an update package instead (built by make-offline-release.sh):
+#   bash deploy.sh /media/usb/ricemill-release-<commit>.tar.gz
 set -euo pipefail
 
-REF="${1:?usage: deploy.sh <git-ref>}"
+REF="${1:?usage: deploy.sh <git-ref> | <ricemill-release-*.tar.gz>}"
 APP_ROOT="${APP_ROOT:-/srv/ricemill}"
-REPO="${REPO:-$(git -C "$APP_ROOT/current" remote get-url origin 2>/dev/null || true)}"
-: "${REPO:?set REPO for the first deploy}"
+PACKAGE=""
+if [[ "$REF" == *.tar.gz && -f "$REF" ]]; then
+  PACKAGE="$REF"
+else
+  REPO="${REPO:-$(git -C "$APP_ROOT/current" remote get-url origin 2>/dev/null || true)}"
+  : "${REPO:?set REPO for the first deploy}"
+fi
 PHP_BIN="${PHP_BIN:-php}"
 FPM_SERVICE="${FPM_SERVICE:-php8.3-fpm}"
 APP_URL="$(grep -E '^APP_URL=' /etc/ricemill/ricemill.env | cut -d= -f2-)"
@@ -31,10 +38,20 @@ fail() {
   exit 1
 }
 
-log "fetch $REF"
-git clone --quiet --no-checkout "$REPO" "$RELEASE"
-git -C "$RELEASE" checkout --quiet "$REF"
-echo "commit $(git -C "$RELEASE" rev-parse --short=12 HEAD)"
+if [[ -n "$PACKAGE" ]]; then
+  log "unpack offline package $(basename "$PACKAGE")"
+  if [[ -f "$PACKAGE.sha256" ]]; then
+    (cd "$(dirname "$PACKAGE")" && sha256sum -c "$(basename "$PACKAGE").sha256") || fail "the package is damaged (checksum)"
+  fi
+  mkdir -p "$RELEASE"
+  tar -xzf "$PACKAGE" -C "$RELEASE"
+  echo "commit $(cat "$RELEASE/RELEASE_COMMIT" 2>/dev/null || echo unknown)"
+else
+  log "fetch $REF"
+  git clone --quiet --no-checkout "$REPO" "$RELEASE"
+  git -C "$RELEASE" checkout --quiet "$REF"
+  echo "commit $(git -C "$RELEASE" rev-parse --short=12 HEAD)"
+fi
 
 log "link shared state (secrets stay in /etc/ricemill, uploads and backups in shared/storage)"
 rm -rf "$RELEASE/app/storage"
@@ -42,8 +59,12 @@ ln -s "$APP_ROOT/shared/storage" "$RELEASE/app/storage"
 ln -s /etc/ricemill/ricemill.env "$RELEASE/app/.env"
 
 log "dependencies"
-(cd "$RELEASE/app" && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress) \
-  || fail "composer install failed"
+if [[ -n "$PACKAGE" && -f "$RELEASE/app/vendor/autoload.php" ]]; then
+  echo "included in the package"
+else
+  (cd "$RELEASE/app" && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress) \
+    || fail "composer install failed"
+fi
 
 log "preflight (any FAIL blocks the deploy; new migrations are expected at this point)"
 artisan "$RELEASE" ricemill:preflight --before-migrate || fail "preflight failed; nothing was changed"

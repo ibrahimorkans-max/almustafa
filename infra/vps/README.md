@@ -17,6 +17,10 @@ git clone <repository url> /root/ricemill-setup
 cd /root/ricemill-setup
 DOMAIN=erp.example.in ADMIN_EMAIL=you@example.in DEPLOY_KEY="ssh-ed25519 AAAA... deploy" bash infra/vps/provision.sh
 ```
+**Mill server (no internet needed):** `TLS_MODE=local DOMAIN=ricemill.local bash infra/vps/provision.sh` — the mill's
+own certificate, the name ricemill.local, open to the mill network only. Updates without internet:
+`make-offline-release.sh` then `deploy.sh <package>.tar.gz`; USB backups: `copy-backups-to-usb.sh`. See
+[docs/mill-server.md](../../docs/mill-server.md).
 It installs and hardens the server: SSH keys only, firewall (22/80/443), fail2ban, automatic security updates, swap,
 PHP-FPM pool running as `ricemill`, nginx with TLS and rate limits on login and API, PostgreSQL with an application
 role that is **not** superuser and has **no** BYPASSRLS (row-level security would not apply otherwise), the `ricemill`

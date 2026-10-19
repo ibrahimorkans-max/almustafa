@@ -125,7 +125,7 @@ describe('reports and verification', function () {
         app('auth')->forgetGuards();
 
         $this->get('/verify?'.http_build_query(['doc' => $bill->number, 'code' => $invoiceCode]))
-            ->assertOk()->assertSee('Genuine sales tax invoice')->assertSee('422,100.00')->assertDontSee($this->f->karachiBuyer->name);
+            ->assertOk()->assertSee('Genuine sales tax invoice')->assertSee('4,22,100.00')->assertDontSee($this->f->karachiBuyer->name);
         $this->get('/verify?'.http_build_query(['doc' => $entry->number, 'code' => SlipRenderer::verificationCode($entry->id, $slip->data)]))
             ->assertOk()->assertSee('Genuine weighment slip')->assertSee('10050.000');
         $this->get('/verify?'.http_build_query(['doc' => $pass->data['number'], 'code' => SlipRenderer::verificationCode($entry->id, $pass->data)]))

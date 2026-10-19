@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Domain\Accounts\ChartOfAccounts;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Auth\AuthContextBinder;
+use App\Domain\DailyWages\DailyWages;
 use App\Domain\Gate\GateService;
 use App\Domain\Gate\WeighmentChecks;
 use App\Domain\Procurement\SaudaService;
 use App\Domain\Tenancy\TenantContext;
+use App\Models\DailyWages\DailyWageCategory;
+use App\Models\DailyWages\DailyWageGroup;
 use App\Models\Entity;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\Scale;
@@ -51,12 +55,44 @@ class DemoActivitySeeder extends Seeder
         foreach ($tenant->runAsSystem(fn () => Entity::query()->where('code', 'AMR')->get()) as $entity) {
             if ($tenant->runAsSystem(fn () => LoginAccount::query()->where('username', strtolower($entity->code).'.demo.clerk')->exists())) {
                 $this->command?->info("Demo activity for {$entity->code} already exists; skipped.");
-
-                continue;
+            } else {
+                $this->seedEntity($tenant, $entity);
+                $this->command?->info("Demo activity for {$entity->code}: saudas, gate entries at every stage, weights to check.");
             }
-            $this->seedEntity($tenant, $entity);
-            $this->command?->info("Demo activity for {$entity->code}: saudas, gate entries at every stage, weights to check.");
+            // Added later: also on databases seeded before daily wages existed.
+            if (! $tenant->runAsSystem(fn () => DailyWageCategory::query()->where('entity_id', $entity->id)->exists())) {
+                $this->seedDailyWages($entity);
+                $this->command?->info("Demo daily wages for {$entity->code}: work categories, labour groups, wage sheets.");
+            }
         }
+    }
+
+    /** Three kinds of casual work, two labour groups, and wage sheets that are paid, owed and draft. */
+    private function seedDailyWages(Entity $entity): void
+    {
+        $manager = app(TenantContext::class)->runAsSystem(fn () => LoginAccount::query()->with(['role', 'person', 'entity'])
+            ->where('username', strtolower($entity->code).'.demo.manager1')->firstOrFail());
+        app(AuthContextBinder::class)->bind($manager);
+
+        $loading = DailyWageCategory::query()->create(['code' => 'LOADING', 'name' => 'Loading / unloading', 'unit' => 'day', 'rate_paise' => 1_500_00]);
+        $stitching = DailyWageCategory::query()->create(['code' => 'STITCH', 'name' => 'Bag stitching', 'unit' => 'bag', 'rate_paise' => 6_00]);
+        $cleaning = DailyWageCategory::query()->create(['code' => 'CLEAN', 'name' => 'Cleaning the mill yard', 'unit' => 'day', 'rate_paise' => 1_200_00]);
+        $akram = DailyWageGroup::query()->create(['name' => 'Akram loading group', 'leader_name' => 'Muhammad Akram (demo)', 'leader_phone' => '0301-5551234',
+            'default_category_id' => $loading->id, 'usual_size' => 12]);
+        $rafiq = DailyWageGroup::query()->create(['name' => 'Rafiq stitching group', 'leader_name' => 'Rafiq Ahmad (demo)', 'leader_phone' => '0302-5556789',
+            'default_category_id' => $stitching->id, 'usual_size' => 4]);
+
+        $wages = app(DailyWages::class);
+        $cash = app(ChartOfAccounts::class)->system('cash');
+        $yesterday = now('Asia/Karachi')->subDay()->toDateString();
+        $wages->post($wages->record(['work_date' => $yesterday, 'group_id' => $akram->id, 'category_id' => $loading->id, 'workers' => 12, 'quantity' => '1',
+            'extra_paise' => 1_200_00, 'description' => 'Demo: unloaded 6 paddy trucks, worked late']), $cash);
+        $wages->post($wages->record(['work_date' => now('Asia/Karachi')->toDateString(), 'group_id' => $rafiq->id, 'category_id' => $stitching->id,
+            'workers' => 4, 'quantity' => '800', 'description' => 'Demo: 800 rice bags stitched']), null);
+        $wages->record(['work_date' => now('Asia/Karachi')->toDateString(), 'worker_name' => 'Allah Ditta (demo)', 'category_id' => $cleaning->id, 'workers' => 1, 'quantity' => '1']);
+
+        app(TenantContext::class)->clear();
+        app(ActorContext::class)->clear();
     }
 
     private function seedEntity(TenantContext $tenant, Entity $entity): void

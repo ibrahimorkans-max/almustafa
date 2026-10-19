@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Procurement;
 
+use App\Domain\Approvals\SelfApproval;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
 use App\Domain\Shared\BusinessRuleViolation;
@@ -210,7 +211,7 @@ final class SaudaService
         $makerPerson = $sauda->created_by
             ? LoginAccount::query()->withoutGlobalScopes()->whereKey($sauda->created_by)->value('person_id')
             : null;
-        if ($makerPerson !== null && $makerPerson === $approver->person_id) {
+        if ($makerPerson !== null && $makerPerson === $approver->person_id && ! SelfApproval::allowed($approver)) {
             throw new BusinessRuleViolation('The person who created a sauda cannot approve or reject it (maker-checker).');
         }
     }

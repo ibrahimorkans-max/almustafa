@@ -15,6 +15,7 @@ use App\Models\Hr\Employee;
 use App\Models\Hr\Reimbursement;
 use App\Models\Hr\ReimbursementLine;
 use App\Models\LoginAccount;
+use App\Support\Values\Money;
 use Carbon\CarbonImmutable;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
@@ -92,7 +93,7 @@ class ReimbursementResource extends Resource
                     TextInput::make('description')->required()->minLength(3)->maxLength(200),
                     TextInput::make('amount')->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2),
                     FileUpload::make('receipt')->label('Receipt')->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(5120)
-                        ->helperText('Needed above Rs '.number_format(Reimbursements::RECEIPT_REQUIRED_ABOVE_PAISE / 100)),
+                        ->helperText('Needed above '.Money::paise(Reimbursements::RECEIPT_REQUIRED_ABOVE_PAISE)->format()),
                 ]),
         ]);
     }

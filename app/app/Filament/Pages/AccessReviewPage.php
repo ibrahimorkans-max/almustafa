@@ -10,7 +10,7 @@ use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Pages\Page;
 
-/** Who has which role and permission, last sign-in, and accounts that need a decision. */
+/** Who has which role and permission, last sign-in, where each person is (exact location), and accounts that need a decision. */
 class AccessReviewPage extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
@@ -39,7 +39,11 @@ class AccessReviewPage extends Page
     {
         $rows = app(AccessReview::class)->rows();
 
-        return $this->show === 'all' ? $rows : array_values(array_filter($rows, fn (array $r) => $r['flags'] !== ''));
+        return match ($this->show) {
+            'all' => $rows,
+            'online' => array_values(array_filter($rows, fn (array $r) => $r['online'] === 'online now')),
+            default => array_values(array_filter($rows, fn (array $r) => $r['flags'] !== '')),
+        };
     }
 
     public function dormantDays(): int

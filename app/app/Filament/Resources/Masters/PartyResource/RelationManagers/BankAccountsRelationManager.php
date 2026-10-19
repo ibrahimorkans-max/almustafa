@@ -7,14 +7,13 @@ namespace App\Filament\Resources\Masters\PartyResource\RelationManagers;
 use App\Domain\Approvals\Actions\PartyBankAccountChange;
 use App\Domain\Approvals\ApprovalService;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
-use App\Filament\Resources\ApprovalRequestResource;
+use App\Filament\Support\ApprovalNotice;
 use App\Models\Masters\Party;
 use App\Models\Masters\PartyBankAccount;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Notifications\Actions\Action as NotificationAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Actions\Action;
@@ -97,9 +96,7 @@ class BankAccountsRelationManager extends RelationManager
                     return;
                 }
 
-                Notification::make()->title('Sent for approval')->success()
-                    ->actions([NotificationAction::make('open')->url(ApprovalRequestResource::getUrl('view', ['record' => $request]))])
-                    ->send();
+                ApprovalNotice::send($request, 'Sent for approval');
             });
     }
 }

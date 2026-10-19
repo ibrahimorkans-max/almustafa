@@ -52,6 +52,8 @@ final class PermissionCatalog
         'weighment.capture' => ['gate', 'Capture weighments from the weighbridge'],
         'weighment.override' => ['gate', 'Request manual weight override (reason + approval required)'],
         'weighment.review' => ['gate', 'Check recorded weights: mark OK or query them'],
+        'wages.daily.manage' => ['hr', 'Daily wages: labour groups, work categories and wage sheets'],
+        'wages.daily.pay' => ['hr', 'Daily wages: book wage sheets and pay them'],
         'lab.test' => ['gate', 'Record lab tests'],
         'lab.decide' => ['gate', 'Accept or reject a lot after lab test'],
         // Production
@@ -91,9 +93,9 @@ final class PermissionCatalog
         'dashboard.view' => ['reports', 'View dashboards'],
         'report.view' => ['reports', 'View operational reports'],
         'report.tax' => ['reports', 'View and export sales-tax and withholding registers'],
-        // Archive
-        'archive.search' => ['archive', 'Search archived records'],
-        'archive.restore' => ['archive', 'Restore archived records (reason required)'],
+        // Office Desk (closed records kept past the retention period; neutral wording on screens)
+        'office.view' => ['office', 'Open the Office Desk and read its records'],
+        'office.restore' => ['office', 'Restore records from the Office Desk (reason required)'],
         // HR and payroll
         'hr.employee.view' => ['hr', 'View employees (identifiers masked)'],
         'hr.employee.edit' => ['hr', 'Create and edit employees, documents and exits'],

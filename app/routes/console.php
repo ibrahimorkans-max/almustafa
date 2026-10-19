@@ -21,6 +21,8 @@ Schedule::command('anomalies:scan')->dailyAt('03:00')->timezone('Asia/Karachi')-
 Schedule::call(fn () => Heartbeat::beat(Heartbeat::SCHEDULER))->everyMinute()->name('heartbeat:scheduler');
 Schedule::job(new QueueHeartbeat(now()->toIso8601String()))->everyFiveMinutes()->name('heartbeat:queue');
 Schedule::command('backup:run')->dailyAt('01:30')->timezone('Asia/Karachi')->withoutOverlapping();
+// A mill server without internet keeps its backups locally; this sends the missing off-site copies once it is back.
+Schedule::command('backup:offsite')->hourlyAt(17)->withoutOverlapping();
 Schedule::command('backup:verify')->weeklyOn(0, '04:00')->timezone('Asia/Karachi')->withoutOverlapping();
 Schedule::call(fn () => app(OpsAlerts::class)->checkFailedLoginBurst())->everyFiveMinutes()->name('ops:failed-login-burst');
 Schedule::command('hr:document-expiry')->dailyAt('07:30')->timezone('Asia/Karachi')->withoutOverlapping();

@@ -8,7 +8,8 @@ use App\Domain\Inventory\StockLedger;
 use App\Domain\Production\ProductionService;
 use App\Filament\Resources\Inventory\RequisitionResource;
 use App\Filament\Resources\Production\ProductionBatchResource\Pages;
-use App\Filament\Support\ArchivedFilter;
+use App\Filament\Support\HidesArchived;
+use App\Filament\Support\PrintButton;
 use App\Filament\Support\Units;
 use App\Models\LoginAccount;
 use App\Models\Masters\Godown;
@@ -36,6 +37,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ProductionBatchResource extends Resource
 {
+    use HidesArchived;
+
     protected static ?string $model = ProductionBatch::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
@@ -110,10 +113,9 @@ class ProductionBatchResource extends Resource
             ])
             ->defaultSort('opened_at', 'desc')
             ->filters([
-                ArchivedFilter::make(),
                 SelectFilter::make('status')->options(['open' => 'Open', 'closed' => 'Closed']),
             ])
-            ->actions([ViewAction::make()]);
+            ->actions([ViewAction::make(), PrintButton::row('batch')]);
     }
 
     public static function infolist(Infolist $infolist): Infolist

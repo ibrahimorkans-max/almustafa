@@ -6,6 +6,7 @@ namespace App\Domain\Hr\Payroll;
 
 use App\Models\Hr\Employee;
 use App\Models\Hr\SalaryStructure;
+use App\Support\Values\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
@@ -141,6 +142,6 @@ final class PayContext
 
     public static function money(int $paise): string
     {
-        return 'Rs '.number_format($paise / 100, 2);
+        return Money::paise($paise)->format();
     }
 }

@@ -7,11 +7,9 @@ namespace App\Filament\Support;
 use App\Domain\Approvals\Actions\VoucherReversal;
 use App\Domain\Approvals\ApprovalService;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
-use App\Filament\Resources\ApprovalRequestResource;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Textarea;
-use Filament\Notifications\Actions\Action as NotificationAction;
 use Filament\Notifications\Notification;
 use Illuminate\Validation\ValidationException;
 
@@ -34,8 +32,7 @@ final class RequestsVoucherReversal
 
                     return;
                 }
-                Notification::make()->success()->title('Reversal sent for approval')
-                    ->actions([NotificationAction::make('open')->url(ApprovalRequestResource::getUrl('view', ['record' => $request]))])->send();
+                ApprovalNotice::send($request, 'Reversal sent for approval');
             });
     }
 }

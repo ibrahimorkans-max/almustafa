@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Production\ProductionBatchResource\Pages;
 use App\Domain\Production\ProductionService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Production\ProductionBatchResource;
+use App\Filament\Support\OffersPrintAfterCreate;
 use App\Models\LoginAccount;
 use App\Models\Masters\Godown;
 use App\Models\Masters\Product;
@@ -17,6 +18,10 @@ use Illuminate\Validation\ValidationException;
 
 class CreateProductionBatch extends CreateRecord
 {
+    use OffersPrintAfterCreate;
+
+    protected string $printType = 'batch';
+
     protected static string $resource = ProductionBatchResource::class;
 
     protected static ?string $title = 'Create batch';

@@ -5,18 +5,20 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Auth\ActorContext;
+use App\Domain\Security\ReverseGeocoder;
 use App\Domain\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
  * The browser's own position for the current session (public/js/session-location.js), given only
- * when the person allowed it in the browser's prompt. It replaces the rough IP position on the map;
- * the IP city stays as recorded.
+ * when the person allowed it in the browser's prompt; sent after sign-in and again every 15 minutes
+ * while the person works. The position is turned into area, city, region and country
+ * (ReverseGeocoder); the IP's own city stays recorded apart (ip_*).
  */
 final class SessionLocationController
 {
-    public function __invoke(Request $request, ActorContext $actor, TenantContext $tenant): JsonResponse
+    public function __invoke(Request $request, ActorContext $actor, TenantContext $tenant, ReverseGeocoder $geocoder): JsonResponse
     {
         $data = $request->validate([
             'latitude' => ['required', 'numeric', 'between:-90,90'],
@@ -27,11 +29,22 @@ final class SessionLocationController
         if ($session === null) {
             return response()->json(['ok' => false], 401);
         }
-        $tenant->runAsSystem(fn () => $session->forceFill([
-            'latitude' => round((float) $data['latitude'], 6), 'longitude' => round((float) $data['longitude'], 6),
-            'location_accuracy_m' => isset($data['accuracy']) ? (int) $data['accuracy'] : null, 'location_source' => 'browser',
-        ])->save());
+        $lat = round((float) $data['latitude'], 6);
+        $lng = round((float) $data['longitude'], 6);
+        $place = $geocoder->lookup($lat, $lng, $session->entity_id);
 
-        return response()->json(['ok' => true]);
+        $fill = [
+            'latitude' => $lat, 'longitude' => $lng, 'location_at' => now(),
+            'location_accuracy_m' => isset($data['accuracy']) ? (int) $data['accuracy'] : null, 'location_source' => 'browser',
+            'area' => $place['area'] ?? null, 'address' => $place['address'] ?? null,
+        ];
+        // City / region / country of the exact position when it was found; otherwise the IP's stay.
+        if (($place['city'] ?? null) !== null || ($place['country'] ?? null) !== null) {
+            $fill += ['city' => $place['city'] ?? null, 'region' => $place['region'] ?? null,
+                'country' => $place['country'] ?? null, 'country_name' => $place['country_name'] ?? null];
+        }
+        $tenant->runAsSystem(fn () => $session->forceFill($fill)->save());
+
+        return response()->json(['ok' => true, 'place' => $session->placeLabel()]);
     }
 }

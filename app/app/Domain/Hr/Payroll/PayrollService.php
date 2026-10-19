@@ -6,6 +6,7 @@ namespace App\Domain\Hr\Payroll;
 
 use App\Domain\Accounts\Books;
 use App\Domain\Accounts\ChartOfAccounts;
+use App\Domain\Approvals\SelfApproval;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
@@ -139,7 +140,7 @@ final class PayrollService
 
         return DB::transaction(function () use ($run, $approver, $note): PayrollRun {
             $run = $this->fresh($run, [PayrollRun::CALCULATED]);
-            if ($run->calculated_by === $approver->id || $run->locked_by === $approver->id) {
+            if (($run->calculated_by === $approver->id || $run->locked_by === $approver->id) && ! SelfApproval::allowed($approver)) {
                 throw new BusinessRuleViolation('A different person must approve the payroll you prepared.');
             }
             $run->forceFill(['status' => PayrollRun::APPROVED, 'approved_by' => $approver->id, 'approved_at' => now(), 'note' => $note ?? $run->note])->save();

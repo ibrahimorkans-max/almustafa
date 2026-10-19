@@ -11,6 +11,7 @@ use App\Domain\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -237,6 +238,10 @@ final class BackupService
         return $out;
     }
 
+    /**
+     * The copy to the off-site disk. Without internet (a mill server) it fails quietly: the backup itself
+     * is safe on this server, and offsiteCatchUp() sends it when the internet is back.
+     */
     private function copyOffsite(string $path, string $name): bool
     {
         $disk = (string) config('ricemill.backup.offsite_disk');
@@ -247,6 +252,10 @@ final class BackupService
         try {
             Storage::disk($disk)->writeStream('ricemill/'.$name, $stream);
             Storage::disk($disk)->put('ricemill/'.$name.'.sha256', (string) file_get_contents($path.'.sha256'));
+        } catch (Throwable $e) {
+            Log::warning('Off-site backup copy not made now (no internet?); it is sent later', ['file' => $name, 'error' => mb_substr($e->getMessage(), 0, 300)]);
+
+            return false;
         } finally {
             if (is_resource($stream)) {
                 fclose($stream);
@@ -254,6 +263,38 @@ final class BackupService
         }
 
         return true;
+    }
+
+    /**
+     * Sends every local backup the off-site disk does not have yet (after the internet was down).
+     * Returns how many were copied; stops at the first failure (still offline) and tries again next time.
+     */
+    public function offsiteCatchUp(): int
+    {
+        $disk = (string) config('ricemill.backup.offsite_disk');
+        if ($disk === '') {
+            return 0;
+        }
+        $copied = 0;
+        $local = glob($this->backupDir().'/*.rmbak') ?: [];
+        sort($local);
+        foreach ($local as $path) {
+            $name = basename($path);
+            try {
+                if (Storage::disk($disk)->exists('ricemill/'.$name.'.sha256')) {
+                    continue;
+                }
+            } catch (Throwable) {
+                break;
+            }
+            if (! $this->copyOffsite($path, $name)) {
+                break;
+            }
+            $copied++;
+            DB::table('backup_runs')->where('file', $name)->update(['offsite' => true]);
+        }
+
+        return $copied;
     }
 
     /** @param  array<string, mixed>  $manifest */
@@ -269,7 +310,12 @@ final class BackupService
         }
         $lines[] = '';
         $lines[] = 'Keep this e-mail. If the audit log were ever rewritten, these hashes would no longer match.';
-        Mail::raw(implode("\n", $lines), fn ($m) => $m->to($to)->subject('Rice Mill ERP audit anchor '.substr((string) $manifest['created_at'], 0, 10)));
+        try {
+            Mail::raw(implode("\n", $lines), fn ($m) => $m->to($to)->subject('Rice Mill ERP audit anchor '.substr((string) $manifest['created_at'], 0, 10)));
+        } catch (Throwable $e) {
+            // No internet (mill server): the backup is still good; the hashes are also in its manifest.
+            Log::warning('Audit anchor e-mail not sent (no internet?)', ['file' => $name, 'error' => mb_substr($e->getMessage(), 0, 300)]);
+        }
     }
 
     /**

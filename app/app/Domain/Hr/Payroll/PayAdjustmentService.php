@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Hr\Payroll;
 
+use App\Domain\Approvals\SelfApproval;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Shared\BusinessRuleViolation;
@@ -133,7 +134,7 @@ final class PayAdjustmentService
             if ($a->status !== PayAdjustment::REQUESTED) {
                 throw new BusinessRuleViolation("This {$a->name} has already been {$a->status}.");
             }
-            if ($a->requested_by === $approver->id) {
+            if ($a->requested_by === $approver->id && ! SelfApproval::allowed($approver)) {
                 throw new BusinessRuleViolation('A different person must decide what you requested.');
             }
             if (Employee::query()->whereKey($a->employee_id)->value('person_id') === $approver->person_id) {

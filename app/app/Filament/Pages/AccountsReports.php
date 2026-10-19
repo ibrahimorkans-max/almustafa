@@ -9,6 +9,7 @@ use App\Domain\Accounts\StockValuation;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Documents\PdfRenderer;
 use App\Domain\Tenancy\TenantContext;
+use App\Http\Controllers\ReportPrintController;
 use App\Models\Accounts\LedgerAccount;
 use App\Models\Entity;
 use App\Models\LoginAccount;
@@ -55,6 +56,9 @@ class AccountsReports extends Page implements HasForms
         'trial_balance' => 'Trial balance', 'ledger' => 'Ledger statement', 'day_book' => 'Day book',
         'ageing' => 'Payables ageing', 'receivables' => 'Receivables ageing', 'stock_value' => 'Stock value',
     ];
+
+    /** this screen's report => App\Domain\Reports\ReportCatalog key (for its PDF) */
+    public const CATALOG_KEYS = ['trial_balance' => 'trial_balance', 'day_book' => 'day_book', 'ageing' => 'payables', 'receivables' => 'receivables', 'stock_value' => 'stock_value'];
 
     #[Url]
     public string $report = 'trial_balance';
@@ -133,6 +137,10 @@ class AccountsReports extends Page implements HasForms
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('reportPdf')->label('PDF')->icon('heroicon-o-printer')
+                ->visible(fn () => ($this->data['report'] ?? 'trial_balance') !== 'ledger')
+                ->url(fn () => ReportPrintController::url([self::CATALOG_KEYS[$this->data['report'] ?? 'trial_balance'] ?? 'trial_balance'], $this->data['to'] ?? null, $this->data['to'] ?? null), shouldOpenInNewTab: true),
+            Action::make('allReports')->label('All reports')->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
             Action::make('pdf')->label('Ledger statement PDF')->icon('heroicon-o-arrow-down-tray')
                 ->visible(fn () => ($this->data['report'] ?? null) === 'ledger' && filled($this->data['ledger'] ?? null))
                 ->action(fn () => $this->statementPdf()),

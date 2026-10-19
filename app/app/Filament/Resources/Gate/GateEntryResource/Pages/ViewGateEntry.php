@@ -7,12 +7,13 @@ namespace App\Filament\Resources\Gate\GateEntryResource\Pages;
 use App\Domain\Approvals\Actions\ManualWeighmentOverride;
 use App\Domain\Approvals\ApprovalService;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
+use App\Domain\Approvals\SelfApproval;
 use App\Domain\Gate\GateService;
 use App\Domain\Gate\SlipRenderer;
 use App\Domain\Sales\SalesDocuments;
 use App\Domain\Shared\BusinessRuleViolation;
-use App\Filament\Resources\ApprovalRequestResource;
 use App\Filament\Resources\Gate\GateEntryResource;
+use App\Filament\Support\ApprovalNotice;
 use App\Filament\Support\Units;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
@@ -118,9 +119,9 @@ class ViewGateEntry extends ViewRecord
                 ->requiresConfirmation()
                 ->action(fn (GateEntry $e) => $this->run(fn (GateService $g) => $g->exit($e), 'Exit recorded')),
             ActionGroup::make([
-                Action::make('manualWeight')->label('Request manual weight (Owner)')->icon('heroicon-o-exclamation-triangle')->color('danger')
-                    ->visible(fn (GateEntry $e) => $e->isOpen() && $this->me()->isOwner() && $can('weighment.override'))
-                    ->modalDescription('Only when the indicator cannot be read. Needs a reason and approval by a second person; the weight stays marked as manual.')
+                Action::make('manualWeight')->label('Enter manual weight (Owner / Super Admin)')->icon('heroicon-o-exclamation-triangle')->color('danger')
+                    ->visible(fn (GateEntry $e) => $e->isOpen() && SelfApproval::allowed($this->me()) && $can('weighment.override'))
+                    ->modalDescription('Only when the indicator cannot be read. Needs a reason; the weight stays marked as manual and goes to the weight checks.')
                     ->form([
                         Select::make('kind')->options(['gross' => 'Gross', 'tare' => 'Tare'])->required(),
                         TextInput::make('weight_kg')->label('Weight (kg)')->required()->regex(Units::DECIMAL_3),
@@ -135,8 +136,7 @@ class ViewGateEntry extends ViewRecord
 
                             return;
                         }
-                        Notification::make()->title('Sent for approval')->success()
-                            ->actions([\Filament\Notifications\Actions\Action::make('open')->url(ApprovalRequestResource::getUrl('view', ['record' => $request]))])->send();
+                        ApprovalNotice::send($request, 'Sent for approval');
                     }),
                 Action::make('cancel')->label('Cancel entry')->color('danger')
                     ->visible(fn (GateEntry $e) => $e->isOpen() && $can('gate.entry'))

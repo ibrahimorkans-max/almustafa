@@ -20,16 +20,25 @@ resolution_kg = "10"
 min_stable_samples = 6
 
 [indicator]
+# Easiest: plug the cable in and run `ricemill-agent --config agent.toml detect --write`; it fills this section.
 type = "simulated"                     # simulated | serial | tcp
-# port = "COM3"                        # serial
-# baudrate = 9600
-# host = "192.168.1.50"                # tcp
+# port = "COM3"                        # serial: see `ricemill-agent ports`
+# baudrate = 9600                      # PF-7E and most indicators: 9600 (also 4800, 2400, 1200)
+# format = "standard"                  # standard | st_gs | reversed  (reversed = "=0.84520" Yaohua-style output)
+# bytesize = 8
+# parity = "none"                      # none | even | odd
+# stopbits = 1
+# host = "192.168.1.50"                # tcp (network indicator or RS232-to-Ethernet converter)
 # port = 4001
-# frame_pattern = '(?P<sign>[+-])?\s*0*(?P<weight>\d+)\s*(?P<unit>kg)'
+# frame_pattern = '(?P<sign>[+-])?\s*0*(?P<weight>\d+)\s*(?P<unit>kg)'   # only for unusual indicators
 
 [camera]
-type = "simulated"                     # simulated | http | none
-# url = "http://192.168.1.60/cgi-bin/snapshot.cgi"
+type = "simulated"                     # simulated | usb | rtsp | http | none   (usb and rtsp need ffmpeg)
+# device = "USB2.0 HD UVC WebCam"      # usb: the name `ricemill-agent cameras` prints
+# url = "rtsp://admin:PASSWORD@192.168.1.64:554/Streaming/Channels/101"   # rtsp: IP camera / DVR (Hikvision style)
+# url = "rtsp://admin:PASSWORD@192.168.1.64:554/cam/realmonitor?channel=1&subtype=0"   # rtsp: Dahua style
+# url = "http://192.168.1.60/cgi-bin/snapshot.cgi"   # http: camera with a snapshot address
+# ffmpeg = "C:/ffmpeg/bin/ffmpeg.exe"  # only if ffmpeg is not on the PATH
 
 [anpr]
 type = "none"                          # none | simulated | http

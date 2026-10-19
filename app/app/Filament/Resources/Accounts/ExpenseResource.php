@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Accounts;
 use App\Domain\Accounts\Expenses;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Accounts\ExpenseResource\Pages;
+use App\Filament\Support\PrintButton;
 use App\Filament\Support\Units;
 use App\Models\Accounts\Expense;
 use App\Models\Accounts\ExpenseCategory;
@@ -135,6 +136,7 @@ class ExpenseResource extends Resource
                 SelectFilter::make('expense_category_id')->label('Category')->options(fn () => ExpenseCategory::query()->orderBy('name')->pluck('name', 'id')),
             ])
             ->actions([
+                PrintButton::row('expense', fn (Expense $r) => $r->status === Expense::POSTED),
                 Action::make('receipt')->icon('heroicon-o-paper-clip')->color('gray')->iconButton()->tooltip('Receipt')
                     ->visible(fn (Expense $r) => $r->receipt_file_id !== null)
                     ->action(function (Expense $record) {

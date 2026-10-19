@@ -153,6 +153,15 @@ describe('preflight', function () {
             ->toMatchArray(['ok' => true]);
     });
 
+    it('accepts a mill server without an Owner IP allow-list (it is open to the mill network only)', function () {
+        config(['ricemill.security.super_admin_require_ip_allowlist' => false, 'ricemill.mill_server' => false]);
+        expect(preflightCheck(app(Preflight::class)->run(), 'Owner IP allow-list required')['ok'])->toBeFalse();
+
+        config(['ricemill.mill_server' => true]);
+        expect(preflightCheck(app(Preflight::class)->run(), 'Owner IP allow-list required'))
+            ->toMatchArray(['ok' => true, 'detail' => 'mill server: open to the mill network only']);
+    });
+
     it('checks on PostgreSQL that the app login cannot bypass row-level security', function () {
         requiresPostgres();
         $r = app(Preflight::class)->run();

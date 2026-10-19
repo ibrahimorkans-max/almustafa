@@ -102,7 +102,13 @@ describe('claims', function () {
 
     it('keeps the decider different from the raiser and the history append-only', function () {
         $invoice = postedInvoice($this);
-        $this->f->as($this->f->acc->owner);
+        // A staff member who may raise and decide claims still needs a second person.
+        $exec = Make::account($this->f->entity, 'EXECUTIVE');
+        Make::system(fn () => DB::table('role_permissions')->insert([
+            'role_id' => $exec->role_id, 'permission_code' => 'claim.approve', 'entity_id' => $this->f->entity->id, 'created_at' => now(),
+        ]));
+        $exec->role->flushPermissionCache();
+        $this->f->as($exec);
         $claim = ($this->claims)()->raise($invoice, 'damage', 'Twenty bags torn and wet on arrival', 100_000);
 
         expect(fn () => ($this->claims)()->approve($claim, 100_000))->toThrow(BusinessRuleViolation::class, 'cannot decide');
@@ -140,15 +146,13 @@ describe('claims', function () {
 });
 
 describe('pricing', function () {
-    it('changes list rates only through a second person and keeps every version', function () {
+    it('changes list rates through an approval request and keeps every version', function () {
         $this->f->as($this->f->acc->owner);
         $pricing = app(PricingService::class);
         $list = $pricing->createList('Rice rates Oct 2026', now()->startOfMonth());
-        $request = $pricing->requestRate($list, $this->f->inv->rice, 420000, 'Market up after Diwali');
-
-        expect(app(ApprovalService::class)->canDecide($this->f->acc->owner, $request))->toBeFalse();
-        app(ApprovalService::class)->approve($request, $this->f->acc->owner2);
-        app(ApprovalService::class)->approve($pricing->requestRate($list, $this->f->inv->rice, 425000, 'Further rise'), $this->f->acc->owner2);
+        // The mill's Super Admin needs no second person: each request is applied at once.
+        expect($pricing->requestRate($list, $this->f->inv->rice, 420000, 'Market up after Diwali')->status)->toBe('executed')
+            ->and($pricing->requestRate($list, $this->f->inv->rice, 425000, 'Further rise')->status)->toBe('executed');
 
         $items = PriceListItem::query()->orderBy('created_at')->orderBy('id')->get();
         expect($pricing->listRate($this->f->inv->rice))->toBe(425000)
@@ -215,9 +219,9 @@ describe('archive', function () {
 
     it('lets only the right roles search and restore', function () {
         $this->f->as($this->f->dispatcher);
-        expect(fn () => app(ArchiveService::class)->search('MNA2'))->toThrow(BusinessRuleViolation::class, 'archive.search');
-        $this->f->as($this->f->acc->accountant); // can search, cannot restore
-        expect(app(ArchiveService::class)->search('MNA2'))->toBe([]);
-        expect(fn () => app(ArchiveService::class)->restore('gate_entry', $this->old->id, 'A good long reason here'))->toThrow(BusinessRuleViolation::class, 'archive.restore');
+        expect(fn () => app(ArchiveService::class)->search('MNA2'))->toThrow(BusinessRuleViolation::class, 'office.view');
+        $this->f->as($this->f->acc->accountant); // the archive is for the Owner and the Super Admin only
+        expect(fn () => app(ArchiveService::class)->search('MNA2'))->toThrow(BusinessRuleViolation::class, 'office.view')
+            ->and(fn () => app(ArchiveService::class)->restore('gate_entry', $this->old->id, 'A good long reason here'))->toThrow(BusinessRuleViolation::class, 'office.restore');
     });
 });
