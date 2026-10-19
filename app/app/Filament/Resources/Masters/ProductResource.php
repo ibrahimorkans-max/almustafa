@@ -52,7 +52,7 @@ class ProductResource extends Resource
                 ->required(fn (Get $get) => $get('sale_unit') === 'bag')->visible(fn (Get $get) => $get('sale_unit') === 'bag'),
             Toggle::make('is_stock_item')->label('Track stock')->default(true),
             // Cost information: only accounts sees and sets it.
-            TextInput::make('valuation_paise_per_kg')->label('By-product valuation (₹ per kg)')
+            TextInput::make('valuation_paise_per_kg')->label('By-product valuation (Rs per kg)')
                 ->helperText('Realisable value used to cost by-products when a milling batch closes; the rest of the cost goes to rice.')
                 ->regex(Units::DECIMAL_2)
                 ->formatStateUsing(fn ($state) => $state === null ? null : bcdiv((string) $state, '100', 2))

@@ -40,6 +40,6 @@
 @foreach ($table['notes'] as $note)
     <div class="small muted">{{ $note }}</div>
 @endforeach
-@include('pdf.signatures', ['signs' => [['Accountant', 'اکاؤنٹنٹ'], ['For '.$brand['name'], 'دستخط مجاز']]])
+@include('pdf.signatures', ['signs' => [['Accountant', 'اکاؤنٹنٹ'], ['Checked by (second person)', 'جانچ کنندہ'], ['For '.$brand['name'], 'دستخط مجاز']]])
 </body>
 </html>

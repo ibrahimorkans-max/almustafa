@@ -6,6 +6,7 @@ namespace App\Domain\Auth;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Security\GeoIp;
+use App\Domain\Security\ReverseGeocoder;
 use App\Models\ApiToken;
 use App\Models\AuthSession;
 use App\Models\Device;
@@ -32,6 +33,10 @@ final class SessionService
             'country' => $geo['country'] ?? null,
             'region' => $geo['region'] ?? null,
             'city' => $geo['city'] ?? null,
+            'country_name' => ReverseGeocoder::countryName($geo['country'] ?? null),
+            'ip_country' => $geo['country'] ?? null,
+            'ip_region' => $geo['region'] ?? null,
+            'ip_city' => $geo['city'] ?? null,
             'latitude' => $geo['latitude'] ?? null,
             'longitude' => $geo['longitude'] ?? null,
             'location_source' => $geo['source'] ?? null,

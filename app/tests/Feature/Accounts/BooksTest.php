@@ -106,7 +106,7 @@ it('keeps bank and cash out of journals', function () {
     ], 'Cash adjustment'))->toThrow(BusinessRuleViolation::class, 'cannot be used in a journal');
 });
 
-it('locks a finished month and reopens it only with a second person', function () {
+it('locks a finished month and reopens it through an approval request', function () {
     $lastMonth = now('Asia/Karachi')->subMonthNoOverflow();
     bindAs($this->owner);
     app(PeriodLocks::class)->lock($lastMonth->format('Y-m'));
@@ -118,9 +118,8 @@ it('locks a finished month and reopens it only with a second person', function (
     expect(fn () => app(PeriodLocks::class)->lock($lastMonth->format('Y-m')))->toThrow(BusinessRuleViolation::class, 'period.lock');
 
     bindAs($this->owner);
+    // The mill's Super Admin needs no second person: the request is applied at once.
     $request = app(ApprovalService::class)->submit(PeriodUnlock::KEY, ['period' => $lastMonth->format('Y-m'), 'reason' => 'Missed a freight bill'], 'Unlock');
-    expect(app(ApprovalService::class)->canDecide($this->owner, $request))->toBeFalse();
-    app(ApprovalService::class)->approve($request, $this->owner2);
 
     expect($request->fresh()->status)->toBe(ApprovalRequest::STATUS_EXECUTED)
         ->and(app(PeriodLocks::class)->isLocked($lastMonth))->toBeFalse();

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Domain\Reports\OperationalReports;
+use App\Http\Controllers\ReportPrintController;
 use App\Models\LoginAccount;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
@@ -63,6 +64,9 @@ class OperationalReportsPage extends Page
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('pdf')->label('PDF')->icon('heroicon-o-printer')
+                ->url(fn () => ReportPrintController::url([$this->report], $this->from, $this->to), shouldOpenInNewTab: true),
+            Action::make('allReports')->label('All reports')->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
             Action::make('csv')->label('Export CSV')->icon('heroicon-o-arrow-down-tray')
                 ->action(function () {
                     $csv = app(OperationalReports::class)->csv($this->report, CarbonImmutable::parse($this->from), CarbonImmutable::parse($this->to));

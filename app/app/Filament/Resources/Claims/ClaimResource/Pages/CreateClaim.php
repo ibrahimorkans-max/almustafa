@@ -8,6 +8,7 @@ use App\Domain\Claims\ClaimService;
 use App\Domain\Files\FileStore;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Claims\ClaimResource;
+use App\Filament\Support\OffersPrintAfterCreate;
 use App\Filament\Support\Units;
 use App\Models\Accounts\PurchaseBill;
 use App\Models\Claims\Claim;
@@ -20,6 +21,10 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class CreateClaim extends CreateRecord
 {
+    use OffersPrintAfterCreate;
+
+    protected string $printType = 'claim';
+
     protected static string $resource = ClaimResource::class;
 
     protected static ?string $title = 'Raise claim';

@@ -201,7 +201,7 @@ describe('issuing', function () {
         $this->svc->reprint($first, ['language' => 'en']);
         expect(DocumentRenderer::$lastHtml)->toContain('Rs 30,000.00')->toContain('bank account opening');
         $this->svc->reprint($second, ['language' => 'en']);
-        expect(DocumentRenderer::$lastHtml)->not->toContain('Rs 150,000.00');
+        expect(DocumentRenderer::$lastHtml)->not->toContain('Rs 1,50,000.00');
 
         expect(fn () => DB::table('generated_documents')->where('id', $first->id)->update(['payload' => '{}']))->toThrow(Exception::class);
     });

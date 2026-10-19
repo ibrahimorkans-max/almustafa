@@ -20,10 +20,13 @@ use App\Domain\Tenancy\TenantContext;
 use App\Filament\Pages\SwitchContext;
 use App\Http\Middleware\EnsureWebAuthSession;
 use App\Http\Middleware\RequireWorkingEntityForCreate;
+use App\Livewire\PrefillCreateFormHook;
+use App\Livewire\PrintScreenHook;
 use App\Models\Accounts;
 use App\Models\Alert;
 use App\Models\AuthSession;
 use App\Models\Claims\Claim;
+use App\Models\DailyWages;
 use App\Models\Documents\DocumentTemplate;
 use App\Models\Documents\GeneratedDocument;
 use App\Models\Gate\DeductionRule;
@@ -61,6 +64,8 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Livewire\ComponentHookRegistry;
+use Livewire\Livewire;
 use PragmaRX\Google2FA\Google2FA;
 use Throwable;
 
@@ -68,6 +73,11 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        // Livewire wires up component hooks when it boots, which is before this provider boots: register
+        // them here, or real requests never see them (tests reboot Livewire and would hide that).
+        ComponentHookRegistry::register(PrintScreenHook::class);
+        ComponentHookRegistry::register(PrefillCreateFormHook::class);
+
         // Per request / per job state (flushed between Octane requests and queue jobs).
         $this->app->scoped(TenantContext::class);
         $this->app->scoped(ActorContext::class);
@@ -171,6 +181,9 @@ class AppServiceProvider extends ServiceProvider
             Accounts\RecurringExpense::class => Policies\Hr\RecurringExpensePolicy::class,
             GeneratedDocument::class => Policies\Hr\DocumentPolicy::class,
             DocumentTemplate::class => Policies\Hr\DocumentTemplatePolicy::class,
+            DailyWages\DailyWageCategory::class => Policies\DailyWages\DailyWageMasterPolicy::class,
+            DailyWages\DailyWageGroup::class => Policies\DailyWages\DailyWageMasterPolicy::class,
+            DailyWages\DailyWageSheet::class => Policies\DailyWages\DailyWageSheetPolicy::class,
         ] as $model => $policy) {
             Gate::policy($model, $policy);
         }

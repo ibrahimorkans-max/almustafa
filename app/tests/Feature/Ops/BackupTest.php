@@ -235,3 +235,32 @@ describe('restore drill', function () {
             ->and(DB::table('backup_runs')->where('kind', 'drill')->value('status'))->toBe('ok');
     });
 });
+
+describe('mill server without internet', function () {
+    it('keeps the backup when the off-site copy and the anchor e-mail cannot be sent, then catches up', function () {
+        // An off-site disk that cannot be written (like the cloud with no internet) and a mail server that is not there.
+        $blocked = $this->dir.'-offline';
+        file_put_contents($blocked, 'not a directory');
+        config([
+            'filesystems.disks.offline' => ['driver' => 'local', 'root' => $blocked.'/sub', 'throw' => true],
+            'ricemill.backup.offsite_disk' => 'offline',
+            'ricemill.backup.anchor_email' => 'owner@example.test',
+            'mail.default' => 'unreachable',
+            'mail.mailers.unreachable' => ['transport' => 'smtp', 'host' => '127.0.0.1', 'port' => 9, 'timeout' => 2],
+        ]);
+
+        $r = app(BackupService::class)->run();
+        expect($r['offsite'])->toBeFalse()->and(is_file($this->dir.'/'.$r['file']))->toBeTrue()
+            ->and(DB::table('backup_runs')->where('file', $r['file'])->value('status'))->toBe('ok')
+            ->and(app(BackupService::class)->offsiteCatchUp())->toBe(0);   // still offline: nothing copied, no error
+
+        // The internet is back.
+        Storage::fake('offsite');
+        config(['ricemill.backup.offsite_disk' => 'offsite']);
+        $this->artisan('backup:offsite')->expectsOutputToContain('1 backup(s) copied off-site')->assertSuccessful();
+        expect(Storage::disk('offsite')->exists('ricemill/'.$r['file']))->toBeTrue()
+            ->and((bool) DB::table('backup_runs')->where('file', $r['file'])->value('offsite'))->toBeTrue()
+            ->and(app(BackupService::class)->offsiteCatchUp())->toBe(0);   // nothing left to send
+        @unlink($blocked);
+    });
+});

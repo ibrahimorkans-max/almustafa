@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Gate;
 
+use App\Domain\Approvals\SelfApproval;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Shared\BusinessRuleViolation;
@@ -30,7 +31,7 @@ final class WeighmentChecks
         if (! in_array($decision, [WeighmentCheck::OK, WeighmentCheck::QUERY], true)) {
             throw new BusinessRuleViolation("Unknown decision {$decision}.");
         }
-        if ($weighment->created_by !== null && $weighment->created_by === $account->id) {
+        if ($weighment->created_by !== null && $weighment->created_by === $account->id && ! SelfApproval::allowed($account)) {
             throw new BusinessRuleViolation('You recorded this weight, so someone else must check it.');
         }
         $note = $note === null ? null : (trim($note) === '' ? null : trim($note));

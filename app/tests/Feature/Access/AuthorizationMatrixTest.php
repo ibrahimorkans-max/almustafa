@@ -95,9 +95,11 @@ it('lets every back-office role see its own sessions and settings pages', functi
         $this->markTestSkipped('Brokers have no back-office access.');
     }
     $account = accountFor($role, $this->entity);
+    // The Office Coordinator has the Office Desk and nothing else, not even the sessions list.
+    $expected = $role === 'OFFICE_COORDINATOR' ? 403 : 200;
 
     $this->actingAs($account, 'web')->withSession(Make::webSession($account))
-        ->get('/admin/sessions')->assertOk();
+        ->get('/admin/sessions')->assertStatus($expected);
 })->with('roles');
 
 it('keeps brokers out of the back office', function () {

@@ -7,8 +7,8 @@ namespace App\Filament\Resources\RoleResource\Pages;
 use App\Domain\Approvals\Actions\ChangeRolePermissions;
 use App\Domain\Approvals\ApprovalService;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
-use App\Filament\Resources\ApprovalRequestResource;
 use App\Filament\Resources\RoleResource;
+use App\Filament\Support\ApprovalNotice;
 use App\Models\Role;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
@@ -61,9 +61,7 @@ class ViewRole extends ViewRecord
                         return;
                     }
 
-                    Notification::make()->title('Request submitted for approval')->success()
-                        ->actions([\Filament\Notifications\Actions\Action::make('open')->url(ApprovalRequestResource::getUrl('view', ['record' => $request]))])
-                        ->send();
+                    ApprovalNotice::send($request, 'Request submitted for approval');
                 }),
         ];
     }

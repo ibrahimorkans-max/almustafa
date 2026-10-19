@@ -9,6 +9,84 @@ the indicator directly.
 Load cells → Indicator ──RS-232 cable or network──► Weighbridge PC (gate agent) ──internet (HTTPS)──► ERP
 ```
 
+## Quick start (one script)
+
+On the weighbridge PC, once the ERP is prepared (step 4 below) and the cable is plugged in, open PowerShell in the
+`agent` folder and run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1
+```
+
+It installs the agent, asks for the ERP address, the PC's login, the device_uid, the signing secret and the
+weighbridge id (secrets are typed hidden and stored protected), **finds the indicator by itself** (COM port, speed
+and data format), shows 10 seconds of readings to compare with the display, and lists the cameras. The sections
+below explain each part and what to do when something is not found.
+
+## Your indicator: PF-7E
+
+The PF-7E (Accuracy class III, 220 V / 6 V battery) is a common Chinese weighing indicator. To connect it:
+
+1. **Find its data port.** Look at the back and underneath for a 9-pin socket marked **RS232** (sometimes a round
+   4-pin socket marked COM or RS232). Some PF-7E units are sold **without** the RS-232 board: if there is only the
+   power socket and the load-cell cable, ask the seller for the PF-7E with RS-232 output (or the RS-232 board), or use
+   an indicator with RS-232 such as an XK3190-A12E / A9.
+2. **Turn on continuous output.** In the indicator's set-up menu (the key to enter it differs by firmware: often
+   hold **Tare** or **Zero** while switching it on, or **Func/Set**), look for the communication setting — shown as
+   *bAud*, *COM*, *tF*, *Pr* or *CO* — and choose **continuous** (often *tF0*, *cont* or *1*) at **9600** baud.
+   Save and restart. If you cannot find it, the agent's `detect` still tries every speed and format.
+3. **Cable:** RS-232 cable from the indicator to the PC (USB-to-RS232 adapter if the PC has no COM port; CH340,
+   PL2303 or FTDI drivers). If `detect` hears nothing, swap to a **null-modem** cable/adapter (pins 2 and 3 crossed).
+4. **Run** `.venv\Scripts\ricemill-agent ports` (the adapter appears as e.g. `COM3 USB-SERIAL CH340`), then
+   `.venv\Scripts\ricemill-agent --config agent.toml detect --write` with something on the platform. It prints for
+   example `COM3 at 9600 baud, format reversed: 24 readings (last: 25.4 kg)` and writes:
+
+   ```toml
+   [indicator]
+   type = "serial"
+   port = "COM3"
+   baudrate = 9600
+   format = "reversed"
+   ```
+
+5. **Check:** `.venv\Scripts\ricemill-agent --config agent.toml watch` prints each reading; it must follow the
+   display. In the ERP, set the weighbridge's capacity and division to the PF-7E's (e.g. 300 kg, 0.1 kg for a
+   platform scale; `resolution_kg = "0.1"` in agent.toml).
+
+The agent understands these outputs (`format`): **standard** (`=  25480 kg`, `WN0025.48kg`, `+0025480kg`),
+**st_gs** (`ST,GS,+0025480kg`, unstable `US,…`), and **reversed** (`=0.84520`: digits sent backwards, used by
+XK3190 "tF0" and many PF-series indicators). Anything else: a custom `frame_pattern`.
+
+## Camera
+
+The camera photographs the vehicle on the platform at each weighing; the photo's fingerprint is kept with the weight.
+
+* **USB webcam:** install ffmpeg (`winget install Gyan.FFmpeg`, or ffmpeg.org), plug the camera in, run
+  `.venv\Scripts\ricemill-agent cameras` and put the printed name in agent.toml:
+
+  ```toml
+  [camera]
+  type = "usb"
+  device = "USB2.0 HD UVC WebCam"
+  ```
+
+* **IP camera / DVR / NVR (CCTV):** give the camera a fixed IP address, then use its RTSP address (also needs ffmpeg):
+
+  ```toml
+  [camera]
+  type = "rtsp"
+  url = "rtsp://admin:PASSWORD@192.168.1.64:554/Streaming/Channels/101"     # Hikvision
+  # url = "rtsp://admin:PASSWORD@192.168.1.64:554/cam/realmonitor?channel=1&subtype=0"   # Dahua
+  ```
+
+  The camera password inside the URL cannot be protected like the other secrets, so restrict agent.toml to the
+  service account and use a camera user that may only view.
+* **Camera with a snapshot address:** `type = "http"`, `url = "http://192.168.1.60/cgi-bin/snapshot.cgi"`.
+
+Test with `.venv\Scripts\ricemill-agent --config agent.toml camera-test`: it saves `camera-test.jpg`; open it and
+check that the platform and the number plate are in view. A camera failure never stops weighing: the weight is
+then marked *No camera photo*.
+
 ## 1. What you need
 
 | Item | Notes |

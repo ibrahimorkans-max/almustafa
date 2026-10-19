@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Claims;
 
 use App\Filament\Resources\Claims\ClaimResource\Pages;
-use App\Filament\Support\ArchivedFilter;
+use App\Filament\Support\HidesArchived;
+use App\Filament\Support\PrintButton;
 use App\Filament\Support\Units;
 use App\Models\Accounts\PurchaseBill;
 use App\Models\Claims\Claim;
@@ -31,6 +32,8 @@ use Filament\Tables\Table;
 
 class ClaimResource extends Resource
 {
+    use HidesArchived;
+
     protected static ?string $model = Claim::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-exclamation-circle';
@@ -66,7 +69,7 @@ class ClaimResource extends Resource
                     : SalesBill::query()->where('status', 'posted')->with('party')->orderByDesc('bill_date')->limit(300)->get()
                         ->mapWithKeys(fn (SalesBill $b) => [$b->id => "{$b->number} — {$b->party->name} · ".Units::paiseToRupees($b->total_paise)])),
             Select::make('type')->options(Claim::TYPES)->required(),
-            TextInput::make('amount')->label('Amount claimed (₹)')->required()->regex(Units::DECIMAL_2),
+            TextInput::make('amount')->label('Amount claimed (Rs)')->required()->regex(Units::DECIMAL_2),
             Select::make('transporter_party_id')->label('Transporter (transit shortage)')->searchable()
                 ->options(fn () => Party::query()->where('is_transporter', true)->orderBy('name')->pluck('name', 'id')),
             Textarea::make('description')->required()->minLength(10)->maxLength(2000)->columnSpanFull(),
@@ -93,9 +96,8 @@ class ClaimResource extends Resource
             ->defaultSort('created_at', 'desc')
             ->filters([
                 SelectFilter::make('status')->options(self::STATUS_LABELS),
-                ArchivedFilter::make(),
             ])
-            ->actions([ViewAction::make()]);
+            ->actions([ViewAction::make(), PrintButton::row('claim')]);
     }
 
     public static function infolist(Infolist $infolist): Infolist

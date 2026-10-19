@@ -96,7 +96,7 @@
                             <tr class="border-t border-gray-100 dark:border-white/5">
                                 <td class="{{ $td }}">{{ $r['products'][$row['product_id']] ?? '' }}</td><td class="{{ $td }}">{{ $r['godowns'][$row['godown_id']] ?? '' }}</td>
                                 <td class="{{ $td }} text-right font-mono">{{ $row['quantity_kg'] }}</td>
-                                <td class="{{ $td }} text-right">₹{{ number_format((float) $row['avg_paise_per_kg'] / 100, 2) }}</td>
+                                <td class="{{ $td }} text-right">{{ \App\Support\Values\Money::rupeesText(((float) $row['avg_paise_per_kg']) / 100) }}</td>
                                 <td class="{{ $td }} text-right">{{ $money($row['value_paise']) }}</td>
                             </tr>
                         @endforeach

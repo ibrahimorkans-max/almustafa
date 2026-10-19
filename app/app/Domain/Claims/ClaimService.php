@@ -6,6 +6,7 @@ namespace App\Domain\Claims;
 
 use App\Domain\Accounts\Books;
 use App\Domain\Accounts\ChartOfAccounts;
+use App\Domain\Approvals\SelfApproval;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
 use App\Domain\Shared\BusinessRuleViolation;
@@ -255,7 +256,7 @@ final class ClaimService
     private function assertNotRaiser(Claim $claim, LoginAccount $decider): void
     {
         $raiser = $claim->created_by ? LoginAccount::query()->whereKey($claim->created_by)->value('person_id') : null;
-        if ($raiser !== null && $raiser === $decider->person_id) {
+        if ($raiser !== null && $raiser === $decider->person_id && ! SelfApproval::allowed($decider)) {
             throw new BusinessRuleViolation('The person who raised the claim cannot decide it.');
         }
     }

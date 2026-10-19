@@ -10,6 +10,7 @@ use App\Domain\Approvals\Exceptions\ApprovalDenied;
 use App\Domain\Hr\Attendance\AttendanceImport;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Hr\AttendanceLogResource;
+use App\Filament\Support\ApprovalNotice;
 use App\Models\Hr\Employee;
 use App\Models\LoginAccount;
 use Filament\Actions\Action;
@@ -94,7 +95,7 @@ class ListAttendanceLogs extends ListRecords
                 ->action(function (array $data): void {
                     try {
                         $employee = Employee::query()->with('person')->findOrFail($data['employee_id']);
-                        app(ApprovalService::class)->submit(ManualAttendance::KEY, $data,
+                        $request = app(ApprovalService::class)->submit(ManualAttendance::KEY, $data,
                             "Manual attendance {$data['kind']} for {$employee->code} {$employee->name()}", $data['reason']);
                     } catch (ApprovalDenied $e) {
                         Notification::make()->title($e->getMessage())->danger()->send();
@@ -105,7 +106,7 @@ class ListAttendanceLogs extends ListRecords
 
                         return;
                     }
-                    Notification::make()->title('Sent for approval.')->body('The punch is created when a different person approves it.')->success()->send();
+                    ApprovalNotice::send($request, 'Sent for approval.', 'The punch is created when a different person approves it.', link: false);
                 }),
         ];
     }

@@ -38,7 +38,7 @@ class ListVouchers extends ListRecords
         $moneyLedgers = fn () => LedgerAccount::query()->whereIn('kind', ['bank', 'cash'])->where('status', 'active')->orderBy('name')->get()
             ->mapWithKeys(fn (LedgerAccount $l) => [$l->id => $l->displayName()]);
         $otherLedgers = fn () => LedgerAccount::query()->whereNotIn('kind', ['bank', 'cash'])->where('status', 'active')->orderBy('name')->pluck('name', 'id');
-        $amount = fn (string $name = 'amount') => TextInput::make($name)->label('Amount (₹)')->required()->regex(Units::DECIMAL_2);
+        $amount = fn (string $name = 'amount') => TextInput::make($name)->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2);
         $date = fn () => DatePicker::make('date')->default(now())->required();
 
         return [
@@ -74,8 +74,8 @@ class ListVouchers extends ListRecords
                         $date(),
                         Repeater::make('lines')->required()->minItems(2)->defaultItems(2)->columns(3)->schema([
                             Select::make('account')->label('Ledger')->required()->searchable()->options($otherLedgers),
-                            TextInput::make('dr')->label('Debit (₹)')->regex(Units::DECIMAL_2),
-                            TextInput::make('cr')->label('Credit (₹)')->regex(Units::DECIMAL_2),
+                            TextInput::make('dr')->label('Debit (Rs)')->regex(Units::DECIMAL_2),
+                            TextInput::make('cr')->label('Credit (Rs)')->regex(Units::DECIMAL_2),
                         ]),
                         Textarea::make('narration')->required()->minLength(5)->maxLength(500),
                     ])

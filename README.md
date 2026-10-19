@@ -33,6 +33,18 @@ php artisan serve                     # back office: http://127.0.0.1:8000/admin
 Demo passwords are random and written to `app/storage/app/private/demo-credentials.txt` (git-ignored).
 Every demo user must change the password at first sign-in; Owner, Super Admin and Accountant must set up 2FA.
 
+Demo activity (also part of `migrate --seed` locally): two confirmed paddy saudas, trucks at every gate stage
+(three finished, one at the lab, one unloaded waiting for tare, one just arrived waiting for gross) and weights
+that are checked OK, queried or not checked yet. On an existing database:
+
+```bash
+php artisan db:seed --class=DemoActivitySeeder     # once per mill; a second run does nothing
+php artisan ricemill:demo-live-weight              # pretend weighbridge readings for Live weight (15 min; --kg, --seconds)
+```
+
+The work is recorded by three demo staff logins (`amr.demo.clerk`, `amr.demo.manager1`, `amr.demo.manager2`)
+whose passwords are random and never shown, so your own accounts can check the weights they recorded.
+
 ## Tests
 
 ```bash

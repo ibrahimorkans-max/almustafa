@@ -37,6 +37,8 @@ use Throwable;
  *  - the checker needs `approval.decide`, must be a different PERSON than the maker
  *    (a second login account of the same person does not count), and must pass
  *    the action's own checker rule;
+ *  - except the Owner and a mill's Super Admin (SelfApproval): their own requests are applied at
+ *    once and they may decide their own, but never their own new sign-in device;
  *  - a request is decided once; expired requests cannot be approved;
  *  - the approved change runs in the same transaction as the status change.
  */
@@ -103,7 +105,7 @@ final class ApprovalService
 
         $payload = $action->validate($payload, $maker);
 
-        return DB::transaction(function () use ($maker, $actionKey, $payload, $summary, $reason): ApprovalRequest {
+        $request = DB::transaction(function () use ($maker, $actionKey, $payload, $summary, $reason): ApprovalRequest {
             $request = ApprovalRequest::query()->create([
                 'entity_id' => $maker->entity_id,
                 'action' => $actionKey,
@@ -118,6 +120,14 @@ final class ApprovalService
 
             return $request;
         });
+
+        // The Owner and a mill's Super Admin need no second person: their request is applied at once
+        // (a new sign-in device still waits for someone else; see SelfApproval).
+        if ($actionKey !== TrustDevice::KEY && SelfApproval::allowed($maker) && $this->canDecide($maker, $request)) {
+            return $this->approve($request, $maker, SelfApproval::note($maker));
+        }
+
+        return $request;
     }
 
     public function canDecide(LoginAccount $checker, ApprovalRequest $request): bool
@@ -137,7 +147,7 @@ final class ApprovalService
         if ($request->expires_at !== null && $request->expires_at->isPast()) {
             return 'This request has expired; ask for it to be raised again.';
         }
-        if ($checker->person_id === $request->maker_person_id) {
+        if ($checker->person_id === $request->maker_person_id && ($request->action === TrustDevice::KEY || ! SelfApproval::allowed($checker))) {
             return 'You cannot approve your own request. Another person with approval rights must decide it (maker-checker).';
         }
         if ($checker->hasPendingSecuritySetup()) {

@@ -7,5 +7,5 @@
     <script src="{{ asset('js/screen-guard.js') }}?v=1" data-label="{{ auth('web')->user()->username }} · {{ request()->ip() }}"></script>
 @endif
 @if ($session !== null && $session->location_source !== 'browser')
-    <script src="{{ asset('js/session-location.js') }}?v=1" data-url="{{ route('filament.admin.session-location') }}" defer></script>
+    <script src="{{ asset('js/session-location.js') }}?v=2" data-url="{{ route('filament.admin.session-location') }}" defer></script>
 @endif

@@ -12,6 +12,7 @@ use App\Domain\Hr\EmployeeService;
 use App\Domain\Hr\SalaryStructureService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Hr\EmployeeResource;
+use App\Filament\Support\ApprovalNotice;
 use App\Filament\Support\DocumentActions;
 use App\Filament\Support\Units;
 use App\Models\Hr\Employee;
@@ -77,7 +78,7 @@ class ViewEmployee extends ViewRecord
                     ]),
                     Grid::make(3)->schema(SalaryComponent::query()->where('status', 'active')->orderBy('sort')->get()
                         ->flatMap(fn (SalaryComponent $c) => [
-                            TextInput::make("amount.{$c->code}")->label("{$c->name} (₹)")->regex(Units::DECIMAL_2)
+                            TextInput::make("amount.{$c->code}")->label("{$c->name} (Rs)")->regex(Units::DECIMAL_2)
                                 ->helperText(fn (Get $get) => $c->code === 'BASIC' ? match ($get('pay_basis')) {
                                     'daily' => 'Daily rate', 'piece_rate' => 'Rate per unit', default => 'Per month',
                                 } : null),
@@ -106,9 +107,9 @@ class ViewEmployee extends ViewRecord
                     TextInput::make('bank_name')->maxLength(120)->placeholder('e.g. HBL, Meezan Bank'),
                 ])
                 ->action(fn (Employee $record, array $data) => $this->attempt(function () use ($record, $data): void {
-                    app(ApprovalService::class)->submit(EmployeeBankAccountChange::KEY, ['employee_id' => $record->id] + $data,
+                    $request = app(ApprovalService::class)->submit(EmployeeBankAccountChange::KEY, ['employee_id' => $record->id] + $data,
                         "Salary account for {$record->code} {$record->name()}", 'Requested from the employee record');
-                    Notification::make()->title('Sent for approval.')->body('The new account is used only after it is approved.')->success()->send();
+                    ApprovalNotice::send($request, 'Sent for approval.', 'The new account is used only after it is approved.', link: false);
                 })),
             Action::make('certificate')->label('Certificate')->icon('heroicon-o-academic-cap')->color('gray')
                 ->visible(fn (Employee $r) => $r->status !== Employee::EXITED && DocumentActions::allowed())

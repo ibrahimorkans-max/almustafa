@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Accounts;
 
 use App\Filament\Resources\Accounts\VoucherResource\Pages;
+use App\Filament\Support\PrintButton;
 use App\Filament\Support\Units;
 use App\Models\Accounts\Voucher;
 use App\Models\Accounts\VoucherLine;
@@ -62,7 +63,7 @@ class VoucherResource extends Resource
                         ->when($data['from'] ?? null, fn ($q, $d) => $q->where('voucher_date', '>=', $d))
                         ->when($data['to'] ?? null, fn ($q, $d) => $q->where('voucher_date', '<=', $d))),
             ])
-            ->actions([ViewAction::make()]);
+            ->actions([ViewAction::make(), PrintButton::row('voucher')]);
     }
 
     public static function infolist(Infolist $infolist): Infolist

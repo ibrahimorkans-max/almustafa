@@ -111,5 +111,5 @@ it('records a receipt against an invoice and shows receivables', function () {
         ])->assertHasNoActionErrors()->assertNotified();
 
     expect(ReceiptAllocation::query()->sole()->amount_paise)->toBe(10_000_000);
-    Livewire::test(AccountsReports::class)->set('data.report', 'receivables')->assertSee($bill->number)->assertSee('322,100.00');
+    Livewire::test(AccountsReports::class)->set('data.report', 'receivables')->assertSee($bill->number)->assertSee('3,22,100.00');
 });

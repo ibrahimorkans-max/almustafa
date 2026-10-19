@@ -6,7 +6,6 @@ namespace App\Filament\Resources\Hr;
 
 use App\Filament\Resources\Hr\EmployeeResource\Pages;
 use App\Filament\Resources\Hr\EmployeeResource\RelationManagers;
-use App\Filament\Support\ArchivedFilter;
 use App\Models\Hr\Department;
 use App\Models\Hr\Designation;
 use App\Models\Hr\Employee;
@@ -105,7 +104,6 @@ class EmployeeResource extends Resource
                 SelectFilter::make('status')->options(['active' => 'Active', 'on_notice' => 'On notice', 'exited' => 'Exited']),
                 SelectFilter::make('department_id')->label('Department')->relationship('department', 'name'),
                 SelectFilter::make('employment_type')->label('Type')->options(Employee::TYPES),
-                ArchivedFilter::make(),
             ])
             ->actions([ViewAction::make()]);
     }

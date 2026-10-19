@@ -6,6 +6,7 @@ namespace App\Filament\Widgets;
 
 use App\Domain\Reports\HrDashboardMetrics;
 use App\Filament\Pages\FinancialReportsPage;
+use App\Filament\Resources\DailyWages\DailyWageSheetResource;
 use App\Filament\Support\Units;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
@@ -38,6 +39,9 @@ class OwnerOverview extends StatsOverviewWidget
             Stat::make($o['net_profit'] >= 0 ? 'Net profit so far' : 'Net loss so far', Units::paiseToRupees(abs($o['net_profit'])))
                 ->color($o['net_profit'] >= 0 ? 'success' : 'danger')->url($pl),
             Stat::make('Payroll cost', Units::paiseToRupees($o['payroll_cost']))->description('Posted payroll this month'),
+            Stat::make('Daily wages', Units::paiseToRupees($o['daily_wages']))
+                ->description($o['daily_wages_owed'] > 0 ? 'Still owed to groups: '.Units::paiseToRupees($o['daily_wages_owed']) : 'Casual labour this month')
+                ->color($o['daily_wages_owed'] > 0 ? 'warning' : 'gray')->url(DailyWageSheetResource::getUrl()),
             Stat::make('Milling cost per maund', $o['cost_per_maund'] === null ? '—' : Units::paiseToRupees($o['cost_per_maund']))
                 ->description($o['cost_per_maund'] === null ? 'No paddy milled yet this month' : "{$o['maunds']} maunds milled"),
         ];

@@ -35,6 +35,9 @@ final class RoleTemplates
 
     public const EMPLOYEE = 'EMPLOYEE';
 
+    /** Only the Archive screen: view archived records by period and restore them. */
+    public const OFFICE_COORDINATOR = 'OFFICE_COORDINATOR';
+
     /**
      * @return array<string, array{name: string, global: bool, mfa_required: bool, session_max_minutes: int, permissions: list<string>}>
      */
@@ -83,8 +86,9 @@ final class RoleTemplates
                     'master.view', 'master.manage',
                     'deal.view', 'quote.view', 'stock.view', 'sales.view', 'claim.view',
                     'ledger.view', 'ledger.post', 'voucher.reverse', 'payment.create', 'bank.view',
-                    'pricing.view', 'dashboard.view', 'report.view', 'report.tax', 'archive.search',
+                    'pricing.view', 'dashboard.view', 'report.view', 'report.tax',
                     'hr.employee.view', 'hr.salary.view', 'hr.payroll.approve', 'hr.documents.generate',
+                    'wages.daily.manage', 'wages.daily.pay',
                 ],
             ],
             self::SUPERVISOR => [
@@ -99,7 +103,7 @@ final class RoleTemplates
                     'production.view', 'production.log', 'batch.manage',
                     'stock.view', 'requisition.create', 'requisition.approve',
                     'sales.view', 'dispatch.manage', 'gatepass.issue',
-                    'claim.view', 'claim.manage', 'dashboard.view', 'report.view',
+                    'claim.view', 'claim.manage', 'dashboard.view', 'report.view', 'wages.daily.manage',
                     'hr.employee.view', 'hr.attendance.review', 'hr.leave.approve',
                 ],
             ],
@@ -144,7 +148,7 @@ final class RoleTemplates
                     'entity.view', 'approval.view', 'master.view', 'dashboard.view',
                     'hr.employee.view', 'hr.employee.edit', 'hr.employee.sensitive.view',
                     'hr.salary.view', 'hr.salary.edit', 'hr.payroll.run', 'hr.attendance.override', 'hr.attendance.review', 'hr.leave.approve',
-                    'hr.documents.generate', 'hr.documents.share', 'hr.documents.template.manage',
+                    'hr.documents.generate', 'hr.documents.share', 'hr.documents.template.manage', 'wages.daily.manage',
                 ],
             ],
             self::EMPLOYEE => [
@@ -154,12 +158,19 @@ final class RoleTemplates
                 'session_max_minutes' => 720,
                 'permissions' => [],
             ],
+            self::OFFICE_COORDINATOR => [
+                'name' => 'Office Coordinator',
+                'global' => false,
+                'mfa_required' => true,
+                'session_max_minutes' => 240,
+                'permissions' => ['office.view', 'office.restore'],
+            ],
         ];
 
         // Every staff role marks its own attendance and asks for its own leave (brokers are not employees; Owner / Super Admin
-        // already hold every permission).
+        // already hold every permission; the Office Coordinator has the Archive screen and nothing else).
         foreach ($templates as $code => $template) {
-            if ($template['global'] || in_array($code, [self::BROKER, self::SUPER_ADMIN], true)) {
+            if ($template['global'] || in_array($code, [self::BROKER, self::SUPER_ADMIN, self::OFFICE_COORDINATOR], true)) {
                 continue;
             }
             foreach (['hr.attendance.punch', 'hr.leave.request'] as $own) {

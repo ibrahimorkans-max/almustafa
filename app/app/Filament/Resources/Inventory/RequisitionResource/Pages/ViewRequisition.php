@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Inventory\RequisitionResource\Pages;
 
 use App\Domain\Inventory\RequisitionService;
 use App\Filament\Resources\Inventory\RequisitionResource;
+use App\Filament\Support\PrintButton;
 use App\Filament\Support\RunsDomainActions;
 use App\Models\Inventory\Requisition;
 use Filament\Actions\Action;
@@ -26,6 +27,7 @@ class ViewRequisition extends ViewRecord
         $service = fn () => app(RequisitionService::class);
 
         return [
+            PrintButton::header('requisition'),
             Action::make('approve')->color('success')->icon('heroicon-o-check')
                 ->visible(fn (Requisition $r) => $r->status === Requisition::REQUESTED && $can('requisition.approve'))
                 ->form([Textarea::make('note')->maxLength(1000)])

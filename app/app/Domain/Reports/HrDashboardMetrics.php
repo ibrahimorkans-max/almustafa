@@ -7,6 +7,7 @@ namespace App\Domain\Reports;
 use App\Domain\Accounts\FinancialReports;
 use App\Domain\Hr\Attendance\AttendanceCalculator;
 use App\Domain\Tenancy\TenantContext;
+use App\Models\DailyWages\DailyWageSheet;
 use App\Models\Documents\DocumentAccessLog;
 use App\Models\Documents\GeneratedDocument;
 use App\Models\Hr\Advance;
@@ -96,7 +97,7 @@ final class HrDashboardMetrics
     /**
      * The owner's month so far: payroll cost, profit (from the books) and milling cost per maund.
      *
-     * @return array{month: string, payroll_cost: int, net_profit: int, sales: int, cost_per_maund: int|null, maunds: string}
+     * @return array{month: string, payroll_cost: int, net_profit: int, sales: int, cost_per_maund: int|null, maunds: string, daily_wages: int, daily_wages_owed: int}
      */
     public function owner(): array
     {
@@ -108,6 +109,9 @@ final class HrDashboardMetrics
         return [
             'month' => $today->format('M Y'), 'payroll_cost' => $pl['payroll_cost'], 'net_profit' => $pl['net_profit'],
             'sales' => $pl['sales']['total'] + $pl['direct_incomes']['total'], 'cost_per_maund' => $cpm['per_maund'], 'maunds' => $cpm['maunds'],
+            'daily_wages' => (int) DailyWageSheet::query()->whereIn('status', [DailyWageSheet::POSTED, DailyWageSheet::PAID])
+                ->where('work_date', '>=', $from->toDateString())->sum('net_paise'),
+            'daily_wages_owed' => (int) DailyWageSheet::query()->where('status', DailyWageSheet::POSTED)->sum('net_paise'),
         ];
     }
 }

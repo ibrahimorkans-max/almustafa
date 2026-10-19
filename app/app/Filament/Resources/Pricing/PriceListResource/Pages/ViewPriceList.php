@@ -8,6 +8,7 @@ use App\Domain\Approvals\Exceptions\ApprovalDenied;
 use App\Domain\Pricing\PricingService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Pricing\PriceListResource;
+use App\Filament\Support\ApprovalNotice;
 use App\Filament\Support\Units;
 use App\Models\LoginAccount;
 use App\Models\Masters\Product;
@@ -98,13 +99,13 @@ class ViewPriceList extends ViewRecord
                 ])
                 ->action(function (PriceList $record, array $data): void {
                     try {
-                        app(PricingService::class)->requestRate($record, Product::query()->findOrFail($data['product_id']), Units::rupeesToPaise($data['rate']), $data['reason']);
+                        $request = app(PricingService::class)->requestRate($record, Product::query()->findOrFail($data['product_id']), Units::rupeesToPaise($data['rate']), $data['reason']);
                     } catch (BusinessRuleViolation|ApprovalDenied|ValidationException $e) {
                         Notification::make()->title($e->getMessage())->danger()->send();
 
                         return;
                     }
-                    Notification::make()->title('Rate change sent for approval')->success()->send();
+                    ApprovalNotice::send($request, 'Rate change sent for approval', link: false);
                 }),
         ];
     }

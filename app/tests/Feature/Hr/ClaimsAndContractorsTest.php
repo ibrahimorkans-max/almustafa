@@ -199,7 +199,12 @@ describe('labour contractor bills', function () {
             ->and(fn () => $this->bills->prepare($this->contractor, $this->from, $this->to, 'man_days', 1_000_00))->toThrow(BusinessRuleViolation::class, 'no attendance');
 
         ccPunch($this->w1, [$this->from->toDateString()]);
-        $this->f->as($this->f->owner);
+        // Staff who may both prepare and approve bills still need a second person (the Owner and Super Admin do not).
+        Make::system(fn () => DB::table('role_permissions')->insertOrIgnore([
+            'role_id' => $this->f->hr->role_id, 'permission_code' => 'hr.payroll.approve', 'entity_id' => $this->f->entity->id, 'created_at' => now(),
+        ]));
+        $this->f->hr->role->flushPermissionCache();
+        $this->f->as($this->f->hr);
         $bill = $this->bills->prepare($this->contractor, $this->from, $this->to, 'man_days', 1_000_00);
         expect(fn () => $this->bills->approve($bill))->toThrow(BusinessRuleViolation::class, 'different person');
         $this->f->as($this->f->accountant);

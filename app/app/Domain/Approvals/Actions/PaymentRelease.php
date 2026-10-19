@@ -10,6 +10,7 @@ use App\Domain\Approvals\Contracts\ApprovalAction;
 use App\Domain\Approvals\Contracts\ExplainsCheckerRule;
 use App\Domain\Approvals\Contracts\HandlesRejection;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
+use App\Domain\Approvals\SelfApproval;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Accounts\Payment;
 use App\Models\ApprovalRequest;
@@ -45,7 +46,7 @@ final class PaymentRelease implements ApprovalAction, ExplainsCheckerRule, Handl
         }
         $requester = $request->payload['requester_person_id'] ?? null;
 
-        return $requester === null || $requester !== $checker->person_id;
+        return $requester === null || $requester !== $checker->person_id || SelfApproval::allowed($checker);
     }
 
     public function whyCheckerMayNotDecide(LoginAccount $checker, ApprovalRequest $request): string
@@ -92,9 +93,11 @@ final class PaymentRelease implements ApprovalAction, ExplainsCheckerRule, Handl
             $second = app(ApprovalService::class)->submitFor($checker, self::KEY, [
                 'payment_id' => $payment->id, 'stage' => 2, 'requester_person_id' => $request->maker_person_id,
             ], "Second approval: {$request->summary}", $request->reason, systemInitiated: true);
+            // Re-read: when the Owner or a Super Admin approved stage 1, stage 2 was applied at once and released the payment.
+            $payment = Payment::query()->whereKey($payment->id)->lockForUpdate()->firstOrFail();
             $payment->forceFill(['approval_request_id' => $second->id])->save();
 
-            return ['status' => Payment::FIRST_APPROVED, 'second_request_id' => $second->id];
+            return ['status' => $payment->status, 'second_request_id' => $second->id];
         }
 
         try {

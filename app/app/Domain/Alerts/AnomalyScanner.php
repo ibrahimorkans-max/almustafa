@@ -15,6 +15,7 @@ use App\Models\Gate\Weighment;
 use App\Models\Masters\Party;
 use App\Models\Procurement\Sauda;
 use App\Models\Production\ProductionBatch;
+use App\Support\Values\Money;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Ramsey\Uuid\Uuid;
@@ -116,8 +117,8 @@ final class AnomalyScanner
                     yield [
                         "rate_outlier|{$sauda->id}",
                         sprintf('Purchase rate %s%% from the 30-day median: sauda %s', number_format($dev / 100, 1), $sauda->number),
-                        sprintf('Rs %s/maund against a median of Rs %s/maund over %d deals (limit ±%s%%).', number_format($sauda->rate_paise_per_maund / 100, 2),
-                            number_format($median / 100, 2), count($rates), number_format($limit / 100, 0)),
+                        sprintf('Rs %s/maund against a median of Rs %s/maund over %d deals (limit ±%s%%).', Money::paise((int) $sauda->rate_paise_per_maund)->grouped(),
+                            Money::paise((int) $median)->grouped(), count($rates), number_format($limit / 100, 0)),
                         ['sauda' => $sauda->number, 'rate' => $sauda->rate_paise_per_maund, 'median' => $median, 'deviation_bp' => $dev],
                         'deal.approve',
                     ];
@@ -130,7 +131,7 @@ final class AnomalyScanner
                         yield [
                             "rate_outlier|{$sauda->id}",
                             sprintf('Sale %s%% below the list rate: sauda %s', number_format($dev / 100, 1), $sauda->number),
-                            sprintf('Rs %s/maund against the list rate Rs %s/maund.', number_format($sauda->rate_paise_per_maund / 100, 2), number_format($list / 100, 2)),
+                            sprintf('Rs %s/maund against the list rate Rs %s/maund.', Money::paise((int) $sauda->rate_paise_per_maund)->grouped(), Money::paise((int) $list)->grouped()),
                             ['sauda' => $sauda->number, 'rate' => $sauda->rate_paise_per_maund, 'list' => $list, 'deviation_bp' => $dev],
                             'deal.approve',
                         ];

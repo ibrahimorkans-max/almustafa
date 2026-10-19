@@ -8,6 +8,7 @@ use App\Domain\Approvals\Actions\PeriodUnlock;
 use App\Domain\Approvals\ApprovalService;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
 use App\Filament\Resources\Accounts\PeriodLockResource\Pages;
+use App\Filament\Support\ApprovalNotice;
 use App\Models\Accounts\PeriodLock;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Textarea;
@@ -48,13 +49,13 @@ class PeriodLockResource extends Resource
                     ->form([Textarea::make('reason')->required()->minLength(10)->maxLength(1000)])
                     ->action(function (PeriodLock $record, array $data): void {
                         try {
-                            app(ApprovalService::class)->submit(PeriodUnlock::KEY, ['period' => $record->period, 'reason' => $data['reason']], "Reopen books for {$record->period}", $data['reason']);
+                            $request = app(ApprovalService::class)->submit(PeriodUnlock::KEY, ['period' => $record->period, 'reason' => $data['reason']], "Reopen books for {$record->period}", $data['reason']);
                         } catch (ApprovalDenied|ValidationException $e) {
                             Notification::make()->title($e->getMessage())->danger()->send();
 
                             return;
                         }
-                        Notification::make()->title('Sent for approval')->success()->send();
+                        ApprovalNotice::send($request, 'Sent for approval', link: false);
                     }),
             ]);
     }

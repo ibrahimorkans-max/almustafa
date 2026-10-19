@@ -86,7 +86,7 @@ class PaymentResource extends Resource
                     ->where('kind', $get('mode') === 'cash' ? 'cash' : 'bank')->orderBy('name')->get()
                     ->mapWithKeys(fn (LedgerAccount $l) => [$l->id => $l->displayName()])),
             DatePicker::make('payment_date')->label('Date')->default(now())->required(),
-            TextInput::make('amount')->label('Amount (₹)')->required()->regex(Units::DECIMAL_2),
+            TextInput::make('amount')->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2),
             CheckboxList::make('bills')->label('Against bills (settled oldest first; any remainder is on account)')
                 ->options(fn (Get $get) => self::billOptions($get('party_id')))->columnSpanFull(),
             Placeholder::make('payee')->label('Paid into')->columnSpanFull()

@@ -42,6 +42,7 @@
         <env name="RICEMILL_SA_REQUIRE_IP_ALLOWLIST" value="false"/>
         <env name="RICEMILL_SA_REQUIRE_TRUSTED_DEVICE" value="true"/>
         <env name="RICEMILL_BOOTSTRAP_TRUST_FIRST_DEVICE" value="false"/>
+        <env name="RICEMILL_GEOCODER" value="off"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

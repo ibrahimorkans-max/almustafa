@@ -49,7 +49,7 @@
         <tr><td class="label">Quality deduction</td><td class="num">{{ $kg($slip['deduction_kg'] ?? '0') }} kg</td><td class="label">Lab</td><td>{{ ($slip['lab_accepted'] ?? false) ? 'Accepted' : 'Not accepted' }}</td></tr>
         <tr class="grand"><td>Payable weight</td><td class="num">{{ $kg($slip['payable_kg']) }} kg</td><td colspan="2" class="r">{{ $slip['payable_kg'] !== null ? PdfRenderer::maundKg((string) $slip['payable_kg']) : '—' }}</td></tr>
         @if (! empty($slip['rate_cut_paise_per_maund']))
-            <tr><td class="label">Rate cut (quality)</td><td colspan="3">Rs {{ number_format($slip['rate_cut_paise_per_maund'] / 100, 2) }} per maund</td></tr>
+            <tr><td class="label">Rate cut (quality)</td><td colspan="3">{{ \App\Support\Values\Money::paise((int) $slip['rate_cut_paise_per_maund'])->format() }} per maund</td></tr>
         @endif
     @endif
 </table>

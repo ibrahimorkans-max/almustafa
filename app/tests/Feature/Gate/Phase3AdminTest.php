@@ -74,9 +74,9 @@ it('creates a sauda from maund and rupee inputs and stores kg and paisa', functi
 
     Livewire::test(ViewSauda::class, ['record' => $s->id])->callAction('submit');
     expect($s->fresh()->status)->toBe('pending_approval');
-    // The maker sees approve but the service refuses (maker-checker).
+    // The mill's Super Admin needs no second person: approving their own sauda confirms it.
     Livewire::test(ViewSauda::class, ['record' => $s->id])->callAction('approve', ['note' => 'x'])->assertNotified();
-    expect($s->fresh()->status)->toBe('pending_approval');
+    expect($s->fresh()->status)->toBe('confirmed');
 });
 
 it('runs a vehicle visit from the gate screens', function () {
@@ -124,7 +124,7 @@ it('does not offer any way to type a weight except the Super Admin override', fu
     signInAs($this, $sa);
     Livewire::test(ViewGateEntry::class, ['record' => $entry->id])
         ->callAction('manualWeight', ['kind' => 'gross', 'weight_kg' => '25000', 'reason' => 'Indicator display failed during weighment'])
-        ->assertNotified('Sent for approval');
+        ->assertNotified('Done: applied at once');
 });
 
 it('registers a gate agent and shows the secret once', function () {

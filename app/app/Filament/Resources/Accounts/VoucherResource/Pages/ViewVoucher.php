@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Accounts\VoucherResource\Pages;
 
 use App\Filament\Resources\Accounts\VoucherResource;
+use App\Filament\Support\PrintButton;
 use App\Filament\Support\RequestsVoucherReversal;
 use App\Models\Accounts\Voucher;
 use Filament\Resources\Pages\ViewRecord;
@@ -16,6 +17,7 @@ class ViewVoucher extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            PrintButton::header('voucher'),
             RequestsVoucherReversal::action(function (): ?string {
                 /** @var Voucher $v */
                 $v = $this->record;

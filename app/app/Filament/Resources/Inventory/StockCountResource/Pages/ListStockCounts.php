@@ -51,7 +51,11 @@ class ListStockCounts extends ListRecords
                         return;
                     }
                     Notification::make()->success()
-                        ->title($count->status === 'applied' ? 'Count matches the books' : "Difference of {$count->difference_kg} kg sent for approval")
+                        ->title(match (true) {
+                            bccomp((string) $count->difference_kg, '0', 3) === 0 => 'Count matches the books',
+                            $count->fresh()?->status === 'applied' => "Difference of {$count->difference_kg} kg booked (no second approval needed)",
+                            default => "Difference of {$count->difference_kg} kg sent for approval",
+                        })
                         ->send();
                 }),
         ];

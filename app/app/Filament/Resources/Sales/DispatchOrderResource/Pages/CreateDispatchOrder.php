@@ -8,6 +8,7 @@ use App\Domain\Approvals\Exceptions\ApprovalDenied;
 use App\Domain\Sales\DispatchService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Sales\DispatchOrderResource;
+use App\Filament\Support\OffersPrintAfterCreate;
 use App\Models\Masters\Godown;
 use App\Models\Procurement\Sauda;
 use App\Models\Sales\DispatchOrder;
@@ -18,6 +19,10 @@ use Illuminate\Validation\ValidationException;
 
 class CreateDispatchOrder extends CreateRecord
 {
+    use OffersPrintAfterCreate;
+
+    protected string $printType = 'dispatch';
+
     protected static string $resource = DispatchOrderResource::class;
 
     /** @param  array<string, mixed>  $data */

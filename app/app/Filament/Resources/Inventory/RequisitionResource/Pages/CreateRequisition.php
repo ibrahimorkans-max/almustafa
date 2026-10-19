@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Inventory\RequisitionResource\Pages;
 use App\Domain\Inventory\RequisitionService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Inventory\RequisitionResource;
+use App\Filament\Support\OffersPrintAfterCreate;
 use App\Models\Masters\Godown;
 use App\Models\Masters\Product;
 use App\Models\Production\ProductionBatch;
@@ -16,6 +17,10 @@ use Illuminate\Validation\ValidationException;
 
 class CreateRequisition extends CreateRecord
 {
+    use OffersPrintAfterCreate;
+
+    protected string $printType = 'requisition';
+
     protected static string $resource = RequisitionResource::class;
 
     /** @param  array<string, mixed>  $data */

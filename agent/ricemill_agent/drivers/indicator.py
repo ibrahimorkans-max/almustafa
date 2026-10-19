@@ -72,36 +72,129 @@ class _LineIndicator:
                 yield weight, int(time.monotonic() * 1000)
 
 
-class SerialIndicator(_LineIndicator):  # pragma: no cover - needs hardware
-    def __init__(self, port: str, baudrate: int, parser: FrameParser) -> None:
+class ReversedDigitsParser:
+    """Yaohua-style continuous output (XK3190 "tf=0", many PF-series and other Chinese indicators):
+    each frame is "=" followed by the weight with its characters in REVERSE order, e.g. "=0.84520" is
+    2548.0 kg and "=08452-" is -25480 kg (the sign, when sent, is last). No line end; "=" starts a frame."""
+
+    pattern = "reversed"
+
+    def parse(self, frame: str) -> Decimal | None:
+        text = frame.strip().lstrip("=").strip()
+        if not text or not re.fullmatch(r"[0-9.\-+ ]+", text):
+            return None
+        reversed_text = text[::-1].replace(" ", "")
+        sign = -1 if "-" in reversed_text else 1
+        digits = reversed_text.replace("-", "").replace("+", "")
+        if digits.count(".") > 1 or not any(c.isdigit() for c in digits):
+            return None
+        try:
+            return (Decimal(digits) * sign).quantize(Decimal("0.001"))
+        except InvalidOperation:
+            return None
+
+
+# Named frame formats for `[indicator] format = "…"` (or a custom `frame_pattern`).
+FORMATS: dict[str, str] = {
+    # "ST,GS,+0025480kg", "=  25480 kg", "WN0025.480kg", "  25480": the first number with its sign and unit.
+    "standard": DEFAULT_FRAME,
+    # Status + gross/net: "ST,GS,+0025480kg" / "US,NT,-0000020kg"; frames from other lines are ignored.
+    "st_gs": r"(?:ST|US|OL),(?:GS|NT|TR),\s*(?P<sign>[+-])?\s*0*(?P<weight>\d+(?:\.\d+)?)\s*(?P<unit>kg|t)?",
+    # "=0.84520" reversed digits (see ReversedDigitsParser).
+    "reversed": "",
+}
+
+# Bytes that end a frame: CR, LF, STX, ETX and, for the reversed format, "=" (which starts the next one).
+FRAME_ENDS = b"\r\n\x02\x03"
+
+
+def make_parser(fmt: str | None = None, pattern: str | None = None) -> FrameParser | ReversedDigitsParser:
+    """The parser for a configured format name or custom regular expression."""
+    if pattern:
+        return FrameParser(pattern)
+    name = (fmt or "standard").lower()
+    if name in ("reversed", "yaohua", "tf0"):
+        return ReversedDigitsParser()
+    if name not in FORMATS:
+        raise ValueError(f"Unknown indicator format {fmt!r}; use one of {', '.join(FORMATS)} or a frame_pattern.")
+    return FrameParser(FORMATS[name])
+
+
+def split_frames(buffer: bytes, reversed_format: bool = False) -> tuple[list[str], bytes]:
+    """Cuts a byte stream into frames; returns the complete frames and the unfinished rest."""
+    ends = FRAME_ENDS + (b"=" if reversed_format else b"")
+    frames: list[str] = []
+    start = 0
+    for i, byte in enumerate(buffer):
+        if byte in ends:
+            piece = buffer[start:i]
+            if piece.strip():
+                frames.append(piece.decode("ascii", errors="ignore"))
+            start = i + 1
+    return frames, buffer[start:]
+
+
+class _StreamIndicator:
+    """Reads raw bytes, cuts them into frames, parses each into a weight."""
+
+    def __init__(self, parser: FrameParser | ReversedDigitsParser) -> None:
+        self.parser = parser
+        self.reversed = isinstance(parser, ReversedDigitsParser)
+
+    def _chunks(self) -> Iterator[bytes]:  # pragma: no cover - hardware
+        raise NotImplementedError
+
+    def frames(self) -> Iterator[str]:
+        buffer = b""
+        for chunk in self._chunks():
+            buffer += chunk
+            frames, buffer = split_frames(buffer, self.reversed)
+            yield from frames
+            if len(buffer) > 4096:  # garbage without frame ends (wrong speed): start again
+                buffer = b""
+
+    def samples(self) -> Iterator[tuple[Decimal, int]]:
+        for frame in self.frames():
+            weight = self.parser.parse(frame)
+            if weight is not None:
+                yield weight, int(time.monotonic() * 1000)
+
+
+PARITIES = {"none": "N", "even": "E", "odd": "O", "n": "N", "e": "E", "o": "O"}
+
+
+class SerialIndicator(_StreamIndicator):  # pragma: no cover - needs hardware
+    """RS-232 (a COM port, or a USB-to-RS232 adapter). Most indicators: 9600 baud, 8 data bits, no parity, 1 stop bit."""
+
+    def __init__(self, port: str, baudrate: int, parser: FrameParser | ReversedDigitsParser,
+                 bytesize: int = 8, parity: str = "none", stopbits: int = 1) -> None:
         super().__init__(parser)
         import serial  # optional dependency: pip install ricemill-agent[serial]
 
-        self.port = serial.Serial(port, baudrate=baudrate, timeout=2)
+        self.port = serial.Serial(port, baudrate=baudrate, bytesize=bytesize, parity=PARITIES.get(parity.lower(), "N"),
+                                  stopbits=stopbits, timeout=1)
 
-    def _lines(self) -> Iterator[str]:
+    def _chunks(self) -> Iterator[bytes]:
         while True:
-            raw = self.port.readline()
-            if raw:
-                yield raw.decode("ascii", errors="ignore")
+            chunk = self.port.read(64)
+            if chunk:
+                yield chunk
 
 
-class TcpIndicator(_LineIndicator):  # pragma: no cover - needs hardware
-    def __init__(self, host: str, port: int, parser: FrameParser) -> None:
+class TcpIndicator(_StreamIndicator):  # pragma: no cover - needs hardware
+    """An indicator with a network port, or an RS-232-to-Ethernet converter (e.g. USR-TCP232)."""
+
+    def __init__(self, host: str, port: int, parser: FrameParser | ReversedDigitsParser) -> None:
         super().__init__(parser)
         self.address = (host, port)
 
-    def _lines(self) -> Iterator[str]:
+    def _chunks(self) -> Iterator[bytes]:
         with socket.create_connection(self.address, timeout=5) as sock:
-            buffer = b""
             while True:
                 chunk = sock.recv(256)
                 if not chunk:
                     return
-                buffer += chunk
-                while b"\n" in buffer:
-                    line, buffer = buffer.split(b"\n", 1)
-                    yield line.decode("ascii", errors="ignore")
+                yield chunk
 
 
 class SimulatedIndicator:

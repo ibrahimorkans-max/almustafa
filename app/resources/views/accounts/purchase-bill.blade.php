@@ -81,6 +81,6 @@
 </table>
 
 @include('pdf.verify', ['small' => $small, 'note' => 'Computed from the weighment slip, the lab result and the sauda rate; amounts cannot be typed by hand.'])
-@include('pdf.signatures', ['signs' => [['Accountant', 'اکاؤنٹنٹ'], ['Seller', 'فروخت کنندہ'], ['For '.$brand['name'], 'دستخط مجاز']]])
+@include('pdf.signatures', ['signs' => [['Accountant', 'اکاؤنٹنٹ'], ['Checked by (second person)', 'جانچ کنندہ'], ['Seller', 'فروخت کنندہ'], ['For '.$brand['name'], 'دستخط مجاز']]])
 </body>
 </html>

@@ -164,7 +164,7 @@ describe('printed documents', function () {
 
         expect($pdf)->toStartWith('%PDF-')
             ->and($html)->toContain('SALES TAX INVOICE', 'سیلز ٹیکس انوائس', 'Al Mustafa Rice Mills', 'Adda Permat, 1 km Shujabad Road, Lodhran, Punjab', '0300-6834588')
-            ->toContain('NTN 1234567-8', 'STRN '.SalesFixtures::strn(1), 'STRN '.SalesFixtures::strn(2), '1006.3000', '402,000.00', '20,100.00', '422,100.00')
+            ->toContain('NTN 1234567-8', 'STRN '.SalesFixtures::strn(1), 'STRN '.SalesFixtures::strn(2), '1006.3000', '4,02,000.00', '20,100.00', '4,22,100.00')
             ->toContain('Rupees Four Hundred Twenty-Two Thousand One Hundred Only', 'images/brand/logo-wide-print.png', SalesDocuments::invoiceCode($bill));
         expect(app(DocumentVerifier::class)->verify((string) $bill->number, SalesDocuments::invoiceCode($bill)))->toMatchArray(['type' => 'Sales tax invoice']);
     });
@@ -184,7 +184,7 @@ describe('printed documents', function () {
 
         $bill = app(PurchaseBillService::class)->post($this->f->acc->billFor($entry));
         expect(app(AccountsDocuments::class)->purchaseBillPdf($bill))->toStartWith('%PDF-')
-            ->and((string) PdfRenderer::$lastHtml)->toContain('PADDY PURCHASE BILL', (string) $bill->number, 'Net payable', '368,053.00', 'Rupees Three Hundred Sixty-Eight Thousand Fifty-Three Only');
+            ->and((string) PdfRenderer::$lastHtml)->toContain('PADDY PURCHASE BILL', (string) $bill->number, 'Net payable', '3,68,053.00', 'Rupees Three Hundred Sixty-Eight Thousand Fifty-Three Only');
         expect(app(DocumentVerifier::class)->verify((string) $bill->number, AccountsDocuments::purchaseBillCode($bill)))->toMatchArray(['type' => 'Purchase bill']);
 
         $payment = app(PaymentService::class)->request($this->f->inv->gate->seller, 'ibft', $this->f->acc->bank, 36_805_300, now(), [$bill->id => 36_805_300]);

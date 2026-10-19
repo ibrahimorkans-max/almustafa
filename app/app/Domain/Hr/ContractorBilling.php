@@ -6,6 +6,7 @@ namespace App\Domain\Hr;
 
 use App\Domain\Accounts\Books;
 use App\Domain\Accounts\ChartOfAccounts;
+use App\Domain\Approvals\SelfApproval;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
@@ -121,7 +122,7 @@ final class ContractorBilling
             if ($b->status !== 'draft') {
                 throw new BusinessRuleViolation('Only a draft bill can be approved.');
             }
-            if ($b->prepared_by === $who->id) {
+            if ($b->prepared_by === $who->id && ! SelfApproval::allowed($who)) {
                 throw new BusinessRuleViolation('A different person must approve the bill you prepared.');
             }
             $period = $b->period_from->format('d M').'–'.$b->period_to->format('d M Y');

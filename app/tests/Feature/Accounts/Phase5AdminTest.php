@@ -64,7 +64,7 @@ it('runs bill → payment request → release → bank file from the screens', f
     $bill = $this->f->billFor($this->entry);
     signInP5($this, $this->f->accountant);
     Livewire::test(ViewPurchaseBill::class, ['record' => $bill->id])
-        ->assertSee('368,053.00')
+        ->assertSee('3,68,053.00')
         ->callAction('post', ['note' => 'Checked'])->assertNotified('Bill posted');
 
     Livewire::test(CreatePayment::class)

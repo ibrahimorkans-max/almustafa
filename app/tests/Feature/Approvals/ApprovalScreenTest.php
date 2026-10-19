@@ -18,7 +18,12 @@ use Tests\Support\Make;
 beforeEach(function () {
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     $this->entity = Make::entity('APS');
-    $this->maker = Make::account($this->entity, 'SUPER_ADMIN');
+    // A staff maker: the Owner and the mill's Super Admin need no second person (SelfApproval).
+    $this->maker = Make::account($this->entity, 'SUPERVISOR');
+    Make::system(fn () => DB::table('role_permissions')->insert([
+        'role_id' => $this->maker->role_id, 'permission_code' => 'role.manage', 'entity_id' => $this->entity->id, 'created_at' => now(),
+    ]));
+    $this->maker->role->flushPermissionCache();
     $this->checker = Make::account($this->entity, 'SUPER_ADMIN');
     $role = Make::system(fn () => Role::query()->where('entity_id', $this->entity->id)->where('code', 'GATE_OPERATOR')->firstOrFail());
     app(AuthContextBinder::class)->bind($this->maker);
@@ -96,11 +101,11 @@ it('approves from the list row', function () {
     expect($this->request->fresh()->status)->toBe('executed');
 });
 
-it('applies the self-approval rule to a Super Admin too', function () {
+it('applies the Owner request at once and lets the Owner decide staff requests', function () {
     $sa = Make::owner($this->entity);
     app(AuthContextBinder::class)->bind($sa);
     $own = app(ApprovalService::class)->submit(ChangeRolePermissions::KEY,
         ['role_id' => $this->role->id, 'permissions' => [...$this->role->permissionCodes(), 'stock.view']], 'Gate sees stock');
-    expect(app(ApprovalService::class)->decisionBlocker($sa, $own))->toContain('cannot approve your own request')
+    expect($own->status)->toBe('executed')
         ->and(app(ApprovalService::class)->decisionBlocker($sa, $this->request))->toBeNull();
 });

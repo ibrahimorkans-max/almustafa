@@ -173,23 +173,17 @@ describe('manual weight override', function () {
         $this->sa = Make::owner($this->f->entity);
     });
 
-    it('is not available to anyone but a Super Admin', function () {
+    it('is not available to anyone but the Owner or a Super Admin', function () {
         expect(fn () => app(ApprovalService::class)->submit(ManualWeighmentOverride::KEY, [
             'gate_entry_id' => $this->e->id, 'kind' => 'gross', 'weight_kg' => '25000', 'reason' => 'Indicator display broken',
         ], 'Manual gross'))->toThrow(ValidationException::class);
     });
 
-    it('needs a reason and a second person, then records a flagged manual weight', function () {
+    it('needs a reason, and for the Owner records a flagged manual weight at once', function () {
         $this->f->as($this->sa);
         $request = app(ApprovalService::class)->submit(ManualWeighmentOverride::KEY, [
             'gate_entry_id' => $this->e->id, 'kind' => 'gross', 'weight_kg' => '25000', 'reason' => 'Indicator display broken, read from printer tape',
         ], 'Manual gross for MNA211234');
-
-        expect(Weighment::query()->count())->toBe(0)
-            ->and(app(ApprovalService::class)->canDecide($this->sa, $request))->toBeFalse();
-
-        $this->f->as($this->f->owner);
-        app(ApprovalService::class)->approve($request, $this->f->owner);
 
         $w = Weighment::query()->sole();
         expect($w->source)->toBe('manual_override')

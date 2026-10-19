@@ -19,6 +19,12 @@ beforeEach(function () {
     $this->owner2 = Make::account($this->entity, 'SUPER_ADMIN');
     $this->gateRole = Make::system(fn () => Role::query()->where('entity_id', $this->entity->id)->where('code', 'GATE_OPERATOR')->firstOrFail());
     $this->service = app(ApprovalService::class);
+    // A staff maker: the Owner and the mill's Super Admin need no second person (SelfApproval).
+    $this->maker = Make::account($this->entity, 'SUPERVISOR');
+    Make::system(fn () => DB::table('role_permissions')->insert([
+        'role_id' => $this->maker->role_id, 'permission_code' => 'role.manage', 'entity_id' => $this->entity->id, 'created_at' => now(),
+    ]));
+    $this->maker->role->flushPermissionCache();
 });
 
 function as_(LoginAccount $account): void
@@ -32,7 +38,7 @@ function requestGateChange(ApprovalService $service, Role $role, array $permissi
 }
 
 it('changes nothing until a different person approves', function () {
-    as_($this->owner);
+    as_($this->maker);
     $wanted = [...$this->gateRole->permissionCodes(), 'lab.test'];
     $request = requestGateChange($this->service, $this->gateRole, $wanted);
 
@@ -49,26 +55,26 @@ it('changes nothing until a different person approves', function () {
 });
 
 it('does not let the maker approve their own request', function () {
-    as_($this->owner);
+    as_($this->maker);
     $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
 
-    expect(fn () => $this->service->approve($request, $this->owner))->toThrow(ApprovalDenied::class, 'maker-checker');
+    expect(fn () => $this->service->approve($request, $this->maker))->toThrow(ApprovalDenied::class, 'maker-checker');
 });
 
 it('does not let the same person approve through a second login account', function () {
     $other = Make::entity('MC2');
-    as_($this->owner);
+    as_($this->maker);
     $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
 
     // Same human, Owner account in another entity, and a Super Admin account too.
-    $samePersonSa = Make::account($other, 'OWNER', ['person' => $this->owner->person]);
+    $samePersonSa = Make::account($other, 'SUPERVISOR', ['person' => $this->maker->person]);
     expect($this->service->canDecide($samePersonSa, $request))->toBeFalse()
         ->and(fn () => $this->service->approve($request, $samePersonSa))->toThrow(ApprovalDenied::class);
 });
 
 it('requires approval.decide for the checker', function () {
     $exec = Make::account($this->entity, 'EXECUTIVE');
-    as_($this->owner);
+    as_($this->maker);
     $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
 
     expect(fn () => $this->service->approve($request, $exec))->toThrow(ApprovalDenied::class, 'approval.decide');
@@ -98,7 +104,7 @@ it('keeps the Super Admin role out of reach of entity users', function () {
 });
 
 it('can be rejected with a reason, and then cannot be approved', function () {
-    as_($this->owner);
+    as_($this->maker);
     $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
     as_($this->owner2);
     $rejected = $this->service->reject($request, $this->owner2, 'Not needed');
@@ -109,7 +115,7 @@ it('can be rejected with a reason, and then cannot be approved', function () {
 });
 
 it('expires', function () {
-    as_($this->owner);
+    as_($this->maker);
     $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
     $this->travel(73)->hours();
     as_($this->owner2);
@@ -118,7 +124,7 @@ it('expires', function () {
 });
 
 it('refuses to apply a request made against an outdated role', function () {
-    as_($this->owner);
+    as_($this->maker);
     $first = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
     $second = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'stock.view']);
 
@@ -131,19 +137,34 @@ it('refuses to apply a request made against an outdated role', function () {
 });
 
 it('lets the maker withdraw a pending request', function () {
-    as_($this->owner);
+    as_($this->maker);
     $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
 
-    expect($this->service->cancel($request, $this->owner)->status)->toBe('cancelled')
+    expect($this->service->cancel($request, $this->maker)->status)->toBe('cancelled')
         ->and(fn () => $this->service->cancel($request->fresh(), $this->owner2))->toThrow(ApprovalDenied::class);
 });
 
 it('audits every step', function () {
-    as_($this->owner);
+    as_($this->maker);
     $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
     as_($this->owner2);
     $this->service->approve($request, $this->owner2);
 
     $actions = AuditLog::query()->where('subject_id', $request->id)->orderBy('seq')->pluck('action')->all();
     expect($actions)->toContain('approval.submitted', 'approval.approved', 'approval.executed');
+});
+
+it('applies a request of the Owner or the mill\'s Super Admin at once, without a second person', function () {
+    as_($this->owner);
+    $done = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
+
+    expect($done->status)->toBe('executed')
+        ->and($done->checker_person_id)->toBe($this->owner->person_id)
+        ->and($done->decision_note)->toContain('no second approval needed')
+        ->and($this->gateRole->fresh()->permissionCodes())->toContain('lab.test');
+
+    // A Super Admin may also decide a pending request they raised earlier as staff… or any staff request.
+    as_($this->maker);
+    $pending = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->fresh()->permissionCodes(), 'stock.view']);
+    expect($this->service->canDecide($this->owner, $pending))->toBeTrue();
 });

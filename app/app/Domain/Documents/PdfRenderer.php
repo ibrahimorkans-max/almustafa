@@ -24,7 +24,7 @@ final class PdfRenderer
 
     /**
      * @param  array<string, mixed>  $data
-     * @param  'A4'|'A5'  $format
+     * @param  'A4'|'A4-L'|'A5'  $format  A4-L is A4 landscape, for wide reports
      */
     public function render(string $view, array $data, ?Entity $entity, string $format = 'A4', ?string $verifyDoc = null, ?string $verifyCode = null): string
     {

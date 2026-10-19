@@ -49,6 +49,6 @@
 @endif
 
 @include('pdf.verify', ['small' => $small])
-@include('pdf.signatures', ['signs' => [['Prepared by', 'تیار کنندہ'], ['Approved by', 'منظور کنندہ'], ['Received by', 'وصول کنندہ']]])
+@include('pdf.signatures', ['signs' => [['Prepared by', 'تیار کنندہ', $preparedBy ?? null], ['Approved by (second person)', 'منظور کنندہ', $approvedBy ?? null], ['Received by', 'وصول کنندہ']]])
 </body>
 </html>

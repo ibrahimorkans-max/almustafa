@@ -59,7 +59,7 @@ class DeductionRuleResource extends Resource
             Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
             Placeholder::make('example')->columnSpanFull()->content(fn (Get $get) => match ($get('method')) {
                 'excess_weight' => 'Example: free 17 %, factor 10000 → at 18.5 % moisture, 1.5 % of the net weight is deducted.',
-                'rate_cut' => 'Example: free 2 %, factor 1000 → at 4.7 %, the rate is cut by ₹20 per maund (2 full points × ₹10).',
+                'rate_cut' => 'Example: free 2 %, factor 1000 → at 4.7 %, the rate is cut by Rs 20 per maund (2 full points × Rs 10).',
                 'per_bag' => 'Example: factor 600 → 400 bags × 0.6 kg = 240 kg deducted for bag weight.',
                 default => '',
             }),

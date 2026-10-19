@@ -55,7 +55,10 @@ final class Preflight
         $add('Log level is not debug', 'warning', config('logging.channels.'.config('logging.default').'.level', 'debug') !== 'debug', 'LOG_LEVEL');
 
         // Security switches
-        $add('Owner IP allow-list required', 'error', (bool) config('ricemill.security.super_admin_require_ip_allowlist'), 'RICEMILL_SA_REQUIRE_IP_ALLOWLIST=true');
+        // A mill server is reachable from the mill network only (firewall), which is what the allow-list is for.
+        $millServer = (bool) config('ricemill.mill_server');
+        $add('Owner IP allow-list required', 'error', $millServer || (bool) config('ricemill.security.super_admin_require_ip_allowlist'),
+            $millServer ? 'mill server: open to the mill network only' : 'RICEMILL_SA_REQUIRE_IP_ALLOWLIST=true');
         $add('Owner trusted devices required', 'error', (bool) config('ricemill.security.super_admin_require_trusted_device'), 'RICEMILL_SA_REQUIRE_TRUSTED_DEVICE=true');
         $add('First-device bootstrap is off', 'error', ! config('ricemill.security.bootstrap_trust_first_device'), 'RICEMILL_BOOTSTRAP_TRUST_FIRST_DEVICE=false after installation');
         $add('Separate blind-index key', 'warning', (string) config('ricemill.security.blind_index_key') !== '', 'RICEMILL_BLIND_INDEX_KEY (otherwise derived from APP_KEY)');

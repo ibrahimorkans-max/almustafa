@@ -99,9 +99,24 @@ describe('sauda lifecycle', function () {
     });
 
     it('needs a different person with deal.approve to approve', function () {
-        expect(fn () => app(SaudaService::class)->approve($this->sauda))->toThrow(BusinessRuleViolation::class, 'maker-checker');
+        // Staff who may both make and approve deals still need a second person…
+        $exec = Make::account($this->f->entity, 'EXECUTIVE');
+        Make::system(fn () => DB::table('role_permissions')->insert([
+            'role_id' => $exec->role_id, 'permission_code' => 'deal.approve', 'entity_id' => $this->f->entity->id, 'created_at' => now(),
+        ]));
+        $exec->role->flushPermissionCache();
+        $this->f->as($exec);
+        $staff = app(SaudaService::class)->submit(app(SaudaService::class)->create([
+            'party_id' => $this->f->seller->id, 'product_id' => $this->f->paddy->id, 'quantity_kg' => '8000', 'rate_paise_per_maund' => 250000,
+            'delivery_from' => now()->toDateString(), 'delivery_to' => now()->addDays(10)->toDateString(),
+        ]));
+        expect(fn () => app(SaudaService::class)->approve($staff))->toThrow(BusinessRuleViolation::class, 'maker-checker');
 
-        $this->f->as(Make::account($this->f->entity, 'EXECUTIVE'));
+        // …while the mill's Super Admin may approve the sauda they made themselves.
+        $this->f->as($this->f->owner);
+        expect(app(SaudaService::class)->approve($staff)->status)->toBe(Sauda::STATUS_CONFIRMED);
+
+        $this->f->as(Make::account($this->f->entity, 'SUPERVISOR'));
         expect(fn () => app(SaudaService::class)->approve($this->sauda))->toThrow(BusinessRuleViolation::class, 'deal.approve');
 
         $this->f->as($this->f->owner2);

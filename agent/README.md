@@ -5,8 +5,9 @@ Runs on the weighbridge PC. It is the only component that talks to gate hardware
 
 | Module | What |
 |---|---|
-| `drivers/indicator.py` | Weighbridge indicator over RS-232 (`pyserial`) or TCP; configurable frame regex; **simulator** |
-| `drivers/camera.py` | IP camera snapshot over HTTP; **simulator** (unique PNG per shot) |
+| `drivers/indicator.py` | Weighbridge indicator over RS-232 (`pyserial`) or TCP; formats standard, st_gs, reversed (Yaohua / PF-series) or a custom regex; **simulator** |
+| `detect.py` | Finds the indicator's COM port, speed and format by listening (`detect`) |
+| `drivers/camera.py` | USB webcam and IP camera / DVR (RTSP) through ffmpeg, HTTP snapshot cameras; **simulator** (unique PNG per shot) |
 | `stability.py` | Stable-weight detection: N consecutive samples within one scale step; samples are sent as evidence |
 | `gate.py` | Arrival + weight capture: wait for stable weight → photo → SHA-256 → queue `weighment.captured` |
 | `queue.py` | SQLite store, every row Fernet-encrypted: outbox, photos, cached feed; remote wipe |
@@ -19,6 +20,9 @@ Runs on the weighbridge PC. It is the only component that talks to gate hardware
 | `gate_control.py` | Plate read → queued `gate_entry.plate_read`; asks the server `POST /gate/barrier`; opens only on yes; **fails closed** offline; guard override queued as `barrier.manual_open` |
 
 ## Setup (Windows weighbridge PC)
+
+Quickest: `powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1` (installs, writes agent.toml, finds the
+indicator, lists cameras). Step by step:
 
 ```powershell
 py -3.12 -m venv .venv
@@ -48,6 +52,11 @@ ricemill-agent --config agent.toml gate in --plate MNA211234           # plate r
 ricemill-agent --config agent.toml manual-open out "Server down, ambulance behind"   # guard override (flagged)
 ricemill-agent --config agent.toml live                                # live weight on the screens (run as a service)
 ricemill-agent --config agent.toml live --simulate 24560 --count 10    # simulator
+ricemill-agent ports                                                   # COM ports of this PC
+ricemill-agent --config agent.toml detect --write                      # find port, speed and format of the indicator
+ricemill-agent --config agent.toml watch                               # readings as the agent reads them
+ricemill-agent cameras                                                 # USB cameras (needs ffmpeg)
+ricemill-agent --config agent.toml camera-test                         # one photo -> camera-test.jpg
 ```
 
 Run `sync` from Task Scheduler every minute (or as a service); everything else works without network.

@@ -64,7 +64,7 @@ final class OperationalReports
             ],
             'gate_register' => [
                 ['Arrived', 'Entry', 'Vehicle', 'Direction', 'Party', 'Gross kg', 'Tare kg', 'Net kg', 'Payable kg', 'Status', 'Exited', 'Flags'],
-                GateEntry::query()->with('party')->whereBetween('arrived_at', [$start, $end])
+                GateEntry::query()->with('party')->whereNull('archived_at')->whereBetween('arrived_at', [$start, $end])
                     ->orderBy('arrived_at')->get()
                     ->map(fn (GateEntry $e) => [
                         $e->arrived_at->timezone('Asia/Karachi')->format('Y-m-d H:i'), $e->number, $e->registration_no, $e->direction,
@@ -82,7 +82,7 @@ final class OperationalReports
             ],
             'production_yield' => [
                 ['Batch', 'Paddy', 'Opened', 'Closed', 'Input kg', 'Output kg', 'Unaccounted kg', 'Unaccounted %', 'Outputs outside standard'],
-                ProductionBatch::query()->with('paddy')->where('status', ProductionBatch::CLOSED)
+                ProductionBatch::query()->with('paddy')->whereNull('archived_at')->where('status', ProductionBatch::CLOSED)
                     ->whereBetween('closed_at', [$start, $end])->orderBy('closed_at')->get()
                     ->map(fn (ProductionBatch $b) => [
                         $b->number, $b->paddy->name, $b->opened_at->toDateString(), $b->closed_at?->toDateString(), $b->input_kg, $b->output_kg,

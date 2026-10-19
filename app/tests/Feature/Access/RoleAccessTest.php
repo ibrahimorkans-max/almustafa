@@ -29,6 +29,12 @@ it('answers every screen a role may not open with an explaining 403 page, never 
     $forbidden = 0;
     foreach ($urls as $url) {
         $res = $this->get($url);
+        if ($res->isRedirect()) {
+            // Only the Office Coordinator's start page redirects: straight to the Office Desk.
+            expect($role)->toBe('OFFICE_COORDINATOR')->and($res->headers->get('Location'))->toContain('/admin/office-desk');
+
+            continue;
+        }
         expect($res->status())->toBeIn([200, 403], "{$role} {$url}");
         if ($res->status() === 403) {
             $forbidden++;

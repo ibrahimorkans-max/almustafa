@@ -8,6 +8,11 @@
     gate in|out [--entry ID]     plate read + server decision; opens the barrier only on yes
     manual-open in|out REASON    guard override (recorded and flagged)
     live [--simulate KG]         send the indicator reading about once a second for the screens
+    ports                        list the COM (serial) ports of this PC
+    detect [--port COM3] [--write]   find the indicator's port, speed and format (and write them to agent.toml)
+    watch [--seconds 30]         show the indicator's readings as the agent reads them
+    cameras                      list the USB cameras Windows sees (needs ffmpeg)
+    camera-test [--out FILE]     take one photo with the configured camera
     new-store-key                print a fresh encryption key for [store].key
 """
 
@@ -23,9 +28,9 @@ from .api import ApiClient, Credentials
 from .config import AgentConfig
 from .drivers.anpr import HttpAnprCamera, SimulatedAnprCamera
 from .drivers.barrier import SimulatedBarrier, TcpRelayBarrier
-from .drivers.camera import HttpSnapshotCamera, SimulatedCamera
+from .drivers.camera import FfmpegCamera, HttpSnapshotCamera, SimulatedCamera, list_usb_cameras
 from .drivers.display import SimulatedDisplay, TcpTextDisplay
-from .drivers.indicator import FrameParser, SerialIndicator, SimulatedIndicator, TcpIndicator
+from .drivers.indicator import SerialIndicator, SimulatedIndicator, TcpIndicator, make_parser
 from .gate import GateAgent
 from .gate_control import GateController
 from .live import LiveWeightStreamer
@@ -34,23 +39,56 @@ from .queue import LocalStore
 from .sync import SyncWorker
 
 
-def build_indicator(cfg: AgentConfig, simulated_target: Decimal | None = None):
-    kind = cfg.indicator.get("type", "simulated")
-    parser = FrameParser(cfg.indicator.get("frame_pattern") or FrameParser().pattern)
+def indicator_from(section: dict, resolution_kg: Decimal = Decimal("10"), simulated_target: Decimal | None = None):
+    kind = section.get("type", "simulated")
+    parser = make_parser(section.get("format"), section.get("frame_pattern"))
     if kind == "serial":
-        return SerialIndicator(cfg.indicator["port"], int(cfg.indicator.get("baudrate", 9600)), parser)
+        return SerialIndicator(section["port"], int(section.get("baudrate", 9600)), parser,
+                               int(section.get("bytesize", 8)), str(section.get("parity", "none")), int(section.get("stopbits", 1)))
     if kind == "tcp":
-        return TcpIndicator(cfg.indicator["host"], int(cfg.indicator["port"]), parser)
-    return SimulatedIndicator(simulated_target or Decimal("25000"), cfg.resolution_kg, parser=parser)
+        return TcpIndicator(section["host"], int(section["port"]), parser)
+    return SimulatedIndicator(simulated_target or Decimal("25000"), resolution_kg)
 
 
-def build_camera(cfg: AgentConfig):
-    kind = cfg.camera.get("type", "simulated")
+def build_indicator(cfg: AgentConfig, simulated_target: Decimal | None = None):
+    return indicator_from(cfg.indicator, cfg.resolution_kg, simulated_target)
+
+
+def camera_from(section: dict):
+    kind = section.get("type", "simulated")
     if kind == "http":
-        return HttpSnapshotCamera(cfg.camera["url"])
+        return HttpSnapshotCamera(section["url"])
+    if kind == "usb":
+        return FfmpegCamera("usb", section["device"], section.get("ffmpeg", "ffmpeg"))
+    if kind == "rtsp":
+        return FfmpegCamera("rtsp", section["url"], section.get("ffmpeg", "ffmpeg"))
     if kind == "none":
         return None
     return SimulatedCamera()
+
+
+def build_camera(cfg: AgentConfig):
+    return camera_from(cfg.camera)
+
+
+def write_indicator(path: str, block: str) -> None:
+    """Replaces the [indicator] section of agent.toml (or adds it) with the detected settings."""
+    import re
+    from pathlib import Path
+
+    file = Path(path)
+    text = file.read_text(encoding="utf-8") if file.exists() else ""
+    section = re.compile(r"^\[indicator\][^\[]*", re.M)
+    text = section.sub(lambda _m: block + "\n\n", text, count=1) if section.search(text) else text.rstrip() + "\n\n" + block + "\n"
+    file.write_text(text, encoding="utf-8")
+
+
+def hardware_section(path: str, name: str) -> dict:
+    """[indicator] / [camera] from agent.toml without the secrets (for watch and camera-test before set-up)."""
+    import tomllib
+    from pathlib import Path
+
+    return tomllib.loads(Path(path).read_text(encoding="utf-8")).get(name, {}) if Path(path).exists() else {}
 
 
 def build_gate(cfg: AgentConfig, store: LocalStore, api: ApiClient, simulated_plate: str | None = None) -> GateController:
@@ -104,7 +142,20 @@ def main(argv: list[str] | None = None) -> int:
     lv = sub.add_parser("live")
     lv.add_argument("--simulate", type=Decimal, help="simulated indicator: a truck of this many kg, again and again")
     lv.add_argument("--count", type=int, help="stop after this many sends (default: run until stopped)")
+    sub.add_parser("ports")
+    d = sub.add_parser("detect")
+    d.add_argument("--port", help="only this port, e.g. COM3 (default: every port)")
+    d.add_argument("--seconds", type=float, default=3.0, help="listening time per speed")
+    d.add_argument("--write", action="store_true", help="write the result into the [indicator] section of the config file")
+    w = sub.add_parser("watch")
+    w.add_argument("--seconds", type=float, default=30.0)
+    sub.add_parser("cameras")
+    ct = sub.add_parser("camera-test")
+    ct.add_argument("--out", default="camera-test.jpg")
     args = p.parse_args(argv)
+
+    if args.cmd in ("ports", "detect", "watch", "cameras", "camera-test"):
+        return hardware_command(args)
 
     if args.cmd == "new-store-key":
         print(LocalStore.new_key().decode())
@@ -163,6 +214,63 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "manual-open":
         build_gate(cfg, store, api).manual_open(args.side, args.reason, args.entry)
         print("barrier opened manually; the event is queued for sync")
+        return 0
+    return 1
+
+
+def hardware_command(args) -> int:  # pragma: no cover - needs the machine
+    """Set-up helpers that need no server login: they work before agent.toml has its secrets."""
+    import time
+
+    from .detect import detect, serial_ports, serial_reader
+
+    if args.cmd == "ports":
+        ports = serial_ports()
+        if not ports:
+            print("No COM port found. Plug in the cable / USB-to-RS232 adapter and install its driver (CH340, PL2303 or FTDI).")
+            return 1
+        for device, description in ports:
+            print(f"{device}\t{description}")
+        return 0
+    if args.cmd == "detect":
+        ports = [args.port] if args.port else [d for d, _ in serial_ports()]
+        if not ports:
+            print("No COM port found. Plug in the cable first (see `ports`).")
+            return 1
+        print("Keep a weight on the scale (or change it) while the agent listens.")
+        found = detect(ports, serial_reader(args.seconds), progress=print)
+        if not found:
+            print("No readings recognised. Check: the indicator's serial output is ON and set to CONTINUOUS, "
+                  "the cable (try a null-modem adapter), and that no other program uses the port.")
+            return 1
+        best = found[0]
+        print("\nFound: " + best.describe())
+        print("\n" + best.config())
+        if args.write:
+            write_indicator(args.config, best.config())
+            print(f"\nWritten to {args.config}.")
+        return 0
+    if args.cmd == "watch":
+        indicator = indicator_from(hardware_section(args.config, "indicator"))
+        end = time.monotonic() + args.seconds
+        for weight, _ in indicator.samples():
+            print(f"{time.strftime('%H:%M:%S')}  {weight.normalize():>10} kg")
+            if time.monotonic() > end:
+                break
+        return 0
+    if args.cmd == "cameras":
+        names = list_usb_cameras(hardware_section(args.config, "camera").get("ffmpeg", "ffmpeg"))
+        print("\n".join(names) if names else "No USB camera found (is ffmpeg installed and the camera plugged in?).")
+        return 0 if names else 1
+    if args.cmd == "camera-test":
+        camera = camera_from(hardware_section(args.config, "camera"))
+        if camera is None:
+            print('[camera] type is "none".')
+            return 1
+        photo = camera.capture()
+        with open(args.out, "wb") as f:
+            f.write(photo)
+        print(f"Photo saved: {args.out} ({len(photo) // 1024} KB). Open it to check the view of the platform and number plate.")
         return 0
     return 1
 
