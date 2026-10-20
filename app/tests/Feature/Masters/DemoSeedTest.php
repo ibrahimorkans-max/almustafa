@@ -39,8 +39,8 @@ it('seeds demo activity once: saudas, trucks at every gate stage and weights to 
 
     app(TenantContext::class)->runInEntity($entity->id, function () {
         expect(Sauda::query()->count())->toBe(2)
-            ->and(GateEntry::query()->pluck('status')->countBy()->all())->toEqual(['exited' => 3, 'gross_weighed' => 1, 'unloaded' => 1, 'arrived' => 1])
-            ->and(Weighment::query()->count())->toBe(8)
+            ->and(GateEntry::query()->pluck('status')->countBy()->all())->toEqual(['exited' => 3, 'arrived' => 1, 'unloaded' => 1, 'lab_accepted' => 1])
+            ->and(Weighment::query()->count())->toBe(7)
             ->and(WeighmentCheck::query()->pluck('decision')->countBy()->all())->toEqual(['ok' => 3, 'query' => 1])
             ->and(app(LiveCapture::class)->waiting()->pluck('kind')->sort()->values()->all())->toBe(['gross', 'tare']);
     });

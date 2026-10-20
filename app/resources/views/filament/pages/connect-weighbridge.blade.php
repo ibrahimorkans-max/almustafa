@@ -26,6 +26,62 @@
         </div>
     </x-filament::section>
 
+    @php $cd = $this->connectionDetails(); @endphp
+    <x-filament::section collapsible>
+        <x-slot name="heading">Details to copy</x-slot>
+        <x-slot name="description">What the weighbridge PC asks for. The PC's password and the signing secret are not shown here: the password is never stored readable, and the secret is shown once, when the agent is registered (register it again under Devices if it was lost).</x-slot>
+        <div class="space-y-4 text-sm">
+            <div>
+                <div class="mb-1 text-xs font-medium text-gray-500">ERP address</div>
+                <div class="flex items-center gap-2" x-data="{ copied: false }">
+                    <code class="flex-1 overflow-x-auto rounded-lg bg-gray-950 px-3 py-2 font-mono text-xs text-gray-100">{{ $cd['server'] }}</code>
+                    <x-filament::button size="xs" color="gray" x-on:click="navigator.clipboard.writeText(@js($cd['server'])); copied = true; setTimeout(() => copied = false, 1500)"><span x-text="copied ? 'Copied' : 'Copy'">Copy</span></x-filament::button>
+                </div>
+            </div>
+
+            <div>
+                <div class="mb-1 text-xs font-medium text-gray-500">Gate agents (registered PCs)</div>
+                @forelse ($cd['agents'] as $ag)
+                    <div class="mb-2 rounded-lg border border-gray-200 p-2 dark:border-white/10">
+                        <div class="mb-1 text-xs text-gray-500">{{ $ag['name'] }} · login <strong>{{ $ag['username'] }}</strong> · {{ $ag['status'] }} · last seen {{ $ag['last_seen'] }}</div>
+                        @foreach (['device_uid' => $ag['device_uid'], 'username' => $ag['username']] as $label => $value)
+                            <div class="mb-1 flex items-center gap-2" x-data="{ copied: false }">
+                                <span class="w-24 shrink-0 text-xs text-gray-500">{{ $label }}</span>
+                                <code class="flex-1 overflow-x-auto rounded bg-gray-950 px-2 py-1 font-mono text-xs text-gray-100">{{ $value }}</code>
+                                <x-filament::button size="xs" color="gray" x-on:click="navigator.clipboard.writeText(@js($value)); copied = true; setTimeout(() => copied = false, 1500)"><span x-text="copied ? 'Copied' : 'Copy'">Copy</span></x-filament::button>
+                            </div>
+                        @endforeach
+                    </div>
+                @empty
+                    <p class="text-gray-500">No gate agent registered yet: Security → Devices → Register gate agent.</p>
+                @endforelse
+            </div>
+
+            <div>
+                <div class="mb-1 text-xs font-medium text-gray-500">Weighbridges</div>
+                @forelse ($cd['scales'] as $sc)
+                    <div class="mb-3 rounded-lg border border-gray-200 p-2 dark:border-white/10">
+                        <div class="mb-1 text-xs text-gray-500"><strong>{{ $sc['code'] }}</strong> · {{ $sc['name'] }} · step {{ $sc['resolution_kg'] }} kg · {{ $sc['status'] }}</div>
+                        <div class="mb-2 flex items-center gap-2" x-data="{ copied: false }">
+                            <span class="w-24 shrink-0 text-xs text-gray-500">weighbridge id</span>
+                            <code class="flex-1 overflow-x-auto rounded bg-gray-950 px-2 py-1 font-mono text-xs text-gray-100">{{ $sc['id'] }}</code>
+                            <x-filament::button size="xs" color="gray" x-on:click="navigator.clipboard.writeText(@js($sc['id'])); copied = true; setTimeout(() => copied = false, 1500)"><span x-text="copied ? 'Copied' : 'Copy'">Copy</span></x-filament::button>
+                        </div>
+                        <div x-data="{ copied: false }">
+                            <div class="mb-1 flex items-center justify-between">
+                                <span class="text-xs text-gray-500">agent.toml for this weighbridge (fill in the three empty secrets on the PC)</span>
+                                <x-filament::button size="xs" color="gray" x-on:click="navigator.clipboard.writeText(@js($sc['toml'])); copied = true; setTimeout(() => copied = false, 1500)"><span x-text="copied ? 'Copied' : 'Copy agent.toml'">Copy agent.toml</span></x-filament::button>
+                            </div>
+                            <pre class="overflow-x-auto rounded-lg bg-gray-950 px-3 py-2 font-mono text-xs text-gray-100">{{ $sc['toml'] }}</pre>
+                        </div>
+                    </div>
+                @empty
+                    <p class="text-gray-500">No weighbridge added yet: Weighbridges → New.</p>
+                @endforelse
+            </div>
+        </div>
+    </x-filament::section>
+
     @php
         $steps = $this->steps();
         $current = $steps[$step - 1];

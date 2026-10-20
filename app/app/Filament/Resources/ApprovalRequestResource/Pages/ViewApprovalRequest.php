@@ -6,6 +6,7 @@ namespace App\Filament\Resources\ApprovalRequestResource\Pages;
 
 use App\Domain\Approvals\ApprovalService;
 use App\Filament\Resources\ApprovalRequestResource;
+use App\Filament\Support\AttachmentsPanel;
 use App\Models\ApprovalRequest;
 use App\Models\LoginAccount;
 use Filament\Actions\Action;
@@ -25,6 +26,7 @@ class ViewApprovalRequest extends ViewRecord
         };
 
         return [
+            AttachmentsPanel::action(),
             ApprovalRequestResource::approveAction(Action::make('approve'), $after),
             ApprovalRequestResource::rejectAction(Action::make('reject'), $after),
             Action::make('cancel')->label('Withdraw')->color('gray')

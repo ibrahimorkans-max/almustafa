@@ -33,6 +33,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $device_id
  * @property string|null $created_by
  * @property Carbon $tested_at
+ * @property array<string, int>|null $results code => basis points, for the configured lab tests
+ * @property list<array<string, mixed>>|null $evaluation each result against its limits (LabStandards), as read when recorded
  */
 class LabTest extends Model
 {
@@ -54,7 +56,7 @@ class LabTest extends Model
 
     protected $fillable = [
         'gate_entry_id', 'sample_code', 'moisture_bp', 'foreign_matter_bp', 'broken_bp', 'damaged_bp',
-        'immature_bp', 'chalky_bp', 'grade', 'remarks', 'supersedes_id', 'device_id', 'tested_at',
+        'immature_bp', 'chalky_bp', 'grade', 'remarks', 'supersedes_id', 'device_id', 'tested_at', 'results', 'evaluation',
     ];
 
     protected function casts(): array
@@ -62,14 +64,14 @@ class LabTest extends Model
         return [
             'moisture_bp' => 'integer', 'foreign_matter_bp' => 'integer', 'broken_bp' => 'integer',
             'damaged_bp' => 'integer', 'immature_bp' => 'integer', 'chalky_bp' => 'integer',
-            'tested_at' => 'datetime', 'created_at' => 'datetime',
+            'tested_at' => 'datetime', 'created_at' => 'datetime', 'results' => 'array', 'evaluation' => 'array',
         ];
     }
 
-    /** @return array<string, int> parameter => basis points, only measured ones */
+    /** @return array<string, int> parameter => basis points, only measured ones (the configured lab tests and the older fixed columns) */
     public function measurements(): array
     {
-        $out = [];
+        $out = array_map('intval', (array) ($this->results ?? []));
         foreach (self::PARAMETERS as $parameter => $column) {
             if ($this->getAttribute($column) !== null) {
                 $out[$parameter] = (int) $this->getAttribute($column);

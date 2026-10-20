@@ -215,9 +215,9 @@ describe('every feature', function () {
             return $this->bot->confirm($this->admin, $reply->pending);
         };
 
-        expect($do('lab LRA7788 moisture 15.5 fm 1 grade A')->text)->toContain('Lab test recorded');
-        expect($do('accept lab LRA7788')->text)->toContain('Lot accepted');
-        expect($do('unloaded LRA7788 into G1')->text)->toContain('Status now: unloaded');
+        // Lab before weighing: the truck waiting at the lab is tested and accepted, then waits for its gross weight.
+        expect($do('lab LRA7788 moisture 13.5 broken 4 grade A')->text)->toContain('Lab test recorded');
+        expect($do('accept lab LRA7788')->text)->toContain('Lot accepted')->toContain('Status now: lab accepted');
 
         $sauda = $do('sauda 100 maund 1121 from Haji Riaz at 4500');
         expect($sauda->text)->toContain('confirmed')->and($sauda->links[0]['label'])->toBe('Print sauda contract');

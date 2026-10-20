@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Gate;
 
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Pages\ConnectWeighbridge;
 use App\Filament\Resources\Gate\ScaleResource\Pages;
 use App\Filament\Resources\Gate\ScaleResource\RelationManagers\CertificatesRelationManager;
 use App\Filament\Support\Units;
@@ -14,6 +15,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -37,7 +39,7 @@ class ScaleResource extends Resource
     {
         return $form->columns(2)->schema([
             TextInput::make('code')->required()->maxLength(20)
-                ->unique('scales', 'code', ignoreRecord: true, modifyRuleUsing: fn (Unique $r) => $r->where('entity_id', app(TenantContext::class)->entityId())),
+                ->unique('scales', 'code', ignoreRecord: true, modifyRuleUsing: fn (Unique $rule) => $rule->where('entity_id', app(TenantContext::class)->entityId())),
             TextInput::make('name')->required()->maxLength(120),
             TextInput::make('capacity_kg')->label('Capacity (kg)')->required()->regex(Units::DECIMAL_3),
             TextInput::make('resolution_kg')->label('Smallest step (kg)')->required()->default('10')->regex(Units::DECIMAL_3),
@@ -58,8 +60,14 @@ class ScaleResource extends Resource
                     ->state(fn (Scale $r) => $r->certificates()->where('type', 'stamping')->max('valid_until'))
                     ->color(fn ($state) => $state === null || now()->gt($state) ? 'danger' : (now()->addDays(30)->gt($state) ? 'warning' : 'success')),
                 TextColumn::make('status')->badge(),
+                TextColumn::make('id')->label('Weighbridge id (for the gate agent)')->fontFamily('mono')->size('xs')
+                    ->copyable()->copyMessage('Weighbridge id copied'),
             ])
-            ->actions([EditAction::make()]);
+            ->actions([
+                Action::make('connect')->label('Connection details')->icon('heroicon-o-link')->color('gray')
+                    ->url(fn () => ConnectWeighbridge::getUrl()),
+                EditAction::make(),
+            ]);
     }
 
     public static function getRelations(): array

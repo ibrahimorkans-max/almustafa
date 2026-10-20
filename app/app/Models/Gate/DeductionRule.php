@@ -40,7 +40,8 @@ class DeductionRule extends Model
     use HasUuids;
     use TracksCreator;
 
-    public const PARAMETERS = ['moisture', 'foreign_matter', 'broken', 'damaged', 'immature', 'chalky', 'bags'];
+    /** The lab tests (LabStandards codes and the older fixed ones) and bags. */
+    public const PARAMETERS = ['moisture', 'green_grain', 'shell', 'shewad_green', 'broken', 'red_rice', 'dandly', 'foreign_matter', 'damaged', 'immature', 'chalky', 'bags'];
 
     public const METHODS = ['excess_weight', 'rate_cut', 'per_bag'];
 

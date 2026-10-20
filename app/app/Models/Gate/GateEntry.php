@@ -16,6 +16,7 @@ use App\Models\Masters\Vehicle;
 use App\Models\Procurement\Sauda;
 use App\Support\Eloquent\HasOptimisticLock;
 use App\Support\Eloquent\TracksCreator;
+use App\Support\Values\PakistanIds;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -34,6 +35,9 @@ use Illuminate\Support\Carbon;
  * @property string $purpose
  * @property string|null $vehicle_id
  * @property string $registration_no
+ * @property string|null $vehicle_type
+ * @property bool $no_plate
+ * @property string|null $vehicle_description
  * @property string|null $driver_id
  * @property string|null $driver_name
  * @property string|null $party_id
@@ -71,15 +75,31 @@ class GateEntry extends Model
 
     public const SYNC_TYPE = 'gate_entry';
 
-    /** Inbound paddy happy path, in order. */
-    public const INBOUND_FLOW = ['arrived', 'gross_weighed', 'lab_accepted', 'unloaded', 'tare_weighed', 'slip_issued', 'exited'];
+    /**
+     * Inbound paddy happy path, in order: the lab decides before any weighing; after the empty weight
+     * the Caat and price settlement is approved, and only then the slip books stock and the bill.
+     */
+    public const INBOUND_FLOW = ['arrived', 'lab_accepted', 'gross_weighed', 'unloaded', 'tare_weighed', 'settlement_approved', 'slip_issued', 'exited'];
 
     public const OUTBOUND_FLOW = ['arrived', 'tare_weighed', 'loaded', 'gross_weighed', 'slip_issued', 'gate_pass_issued', 'exited'];
 
     protected $fillable = [
         'direction', 'purpose', 'vehicle_id', 'registration_no', 'driver_id', 'driver_name', 'party_id',
-        'sauda_id', 'product_id', 'bag_count', 'arrived_at', 'dispatch_order_id',
+        'sauda_id', 'product_id', 'bag_count', 'arrived_at', 'dispatch_order_id', 'vehicle_type', 'no_plate', 'vehicle_description',
     ];
+
+    /** Prefix of the reference given to a vehicle with no number plate (never a valid plate: too many letters). */
+    public const NO_PLATE_PREFIX = 'NOPLATE';
+
+    /** How the vehicle is shown: the plate, or for one with no plate its kind and description. */
+    public function vehicleLabel(): string
+    {
+        if ($this->no_plate) {
+            return 'No plate · '.Vehicle::typeLabel($this->vehicle_type).($this->vehicle_description ? ' · '.$this->vehicle_description : '');
+        }
+
+        return PakistanIds::formatVehicleNumber($this->registration_no);
+    }
 
     /** @var list<string> */
     protected array $auditIgnored = ['status', 'flags', 'gross_kg', 'tare_kg', 'net_kg', 'deduction_kg', 'payable_kg', 'rate_cut_paise_per_maund', 'exited_at'];
@@ -88,6 +108,7 @@ class GateEntry extends Model
     {
         return [
             'bag_count' => 'integer',
+            'no_plate' => 'boolean',
             'flags' => 'array',
             'gross_kg' => 'decimal:3',
             'tare_kg' => 'decimal:3',
@@ -115,6 +136,12 @@ class GateEntry extends Model
 
     /** @param  Builder<static>  $query */
     public function scopeWithArchived(Builder $query): void {}
+
+    /** @return HasMany<GatePriceVersion, $this> every price offered or negotiated, oldest first */
+    public function priceVersions(): HasMany
+    {
+        return $this->hasMany(GatePriceVersion::class)->orderBy('version');
+    }
 
     /** @return HasMany<GateEvent, $this> */
     public function events(): HasMany

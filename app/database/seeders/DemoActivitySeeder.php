@@ -132,34 +132,40 @@ class DemoActivitySeeder extends Seeder
         $known = Vehicle::query()->where('is_blocked', false)->orderBy('registration_no')->pluck('registration_no')->all();
         $plates = array_merge($known, ['MNA-23-4411', 'LRA-7788', 'MNC-19-2025', 'BWN-5512']);
 
-        // Three trucks that came, were weighed, tested, unloaded, weighed empty and left.
+        // Three trucks: lab tested, accepted, weighed loaded, unloaded, weighed empty, Caat and price settled
+        // (proposed by the clerk, approved by a manager), slip issued, left.
         $done = [];
-        foreach ([[6, '25480', '10230', 1650, 300], [4, '31260', '11900', 1820, 250], [2, '18940', '7660', 1500, 420]] as $i => [$daysAgo, $gross, $tare, $moisture, $fm]) {
+        foreach ([[6, '25480', '10230', 1350, '0.5'], [4, '31260', '11900', 1550, '1'], [2, '18940', '7660', 1400, '0']] as $i => [$daysAgo, $gross, $tare, $moisture, $perMaund]) {
             $at = CarbonImmutable::now()->subDays($daysAgo)->setTime(9 + $i, 15);
             $e = $gate->arrive(['registration_no' => $plates[$i], 'sauda_id' => $saudas[$i % 2]->id, 'bag_count' => (int) round(((int) $gross - (int) $tare) / 40)], null, $at);
-            $this->weigh($gate, $e, 'gross', $gross, $scale, $at->addMinutes(8));
-            $gate->recordLabTest($e, ['moisture_bp' => $moisture, 'foreign_matter_bp' => $fm, 'broken_bp' => 700, 'grade' => 'A', 'sample_code' => 'S-'.($i + 1)], $at->addMinutes(20));
-            $gate->decideLab($e, true, 'Demo: accepted', $at->addMinutes(25));
+            $gate->recordLabTest($e, ['results' => $this->labResults($moisture), 'grade' => 'A', 'sample_code' => 'S-'.($i + 1)], $at->addMinutes(10));
+            $gate->decideLab($e, true, 'Demo: accepted', $at->addMinutes(15));
+            $this->weigh($gate, $e, 'gross', $gross, $scale, $at->addMinutes(20));
             $gate->markUnloaded($e, $at->addMinutes(70), true, $godown);
             $this->weigh($gate, $e, 'tare', $tare, $scale, $at->addMinutes(80));
+            $gate->proposeSettlement($e, (string) ($gate->project($e->fresh())->deduction_kg ?? '0'), $perMaund, 'Demo settlement');
+            $bind($manager1);
+            $gate->approveSettlement($e, 'Demo: approved');
+            $bind($clerk);
             $gate->issueSlip($e);
             $gate->exit($e, $at->addMinutes(90));
             $done[] = $e;
         }
 
-        // At the lab: gross weighed, waiting for the test.
-        $atLab = $gate->arrive(['registration_no' => $plates[3], 'sauda_id' => $saudas[0]->id, 'bag_count' => 420], null, now()->subHours(2));
-        $this->weigh($gate, $atLab, 'gross', '27110', $scale, CarbonImmutable::now()->subHours(2)->addMinutes(6));
+        // At the lab: arrived, waiting for the test (no weighing before the lab decides).
+        $gate->arrive(['registration_no' => $plates[3], 'sauda_id' => $saudas[0]->id, 'bag_count' => 420], null, now()->subHours(2));
 
-        // Unloaded, waiting for the empty (tare) weight.
+        // Accepted, weighed loaded, unloaded, waiting for the empty (tare) weight.
         $unloaded = $gate->arrive(['registration_no' => $plates[4], 'sauda_id' => $saudas[1]->id, 'bag_count' => 380], null, now()->subHours(1));
-        $this->weigh($gate, $unloaded, 'gross', '24320', $scale, CarbonImmutable::now()->subHours(1)->addMinutes(5));
-        $gate->recordLabTest($unloaded, ['moisture_bp' => 1580, 'foreign_matter_bp' => 180, 'grade' => 'A'], now()->subMinutes(45));
-        $gate->decideLab($unloaded, true, 'Demo: accepted', now()->subMinutes(40));
+        $gate->recordLabTest($unloaded, ['results' => $this->labResults(1580), 'grade' => 'A'], now()->subMinutes(55));
+        $gate->decideLab($unloaded, true, 'Demo: accepted (moisture within grace)', now()->subMinutes(50));
+        $this->weigh($gate, $unloaded, 'gross', '24320', $scale, CarbonImmutable::now()->subMinutes(45));
         $gate->markUnloaded($unloaded, now()->subMinutes(10), true, $godown);
 
-        // Just arrived, waiting for the gross weight (use it with ricemill:demo-live-weight).
-        $gate->arrive(['registration_no' => $plates[5], 'sauda_id' => $saudas[0]->id, 'bag_count' => 400], null, now()->subMinutes(5));
+        // Accepted by the lab, waiting for the gross weight (use it with ricemill:demo-live-weight).
+        $waiting = $gate->arrive(['registration_no' => $plates[5], 'sauda_id' => $saudas[0]->id, 'bag_count' => 400], null, now()->subMinutes(20));
+        $gate->recordLabTest($waiting, ['results' => $this->labResults(1380), 'grade' => 'A'], now()->subMinutes(12));
+        $gate->decideLab($waiting, true, 'Demo: accepted', now()->subMinutes(8));
 
         // Weight checks: the first finished truck OK, the second queried, the rest not checked yet.
         $bind($manager1);
@@ -172,6 +178,16 @@ class DemoActivitySeeder extends Seeder
 
         app(TenantContext::class)->clear();
         app(ActorContext::class)->clear();
+    }
+
+    /**
+     * Demo results for the seven lab tests (basis points), all within their starting limits except as given.
+     *
+     * @return array<string, int>
+     */
+    private function labResults(int $moistureBp): array
+    {
+        return ['moisture' => $moistureBp, 'green_grain' => 250, 'shell' => 150, 'shewad_green' => 200, 'broken' => 450, 'red_rice' => 120, 'dandly' => 60];
     }
 
     /** A weight from the indicator with a settled reading window as its evidence (no camera photo in the demo). */

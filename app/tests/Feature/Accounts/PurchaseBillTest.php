@@ -108,11 +108,13 @@ it('does not bill rejected lots or slips without a sauda', function () {
     $this->f->as($this->f->inv->supervisor);
     $g = app(GateService::class);
     $e = $g->arrive(['registration_no' => 'MNA211234', 'party_id' => $this->f->inv->gate->seller->id]);
-    $g->recordWeighment($e, 'gross', '20000', $this->f->inv->gate->scale, GateFixtures::readings('20000'), str_repeat('b', 64));
     $g->recordLabTest($e, ['moisture_bp' => 1600]);
     $g->decideLab($e, true);
+    $g->recordWeighment($e, 'gross', '20000', $this->f->inv->gate->scale, GateFixtures::readings('20000'), str_repeat('b', 64));
     $g->markUnloaded($e, godown: $this->f->inv->silo);
     $g->recordWeighment($e, 'tare', '9000', $this->f->inv->gate->scale, GateFixtures::readings('9000'), str_repeat('b', 64));
+    $g->proposePrice($e, 100000, 'Spot price: no sauda');
+    $this->f->inv->gate->settle($g, $e);
     $g->issueSlip($e);
 
     expect(PurchaseBill::query()->count())->toBe(0);

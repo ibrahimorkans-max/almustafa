@@ -83,11 +83,12 @@ final class AccountsFixtures
         $this->as($this->inv->supervisor);
         $g = app(GateService::class);
         $e = $g->arrive(['registration_no' => 'MNA211234', 'sauda_id' => $this->sauda->id, 'bag_count' => 400]);
-        $g->recordWeighment($e, 'gross', '25480', $this->inv->gate->scale, GateFixtures::readings('25480'), str_repeat('a', 64));
         $g->recordLabTest($e, ['moisture_bp' => 1850, 'foreign_matter_bp' => 350]);
         $g->decideLab($e, true);
+        $g->recordWeighment($e, 'gross', '25480', $this->inv->gate->scale, GateFixtures::readings('25480'), str_repeat('a', 64));
         $g->markUnloaded($e, godown: $this->inv->silo);
         $g->recordWeighment($e, 'tare', '10230', $this->inv->gate->scale, GateFixtures::readings('10230'), str_repeat('a', 64));
+        $this->inv->gate->settle($g, $e);
         $g->issueSlip($e);
         $fresh = $e->fresh();
         Make::reset();

@@ -28,7 +28,34 @@ class Vehicle extends MasterModel
 {
     public const SYNC_TYPE = 'vehicle';
 
-    public const TYPES = ['truck', 'tractor', 'trolley', 'tempo', 'other'];
+    /** Kinds of vehicle (English and the name used at the gate). */
+    public const LABELS = [
+        'truck' => 'Truck (ٹرک)',
+        'mini_truck' => 'Mini truck / Mazda / Shehzore (مزدا)',
+        'tractor' => 'Tractor (ٹریکٹر)',
+        'trolley' => 'Tractor trolley (ٹرالی)',
+        'tempo' => 'Tempo / pickup (پک اپ)',
+        'loader_rickshaw' => 'Loader rickshaw / Qingqi (لوڈر رکشہ)',
+        'rickshaw' => 'Rickshaw (رکشہ)',
+        'motorbike' => 'Motorbike (موٹر سائیکل)',
+        'bicycle' => 'Bicycle (سائیکل)',
+        'bull_cart' => 'Bullock cart / bail gari (بیل گاڑی)',
+        'donkey_cart' => 'Donkey cart / gadha gari (گدھا گاڑی)',
+        'horse_cart' => 'Horse cart / tanga (گھوڑا گاڑی)',
+        'hand_cart' => 'Hand cart / rehri (ریڑھی)',
+        'other' => 'Other (دیگر)',
+    ];
+
+    public const TYPES = ['truck', 'mini_truck', 'tractor', 'trolley', 'tempo', 'loader_rickshaw', 'rickshaw', 'motorbike', 'bicycle',
+        'bull_cart', 'donkey_cart', 'horse_cart', 'hand_cart', 'other'];
+
+    /** Kinds that usually carry no number plate. */
+    public const USUALLY_UNREGISTERED = ['bicycle', 'bull_cart', 'donkey_cart', 'horse_cart', 'hand_cart'];
+
+    public static function typeLabel(?string $type): string
+    {
+        return $type === null ? '—' : (self::LABELS[$type] ?? ucfirst(str_replace('_', ' ', $type)));
+    }
 
     protected $fillable = [
         'registration_no', 'vehicle_type', 'owner_party_id', 'default_driver_id', 'capacity_kg', 'is_blocked', 'blocked_reason', 'status',

@@ -17,6 +17,7 @@ use App\Models\Gate\Scale;
 use App\Models\Gate\Weighment;
 use App\Models\LoginAccount;
 use App\Models\Masters\Godown;
+use App\Models\Masters\Vehicle;
 use App\Support\Values\PakistanIds;
 use Closure;
 use Illuminate\Support\Facades\Validator;
@@ -42,7 +43,10 @@ final class GateHandlers
                     return new SyncOutcome(SyncOutcome::APPLIED, ['note' => 'already recorded']);
                 }
                 $v = Validator::make($e->payload, [
-                    'registration_no' => ['required', 'string', 'max:20', fn (string $a, mixed $val, Closure $fail) => PakistanIds::isValidVehicleNumber(PakistanIds::normalizeVehicleNumber((string) $val)) ? null : $fail('Invalid registration number.')],
+                    'no_plate' => ['sometimes', 'boolean'],
+                    'registration_no' => ['required_unless:no_plate,true', 'nullable', 'string', 'max:20', fn (string $a, mixed $val, Closure $fail) => PakistanIds::isValidVehicleNumber(PakistanIds::normalizeVehicleNumber((string) $val)) ? null : $fail('Invalid registration number.')],
+                    'vehicle_type' => ['nullable', Rule::in(Vehicle::TYPES)],
+                    'vehicle_description' => ['nullable', 'required_if:no_plate,true', 'string', 'max:160'],
                     'direction' => ['sometimes', Rule::in(['inbound', 'outbound'])],
                     'purpose' => ['sometimes', Rule::in(['paddy_purchase', 'dispatch', 'other'])],
                     'party_id' => ['nullable', 'uuid'],
@@ -97,6 +101,8 @@ final class GateHandlers
                     'sample_code' => ['nullable', 'string', 'max:40'],
                     'moisture_bp' => $bp, 'foreign_matter_bp' => $bp, 'broken_bp' => $bp,
                     'damaged_bp' => $bp, 'immature_bp' => $bp, 'chalky_bp' => $bp,
+                    // The configured lab tests (LabStandards): code => basis points.
+                    'results' => ['nullable', 'array', 'max:30'], 'results.*' => ['integer', 'min:0', 'max:10000'],
                     'grade' => ['nullable', 'string', 'max:20'],
                     'remarks' => ['nullable', 'string', 'max:1000'],
                 ]);

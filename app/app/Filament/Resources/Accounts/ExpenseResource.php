@@ -12,6 +12,7 @@ use App\Filament\Support\Units;
 use App\Models\Accounts\Expense;
 use App\Models\Accounts\ExpenseCategory;
 use App\Models\Accounts\LedgerAccount;
+use App\Models\Gate\GateEntry;
 use App\Models\LoginAccount;
 use App\Models\Masters\Party;
 use Filament\Facades\Filament;
@@ -88,6 +89,14 @@ class ExpenseResource extends Resource
                 ->visible(fn (Get $get) => $get('via') === 'cash')->required(fn (Get $get) => $get('via') === 'cash'),
             Select::make('party_id')->label('Party')->searchable()->options(fn () => self::parties())
                 ->visible(fn (Get $get) => $get('via') === 'party')->required(fn (Get $get) => $get('via') === 'party'),
+            Select::make('gate_entry_id')->label('For vehicle (optional)')->searchable()->live()
+                ->helperText('Freight, unloading or handling of one paddy vehicle.')
+                ->options(fn () => GateEntry::query()->where('direction', 'inbound')->whereNull('archived_at')
+                    ->where('arrived_at', '>=', now()->subDays(60))->orderByDesc('arrived_at')->limit(200)->get()
+                    ->mapWithKeys(fn (GateEntry $e) => [$e->id => $e->registration_no.' · '.$e->number])->all()),
+            Toggle::make('capitalize_to_stock')->label('Add to this lot\'s stock cost (landed cost)')
+                ->helperText('For costs of bringing the paddy in (freight, unloading). Its stock value includes it.')
+                ->visible(fn (Get $get) => filled($get('gate_entry_id')) && ! self::isIncome($get('expense_category_id'))),
             FileUpload::make('receipt')->label('Receipt or bill')->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(5120),
             Toggle::make('post')->label('Post it to the books now')->default(true)->helperText('Off: keep it as a draft to post later.'),
         ]);

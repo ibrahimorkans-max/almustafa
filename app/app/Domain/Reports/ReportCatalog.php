@@ -39,6 +39,7 @@ final class ReportCatalog
         'summary' => 'Summary',
         'accounts' => 'Accounts and finance',
         'trade' => 'Purchases and sales',
+        'procurement' => 'Procurement and lab',
         'gate' => 'Gate and vehicles',
         'stock' => 'Stock and production',
         'tax' => 'Tax',
@@ -54,12 +55,20 @@ final class ReportCatalog
         'budget' => ['accounts', 'Income and expenses against budget', 'month', ['ledger.view']],
         'payroll_cost' => ['accounts', 'Payroll cost by department', 'range', ['ledger.view']],
         'staff' => ['accounts', 'Salaries, claims and advances outstanding', 'as_of', ['ledger.view']],
+        'cashbook' => ['accounts', 'Cash book (daily closing and entries)', 'range', ['ledger.view']],
+        'bankbook' => ['accounts', 'Bank book (daily closing and entries)', 'range', ['bank.view', 'ledger.view']],
         'trial_balance' => ['accounts', 'Trial balance', 'as_of', ['ledger.view']],
         'day_book' => ['accounts', 'Day book (last day of the period)', 'as_of', ['ledger.view']],
         'payables' => ['accounts', 'Payables ageing', 'as_of', ['ledger.view']],
         'receivables' => ['accounts', 'Receivables ageing', 'as_of', ['ledger.view']],
         'purchase_register' => ['trade', 'Purchase register', 'range', ['report.view']],
         'sales_register' => ['trade', 'Sales register', 'range', ['report.view']],
+        'settlements' => ['procurement', 'Vehicle settlements and landed cost', 'range', ['report.view', 'purchase.negotiate', 'purchase.approve']],
+        'lab_results' => ['procurement', 'Lab test results against the limits', 'range', ['report.view', 'lab.test', 'lab.decide', 'purchase.approve']],
+        'rejections' => ['procurement', 'Rejected lots', 'range', ['report.view', 'lab.decide', 'purchase.negotiate', 'purchase.approve']],
+        'negotiations' => ['procurement', 'Negotiation history (price versions)', 'range', ['report.view', 'purchase.negotiate', 'purchase.approve']],
+        'caat_analysis' => ['procurement', 'Caat analysis', 'range', ['report.view', 'purchase.negotiate', 'purchase.approve']],
+        'price_variance' => ['procurement', 'Price variance: offered against accepted', 'range', ['report.view', 'purchase.approve']],
         'vehicle_register' => ['gate', 'Vehicle register (in and out, weights and amounts)', 'range', ['gate.entry', 'weighment.capture', 'lab.test', 'lab.decide']],
         'gate_register' => ['gate', 'Gate register', 'range', ['report.view']],
         'stock_value' => ['stock', 'Stock value', 'none', ['ledger.view']],
@@ -238,6 +247,12 @@ final class ReportCatalog
                 }
 
                 return $parts;
+
+            case 'cashbook': case 'bankbook':
+                return app(CashBankBooks::class)->build($key === 'cashbook' ? 'cash' : 'bank', $from, $to);
+
+            case 'settlements': case 'lab_results': case 'rejections': case 'negotiations': case 'caat_analysis': case 'price_variance':
+                return app(ProcurementReports::class)->build($key, $from, $to);
 
             case 'purchase_register': case 'sales_register': case 'gate_register': case 'stock_movement': case 'production_yield':
                 [$header, $rows] = app(OperationalReports::class)->run($key, $from, $to);

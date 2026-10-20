@@ -12,6 +12,7 @@ use App\Models\Gate\ScaleCertificate;
 use App\Models\Gate\Weighment;
 use App\Models\Procurement\Sauda;
 use App\Models\Procurement\SaudaEvent;
+use App\Support\Values\PakistanIds;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -38,11 +39,12 @@ function weigh(object $t, GateEntry $e, string $kind, string $kg, ?array $readin
 function fullInbound(object $t, string $gross = '25480.000', string $tare = '10230.000', int $moistureBp = 1850): GateEntry
 {
     $e = $t->gate->arrive(['registration_no' => 'mna 21 1234', 'sauda_id' => $t->sauda->id, 'bag_count' => 400]);
-    weigh($t, $e, 'gross', $gross);
     $t->gate->recordLabTest($e, ['moisture_bp' => $moistureBp, 'foreign_matter_bp' => 350, 'grade' => 'A']);
     $t->gate->decideLab($e, true);
+    weigh($t, $e, 'gross', $gross);
     $t->gate->markUnloaded($e);
     weigh($t, $e, 'tare', $tare);
+    $t->f->settle($t->gate, $e);
     $t->gate->issueSlip($e);
     $t->gate->exit($e);
 
@@ -63,7 +65,7 @@ it('runs the inbound paddy flow and books the payable weight on the sauda', func
         ->and($e->payable_kg)->toBe('14781.250')
         ->and($e->rate_cut_paise_per_maund)->toBe(400) // foreign matter 3.5 % → 1 full point × Rs 4
         ->and($e->events()->pluck('event')->all())
-        ->toBe(['arrived', 'gross_weighed', 'lab_accepted', 'unloaded', 'tare_weighed', 'slip_issued', 'exited']);
+        ->toBe(['arrived', 'lab_accepted', 'gross_weighed', 'unloaded', 'tare_weighed', 'settlement_proposed', 'settlement_approved', 'slip_issued', 'exited']);
 
     $sauda = $this->sauda->fresh();
     expect($sauda->delivered_kg)->toBe('14781.250')
@@ -74,14 +76,14 @@ it('runs the inbound paddy flow and books the payable weight on the sauda', func
 it('enforces the order of steps on screens', function () {
     $e = $this->gate->arrive(['registration_no' => 'MNA211234']);
 
-    expect(fn () => weigh($this, $e, 'tare', '10000'))->toThrow(BusinessRuleViolation::class, 'before')
+    expect(fn () => weigh($this, $e, 'gross', '25000'))->toThrow(BusinessRuleViolation::class, "'gross_weighed' recorded before 'lab_accepted'")
+        ->and(fn () => weigh($this, $e, 'tare', '10000'))->toThrow(BusinessRuleViolation::class, 'before')
         ->and(fn () => $this->gate->markUnloaded($e))->toThrow(BusinessRuleViolation::class, 'lab')
         ->and(fn () => $this->gate->exit($e))->toThrow(BusinessRuleViolation::class, 'slip');
 });
 
 it('lets a rejected lot leave without unloading and books nothing', function () {
     $e = $this->gate->arrive(['registration_no' => 'MNA211234', 'sauda_id' => $this->sauda->id]);
-    weigh($this, $e, 'gross', '25000');
     $this->gate->recordLabTest($e, ['moisture_bp' => 2400]);
     $this->gate->decideLab($e, false, 'Too wet');
     $this->gate->exit($e);
@@ -91,7 +93,6 @@ it('lets a rejected lot leave without unloading and books nothing', function () 
 
 it('requires a note to accept a lot above a reject limit', function () {
     $e = $this->gate->arrive(['registration_no' => 'MNA211234', 'sauda_id' => $this->sauda->id]);
-    weigh($this, $e, 'gross', '25000');
     $this->gate->recordLabTest($e, ['moisture_bp' => 2300]);
 
     expect(fn () => $this->gate->decideLab($e, true))->toThrow(BusinessRuleViolation::class, 'reject limit');
@@ -101,7 +102,6 @@ it('requires a note to accept a lot above a reject limit', function () {
 
 it('splits lab work: technicians test, supervisors decide', function () {
     $e = $this->gate->arrive(['registration_no' => 'MNA211234']);
-    weigh($this, $e, 'gross', '25000');
 
     $this->f->as(Make::account($this->f->entity, 'LAB_TECHNICIAN'));
     $this->gate->recordLabTest($e, ['moisture_bp' => 1600]);
@@ -111,6 +111,7 @@ it('splits lab work: technicians test, supervisors decide', function () {
 describe('weighment evidence', function () {
     beforeEach(function () {
         $this->e = $this->gate->arrive(['registration_no' => 'MNA211234']);
+        GateFixtures::passLab($this->gate, $this->e);
     });
 
     it('flags unstable readings and missing photos but keeps the record', function () {
@@ -126,6 +127,7 @@ describe('weighment evidence', function () {
 
         config(['ricemill.gate.block_uncertified_scale' => true]);
         $other = $this->gate->arrive(['registration_no' => 'MNA211234']);
+        GateFixtures::passLab($this->gate, $other);
         expect(fn () => weigh($this, $other, 'gross', '25000'))->toThrow(BusinessRuleViolation::class, 'certificate');
     });
 
@@ -148,9 +150,9 @@ describe('weighment evidence', function () {
             fullInbound($this, tare: $tare);
         }
         $e = $this->gate->arrive(['registration_no' => 'MNA211234', 'sauda_id' => $this->sauda->id]);
-        weigh($this, $e, 'gross', '25000');
         $this->gate->recordLabTest($e, ['moisture_bp' => 1600]);
         $this->gate->decideLab($e, true);
+        weigh($this, $e, 'gross', '25000');
         $this->gate->markUnloaded($e);
         $w = weigh($this, $e, 'tare', '10800'); // +570 kg: water in the tank?
 
@@ -203,4 +205,35 @@ it('renders the slip PDF from the issued snapshot with a verification code', fun
         ->and(SlipRenderer::verificationCode($e->id, $slip->data))->toMatch('/^[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}$/')
         ->and(SlipRenderer::verificationCode($e->id, ['net_kg' => '1'] + $slip->data))->not->toBe(SlipRenderer::verificationCode($e->id, $slip->data))
         ->and(fn () => $this->gate->issueSlip($e))->toThrow(BusinessRuleViolation::class, 'already');
+});
+
+it('takes in a vehicle with no number plate, known by its kind and a description', function () {
+    $e = $this->gate->arrive(['no_plate' => true, 'vehicle_type' => 'bull_cart', 'vehicle_description' => 'Bail gari of Rasheed, Basti Malook',
+        'sauda_id' => $this->sauda->id, 'bag_count' => 12]);
+
+    expect($e->no_plate)->toBeTrue()
+        ->and($e->vehicle_id)->toBeNull()
+        ->and($e->registration_no)->toStartWith(GateEntry::NO_PLATE_PREFIX)
+        ->and(PakistanIds::isValidVehicleNumber($e->registration_no))->toBeFalse()   // never mistaken for a real plate
+        ->and($e->flags)->toBe(['no_number_plate'])
+        ->and($e->vehicleLabel())->toContain('Bullock cart')->toContain('Rasheed');
+
+    // Each visit gets its own reference.
+    $e2 = $this->gate->arrive(['no_plate' => true, 'vehicle_type' => 'donkey_cart', 'vehicle_description' => 'Gadha gari, Lodhran']);
+    expect($e2->registration_no)->not->toBe($e->registration_no);
+});
+
+it('asks for the kind and a description when there is no plate, and a valid plate otherwise', function () {
+    expect(fn () => $this->gate->arrive(['no_plate' => true, 'vehicle_type' => 'bicycle']))
+        ->toThrow(BusinessRuleViolation::class, 'give its kind and a description')
+        ->and(fn () => $this->gate->arrive(['registration_no' => 'bail gari']))
+        ->toThrow(BusinessRuleViolation::class, 'No number plate')
+        ->and(fn () => $this->gate->arrive(['no_plate' => true, 'vehicle_type' => 'spaceship', 'vehicle_description' => 'x']))
+        ->toThrow(BusinessRuleViolation::class, 'Unknown kind of vehicle');
+});
+
+it('records the kind of a registered small vehicle', function () {
+    $e = $this->gate->arrive(['registration_no' => 'MNA-4321', 'vehicle_type' => 'loader_rickshaw']);
+
+    expect($e->vehicle_type)->toBe('loader_rickshaw')->and($e->no_plate)->toBeFalse()->and($e->vehicleLabel())->toBe('MNA-4321');
 });

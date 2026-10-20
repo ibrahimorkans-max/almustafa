@@ -8,6 +8,7 @@ use App\Domain\Accounts\AccountReports;
 use App\Domain\Accounts\StockValuation;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Documents\PdfRenderer;
+use App\Domain\Reports\CashBankBooks;
 use App\Domain\Tenancy\TenantContext;
 use App\Http\Controllers\ReportPrintController;
 use App\Models\Accounts\LedgerAccount;
@@ -55,10 +56,15 @@ class AccountsReports extends Page implements HasForms
     public const REPORTS = [
         'trial_balance' => 'Trial balance', 'ledger' => 'Ledger statement', 'day_book' => 'Day book',
         'ageing' => 'Payables ageing', 'receivables' => 'Receivables ageing', 'stock_value' => 'Stock value',
+        'cashbook' => 'Cash book', 'bankbook' => 'Bank book',
     ];
 
+    /** Reports over a period (From – To); the rest are as on one date. */
+    public const RANGED = ['ledger', 'cashbook', 'bankbook'];
+
     /** this screen's report => App\Domain\Reports\ReportCatalog key (for its PDF) */
-    public const CATALOG_KEYS = ['trial_balance' => 'trial_balance', 'day_book' => 'day_book', 'ageing' => 'payables', 'receivables' => 'receivables', 'stock_value' => 'stock_value'];
+    public const CATALOG_KEYS = ['trial_balance' => 'trial_balance', 'day_book' => 'day_book', 'ageing' => 'payables', 'receivables' => 'receivables',
+        'stock_value' => 'stock_value', 'cashbook' => 'cashbook', 'bankbook' => 'bankbook'];
 
     #[Url]
     public string $report = 'trial_balance';
@@ -106,8 +112,8 @@ class AccountsReports extends Page implements HasForms
             Select::make('ledger')->label('Ledger')->searchable()->live()
                 ->options(fn () => LedgerAccount::query()->orderBy('name')->get()->mapWithKeys(fn (LedgerAccount $l) => [$l->id => $l->displayName()]))
                 ->visible(fn (Get $get) => $get('report') === 'ledger'),
-            DatePicker::make('from')->live()->visible(fn (Get $get) => $get('report') === 'ledger'),
-            DatePicker::make('to')->label(fn (Get $get) => in_array($get('report'), ['ledger'], true) ? 'To' : 'As on / date')->live()
+            DatePicker::make('from')->live()->visible(fn (Get $get) => in_array($get('report'), self::RANGED, true)),
+            DatePicker::make('to')->label(fn (Get $get) => in_array($get('report'), self::RANGED, true) ? 'To' : 'As on / date')->live()
                 ->visible(fn (Get $get) => $get('report') !== 'stock_value'),
         ]);
     }
@@ -123,6 +129,8 @@ class AccountsReports extends Page implements HasForms
                 ? ['account' => $account, 'statement' => $reports->ledgerStatement($account, CarbonImmutable::parse($this->data['from'], 'Asia/Karachi'), $to)]
                 : ['account' => null],
             'day_book' => ['vouchers' => $reports->dayBook($to)],
+            'cashbook', 'bankbook' => ['parts' => app(CashBankBooks::class)->build($this->data['report'] === 'cashbook' ? 'cash' : 'bank',
+                CarbonImmutable::parse($this->data['from'] ?? $to->startOfMonth()->toDateString(), 'Asia/Karachi'), $to)],
             'ageing' => ['rows' => $reports->payablesAgeing($to)],
             'receivables' => ['rows' => $reports->receivablesAgeing($to)],
             'stock_value' => [
@@ -139,7 +147,8 @@ class AccountsReports extends Page implements HasForms
         return [
             Action::make('reportPdf')->label('PDF')->icon('heroicon-o-printer')
                 ->visible(fn () => ($this->data['report'] ?? 'trial_balance') !== 'ledger')
-                ->url(fn () => ReportPrintController::url([self::CATALOG_KEYS[$this->data['report'] ?? 'trial_balance'] ?? 'trial_balance'], $this->data['to'] ?? null, $this->data['to'] ?? null), shouldOpenInNewTab: true),
+                ->url(fn () => ReportPrintController::url([self::CATALOG_KEYS[$this->data['report'] ?? 'trial_balance'] ?? 'trial_balance'],
+                    in_array($this->data['report'] ?? null, self::RANGED, true) ? ($this->data['from'] ?? null) : ($this->data['to'] ?? null), $this->data['to'] ?? null), shouldOpenInNewTab: true),
             Action::make('allReports')->label('All reports')->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
             Action::make('pdf')->label('Ledger statement PDF')->icon('heroicon-o-arrow-down-tray')
                 ->visible(fn () => ($this->data['report'] ?? null) === 'ledger' && filled($this->data['ledger'] ?? null))

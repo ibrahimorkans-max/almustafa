@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Gate;
 
 use App\Domain\Accounts\PurchaseBillCalculator;
+use App\Domain\Accounts\PurchaseBillService;
+use App\Domain\Accounts\StockValuation;
 use App\Domain\Documents\PdfRenderer;
 use App\Domain\Tenancy\TenantContext;
 use App\Filament\Resources\Gate\GateEntryResource;
@@ -13,8 +15,11 @@ use App\Models\Entity;
 use App\Models\Gate\DeductionRule;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
+use App\Models\Gate\GatePriceVersion;
 use App\Models\Gate\LabTest;
 use App\Models\Gate\Weighment;
+use App\Models\LoginAccount;
+use App\Models\Masters\Vehicle;
 use App\Models\Procurement\Sauda;
 use App\Models\Sales\DispatchOrder;
 use App\Models\Sales\SalesBill;
@@ -51,6 +56,7 @@ final class VehicleRegister
         'arrived' => 'Arrived', 'gross_weighed' => 'Loaded weight taken', 'lab_accepted' => 'Lab accepted', 'lab_rejected' => 'Lab rejected',
         'unloaded' => 'Unloaded', 'tare_weighed' => 'Empty weight taken', 'loaded' => 'Loaded', 'slip_issued' => 'Slip issued',
         'gate_pass_issued' => 'Gate pass issued', 'exited' => 'Left the mill', 'cancelled' => 'Cancelled',
+        'settlement_approved' => 'Settlement approved',
     ];
 
     public function __construct(
@@ -235,7 +241,7 @@ final class VehicleRegister
     private function deductionLines(GateEntry $e): array
     {
         $decision = GateEvent::query()->where('gate_entry_id', $e->id)->whereIn('event', ['lab_accepted', 'lab_rejected'])
-            ->orderByDesc('occurred_at')->orderByDesc('recorded_at')->first();
+            ->newestFirst()->first();
         if ($decision === null) {
             return ['No lab decision yet: no deduction.'];
         }
@@ -272,8 +278,8 @@ final class VehicleRegister
             'entry' => $e,
             'number' => $e->number,
             'direction' => $e->direction,
-            'vehicle' => $e->registration_no,
-            'vehicle_type' => $e->vehicle?->vehicle_type,
+            'vehicle' => $e->no_plate ? 'No plate: '.$e->vehicle_description : $e->registration_no,
+            'vehicle_type' => Vehicle::typeLabel($e->vehicle_type ?? $e->vehicle?->vehicle_type),
             'driver' => $e->driver->name ?? $e->driver_name,
             'driver_phone' => $e->driver?->phone,
             'party' => $e->party?->name,
@@ -333,6 +339,8 @@ final class VehicleRegister
         'arrived' => 'Arrived at the gate', 'gross_weighed' => 'Loaded weight (gross) taken', 'tare_weighed' => 'Empty weight (tare) taken',
         'lab_accepted' => 'Lab accepted the lot', 'lab_rejected' => 'Lab rejected the lot', 'unloaded' => 'Unloaded', 'loaded' => 'Loaded',
         'slip_issued' => 'Weighment slip issued', 'gate_pass_issued' => 'Gate pass issued', 'exited' => 'Left the mill', 'cancelled' => 'Cancelled',
+        'settlement_proposed' => 'Caat and price settlement proposed', 'settlement_approved' => 'Settlement approved',
+        'settlement_reopened' => 'Settlement reopened', 'quarantined' => 'Rejected lot held apart (quarantine)',
     ];
 
     /**
@@ -358,8 +366,9 @@ final class VehicleRegister
 
         $sections = [
             ['title' => 'Vehicle and driver', 'fields' => array_values(array_filter([
-                ['Vehicle number', PakistanIds::formatVehicleNumber($e->registration_no)],
-                ['Vehicle type', $vehicle->vehicle_type ?? '—'],
+                ['Vehicle number', $e->no_plate ? 'No number plate (ref. '.$e->registration_no.')' : PakistanIds::formatVehicleNumber($e->registration_no)],
+                $e->no_plate ? ['Description', (string) $e->vehicle_description] : null,
+                ['Vehicle type', Vehicle::typeLabel($e->vehicle_type ?? $vehicle?->vehicle_type)],
                 ['Vehicle owner', $vehicle?->owner->name ?? '—'],
                 ['Capacity', $vehicle?->capacity_kg !== null ? self::kg($vehicle->capacity_kg) : '—'],
                 $vehicle?->is_blocked ? ['BLOCKED', (string) ($vehicle->blocked_reason ?? 'yes')] : null,
@@ -421,7 +430,7 @@ final class VehicleRegister
             }
         }
 
-        $timeline = GateEvent::query()->with('actor')->where('gate_entry_id', $e->id)->orderBy('occurred_at')->orderBy('recorded_at')->get()
+        $timeline = GateEvent::query()->with('actor')->where('gate_entry_id', $e->id)->chronological()->get()
             ->map(fn (GateEvent $ev) => [
                 $ev->occurred_at->timezone('Asia/Karachi')->format('d M H:i'),
                 (self::EVENT_LABELS[$ev->event] ?? ucfirst(str_replace('_', ' ', $ev->event)))
@@ -434,7 +443,67 @@ final class VehicleRegister
             'row' => $row, 'sections' => $sections, 'weighments' => $weighments, 'lab' => $lab, 'timeline' => $timeline,
             'weightSteps' => $this->weightSteps($e), 'priceSteps' => $price['steps'],
             'flags' => array_map(fn ($f) => GateEntryResource::FLAG_LABELS[$f] ?? $f, $e->flags ?? []),
-        ];
+        ] + $this->settlementSections($e, $test);
+    }
+
+    /**
+     * The final settlement layout (inbound): lab results against the limits, every price version, the
+     * Caats, the money (bill, tax withheld, paid, outstanding), what stock received and the landed cost,
+     * and who prepared, checked and approved it.
+     *
+     * @return array{labEval: list<array{0: string, 1: string, 2: string, 3: string, 4: string}>, prices: list<array{0: string, 1: string, 2: string, 3: string, 4: string, 5: string}>,
+     *     settlement: list<array{0: string, 1: string}>, finance: list<array{0: string, 1: string}>, approvals: list<array{0: string, 1: string, 2: string}>}
+     */
+    private function settlementSections(GateEntry $e, ?LabTest $test): array
+    {
+        $empty = ['labEval' => [], 'prices' => [], 'settlement' => [], 'finance' => [], 'approvals' => []];
+        if ($e->direction !== 'inbound') {
+            return $empty;
+        }
+        $pct = fn (int $bp) => self::pct($bp);
+        $who = fn (?string $id) => $id === null ? '—' : (string) (LoginAccount::query()->whereKey($id)->value('username') ?? '—');
+        $out = $empty;
+        foreach ((array) ($test->evaluation ?? []) as $r) {
+            $out['labEval'][] = [$r['name'].' ('.$r['name_ur'].')', $pct((int) $r['value_bp']), $pct((int) $r['standard_bp']), $pct((int) $r['grace_bp']),
+                match ($r['verdict']) {
+                    LabStandards::OVER => 'ABOVE GRACE', LabStandards::GRACE => 'within grace', default => 'within standard',
+                }];
+        }
+        foreach (GatePriceVersion::query()->where('gate_entry_id', $e->id)->orderBy('version')->get() as $v) {
+            $out['prices'][] = [(string) $v->version, self::rs($v->price_paise_per_maund), $v->status, (string) ($v->reason ?? '—'),
+                $who($v->proposed_by), $who($v->decided_by)];
+        }
+        $approved = app(GateService::class)->settlementApproved($e)
+            ? GateEvent::query()->where('gate_entry_id', $e->id)->where('event', 'settlement_approved')->newestFirst()->first() : null;
+        $proposal = GateEvent::query()->where('gate_entry_id', $e->id)->where('event', 'settlement_proposed')->newestFirst()->first();
+        if ($approved !== null) {
+            $s = (array) $approved->data;
+            $out['settlement'] = [
+                ['Net weight', self::kg($s['net_kg'])], ['Waste Caat', self::kg($s['waste_caat_kg'])],
+                ['Caat per Maund', self::kg($s['per_maund_caat_kg']).' ('.$s['per_maund_rate_kg'].' kg × maunds)'], ['Total Caat', self::kg($s['total_caat_kg'])],
+                ['Payable weight', self::kg($s['payable_kg']).' = '.self::maund((string) $s['payable_kg']).' maund'],
+                ['Last accepted price', self::rs((int) $s['price_paise_per_maund']).' per maund (version '.($s['price_version'] ?? '—').')'],
+            ];
+        }
+        $bill = PurchaseBill::query()->where('gate_entry_id', $e->id)->where('status', '<>', PurchaseBill::CANCELLED)->first();
+        $landed = app(StockValuation::class)->landedCostOf($e->id);
+        if ($bill !== null) {
+            $outstanding = app(PurchaseBillService::class)->outstanding($bill);
+            $out['finance'] = [
+                ['Purchase bill', trim(($bill->number ?? 'draft').' ('.$bill->status.')')], ['Gross purchase value', self::rs($bill->gross_paise)],
+                ['Quality rate cut', self::rs($bill->rate_cut_paise)], ['Income tax withheld (s.153)', self::rs($bill->wht_paise)],
+                ['Net supplier liability', self::rs($bill->net_paise)],
+                ['Paid', self::rs($bill->status === PurchaseBill::POSTED ? $bill->net_paise - $outstanding : 0)], ['Outstanding', self::rs($outstanding)],
+                ['Charges added to stock cost', self::rs($landed['charges_paise'])], ['Landed cost', self::rs($landed['landed_paise'])],
+                ['Stock received', self::kg($e->payable_kg)],
+            ];
+        }
+        foreach (array_filter([$proposal, $approved]) as $ev) {
+            $out['approvals'][] = [$ev->event === 'settlement_approved' ? 'Settlement approved' : 'Settlement prepared',
+                $who($ev->actor_login_account_id), $ev->occurred_at->timezone('Asia/Karachi')->format('d M Y H:i')];
+        }
+
+        return $out;
     }
 
     /** Every vehicle's slip of the day in one file, one vehicle per page (the "print all slips" button). */

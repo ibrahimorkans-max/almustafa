@@ -6,9 +6,11 @@ namespace App\Domain\Access;
 
 use App\Domain\Accounts\ChartOfAccounts;
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Gate\LabStandards;
 use App\Domain\Hr\HrInstaller;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
+use App\Models\Gate\LabParameter;
 use App\Models\Masters\TaxRate;
 use App\Models\Role;
 use Illuminate\Support\Facades\DB;
@@ -62,6 +64,14 @@ final class EntityProvisioner
             $this->tenant->runInEntity($entity->id, function (): void {
                 foreach (TaxRate::DEFAULTS as [$name, $bp, $exempt]) {
                     TaxRate::query()->firstOrCreate(['name' => $name], ['sales_tax_rate_bp' => $bp, 'exempt' => $exempt]);
+                }
+                // The lab tests with starting limits; the mill sets its own under Lab tests & limits.
+                $sort = 0;
+                foreach (LabStandards::DEFAULTS as $code => [$en, $ur, $standard, $grace]) {
+                    LabParameter::query()->firstOrCreate(['code' => $code, 'product_id' => null], [
+                        'name_en' => $en, 'name_ur' => $ur, 'unit' => '%', 'standard_bp' => (int) round($standard * 100),
+                        'grace_bp' => (int) round($grace * 100), 'sort' => $sort += 10, 'status' => 'active',
+                    ]);
                 }
             });
 

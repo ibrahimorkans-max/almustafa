@@ -13,6 +13,7 @@ audit log.
 ## Operations (phases 3–4, 6)
 * Procurement: requirements, quotes, deals (sauda) with approval; brokers see only their own deals.
 * Gate and weighbridge: stable-weight evidence, repeat-tare check, scale certificates, lab tests, slips; offline gate agent with ANPR, boom barrier and display board (fails closed).
+* Small and unregistered vehicles at the gate: mini truck, loader rickshaw, rickshaw, motorbike, bicycle, bullock cart (bail gari), donkey cart, horse cart (tanga), hand cart (rehri). A vehicle with no number plate is entered with its kind and a description; it gets its own reference (NOPLATE + gate entry number) and the flag `no_number_plate`.
 * Stock ledger (never negative), requisitions, stock counts with approval, production batches with yield and loss alerts.
 * Sales: deals, dispatch orders, credit control with override approval, GST invoices, gate passes.
 
@@ -20,6 +21,7 @@ audit log.
 * Purchase bills from weighbridge slips, payments with second approval above ₹5 lakh, bank files and reconciliation, vouchers, period locks.
 * Claims with credit / debit notes, price lists, confidential margins, archive.
 * GST returns (GSTR-1, 3B), e-invoice / e-way bill through a provider seam, TDS 194Q, reports, dashboard, anomaly alerts, public `/verify` for printed documents.
+* Cash book and bank book with a daily closing, and supporting files on vehicles, bills, payments and approvals (see `cashbook-bankbook-attachments.md`).
 
 ## Operations safety (phase 9)
 * Encrypted backups with off-site copy, weekly restore drill, audit-chain anchoring by e-mail.

@@ -7,6 +7,7 @@ namespace App\Filament\Resources;
 use App\Domain\Approvals\ApprovalService;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
 use App\Filament\Resources\ApprovalRequestResource\Pages;
+use App\Filament\Support\AttachmentsPanel;
 use App\Models\ApprovalRequest;
 use App\Models\AuditLog;
 use App\Models\LoginAccount;
@@ -129,6 +130,7 @@ class ApprovalRequestResource extends Resource
                             ($note = $a->meta['note'] ?? null) ? ' — '.$note : ''))
                         ->all() ?: ['—']),
             ]),
+            AttachmentsPanel::section(),
         ]);
     }
 

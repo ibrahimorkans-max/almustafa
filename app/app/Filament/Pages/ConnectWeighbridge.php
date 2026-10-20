@@ -64,6 +64,63 @@ class ConnectWeighbridge extends Page
     }
 
     /**
+     * Everything the weighbridge PC needs, ready to copy: the ERP address, each weighbridge's id, the
+     * registered gate agents (device_uid and login) and an agent.toml per weighbridge. Secrets are not
+     * shown: the PC's password is never stored readable and the signing secret is shown once, at registration.
+     *
+     * @return array{server: string, scales: list<array{id: string, code: string, name: string, resolution_kg: string, status: string, toml: string}>, agents: list<array{device_uid: string, name: string, username: string, status: string, last_seen: string}>}
+     */
+    public function connectionDetails(): array
+    {
+        $server = rtrim((string) config('app.url'), '/');
+        $agents = Device::query()->with('loginAccount')->where('platform', 'agent')->where('status', Device::STATUS_ACTIVE)
+            ->orderByDesc('last_seen_at')->get();
+        $first = $agents->first();
+
+        $scales = Scale::query()->orderBy('code')->get()->map(function (Scale $s) use ($server, $first): array {
+            $resolution = rtrim(rtrim((string) $s->resolution_kg, '0'), '.');
+            $toml = implode("\n", [
+                '[server]',
+                'url = "'.$server.'"',
+                '',
+                '[auth]',
+                'username = "'.($first?->loginAccount->username ?? 'wb.agent').'"',
+                'password = ""                  # ricemill-agent protect → paste the dpapi:… text',
+                'device_uid = "'.($first->device_uid ?? 'agent-…').'"',
+                'signing_secret = ""            # shown once at "Register gate agent"; protect it the same way',
+                '',
+                '[store]',
+                'path = "C:/ProgramData/RiceMillAgent/store.sqlite3"',
+                'key = ""                       # ricemill-agent new-store-key, then protect it',
+                '',
+                '[scale]',
+                'id = "'.$s->id.'"              # '.$s->code.' · '.$s->name,
+                'resolution_kg = "'.$resolution.'"',
+                'min_stable_samples = 6',
+                '',
+                '[indicator]',
+                'type = "serial"                # ricemill-agent --config agent.toml detect --write fills this section',
+                'port = "COM3"',
+                'baudrate = 9600',
+                '',
+                '[camera]',
+                'type = "none"                  # usb | rtsp: see the Connect the camera step',
+            ]);
+
+            return ['id' => (string) $s->id, 'code' => $s->code, 'name' => $s->name, 'resolution_kg' => $resolution, 'status' => $s->status, 'toml' => $toml];
+        })->values()->all();
+
+        return [
+            'server' => $server,
+            'scales' => $scales,
+            'agents' => $agents->map(fn (Device $d) => [
+                'device_uid' => $d->device_uid, 'name' => (string) $d->name, 'username' => (string) ($d->loginAccount->username ?? '—'),
+                'status' => $d->status, 'last_seen' => $d->last_seen_at?->timezone('Asia/Karachi')->format('d M Y H:i') ?? 'never',
+            ])->values()->all(),
+        ];
+    }
+
+    /**
      * The steps. `auto` = what the system sees (true done, false not yet, null = cannot tell: tick by hand).
      *
      * @return list<array{title: string, device: string, intro: string, do: list<string>, commands: list<string>, links: list<array{label: string, url: string}>, auto: bool|null, done: bool}>

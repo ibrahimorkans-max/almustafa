@@ -35,6 +35,18 @@ final class RoleTemplates
 
     public const EMPLOYEE = 'EMPLOYEE';
 
+    /** Approves or rejects lots within the grace limits (the lab technician records the results). */
+    public const LAB_SUPERVISOR = 'LAB_SUPERVISOR';
+
+    /** Enters the Caat and offered prices, negotiates rejected lots. */
+    public const PURCHASE_OFFICER = 'PURCHASE_OFFICER';
+
+    /** Approves negotiated prices, accepting rejected lots and vehicle settlements. */
+    public const PURCHASE_MANAGER = 'PURCHASE_MANAGER';
+
+    /** Approves financial postings, payment releases and corrections (never their own). */
+    public const FINANCE_MANAGER = 'FINANCE_MANAGER';
+
     /** Only the Archive screen: view archived records by period and restore them. */
     public const OFFICE_COORDINATOR = 'OFFICE_COORDINATOR';
 
@@ -99,7 +111,7 @@ final class RoleTemplates
                 'permissions' => [
                     'entity.view', 'approval.view', 'device.view',
                     'master.view', 'master.manage', 'sync.review',
-                    'deal.view', 'gate.entry', 'weighment.capture', 'weighment.override', 'lab.test', 'lab.decide',
+                    'deal.view', 'gate.entry', 'weighment.capture', 'weighment.override', 'lab.test', 'lab.decide', 'purchase.negotiate',
                     'production.view', 'production.log', 'batch.manage',
                     'stock.view', 'requisition.create', 'requisition.approve',
                     'sales.view', 'dispatch.manage', 'gatepass.issue',
@@ -124,6 +136,40 @@ final class RoleTemplates
                 'mfa_required' => false,
                 'session_max_minutes' => 720,
                 'permissions' => ['entity.view', 'master.view', 'lab.test', 'production.view'],
+            ],
+            self::LAB_SUPERVISOR => [
+                'name' => 'Lab Supervisor',
+                'global' => false,
+                'mfa_required' => false,
+                'session_max_minutes' => 720,
+                'permissions' => ['entity.view', 'master.view', 'lab.test', 'lab.decide', 'lab.limits', 'production.view'],
+            ],
+            self::PURCHASE_OFFICER => [
+                'name' => 'Purchase Officer',
+                'global' => false,
+                'mfa_required' => false,
+                'session_max_minutes' => 720,
+                'permissions' => ['entity.view', 'master.view', 'deal.view', 'purchase.negotiate', 'pricing.view', 'report.view'],
+            ],
+            self::PURCHASE_MANAGER => [
+                'name' => 'Purchase Manager',
+                'global' => false,
+                'mfa_required' => true,
+                'session_max_minutes' => 720,
+                'permissions' => ['entity.view', 'master.view', 'deal.view', 'deal.create', 'purchase.negotiate', 'purchase.approve',
+                    'pricing.view', 'report.view', 'dashboard.view', 'approval.view'],
+            ],
+            self::FINANCE_MANAGER => [
+                'name' => 'Finance Manager',
+                'global' => false,
+                'mfa_required' => true,
+                'session_max_minutes' => 720,
+                'permissions' => [
+                    'entity.view', 'approval.view', 'approval.decide', 'master.view',
+                    'deal.view', 'stock.view', 'sales.view', 'claim.view', 'claim.approve', 'pricing.view',
+                    'ledger.view', 'ledger.post', 'voucher.reverse', 'payment.create', 'payment.approve', 'bank.view', 'period.lock',
+                    'dashboard.view', 'report.view', 'report.tax', 'purchase.approve', 'wages.daily.pay',
+                ],
             ],
             self::GATE_OPERATOR => [
                 'name' => 'Weighbridge / Gate Operator',

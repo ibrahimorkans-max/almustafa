@@ -44,11 +44,12 @@ describe('anomaly alerts', function () {
         $this->f->as($this->f->inv->supervisor);
         $g = app(GateService::class);
         $e = $g->arrive(['registration_no' => 'MNA211234', 'sauda_id' => $this->f->acc->sauda->id, 'bag_count' => 400]);
-        $g->recordWeighment($e, 'gross', '27480', $this->f->inv->gate->scale, GateFixtures::readings('27480'), str_repeat('a', 64));
         $g->recordLabTest($e, ['moisture_bp' => 1600]);
         $g->decideLab($e, true);
+        $g->recordWeighment($e, 'gross', '27480', $this->f->inv->gate->scale, GateFixtures::readings('27480'), str_repeat('a', 64));
         $g->markUnloaded($e, godown: $this->f->inv->silo);
         $g->recordWeighment($e, 'tare', '10230', $this->f->inv->gate->scale, GateFixtures::readings('10230'), str_repeat('a', 64));
+        $this->f->inv->gate->settle($g, $e);
         $g->issueSlip($e);
 
         $this->f->as($this->f->acc->owner);
