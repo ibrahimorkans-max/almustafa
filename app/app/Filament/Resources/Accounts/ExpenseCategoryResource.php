@@ -72,7 +72,7 @@ class ExpenseCategoryResource extends Resource
                 IconColumn::make('claimable')->label('Claimable')->boolean(),
                 TextColumn::make('status')->badge(),
             ])
-            ->defaultSort('code')
+            ->defaultSort('code')->paginationPageOptions([25, 50, 100])->defaultPaginationPageOption(25)
             ->filters([SelectFilter::make('kind')->options(self::KINDS)])
             ->actions([
                 Action::make('budget')->label('Budget')->icon('heroicon-o-calculator')->color('gray')
