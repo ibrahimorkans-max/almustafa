@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Accounts;
 
 use App\Domain\Accounts\PurchaseBillService;
 use App\Filament\Resources\Accounts\PurchaseBillResource\Pages;
+use App\Filament\Support\AttachmentsPanel;
 use App\Filament\Support\Units;
 use App\Models\Accounts\PurchaseBill;
 use Filament\Infolists\Components\Section;
@@ -97,6 +98,7 @@ class PurchaseBillResource extends Resource
                     ->state(fn (PurchaseBill $record) => Units::paiseToRupees(app(PurchaseBillService::class)->outstanding($record))),
                 TextEntry::make('note')->placeholder('—')->columnSpanFull(),
             ]),
+            AttachmentsPanel::section(),
         ]);
     }
 

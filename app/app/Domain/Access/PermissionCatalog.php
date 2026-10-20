@@ -56,6 +56,9 @@ final class PermissionCatalog
         'wages.daily.pay' => ['hr', 'Daily wages: book wage sheets and pay them'],
         'lab.test' => ['gate', 'Record lab tests'],
         'lab.decide' => ['gate', 'Accept or reject a lot after lab test'],
+        'lab.limits' => ['gate', 'Set the lab tests and their standard and grace limits'],
+        'purchase.negotiate' => ['gate', 'Propose vehicle prices (negotiation) and the Caat and price settlement'],
+        'purchase.approve' => ['gate', 'Approve negotiated prices, rejected-lot acceptance and vehicle settlements (not one\'s own)'],
         // Production
         'production.view' => ['production', 'View production'],
         'production.log' => ['production', 'Record production logs'],

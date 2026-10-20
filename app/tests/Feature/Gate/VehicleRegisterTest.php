@@ -34,9 +34,9 @@ function registerWeigh(object $t, GateEntry $e, string $kind, string $kg): void
 function registerInbound(object $t): GateEntry
 {
     $e = $t->gate->arrive(['registration_no' => 'mna 21 1234', 'sauda_id' => $t->sauda->id, 'bag_count' => 400, 'driver_name' => 'Aslam']);
-    registerWeigh($t, $e, 'gross', '25480.000');
     $t->gate->recordLabTest($e, ['moisture_bp' => 1850, 'foreign_matter_bp' => 350, 'grade' => 'A']);
     $t->gate->decideLab($e, true);
+    registerWeigh($t, $e, 'gross', '25480.000');
     $t->gate->markUnloaded($e);
     registerWeigh($t, $e, 'tare', '10230.000');
 
@@ -66,6 +66,7 @@ it('estimates the payable price before the bill, then shows the bill figures', f
         ->and($estimate['net_paise'])->toBe(36805312 + $estimate['round_off_paise'])
         ->and(implode("\n", $estimate['steps']))->toContain('369.53 maund × Rs 1,000.00');
 
+    $this->f->settle($this->gate, $e);
     $this->gate->issueSlip($e);
     $bill = PurchaseBill::query()->where('gate_entry_id', $e->id)->sole();
     $billed = $this->register->price($e->fresh());

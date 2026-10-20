@@ -49,10 +49,14 @@ final class PurchaseBillService
         }
 
         $payableKg = (string) $slip->data['payable_kg'];
-        $cutPerMaund = (int) ($slip->data['rate_cut_paise_per_maund'] ?? 0);
+        // An approved settlement fixes the price (the last accepted one) and the rate cut that goes with it
+        // (the lab's quality cut at the offered price; none at a negotiated price).
+        $settlement = isset($slip->data['settlement']) && is_array($slip->data['settlement']) ? $slip->data['settlement'] : null;
+        $rate = $settlement !== null ? (int) $settlement['price_paise_per_maund'] : (int) $sauda->rate_paise_per_maund;
+        $cutPerMaund = $settlement !== null ? (int) ($settlement['rate_cut_paise_per_maund'] ?? 0) : (int) ($slip->data['rate_cut_paise_per_maund'] ?? 0);
         $brokerage = $sauda->broker_party_id !== null ? (int) $sauda->brokerage_paise_per_maund : 0;
         $amounts = $this->calculator->calculate(
-            $payableKg, (int) $sauda->rate_paise_per_maund, $cutPerMaund, $brokerage,
+            $payableKg, $rate, $cutPerMaund, $brokerage,
             (bool) config('ricemill.accounts.round_bills_to_rupee'),
         );
         $billDate = CarbonImmutable::instance($slip->occurred_at)->setTimezone('Asia/Karachi')->startOfDay();
@@ -66,11 +70,12 @@ final class PurchaseBillService
             'bill_date' => $billDate->toDateString(),
             'due_date' => $billDate->addDays((int) $sauda->payment_days)->toDateString(),
             'payable_kg' => $payableKg,
-            'rate_paise_per_maund' => (int) $sauda->rate_paise_per_maund,
+            'rate_paise_per_maund' => $rate,
             'snapshot' => [
-                'slip' => $slip->data, 'gate_entry_number' => $entry->number, 'registration_no' => $entry->registration_no,
+                'slip' => $slip->data, 'gate_entry_number' => $entry->number, 'registration_no' => $entry->registration_no, 'vehicle_label' => $entry->vehicleLabel(),
                 'sauda_number' => $sauda->number, 'rate_paise_per_maund' => (int) $sauda->rate_paise_per_maund,
                 'rate_cut_paise_per_maund' => $cutPerMaund, 'brokerage_paise_per_maund' => $brokerage,
+                'sauda_rate_paise_per_maund' => (int) $sauda->rate_paise_per_maund, 'settlement' => $settlement,
             ],
         ] + $amounts);
     }

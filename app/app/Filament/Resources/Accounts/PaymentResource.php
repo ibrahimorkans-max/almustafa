@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Accounts;
 
 use App\Domain\Accounts\PurchaseBillService;
 use App\Filament\Resources\Accounts\PaymentResource\Pages;
+use App\Filament\Support\AttachmentsPanel;
 use App\Filament\Support\Units;
 use App\Models\Accounts\LedgerAccount;
 use App\Models\Accounts\Payment;
@@ -139,6 +140,7 @@ class PaymentResource extends Resource
                     TextEntry::make('amount_paise')->label('Amount')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
                 ]),
             ]),
+            AttachmentsPanel::section(),
         ]);
     }
 

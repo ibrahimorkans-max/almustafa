@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Accounts\PurchaseBillResource\Pages;
 use App\Domain\Accounts\AccountsDocuments;
 use App\Domain\Accounts\PurchaseBillService;
 use App\Filament\Resources\Accounts\PurchaseBillResource;
+use App\Filament\Support\AttachmentsPanel;
 use App\Filament\Support\RequestsVoucherReversal;
 use App\Filament\Support\RunsDomainActions;
 use App\Models\Accounts\PurchaseBill;
@@ -26,6 +27,7 @@ class ViewPurchaseBill extends ViewRecord
         $can = fn (string $p) => Filament::auth()->user()?->can($p) ?? false;
 
         return [
+            AttachmentsPanel::action(),
             Action::make('post')->label('Post to books')->icon('heroicon-o-check')->color('success')
                 ->visible(fn (PurchaseBill $b) => $b->status === PurchaseBill::DRAFT && $can('ledger.post'))
                 ->requiresConfirmation()

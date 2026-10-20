@@ -41,7 +41,7 @@
     <tr><th>Weighment slip</th><th>Vehicle</th><th>Paddy</th><th class="r">Net (kg)</th><th class="r">Deduction (kg)</th><th class="r">Payable (kg)</th></tr>
     <tr>
         <td class="mono">{{ $bill->snapshot['gate_entry_number'] ?? '—' }}</td>
-        <td class="mono">{{ PakistanIds::formatVehicleNumber((string) ($bill->snapshot['registration_no'] ?? '')) ?: '—' }}</td>
+        <td class="mono">{{ $bill->snapshot['vehicle_label'] ?? (PakistanIds::formatVehicleNumber((string) ($bill->snapshot['registration_no'] ?? '')) ?: '—') }}</td>
         <td>{{ $bill->product?->name ?? '—' }}</td>
         <td class="num">{{ number_format((float) ($slip['net_kg'] ?? 0), 3) }}</td>
         <td class="num">{{ number_format((float) ($slip['deduction_kg'] ?? 0), 3) }}</td>

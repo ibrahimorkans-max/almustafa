@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Accounts;
 
+use App\Models\Accounts\Expense;
 use App\Models\Accounts\ProductCost;
 use App\Models\Accounts\PurchaseBill;
 use App\Models\Inventory\StockBalance;
@@ -14,8 +15,9 @@ use App\Support\Values\Weight;
 /**
  * Perpetual weighted-average cost per product (all godowns of the entity), in paise per kg.
  *
- * * Purchase: the bill's cost (gross − rate cut + brokerage) is spread over the physical net weight
- *   received, then averaged with the stock already held.
+ * * Purchase: the bill's cost (gross − rate cut + brokerage, plus the vehicle's charges marked for the stock
+ *   cost: its landed cost) is spread over the weight stock received
+ *   (the payable weight after the Caat settlement), then averaged with the stock already held.
  * * Milling: at batch close the paddy consumed is costed at the paddy average; by-products take
  *   their realisable value per kg (product setting); the rest goes to the rice outputs by weight.
  *
@@ -25,14 +27,54 @@ final class StockValuation
 {
     public function recordPurchase(PurchaseBill $bill): void
     {
-        $receivedKg = (string) ($bill->snapshot['slip']['net_kg'] ?? $bill->payable_kg);
+        // What stock received: after an approved settlement the payable weight (the Caats are not kept), before it the net weight.
+        $slip = (array) ($bill->snapshot['slip'] ?? []);
+        $receivedKg = (string) (isset($slip['settlement']) ? ($slip['payable_kg'] ?? $bill->payable_kg) : ($slip['net_kg'] ?? $bill->payable_kg));
         if (bccomp($receivedKg, '0', 3) <= 0) {
             return;
         }
         $cost = $bill->gross_paise - $bill->rate_cut_paise + $bill->brokerage_paise;
-        $this->blend($bill->product_id, $receivedKg, (string) $cost, 'purchase_bill', $bill->id, [
+        // Charges of this vehicle already posted and marked for the stock cost (freight, unloading…): its landed cost.
+        $landed = Expense::query()->where('gate_entry_id', $bill->gate_entry_id)->where('capitalize_to_stock', true)
+            ->where('status', Expense::POSTED)->get(['id', 'amount_paise']);
+        $this->blend($bill->product_id, $receivedKg, (string) ($cost + (int) $landed->sum('amount_paise')), 'purchase_bill', $bill->id, [
             'bill' => $bill->number, 'cost_paise' => $cost, 'received_kg' => $receivedKg,
+            'landed_paise' => (int) $landed->sum('amount_paise'), 'landed_expenses' => $landed->pluck('id')->all(),
         ]);
+    }
+
+    /**
+     * A vehicle's charge marked for the stock cost: once its purchase bill is costed, the charge is added
+     * to the stock value (no kg added). Posted before the bill, it is taken in by recordPurchase instead.
+     */
+    public function recordLandedCost(Expense $expense): void
+    {
+        if (! $expense->capitalize_to_stock || $expense->gate_entry_id === null || $expense->amount_paise <= 0) {
+            return;
+        }
+        $bill = PurchaseBill::query()->where('gate_entry_id', $expense->gate_entry_id)->where('status', PurchaseBill::POSTED)->first();
+        $costed = $bill !== null && ProductCost::query()->where('source_type', 'purchase_bill')->where('source_id', $bill->id)->exists();
+        if (! $costed || ProductCost::query()->where('source_type', 'landed_cost')->where('source_id', $expense->id)->exists()) {
+            return;
+        }
+        $this->blend($bill->product_id, '0', (string) $expense->amount_paise, 'landed_cost', $expense->id, [
+            'expense' => $expense->number, 'bill' => $bill->number, 'cost_paise' => $expense->amount_paise,
+        ], alreadyInStockKg: '0');
+    }
+
+    /**
+     * Landed cost of one vehicle: what was paid for the paddy plus its charges marked for the stock cost.
+     *
+     * @return array{purchase_paise: int, charges_paise: int, landed_paise: int}
+     */
+    public function landedCostOf(string $gateEntryId): array
+    {
+        $bill = PurchaseBill::query()->where('gate_entry_id', $gateEntryId)->where('status', '<>', PurchaseBill::CANCELLED)->first();
+        $purchase = $bill === null ? 0 : $bill->gross_paise - $bill->rate_cut_paise + $bill->brokerage_paise;
+        $charges = (int) Expense::query()->where('gate_entry_id', $gateEntryId)->where('capitalize_to_stock', true)
+            ->where('status', Expense::POSTED)->sum('amount_paise');
+
+        return ['purchase_paise' => $purchase, 'charges_paise' => $charges, 'landed_paise' => $purchase + $charges];
     }
 
     /**

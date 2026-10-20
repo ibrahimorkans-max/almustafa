@@ -54,6 +54,48 @@
     <tr class="grand"><td colspan="2">{{ $inbound ? 'Payable to supplier' : 'Receivable from buyer' }}: {{ \App\Domain\Gate\VehicleRegister::rs($price['net_paise']) }}{{ $price['state'] === 'estimate' ? ' (estimate)' : '' }}</td></tr>
 </table>
 
+@if (($d['labEval'] ?? []) !== [])
+    <table class="grid">
+        <tr><th colspan="5">Lab results against the limits</th></tr>
+        <tr><td class="label">Test</td><td class="label">Result</td><td class="label">Standard up to</td><td class="label">Grace up to</td><td class="label">Reading</td></tr>
+        @foreach ($d['labEval'] as $r)
+            <tr>@foreach ($r as $i => $v)<td class="small {{ $i > 0 && $i < 4 ? 'num' : '' }}">{{ $v }}</td>@endforeach</tr>
+        @endforeach
+    </table>
+@endif
+
+@if (($d['prices'] ?? []) !== [])
+    <table class="grid">
+        <tr><th colspan="6">Negotiation (price versions)</th></tr>
+        <tr><td class="label">Version</td><td class="label">Rs / maund</td><td class="label">Status</td><td class="label">Reason</td><td class="label">Proposed by</td><td class="label">Decided by</td></tr>
+        @foreach ($d['prices'] as $r)
+            <tr>@foreach ($r as $i => $v)<td class="small {{ $i === 1 ? 'num' : '' }}">{{ $v }}</td>@endforeach</tr>
+        @endforeach
+    </table>
+@endif
+
+@if (($d['settlement'] ?? []) !== [] || ($d['finance'] ?? []) !== [])
+    <table class="grid">
+        <tr><th colspan="4">Caat, purchase and financial settlement</th></tr>
+        @foreach (array_chunk(array_merge($d['settlement'] ?? [], $d['finance'] ?? []), 2) as $pair)
+            <tr>
+                @foreach ($pair as [$label, $value])
+                    <td class="label small">{{ $label }}</td><td class="small b" @if (count($pair) === 1) colspan="3" @endif>{{ $value }}</td>
+                @endforeach
+            </tr>
+        @endforeach
+    </table>
+@endif
+
+@if (($d['approvals'] ?? []) !== [])
+    <table class="grid">
+        <tr><th colspan="3">Approval history</th></tr>
+        @foreach ($d['approvals'] as [$what, $who, $when])
+            <tr><td class="small">{{ $what }}</td><td class="small">{{ $who }}</td><td class="small">{{ $when }}</td></tr>
+        @endforeach
+    </table>
+@endif
+
 @if ($d['timeline'] !== [])
     <table class="grid">
         <tr><th>Timeline</th></tr>
@@ -65,4 +107,8 @@
     <div class="notice flags small">Notes: {{ implode(' · ', $d['flags']) }}</div>
 @endif
 
-@include('pdf.signatures', ['signs' => [['Weighbridge operator', 'کانٹا آپریٹر'], ['Checked by (second person)', 'جانچ کنندہ'], ['Driver', 'ڈرائیور']]])
+@if ($inbound && (($d['settlement'] ?? []) !== []))
+    @include('pdf.signatures', ['signs' => [['Weighbridge operator', 'کانٹا آپریٹر'], ['Prepared by', 'تیار کنندہ'], ['Checked by (second person)', 'جانچ کنندہ'], ['Approved by', 'منظور کنندہ']]])
+@else
+    @include('pdf.signatures', ['signs' => [['Weighbridge operator', 'کانٹا آپریٹر'], ['Checked by (second person)', 'جانچ کنندہ'], ['Driver', 'ڈرائیور']]])
+@endif

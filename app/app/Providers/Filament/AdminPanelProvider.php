@@ -15,7 +15,9 @@ use App\Filament\Widgets\HrOverview;
 use App\Filament\Widgets\MoneyOverview;
 use App\Filament\Widgets\OperationsOverview;
 use App\Filament\Widgets\OwnerOverview;
+use App\Filament\Widgets\ProcurementOverview;
 use App\Filament\Widgets\StockOverview;
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\PrintAnyRecordController;
 use App\Http\Controllers\PrintRecordController;
 use App\Http\Controllers\ReportPrintController;
@@ -69,7 +71,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([Dashboard::class])
-            ->widgets([AccountWidget::class, OperationsOverview::class, MoneyOverview::class, OwnerOverview::class, HrOverview::class, StockOverview::class])
+            ->widgets([AccountWidget::class, OperationsOverview::class, ProcurementOverview::class, MoneyOverview::class, OwnerOverview::class, HrOverview::class, StockOverview::class])
             ->navigationGroups(['Gate & weighbridge', 'Sales & dispatch', 'Stock & production', 'Accounts', 'Daily wages', 'Claims & pricing', 'Procurement', 'Masters', 'Administration', 'Security'])
             ->userMenuItems([
                 MenuItem::make()->label('Switch entity / account')->icon('heroicon-o-arrows-right-left')
@@ -92,6 +94,7 @@ class AdminPanelProvider extends PanelProvider
                 Route::post('session-location', SessionLocationController::class)->middleware('throttle:10,1')->name('session-location');
                 Route::get('print/{type}/{id}', PrintRecordController::class)->whereUuid('id')->middleware('throttle:60,1')->name('print');
                 Route::get('print-record/{resource}/{id}', PrintAnyRecordController::class)->whereUuid('id')->middleware('throttle:60,1')->name('print-record');
+                Route::get('attachments/{id}', AttachmentController::class)->whereUuid('id')->middleware('throttle:60,1')->name('attachment');
                 Route::get('reports/print', ReportPrintController::class)->middleware('throttle:20,1')->name('reports.print');
                 Route::middleware('throttle:60,1')->prefix('vehicle-register')->name('vehicle-register.')->group(function (): void {
                     Route::get('vehicle/{id}', [VehicleRegisterPrintController::class, 'vehicle'])->whereUuid('id')->name('vehicle');

@@ -29,6 +29,11 @@ beforeEach(function () {
     $this->operator = Make::account($this->f->entity, 'GATE_OPERATOR');
     $this->f->as($this->operator);
     $this->entry = app(GateService::class)->arrive(['registration_no' => 'MNA 21 1234', 'sauda_id' => $this->sauda->id, 'bag_count' => 400]);
+    // The lab decides before any weighing.
+    $this->f->as($this->f->owner);
+    GateFixtures::passLab(app(GateService::class), $this->entry);
+    $this->f->as($this->operator);
+    $this->entry = $this->entry->fresh();
     Filament::setCurrentPanel(Filament::getPanel('admin'));
 });
 
@@ -176,7 +181,8 @@ it('counts the gross and tare an inbound and an outbound vehicle need', function
     $in = (new GateEntry)->forceFill(['direction' => 'inbound']);
     $out = (new GateEntry)->forceFill(['direction' => 'outbound']);
 
-    expect(LiveCapture::nextKind(tap($in, fn ($e) => $e->status = 'arrived')))->toBe('gross')
+    expect(LiveCapture::nextKind(tap($in, fn ($e) => $e->status = 'arrived')))->toBeNull() // waits for the lab first
+        ->and(LiveCapture::nextKind(tap(clone $in, fn ($e) => $e->status = 'lab_accepted')))->toBe('gross')
         ->and(LiveCapture::nextKind(tap(clone $in, fn ($e) => $e->status = 'unloaded')))->toBe('tare')
         ->and(LiveCapture::nextKind(tap(clone $in, fn ($e) => $e->status = 'gross_weighed')))->toBeNull()
         ->and(LiveCapture::nextKind(tap($out, fn ($e) => $e->status = 'arrived')))->toBe('tare')

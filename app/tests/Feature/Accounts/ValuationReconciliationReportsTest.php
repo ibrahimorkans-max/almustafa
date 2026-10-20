@@ -38,12 +38,12 @@ function releasePayment(object $t, int $paise): Payment
 }
 
 it('costs paddy at the weighted average of what was received', function () {
-    // (gross − rate cut + brokerage) / physical net kg = 36,953,125 / 15,250
-    expect(app(StockValuation::class)->averageOf($this->f->inv->paddy->id))->toBe('2423.1557')
+    // (gross − rate cut + brokerage) / kg received (the payable weight after the Caat settlement) = 36,953,125 / 14,781.25
+    expect(app(StockValuation::class)->averageOf($this->f->inv->paddy->id))->toBe('2500.0000')
         ->and(ProductCost::query()->sole()->source_type)->toBe('purchase_bill');
 
     $rows = app(StockValuation::class)->stockValue();
-    expect($rows)->toHaveCount(1)->and($rows[0]['value_paise'])->toBe(36_953_124); // 15,250 × 2,423.1557 rounded
+    expect($rows)->toHaveCount(1)->and($rows[0]['value_paise'])->toBe(36_953_125); // 14,781.25 × 2,500: stock is worth what was paid
 });
 
 it('carries cost through milling: by-products at realisable value, the rest to rice', function () {
@@ -62,10 +62,10 @@ it('carries cost through milling: by-products at realisable value, the rest to r
     $production->close($batch);
 
     $valuation = app(StockValuation::class);
-    // input 10,000 × 2,423.1557 = 24,231,557; by-products 2,650,000; rice gets 21,581,557 / 6,500 kg
-    expect($valuation->averageOf($this->f->inv->rice->id))->toBe('3320.2395')
+    // input 10,000 × 2,500 = 25,000,000; by-products 2,650,000; rice gets 22,350,000 / 6,500 kg
+    expect($valuation->averageOf($this->f->inv->rice->id))->toBe('3438.4615')
         ->and($valuation->averageOf($this->f->inv->bran->id))->toBe('1500.0000')
-        ->and($valuation->averageOf($this->f->inv->paddy->id))->toBe('2423.1557');
+        ->and($valuation->averageOf($this->f->inv->paddy->id))->toBe('2500.0000');
 });
 
 it('matches statement lines to payments by transaction reference and amount, and skips re-imported rows', function () {

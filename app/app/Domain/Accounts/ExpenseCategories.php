@@ -22,13 +22,18 @@ final class ExpenseCategories
         private readonly ChartOfAccounts $chart,
     ) {}
 
+    /** Installs the default categories a mill does not have yet (a release can add one, e.g. freight). */
     public function installDefaults(): void
     {
-        if (ExpenseCategory::query()->exists()) {
+        $have = ExpenseCategory::query()->pluck('code')->all();
+        if (array_diff(array_keys(ExpenseCategory::DEFAULTS), $have) === []) {
             return;
         }
-        DB::transaction(function (): void {
+        DB::transaction(function () use ($have): void {
             foreach (ExpenseCategory::DEFAULTS as $code => [$name, $kind, $ledgerCode, $ledgerName, $group, $claimable]) {
+                if (in_array($code, $have, true)) {
+                    continue;
+                }
                 $ledger = LedgerAccount::query()->where('code', $ledgerCode)->first()
                     ?? LedgerAccount::query()->create(['group_id' => $this->chart->group($group)->id, 'code' => $ledgerCode, 'name' => $ledgerName, 'kind' => 'general']);
                 ExpenseCategory::query()->create(['code' => $code, 'name' => $name, 'kind' => $kind, 'ledger_account_id' => $ledger->id, 'claimable' => $claimable]);

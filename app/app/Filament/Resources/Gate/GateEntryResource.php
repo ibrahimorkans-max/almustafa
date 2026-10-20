@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Gate;
 
+use App\Domain\Gate\GateService;
+use App\Domain\Gate\LabStandards;
 use App\Filament\Resources\Gate\GateEntryResource\Pages;
+use App\Filament\Support\AttachmentsPanel;
 use App\Filament\Support\HidesArchived;
 use App\Filament\Support\Units;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
+use App\Models\Gate\GatePriceVersion;
 use App\Models\Gate\LabTest;
 use App\Models\Gate\Weighment;
 use App\Models\Masters\Party;
@@ -17,6 +21,7 @@ use App\Models\Procurement\Sauda;
 use App\Models\Sales\DispatchOrder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -58,13 +63,22 @@ class GateEntryResource extends Resource
         'quantity_out_of_tolerance' => 'Load outside order tolerance', 'bag_weight_mismatch' => 'Bags × size ≠ net',
         'dispatch_order_not_open' => 'Dispatch order not cleared',
         'live_screen' => 'Recorded on the Live weight screen', 'reweighed' => 'Weighed again',
+        'held_quarantine' => 'Rejected lot held (quarantine)',
     ];
 
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            TextInput::make('registration_no')->label('Vehicle registration no.')->required()->maxLength(20)->placeholder('MNA-21-1234')
+            Toggle::make('no_plate')->label('No number plate (bail gari, donkey cart, bicycle, rehri…)')->live()->columnSpanFull(),
+            TextInput::make('registration_no')->label('Vehicle registration no.')->maxLength(20)->placeholder('MNA-21-1234')
+                ->required(fn (Get $get) => ! $get('no_plate'))->hidden(fn (Get $get) => (bool) $get('no_plate'))
                 ->datalist(fn () => Vehicle::query()->orderBy('registration_no')->limit(500)->pluck('registration_no')->all()),
+            Select::make('vehicle_type')->label('Kind of vehicle')->options(Vehicle::LABELS)->searchable()
+                ->required(fn (Get $get) => (bool) $get('no_plate'))
+                ->helperText('Leave empty for a registered vehicle to use its kind from the vehicle list.'),
+            TextInput::make('vehicle_description')->label('Description (to know it by)')->maxLength(160)
+                ->placeholder('e.g. Bail gari of Rasheed, Basti Malook, white bulls')
+                ->visible(fn (Get $get) => (bool) $get('no_plate'))->required(fn (Get $get) => (bool) $get('no_plate'))->columnSpanFull(),
             Select::make('direction')->options(['inbound' => 'Inbound (paddy in)', 'outbound' => 'Outbound (dispatch)'])->default('inbound')->required()->live(),
             Select::make('dispatch_order_id')->label('Dispatch order')->searchable()
                 ->visible(fn (Get $get) => $get('direction') === 'outbound')
@@ -93,7 +107,10 @@ class GateEntryResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('number')->searchable(),
-                TextColumn::make('registration_no')->label('Vehicle')->searchable()->fontFamily('mono'),
+                TextColumn::make('registration_no')->label('Vehicle')->searchable(['registration_no', 'vehicle_description'])->fontFamily('mono')
+                    ->formatStateUsing(fn (GateEntry $record) => $record->no_plate ? 'No plate' : $record->registration_no)
+                    ->description(fn (GateEntry $record) => $record->no_plate ? Vehicle::typeLabel($record->vehicle_type).' · '.$record->vehicle_description
+                        : ($record->vehicle_type ? Vehicle::typeLabel($record->vehicle_type) : null)),
                 TextColumn::make('party.name')->label('Party')->placeholder('—'),
                 TextColumn::make('sauda.number')->label('Sauda')->placeholder('—'),
                 TextColumn::make('status')->badge()->color(fn (string $state) => static::statusColor($state)),
@@ -117,7 +134,9 @@ class GateEntryResource extends Resource
         return $infolist->schema([
             Section::make()->columns(4)->schema([
                 TextEntry::make('number'),
-                TextEntry::make('registration_no')->label('Vehicle')->fontFamily('mono'),
+                TextEntry::make('registration_no')->label('Vehicle')->fontFamily('mono')
+                    ->formatStateUsing(fn (GateEntry $record) => $record->vehicleLabel()),
+                TextEntry::make('vehicle_type')->label('Kind of vehicle')->formatStateUsing(fn (?string $state) => Vehicle::typeLabel($state))->placeholder('—'),
                 TextEntry::make('status')->badge()->color(fn (string $state) => static::statusColor($state)),
                 TextEntry::make('direction')->badge(),
                 TextEntry::make('party.name')->label('Party')->placeholder('—'),
@@ -146,7 +165,44 @@ class GateEntryResource extends Resource
                     TextEntry::make('photo_sha256')->label('Photo')->formatStateUsing(fn (?string $state) => $state ? substr($state, 0, 12).'…' : '—'),
                 ]),
             ]),
-            Section::make('Lab')->schema([
+            Section::make('Lab results against the limits')->schema([
+                TextEntry::make('lab_evaluation')->hiddenLabel()->html()
+                    ->state(function (GateEntry $record): string {
+                        $test = $record->labTests()->orderByDesc('tested_at')->first();
+                        $rows = (array) ($test->evaluation ?? []);
+                        if ($rows === []) {
+                            return '<span class="text-sm text-gray-500">No result for the configured lab tests yet.</span>';
+                        }
+
+                        return '<ul class="space-y-1 text-sm">'.implode('', array_map(fn (array $r) => '<li class="'.match ($r['verdict']) {
+                            LabStandards::OVER => 'font-semibold text-danger-600', LabStandards::GRACE => 'text-warning-600', default => '',
+                        }.'">'.e(LabStandards::describe($r)).'</li>', $rows)).'</ul>';
+                    }),
+            ])->visible(fn (GateEntry $record) => $record->direction === 'inbound'),
+            Section::make('Negotiation (price versions)')->schema([
+                RepeatableEntry::make('priceVersions')->hiddenLabel()->columns(6)->schema([
+                    TextEntry::make('version')->label('Version'),
+                    TextEntry::make('price_paise_per_maund')->label('Rs / maund')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
+                    TextEntry::make('status')->badge()->color(fn (string $state) => match ($state) {
+                        GatePriceVersion::ACCEPTED => 'success', GatePriceVersion::REJECTED => 'danger', GatePriceVersion::PROPOSED => 'warning', default => 'gray',
+                    }),
+                    TextEntry::make('reason')->placeholder('—'),
+                    TextEntry::make('proposer.username')->label('Proposed by')->placeholder('—'),
+                    TextEntry::make('decider.username')->label('Decided by')->placeholder('—'),
+                ]),
+            ])->visible(fn (GateEntry $record) => $record->priceVersions()->exists())->collapsible(),
+            Section::make('Caat and price settlement')->columns(4)->schema([
+                TextEntry::make('s_waste')->label('Waste Caat')->state(fn (GateEntry $r) => self::settlement($r)['waste_caat_kg'] ?? null)->suffix(' kg')->placeholder('—'),
+                TextEntry::make('s_per_maund')->label('Caat per Maund')->state(fn (GateEntry $r) => ($s = self::settlement($r)) ? $s['per_maund_caat_kg'].' kg ('.$s['per_maund_rate_kg'].' kg × maunds)' : null)->placeholder('—'),
+                TextEntry::make('s_payable')->label('Payable weight')->weight('bold')->state(fn (GateEntry $r) => ($s = self::settlement($r)) ? $s['payable_kg'].' kg ('.Units::kgToMaund((string) $s['payable_kg']).' maund)' : null)->placeholder('—'),
+                TextEntry::make('s_price')->label('Settled price')->state(fn (GateEntry $r) => ($s = self::settlement($r)) ? Units::paiseToRupees((int) $s['price_paise_per_maund']).' / maund' : null)->placeholder('—'),
+                TextEntry::make('s_status')->label('Status')->badge()->state(fn (GateEntry $r) => match (true) {
+                    app(GateService::class)->settlementApproved($r) => 'approved',
+                    $r->events()->where('event', 'settlement_proposed')->exists() => 'waiting for approval',
+                    default => 'not proposed',
+                })->color(fn (string $state) => $state === 'approved' ? 'success' : 'warning'),
+            ])->visible(fn (GateEntry $record) => $record->direction === 'inbound' && $record->tare_kg !== null),
+            Section::make('Lab (older fixed results)')->collapsed()->schema([
                 RepeatableEntry::make('labTests')->hiddenLabel()->columns(8)->schema([
                     TextEntry::make('tested_at')->label('When')->dateTime('d M H:i'),
                     ...collect(LabTest::PARAMETERS)->map(fn (string $col, string $param) => TextEntry::make($col)->label(ucfirst(str_replace('_', ' ', $param)))
@@ -174,7 +230,18 @@ class GateEntryResource extends Resource
                         ->state(fn (GateEvent $record) => $record->anomaly),
                 ]),
             ])->collapsible(),
+            AttachmentsPanel::section(),
         ]);
+    }
+
+    /** @return array<string, mixed>|null the approved settlement, else the latest proposal */
+    public static function settlement(GateEntry $record): ?array
+    {
+        $event = app(GateService::class)->settlementApproved($record)
+            ? GateEvent::query()->where('gate_entry_id', $record->id)->where('event', 'settlement_approved')->newestFirst()->first()
+            : GateEvent::query()->where('gate_entry_id', $record->id)->where('event', 'settlement_proposed')->newestFirst()->first();
+
+        return $event?->data;
     }
 
     public static function getPages(): array

@@ -8,6 +8,7 @@ use App\Domain\Accounts\AccountsDocuments;
 use App\Domain\Accounts\PaymentService;
 use App\Filament\Resources\Accounts\PaymentResource;
 use App\Filament\Resources\ApprovalRequestResource;
+use App\Filament\Support\AttachmentsPanel;
 use App\Filament\Support\RequestsVoucherReversal;
 use App\Filament\Support\RunsDomainActions;
 use App\Models\Accounts\Payment;
@@ -27,6 +28,7 @@ class ViewPayment extends ViewRecord
         $can = fn (string $p) => Filament::auth()->user()?->can($p) ?? false;
 
         return [
+            AttachmentsPanel::action(),
             Action::make('approval')->label('Open approval')->icon('heroicon-o-shield-check')
                 ->visible(fn (Payment $p) => $p->isOpen() && $p->approval_request_id !== null)
                 ->url(fn (Payment $p) => ApprovalRequestResource::getUrl('view', ['record' => $p->approval_request_id])),

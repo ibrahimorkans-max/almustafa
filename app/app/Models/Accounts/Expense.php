@@ -6,6 +6,7 @@ namespace App\Models\Accounts;
 
 use App\Domain\Audit\Auditable;
 use App\Domain\Tenancy\BelongsToEntity;
+use App\Models\Gate\GateEntry;
 use App\Models\Masters\Party;
 use App\Models\StoredFile;
 use App\Support\Eloquent\HasOptimisticLock;
@@ -38,6 +39,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $posted_at
  * @property string|null $cancel_reason
  * @property string|null $created_by
+ * @property string|null $gate_entry_id the vehicle this charge belongs to
+ * @property bool $capitalize_to_stock part of that lot's landed cost (stock value)
  * @property-read ExpenseCategory $category
  * @property-read LedgerAccount|null $cashLedger
  * @property-read Party|null $party
@@ -62,7 +65,7 @@ class Expense extends Model
 
     protected $fillable = [
         'number', 'kind', 'expense_category_id', 'entry_date', 'amount_paise', 'description', 'cash_ledger_id', 'party_id',
-        'receipt_file_id', 'recurring_expense_id', 'recurring_month',
+        'receipt_file_id', 'recurring_expense_id', 'recurring_month', 'gate_entry_id', 'capitalize_to_stock',
     ];
 
     /** @var array<string, mixed> */
@@ -70,7 +73,13 @@ class Expense extends Model
 
     protected function casts(): array
     {
-        return ['entry_date' => 'date', 'amount_paise' => 'integer', 'posted_at' => 'datetime', 'version' => 'integer'];
+        return ['entry_date' => 'date', 'amount_paise' => 'integer', 'posted_at' => 'datetime', 'version' => 'integer', 'capitalize_to_stock' => 'boolean'];
+    }
+
+    /** @return BelongsTo<GateEntry, $this> the vehicle this charge belongs to (freight, unloading…) */
+    public function gateEntry(): BelongsTo
+    {
+        return $this->belongsTo(GateEntry::class);
     }
 
     /** @return BelongsTo<ExpenseCategory, $this> */

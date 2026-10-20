@@ -11,6 +11,7 @@ use App\Filament\Resources\Accounts\ExpenseResource;
 use App\Filament\Support\Units;
 use App\Models\Accounts\ExpenseCategory;
 use App\Models\Accounts\LedgerAccount;
+use App\Models\Gate\GateEntry;
 use App\Models\Masters\Party;
 use Carbon\CarbonImmutable;
 use Filament\Resources\Pages\CreateRecord;
@@ -47,6 +48,8 @@ class CreateExpense extends CreateRecord
                 $data['via'] === 'party' ? Party::query()->find($data['party_id'] ?? null) : null,
                 $receipt instanceof TemporaryUploadedFile ? (string) $receipt->get() : null,
                 (bool) ($data['post'] ?? false),
+                filled($data['gate_entry_id'] ?? null) ? GateEntry::query()->find($data['gate_entry_id']) : null,
+                (bool) ($data['capitalize_to_stock'] ?? false),
             );
         } catch (BusinessRuleViolation $e) {
             throw ValidationException::withMessages(['data.amount' => $e->getMessage()]);

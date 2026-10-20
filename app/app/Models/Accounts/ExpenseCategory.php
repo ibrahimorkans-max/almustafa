@@ -39,6 +39,7 @@ class ExpenseCategory extends Model
     public const DEFAULTS = [
         'TRAVEL' => ['Travel and conveyance', 'expense', 'EXP-TRAVEL', 'Travelling and conveyance', 'INDIRECT_EXPENSES', true],
         'FUEL' => ['Fuel (vehicles, generator)', 'expense', 'EXP-FUEL', 'Fuel and lubricants', 'DIRECT_EXPENSES', true],
+        'FREIGHT' => ['Freight, unloading and handling (paddy)', 'expense', 'EXP-FREIGHT-IN', 'Freight inward and unloading', 'DIRECT_EXPENSES', false],
         'MEALS' => ['Meals and refreshments', 'expense', 'EXP-MEALS', 'Staff welfare and refreshments', 'INDIRECT_EXPENSES', true],
         'REPAIRS' => ['Repairs and maintenance', 'expense', 'EXP-REPAIRS', 'Repairs and maintenance', 'DIRECT_EXPENSES', true],
         'STATIONERY' => ['Printing and stationery', 'expense', 'EXP-STATIONERY', 'Printing and stationery', 'INDIRECT_EXPENSES', true],

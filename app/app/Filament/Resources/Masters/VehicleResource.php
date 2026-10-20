@@ -50,7 +50,7 @@ class VehicleResource extends Resource
                         $fail('This vehicle is already registered.');
                     }
                 }),
-            Select::make('vehicle_type')->options(array_combine(Vehicle::TYPES, array_map('ucfirst', Vehicle::TYPES)))->default('truck')->required(),
+            Select::make('vehicle_type')->options(Vehicle::LABELS)->default('truck')->required(),
             Select::make('owner_party_id')->label('Owner')->relationship('owner', 'name')->searchable()->preload(),
             Select::make('default_driver_id')->label('Usual driver')->relationship('defaultDriver', 'name')->searchable()->preload(),
             TextInput::make('capacity_kg')->label('Capacity (kg)')->regex('/^\d{1,9}(\.\d{1,3})?$/'),
@@ -66,7 +66,7 @@ class VehicleResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('registration_no')->label('Reg. no.')->searchable()->sortable()->fontFamily('mono'),
-                TextColumn::make('vehicle_type')->badge(),
+                TextColumn::make('vehicle_type')->badge()->formatStateUsing(fn (?string $state) => Vehicle::typeLabel($state)),
                 TextColumn::make('owner.name')->placeholder('—'),
                 TextColumn::make('defaultDriver.name')->label('Driver')->placeholder('—'),
                 IconColumn::make('is_blocked')->label('Blocked')->boolean()->trueColor('danger')->falseColor('gray')

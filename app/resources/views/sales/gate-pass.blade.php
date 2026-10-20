@@ -14,7 +14,7 @@
         <td class="label">Issued</td><td>{{ $issuedAt->timezone('Asia/Karachi')->format('d M Y H:i') }} PKT</td>
     </tr>
     <tr>
-        <td class="label">Vehicle</td><td class="mono b big">{{ \App\Support\Values\PakistanIds::formatVehicleNumber($entry->registration_no) }}</td>
+        <td class="label">Vehicle</td><td class="mono b big">{{ $entry->vehicleLabel() }}</td>
         <td class="label">Driver</td><td>{{ $entry->driver_name ?? $entry->driver?->name ?? '—' }}</td>
     </tr>
     <tr>

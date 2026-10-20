@@ -10,7 +10,7 @@ final class GateEntryPolicy extends Phase3Policies
 {
     protected function viewPermissions(): array
     {
-        return ['gate.entry', 'weighment.capture', 'lab.test', 'lab.decide'];
+        return ['gate.entry', 'weighment.capture', 'lab.test', 'lab.decide', 'purchase.negotiate', 'purchase.approve'];
     }
 
     protected function createPermissions(): array

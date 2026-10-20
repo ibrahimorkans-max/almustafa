@@ -31,6 +31,7 @@ use App\Models\Documents\DocumentTemplate;
 use App\Models\Documents\GeneratedDocument;
 use App\Models\Gate\DeductionRule;
 use App\Models\Gate\GateEntry;
+use App\Models\Gate\LabParameter;
 use App\Models\Gate\Scale;
 use App\Models\Hr;
 use App\Models\Inventory;
@@ -133,6 +134,7 @@ class AppServiceProvider extends ServiceProvider
             GateEntry::class => Policies\Phase3\GateEntryPolicy::class,
             Scale::class => Policies\Phase3\ScalePolicy::class,
             DeductionRule::class => Policies\Phase3\DeductionRulePolicy::class,
+            LabParameter::class => Policies\Phase3\LabParameterPolicy::class,
             Inventory\StockBalance::class => Policies\Phase4\StockBalancePolicy::class,
             Inventory\StockEntry::class => Policies\Phase4\StockEntryPolicy::class,
             Inventory\Requisition::class => Policies\Phase4\RequisitionPolicy::class,

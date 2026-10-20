@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
+use App\Domain\Auth\ActorContext;
 use App\Domain\Auth\AuthContextBinder;
+use App\Domain\Gate\GateService;
 use App\Domain\Procurement\SaudaService;
 use App\Models\Entity;
 use App\Models\Gate\DeductionRule;
+use App\Models\Gate\GateEntry;
 use App\Models\Gate\Scale;
 use App\Models\Gate\ScaleCertificate;
 use App\Models\LoginAccount;
@@ -60,6 +63,35 @@ final class GateFixtures
     public function as(LoginAccount $account): void
     {
         app(AuthContextBinder::class)->bind($account);
+    }
+
+    /**
+     * Lab before weighing: records the result (as the current person, who needs lab.test and lab.decide)
+     * and accepts the lot.
+     *
+     * @param  array<string, mixed>  $values
+     */
+    public static function passLab(GateService $gate, GateEntry $e, array $values = ['moisture_bp' => 1500]): void
+    {
+        $gate->recordLabTest($e, $values);
+        $gate->decideLab($e, true, 'Accepted');
+    }
+
+    /**
+     * The settlement after the empty weight: proposed by the current person (Waste Caat defaults to the
+     * deduction the lab rules give, Caat per Maund to 0) and approved by a second person.
+     */
+    public function settle(GateService $gate, GateEntry $e, ?string $wasteKg = null, string $perMaundKg = '0', ?LoginAccount $approver = null): void
+    {
+        $me = app(ActorContext::class)->account();
+        $wasteKg ??= (string) ($gate->project($e->fresh())->deduction_kg ?? '0');
+        $gate->proposeSettlement($e, $wasteKg, $perMaundKg);
+        $approver ??= $me?->id === $this->owner2->id ? $this->owner : $this->owner2;
+        $this->as($approver);
+        $gate->approveSettlement($e);
+        if ($me !== null) {
+            $this->as($me);
+        }
     }
 
     /** A confirmed purchase sauda (created by owner, approved by owner2). */

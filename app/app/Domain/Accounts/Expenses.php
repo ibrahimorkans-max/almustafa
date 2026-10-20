@@ -14,6 +14,7 @@ use App\Models\Accounts\ExpenseBudget;
 use App\Models\Accounts\ExpenseCategory;
 use App\Models\Accounts\LedgerAccount;
 use App\Models\Accounts\RecurringExpense;
+use App\Models\Gate\GateEntry;
 use App\Models\LoginAccount;
 use App\Models\Masters\Party;
 use Carbon\CarbonImmutable;
@@ -39,10 +40,17 @@ final class Expenses
         private readonly FileStore $files,
     ) {}
 
-    /** @param  string|null  $receipt  image or PDF bytes */
+    /**
+     * @param  string|null  $receipt  image or PDF bytes
+     * @param  GateEntry|null  $vehicle  the vehicle the charge belongs to (freight, unloading, handling…)
+     * @param  bool  $capitalize  part of that lot's landed cost: added to its stock value when posted
+     */
     public function record(ExpenseCategory $category, CarbonImmutable $date, int $amountPaise, string $description, ?LedgerAccount $cash, ?Party $party,
-        ?string $receipt = null, bool $post = false): Expense
+        ?string $receipt = null, bool $post = false, ?GateEntry $vehicle = null, bool $capitalize = false): Expense
     {
+        if ($capitalize && ($vehicle === null || $vehicle->direction !== 'inbound' || $category->kind !== 'expense')) {
+            throw new BusinessRuleViolation('Only an expense for an inbound vehicle can be added to its stock cost.');
+        }
         $this->require();
         $this->check($category, $date, $amountPaise, $description, $cash, $party);
         $file = filled($receipt) ? $this->files->put((string) $receipt) : null;
@@ -50,11 +58,12 @@ final class Expenses
             throw new BusinessRuleViolation('Receipts must be photos (JPEG, PNG) or PDF.');
         }
 
-        return DB::transaction(function () use ($category, $date, $amountPaise, $description, $cash, $party, $file, $post): Expense {
+        return DB::transaction(function () use ($category, $date, $amountPaise, $description, $cash, $party, $file, $post, $vehicle, $capitalize): Expense {
             $expense = Expense::query()->create([
                 'number' => $this->numbers->next(DocumentNumbers::EXPENSE, $date), 'kind' => $category->kind, 'expense_category_id' => $category->id,
                 'entry_date' => $date->toDateString(), 'amount_paise' => $amountPaise, 'description' => trim($description),
                 'cash_ledger_id' => $cash?->id, 'party_id' => $party?->id, 'receipt_file_id' => $file?->id,
+                'gate_entry_id' => $vehicle?->id, 'capitalize_to_stock' => $capitalize,
             ]);
             $this->audit->record('expense.recorded', $expense, null, null, ['amount_paise' => $amountPaise, 'kind' => $category->kind]);
 
@@ -92,6 +101,9 @@ final class Expenses
                 "{$category->name}: {$e->description}", ['source_type' => 'expense', 'source_id' => $e->id]);
             $e->forceFill(['status' => Expense::POSTED, 'voucher_id' => $voucher->id, 'posted_by' => $who->id, 'posted_at' => now()])->save();
             $this->audit->record('expense.posted', $e, null, null, ['voucher' => $voucher->number, 'amount_paise' => $e->amount_paise]);
+            if ($e->capitalize_to_stock && $e->gate_entry_id !== null) {
+                app(StockValuation::class)->recordLandedCost($e);
+            }
 
             return $e;
         });

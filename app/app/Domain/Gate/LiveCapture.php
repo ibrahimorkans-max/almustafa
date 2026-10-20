@@ -31,7 +31,7 @@ final class LiveCapture
     public function waiting(): Collection
     {
         return GateEntry::query()->with('party')
-            ->whereIn('status', ['arrived', 'unloaded', 'loaded'])
+            ->whereIn('status', ['arrived', 'lab_accepted', 'unloaded', 'loaded'])
             ->orderBy('arrived_at')->limit(50)->get()
             ->map(function (GateEntry $e): ?array {
                 $kind = self::nextKind($e);
@@ -45,11 +45,11 @@ final class LiveCapture
             ->filter()->values();
     }
 
-    /** gross / tare / null: what this entry needs next on the weighbridge. */
+    /** gross / tare / null: what this entry needs next on the weighbridge (inbound: only after the lab accepted the lot). */
     public static function nextKind(GateEntry $entry): ?string
     {
         return match ([$entry->direction, $entry->status]) {
-            ['inbound', 'arrived'], ['outbound', 'loaded'] => Weighment::GROSS,
+            ['inbound', 'lab_accepted'], ['outbound', 'loaded'] => Weighment::GROSS,
             ['inbound', 'unloaded'], ['outbound', 'arrived'] => Weighment::TARE,
             default => null,
         };

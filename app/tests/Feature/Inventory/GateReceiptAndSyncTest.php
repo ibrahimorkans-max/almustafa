@@ -25,26 +25,27 @@ function receiveLot(object $t, ?Godown $godown): GateEntry
 {
     $g = app(GateService::class); // fresh: an API call in between replaces the scoped contexts
     $e = $g->arrive(['registration_no' => 'MNA211234', 'sauda_id' => $t->sauda->id, 'bag_count' => 400]);
-    $g->recordWeighment($e, 'gross', '25480', $t->f->gate->scale, GateFixtures::readings('25480'), str_repeat('a', 64));
     $g->recordLabTest($e, ['moisture_bp' => 1850]);
     $g->decideLab($e, true);
+    $g->recordWeighment($e, 'gross', '25480', $t->f->gate->scale, GateFixtures::readings('25480'), str_repeat('a', 64));
     $g->markUnloaded($e, godown: $godown);
     $g->recordWeighment($e, 'tare', '10230', $t->f->gate->scale, GateFixtures::readings('10230'), str_repeat('a', 64));
+    $t->f->gate->settle($g, $e);
     $g->issueSlip($e);
 
     return $e->fresh();
 }
 
-it('books the physical net weight into the godown chosen at unloading', function () {
+it('books the payable weight (net less the Caat) into the godown chosen at unloading', function () {
     $e = receiveLot($this, $this->f->silo);
     $receipt = StockEntry::query()->where('source_type', 'gate_entry')->where('source_id', $e->id)->sole();
 
-    // Payable is lower (quality deductions) but the godown holds the full net weight.
+    // The settled Caat (waste and per-maund) is material the mill does not keep: stock receives the payable weight.
     expect($e->godown_id)->toBe($this->f->silo->id)
         ->and(bccomp($e->payable_kg, $e->net_kg, 3))->toBe(-1)
-        ->and($receipt->quantity_kg)->toBe('15250.000')
+        ->and($receipt->quantity_kg)->toBe($e->payable_kg)
         ->and($receipt->movement)->toBe('receipt')
-        ->and(app(StockLedger::class)->balance($this->f->paddy, $this->f->silo)->kg)->toBe('15250.000')
+        ->and(app(StockLedger::class)->balance($this->f->paddy, $this->f->silo)->kg)->toBe($e->payable_kg)
         ->and($e->flags)->not->toContain('no_godown');
 });
 

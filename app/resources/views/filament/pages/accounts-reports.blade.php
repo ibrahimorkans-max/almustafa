@@ -36,6 +36,28 @@
                 @endif
                 @break
 
+            @case('cashbook')
+            @case('bankbook')
+                @foreach ($r['parts'] as $p)
+                    <h3 class="mb-1 mt-4 font-semibold first:mt-0">{{ $p['title'] }} <span class="text-xs font-normal text-gray-500">{{ $p['subtitle'] }}</span></h3>
+                    @foreach ($p['lines'] as $line)<p class="text-xs text-gray-500">{{ $line }}</p>@endforeach
+                    @if ($p['columns'] !== [])
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead><tr>@foreach ($p['columns'] as $i => $col)<th class="{{ $th }} {{ in_array($i, $p['right'], true) ? 'text-right' : '' }}">{{ $col }}</th>@endforeach</tr></thead>
+                                <tbody>
+                                    @foreach ($p['rows'] as $row)
+                                        <tr class="border-t border-gray-100 dark:border-white/5 {{ ($row[0] ?? '') === 'TOTAL' ? 'font-semibold' : '' }}">
+                                            @foreach ($row as $i => $v)<td class="{{ $td }} {{ in_array($i, $p['right'], true) ? 'text-right' : '' }}">{{ $v }}</td>@endforeach
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+                @endforeach
+                @break
+
             @case('day_book')
                 @forelse ($r['vouchers'] as $v)
                     <div class="mb-4">
