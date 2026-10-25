@@ -22,7 +22,8 @@ final class RolePolicy
 
     public function requestChange(LoginAccount $user, Role $role): bool
     {
-        return $user->hasPermission('role.manage') && (! $role->is_super_admin || $user->isOwner());
+        // The Owner role (shared by every customer) is the platform admin's.
+        return $user->hasPermission('role.manage') && ((! $role->is_super_admin && $role->entity_id !== null) || $user->isPlatformAdmin());
     }
 
     public function create(LoginAccount $user): bool

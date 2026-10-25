@@ -29,7 +29,7 @@ class OutturnStandardResource extends Resource
 
     protected static ?string $slug = 'outturn-standards';
 
-    protected static ?int $navigationSort = 50;
+    protected static ?int $navigationSort = 70;
 
     public static function form(Form $form): Form
     {

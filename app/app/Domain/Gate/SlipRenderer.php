@@ -11,7 +11,6 @@ use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
-use App\Models\Gate\LabTest;
 use App\Models\Gate\Weighment;
 
 /**
@@ -42,7 +41,7 @@ final class SlipRenderer
             'slip' => $slip->data,
             'issuedAt' => $slip->occurred_at,
             'weighments' => $weighments,
-            'lab' => LabTest::query()->where('gate_entry_id', $entry->id)->orderByDesc('tested_at')->first(),
+            'labReport' => LabReport::for($entry),
         ], $entity, 'A5', (string) $entry->number, $code);
     }
 

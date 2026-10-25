@@ -35,7 +35,7 @@ class SignInAttempts extends Page implements HasTable
 
     protected static ?string $slug = 'sign-in-attempts';
 
-    protected static ?int $navigationSort = 31;
+    protected static ?int $navigationSort = 50;
 
     protected static string $view = 'filament.pages.sign-in-attempts';
 

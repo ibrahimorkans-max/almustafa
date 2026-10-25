@@ -35,7 +35,7 @@ class AgentConfig:
 
     @staticmethod
     def load(path: Path | str) -> "AgentConfig":
-        data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
+        data = tomllib.loads(Path(path).read_text(encoding="utf-8-sig"))
         auth, store, scale = data.get("auth", {}), data.get("store", {}), data.get("scale", {})
 
         def secret(value: str | None, env: str) -> str:

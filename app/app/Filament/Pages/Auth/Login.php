@@ -10,6 +10,7 @@ use App\Domain\Auth\DeviceInfo;
 use App\Domain\Auth\Exceptions\AuthenticationFailed;
 use App\Domain\Auth\LoginService;
 use App\Domain\Auth\PasskeyService;
+use App\Domain\Security\SignInArea;
 use App\Domain\Tenancy\TenantContext;
 use App\Http\Middleware\EnsureWebAuthSession;
 use App\Models\AuthSession;
@@ -18,10 +19,13 @@ use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\ViewField;
 use Filament\Forms\Form;
 use Filament\Http\Responses\Auth\Contracts\LoginResponse;
 use Filament\Pages\Auth\Login as BaseLogin;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -62,14 +66,49 @@ class Login extends BaseLogin
                 ->hidden(fn () => $this->awaitingCode)
                 ->autocomplete('current-password')
                 ->maxLength(256),
-            TextInput::make('code')
-                ->label('Authentication code')
-                ->helperText('6-digit code from your authenticator app, or a recovery code.')
-                ->required(fn () => $this->awaitingCode)
-                ->visible(fn () => $this->awaitingCode)
-                ->autocomplete('one-time-code')
+            // The 6-digit code: six boxes, sent by itself when the sixth digit is typed.
+            ViewField::make('code')
+                ->hiddenLabel()
+                ->view('filament.forms.otp-boxes')
+                ->visible(fn () => $this->awaitingCode && ! $this->useRecoveryCode),
+            TextInput::make('recovery_code')
+                ->label('Recovery code')
+                ->helperText('One of the recovery codes you saved when you set up two-step sign-in.')
+                ->required(fn () => $this->awaitingCode && $this->useRecoveryCode)
+                ->visible(fn () => $this->awaitingCode && $this->useRecoveryCode)
+                ->autocomplete('off')
                 ->maxLength(32),
+            ViewField::make('code_links')->hiddenLabel()->view('filament.forms.code-links')->dehydrated(false)->visible(fn () => $this->awaitingCode),
+            // Where the device is, for "Only inside the mill"; asked for only when the mill needs it.
+            Hidden::make('latitude'),
+            Hidden::make('longitude'),
+            Hidden::make('accuracy'),
+            ViewField::make('location_probe')->hiddenLabel()->view('filament.forms.location-probe')->dehydrated(false),
         ])->statePath('data');
+    }
+
+    public bool $useRecoveryCode = false;
+
+    public function toggleRecoveryCode(): void
+    {
+        $this->useRecoveryCode = ! $this->useRecoveryCode;
+        $this->data['code'] = null;
+        $this->data['recovery_code'] = null;
+        $this->resetErrorBag();
+    }
+
+    public function getHeading(): string|Htmlable
+    {
+        return $this->awaitingCode ? 'Two-step verification' : parent::getHeading();
+    }
+
+    public function getSubheading(): string|Htmlable|null
+    {
+        if (! $this->awaitingCode) {
+            return parent::getSubheading();
+        }
+
+        return $this->useRecoveryCode ? 'Enter one of your recovery codes.' : 'Enter the 6-digit code from your authenticator app.';
     }
 
     /** @return array<int|string, Form|string> */
@@ -96,6 +135,7 @@ class Login extends BaseLogin
             if (! $this->awaitingCode) {
                 $account = $login->verifyPassword((string) $data['username'], (string) $data['password'], request()->ip(), (string) request()->cookie(self::DEVICE_COOKIE) ?: null);
                 $this->assertPanelAccess($account);
+                $this->assertInsideArea($account);
 
                 if ($login->mfaStep($account) === LoginService::MFA_CHALLENGE) {
                     session()->put(self::PENDING_KEY, ['id' => $account->id, 'at' => now()->timestamp]);
@@ -109,12 +149,38 @@ class Login extends BaseLogin
             }
 
             $account = $this->pendingAccount();
-            $login->verifySecondFactor($account, (string) $data['code']);
+            $login->verifySecondFactor($account, (string) ($this->useRecoveryCode ? ($data['recovery_code'] ?? '') : ($data['code'] ?? '')));
             session()->forget(self::PENDING_KEY);
 
             return $this->finish($account, true);
         } catch (AuthenticationFailed $e) {
+            if ($this->awaitingCode) {
+                $this->data['code'] = null;   // empties the boxes for another try
+                $errorField = $this->useRecoveryCode ? 'data.recovery_code' : 'data.code';
+            }
+
             throw ValidationException::withMessages([$errorField => $e->publicMessage()]);
+        }
+    }
+
+    /**
+     * "Only inside the mill": the device's position must be inside the mill. Without one, the page asks the
+     * browser for it (once) and sends the sign-in again by itself.
+     *
+     * @throws AuthenticationFailed
+     */
+    private function assertInsideArea(LoginAccount $account): void
+    {
+        $lat = $this->data['latitude'] ?? null;
+        try {
+            // A browser is never excused (no agent signature): its device cookie can be set by anyone.
+            app(LoginService::class)->assertInsideArea($account, $lat, $this->data['longitude'] ?? null, $this->data['accuracy'] ?? null, request()->ip());
+        } catch (AuthenticationFailed $e) {
+            if ($e->reason === SignInArea::LOCATION_NEEDED && ! is_numeric($lat)) {
+                $this->dispatch('rm-need-location');
+            }
+
+            throw $e;
         }
     }
 
@@ -122,6 +188,7 @@ class Login extends BaseLogin
     {
         session()->forget(self::PENDING_KEY);
         $this->awaitingCode = false;
+        $this->useRecoveryCode = false;
         $this->form->fill();
     }
 
@@ -146,6 +213,7 @@ class Login extends BaseLogin
                 ?? throw AuthenticationFailed::credentials('passkey_not_recognised');
             app(LoginService::class)->verifyPasskey($account, request()->ip(), (string) request()->cookie(self::DEVICE_COOKIE) ?: null);
             $this->assertPanelAccess($account);
+            $this->assertInsideArea($account);
             session()->forget(self::PENDING_KEY);
 
             return $this->finish($account, true, 'passkey');
@@ -158,7 +226,9 @@ class Login extends BaseLogin
     protected function getFormActions(): array
     {
         return [
-            ...parent::getFormActions(),
+            // On the code step the main button reads "Verify & continue" (the six boxes also send by themselves).
+            ...array_map(fn (Action $a) => $a->label(fn () => $this->awaitingCode ? 'Verify & continue' : __('filament-panels::pages/auth/login.form.actions.authenticate.label')),
+                parent::getFormActions()),
             Action::make('passkey')->label('Sign in with a passkey')->icon('heroicon-o-finger-print')->color('gray')->outlined()
                 ->alpineClickHandler('rmPasskeyLogin($wire)')
                 ->visible(fn () => ! $this->awaitingCode),
@@ -182,6 +252,13 @@ class Login extends BaseLogin
         session()->forget(EnsureWebAuthSession::WORKING_ENTITY_KEY);
         session()->put(EnsureWebAuthSession::SESSION_KEY, $session->id);
         session()->put('password_hash_'.Filament::getAuthGuard(), $account->getAuthPassword());
+        // The position the sign-in was made from starts the session's location ("Only inside the mill").
+        if (is_numeric($this->data['latitude'] ?? null) && is_numeric($this->data['longitude'] ?? null)) {
+            app(TenantContext::class)->runAsSystem(fn () => $session->forceFill([
+                'latitude' => round((float) $this->data['latitude'], 6), 'longitude' => round((float) $this->data['longitude'], 6), 'location_at' => now(),
+                'location_accuracy_m' => is_numeric($this->data['accuracy'] ?? null) ? (int) $this->data['accuracy'] : null, 'location_source' => 'browser',
+            ])->save());
+        }
 
         return app(LoginResponse::class);
     }

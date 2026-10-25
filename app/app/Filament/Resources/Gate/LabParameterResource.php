@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Gate;
 use App\Filament\Resources\Gate\LabParameterResource\Pages;
 use App\Filament\Support\Units;
 use App\Models\Gate\LabParameter;
+use App\Models\Masters\Product;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
@@ -14,6 +15,7 @@ use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -36,7 +38,7 @@ class LabParameterResource extends Resource
 
     protected static ?string $slug = 'lab-tests';
 
-    protected static ?int $navigationSort = 39;
+    protected static ?int $navigationSort = 60;
 
     public static function form(Form $form): Form
     {
@@ -44,8 +46,10 @@ class LabParameterResource extends Resource
             TextInput::make('code')->required()->maxLength(30)->regex('/^[a-z][a-z0-9_]*$/')
                 ->helperText('Short code in small letters, e.g. moisture. Not changed once results use it.')
                 ->disabledOn('edit'),
-            Select::make('product_id')->label('Product (empty: every product)')->preload()->searchable()
-                ->relationship('product', 'name', fn (Builder $query) => $query->where('category', 'paddy')),
+            Select::make('product_id')->label('Product / variety (empty: every product)')->preload()->searchable()
+                ->relationship('product', 'name', fn (Builder $query) => $query->where('category', 'paddy'))
+                ->getOptionLabelFromRecordUsing(fn (Product $p) => $p->name.($p->variety ? ' ('.$p->variety.')' : ''))
+                ->helperText('A test set for a product replaces the general test with the same code for that product.'),
             TextInput::make('name_en')->label('Name (English)')->required()->maxLength(80),
             TextInput::make('name_ur')->label('Name (Urdu)')->required()->maxLength(80)->extraInputAttributes(['dir' => 'rtl']),
             TextInput::make('standard')->label('Standard limit (%)')->required()->regex('/^\d{1,3}(\.\d{1,2})?$/')
@@ -89,10 +93,16 @@ class LabParameterResource extends Resource
             ->columns([
                 TextColumn::make('name_en')->label('Test')->description(fn (LabParameter $r) => $r->name_ur)->searchable(),
                 TextColumn::make('code')->fontFamily('mono'),
-                TextColumn::make('product.name')->label('Product')->placeholder('Every product'),
+                TextColumn::make('product.name')->label('Product / variety')->placeholder('Every product')
+                    ->description(fn (LabParameter $r) => $r->product?->variety),
                 TextColumn::make('standard_bp')->label('Standard up to')->formatStateUsing($pct),
                 TextColumn::make('grace_bp')->label('Grace up to')->formatStateUsing($pct)->description('Above: rejected automatically'),
                 TextColumn::make('status')->badge()->color(fn (string $state) => $state === 'active' ? 'success' : 'gray'),
+            ])
+            ->filters([
+                SelectFilter::make('product_id')->label('Product / variety')
+                    ->options(fn () => Product::query()->where('category', 'paddy')->orderBy('name')->get()
+                        ->mapWithKeys(fn (Product $p) => [$p->id => $p->name.($p->variety ? ' ('.$p->variety.')' : '')])->all()),
             ])
             ->actions([EditAction::make()->mutateFormDataUsing(fn (array $data) => self::limits($data))]);
     }

@@ -31,7 +31,7 @@ class PeriodLockResource extends Resource
 
     protected static ?string $slug = 'period-locks';
 
-    protected static ?int $navigationSort = 80;
+    protected static ?int $navigationSort = 100;
 
     public static function table(Table $table): Table
     {

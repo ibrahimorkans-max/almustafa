@@ -43,7 +43,7 @@ final class AccountsFixtures
         $this->inv = new InventoryFixtures($entity);
         $this->owner = $this->inv->gate->owner;
         $this->owner2 = $this->inv->gate->owner2;
-        $this->accountant = Make::account($entity, 'ACCOUNTANT');
+        $this->accountant = Make::clerk($entity);   // not a main user: their work is approved by someone else
 
         $this->as($this->owner);
         $this->bank = LedgerAccount::query()->create([

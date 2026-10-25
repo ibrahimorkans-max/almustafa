@@ -48,14 +48,23 @@ class SecurityCentre extends Page
     /** @return list<object> */
     public function locks(): array
     {
-        $names = Entity::query()->pluck('name', 'id');
+        $names = Entity::query()->pluck('name', 'id');   // this customer's mills (the platform: all)
+        // Whole-system locks and the locks of this customer's own mills — never another customer's.
+        $mine = array_values(array_filter(app(Lockdown::class)->activeLocks(), fn (object $l) => $l->entity_id === null || isset($names[$l->entity_id])));
 
         return array_map(function (object $l) use ($names) {
             $l->where = $l->entity_id ? ($names[$l->entity_id] ?? 'one entity') : 'Whole system';
             $l->by = LoginAccount::query()->whereKey($l->locked_by)->value('username');
 
             return $l;
-        }, app(Lockdown::class)->activeLocks());
+        }, $mine);
+    }
+
+    private static function platform(): bool
+    {
+        $user = Filament::auth()->user();
+
+        return $user instanceof LoginAccount && $user->isPlatformAdmin();
     }
 
     protected function getHeaderActions(): array
@@ -67,8 +76,9 @@ class SecurityCentre extends Page
                 ->modalHeading('Emergency lockdown')
                 ->modalDescription('Signs everyone in the chosen scope out at once (browser, phone, PWA, gate agent) and blocks sign-in for all except Owners. Nothing is deleted. The Owner and Super Admins are told by e-mail and in the app.')
                 ->form([
-                    Select::make('scope')->label('Lock')->required()->default('system')
-                        ->options(['system' => 'Whole system (all entities)'] + Entity::query()->orderBy('code')->get()->mapWithKeys(fn (Entity $e) => [$e->id => "{$e->code} — {$e->name}"])->all()),
+                    Select::make('scope')->label('Lock')->required()->default(self::platform() ? 'system' : null)
+                        // The whole system is the platform admin's; a customer locks its own mills.
+                        ->options((self::platform() ? ['system' => 'Whole system (every customer)'] : []) + Entity::query()->orderBy('code')->get()->mapWithKeys(fn (Entity $e) => [$e->id => "{$e->code} — {$e->name}"])->all()),
                     Textarea::make('reason')->required()->minLength(5)->maxLength(1000),
                     $code,
                 ])
@@ -77,7 +87,7 @@ class SecurityCentre extends Page
                     $data['scope'] === 'system' ? null : $data['scope'], $data['reason'], (string) $data['code'],
                 ), 'Lockdown started. Everyone in scope has been signed out.')),
             Action::make('unlock')->label('Lift lockdown')->color('success')->icon('heroicon-o-lock-open')
-                ->visible(fn () => app(Lockdown::class)->activeLocks() !== [])
+                ->visible(fn () => $this->locks() !== [])
                 ->form([
                     Select::make('lock_id')->label('Lockdown')->required()
                         ->options(fn () => collect($this->locks())->mapWithKeys(fn ($l) => [$l->id => "{$l->where} (since ".CarbonImmutable::parse($l->locked_at, 'UTC')->timezone('Asia/Karachi')->format('d M H:i').' PKT)'])->all()),
@@ -87,7 +97,8 @@ class SecurityCentre extends Page
                 ->action(fn (array $data) => $this->attempt(fn () => app(Lockdown::class)->unlock(
                     $data['lock_id'], $data['reason'], (string) $data['code'],
                 ), 'Lockdown lifted. People can sign in again.')),
-            ...$this->maintenanceActions(),
+            // Maintenance stops every customer: the platform admin's.
+            ...(self::platform() ? $this->maintenanceActions() : []),
         ];
     }
 

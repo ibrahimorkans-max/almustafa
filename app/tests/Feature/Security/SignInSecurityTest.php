@@ -257,7 +257,7 @@ describe('owner rights', function () {
     it('gives the owner every mill permission, including any added later, but not other firms or the narrowing ones', function () {
         $missing = array_values(array_diff(PermissionCatalog::codes(), RoleTemplates::get(RoleTemplates::SUPER_ADMIN)['permissions']));
         sort($missing);
-        expect($missing)->toBe(['commission.view_own', 'deal.view_own', 'entity.manage']);
+        expect($missing)->toBe(['commission.view_own', 'deal.view_own', 'entity.manage', 'portal.view_own']);
     });
 
     it('lets the owner edit the own mill details but not its status, nor another firm', function () {
@@ -302,11 +302,11 @@ describe('live weight', function () {
         expect(app(LiveWeight::class)->current($scale))->toMatchArray(['kg' => 24560.0, 'stable' => true, 'live' => true]);
 
         secSignIn($this, $owner);
-        Livewire::test(LiveWeightBoard::class)->assertSee('24,560')->assertSee('Stable')->assertSee('614.00 maund');
+        Livewire::test(LiveWeightBoard::class)->assertSee('24,560')->assertSee('STABLE')->assertSee('614.00 maund');
         $this->get(LiveWeightPage::getUrl())->assertOk();
 
         $this->travel(10)->seconds();
-        Livewire::test(LiveWeightBoard::class)->assertSee('No signal');
+        Livewire::test(LiveWeightBoard::class)->assertSee('NO SIGNAL');
     });
 
     it('refuses readings from logins that cannot capture weights', function () {

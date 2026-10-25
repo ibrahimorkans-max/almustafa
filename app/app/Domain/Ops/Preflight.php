@@ -40,6 +40,12 @@ final class Preflight
         // Application
         $add('APP_ENV is production', 'error', config('app.env') === 'production', (string) config('app.env'));
         $add('APP_DEBUG is off', 'error', ! config('app.debug'), config('app.debug') ? 'debug pages would leak data' : 'off');
+        $proxies = (array) config('ricemill.security.trusted_proxies');
+        $add('Trusted proxies', 'warning', true, $proxies === []
+            ? 'none (right when PHP runs behind nginx/Apache on this server; set TRUSTED_PROXIES if a load balancer is in front)'
+            : implode(', ', $proxies));
+        $add('PHP does not announce its version', 'warning', ! filter_var(ini_get('expose_php'), FILTER_VALIDATE_BOOLEAN),
+            'set expose_php = Off in php.ini');
         $add('APP_KEY is set', 'error', strlen((string) config('app.key')) >= 32, config('app.key') ? 'set' : 'missing');
         $add('APP_URL uses https', 'error', str_starts_with((string) config('app.url'), 'https://'), (string) config('app.url'));
         $add('Session cookie is secure-only', 'error', (bool) config('session.secure'), 'SESSION_SECURE_COOKIE=true');
@@ -113,9 +119,11 @@ final class Preflight
 
         // Printed documents and branding
         $brand = config('ricemill.brand');
-        $files = [$brand['logo_wide'], $brand['logo_wide_dark'], $brand['favicon'], 'images/brand/logo-wide-print.png', 'images/brand/icon-192.png', 'images/brand/icon-512.png'];
+        $product = config('ricemill.product');
+        $files = [$product['logo'], $product['logo_dark'], $product['logo_print'], $product['favicon'], $product['icon_192'], $product['icon_512'],
+            $brand['logo_wide'], 'images/brand/logo-wide-print.png'];
         $missing = array_values(array_filter($files, fn (string $f) => ! is_file(public_path($f))));
-        $add('Logo and icon files present', 'error', $missing === [], $missing === [] ? 'public/images/brand' : 'missing: '.implode(', ', $missing));
+        $add('Logo and icon files present', 'error', $missing === [], $missing === [] ? 'public/images/product, public/images/brand' : 'missing: '.implode(', ', $missing));
         $pdfTmp = storage_path('framework/cache');
         $add('PDF engine can write its cache', 'error', is_dir($pdfTmp) && is_writable($pdfTmp), $pdfTmp);
         $add('PDF fonts present (Urdu: Lateef)', 'error', is_file(base_path('vendor/mpdf/mpdf/ttfonts/LateefRegOT.ttf')), 'vendor/mpdf/mpdf/ttfonts');

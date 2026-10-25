@@ -38,6 +38,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $vehicle_type
  * @property bool $no_plate
  * @property string|null $vehicle_description
+ * @property string|null $goods_description what it carries when not a listed product
  * @property string|null $driver_id
  * @property string|null $driver_name
  * @property string|null $party_id
@@ -53,6 +54,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $payable_kg
  * @property int|null $rate_cut_paise_per_maund
  * @property Carbon $arrived_at
+ * @property int|null $token_no the day's token (first come, first served)
+ * @property Carbon|null $token_date
  * @property Carbon|null $exited_at
  * @property int $version
  * @property Carbon|null $archived_at
@@ -83,13 +86,27 @@ class GateEntry extends Model
 
     public const OUTBOUND_FLOW = ['arrived', 'tare_weighed', 'loaded', 'gross_weighed', 'slip_issued', 'gate_pass_issued', 'exited'];
 
+    /**
+     * Simple weighing (purpose "other": goods that are not a paddy purchase or a dispatch order): weighed
+     * straight away, no lab, no unloading or loading step; the slip books no stock and drafts no bill.
+     */
+    public const OTHER_INBOUND_FLOW = ['arrived', 'gross_weighed', 'tare_weighed', 'slip_issued', 'exited'];
+
+    public const OTHER_OUTBOUND_FLOW = ['arrived', 'tare_weighed', 'gross_weighed', 'slip_issued', 'exited'];
+
     protected $fillable = [
         'direction', 'purpose', 'vehicle_id', 'registration_no', 'driver_id', 'driver_name', 'party_id',
-        'sauda_id', 'product_id', 'bag_count', 'arrived_at', 'dispatch_order_id', 'vehicle_type', 'no_plate', 'vehicle_description',
+        'sauda_id', 'product_id', 'bag_count', 'arrived_at', 'dispatch_order_id', 'vehicle_type', 'no_plate', 'vehicle_description', 'goods_description',
     ];
 
     /** Prefix of the reference given to a vehicle with no number plate (never a valid plate: too many letters). */
     public const NO_PLATE_PREFIX = 'NOPLATE';
+
+    /** What the vehicle carries: the product, or the goods typed at the weighbridge. */
+    public function itemLabel(): string
+    {
+        return $this->product->name ?? $this->goods_description ?? '—';
+    }
 
     /** How the vehicle is shown: the plate, or for one with no plate its kind and description. */
     public function vehicleLabel(): string
@@ -117,6 +134,8 @@ class GateEntry extends Model
             'payable_kg' => 'decimal:3',
             'rate_cut_paise_per_maund' => 'integer',
             'arrived_at' => 'datetime',
+            'token_no' => 'integer',
+            'token_date' => 'date',
             'exited_at' => 'datetime',
             'archived_at' => 'datetime',
             'version' => 'integer',
@@ -126,6 +145,10 @@ class GateEntry extends Model
     /** @return list<string> */
     public function flow(): array
     {
+        if ($this->purpose === 'other') {
+            return $this->direction === 'outbound' ? self::OTHER_OUTBOUND_FLOW : self::OTHER_INBOUND_FLOW;
+        }
+
         return $this->direction === 'outbound' ? self::OUTBOUND_FLOW : self::INBOUND_FLOW;
     }
 

@@ -2,8 +2,29 @@
 
 return [
 
-    // Business identity printed on screens, slips, invoices and reports. The mill entity's own address,
-    // phone, NTN and STRN (Entities) take precedence on documents; these are the fall-backs and the brand.
+    // The product itself (MillNexa): the app's sign-in, menu, browser tab, sign-up page, error and
+    // maintenance pages, the public document check, and the invoices the product owner sends customers.
+    'product' => [
+        'name' => env('PRODUCT_NAME', 'MillNexa'),
+        'tagline' => env('PRODUCT_TAGLINE', 'Smart Rice Mill Management'),
+        'logo' => 'images/product/millnexa-logo.png',               // mark and name side by side (menu, sign-in)
+        'logo_dark' => 'images/product/millnexa-logo-dark.png',
+        'logo_stacked' => 'images/product/millnexa-logo-stacked.png', // mark above the name and tagline
+        'logo_stacked_dark' => 'images/product/millnexa-logo-stacked-dark.png',
+        'logo_print' => 'images/product/millnexa-logo-print.jpg',    // on white, for PDFs
+        'mark' => 'images/product/millnexa-mark.png',
+        'favicon' => 'images/product/favicon-32.png',
+        'apple_touch' => 'images/product/apple-touch-icon.png',
+        'icon_192' => 'images/product/icon-192.png',
+        'icon_512' => 'images/product/icon-512.png',
+        'green' => '#217D25',      // the leaf
+        'green_bright' => '#308C09', // "Nexa"
+        'gold' => '#F2B705',       // the ear of rice
+        'ink' => '#192327',        // "Mill"
+    ],
+
+    // A mill's identity on its own slips, invoices and reports: the first installation's (Al Mustafa Rice
+    // Mills). Each mill's own details (Print & branding) take precedence; these are the fall-backs.
     'brand' => [
         'name' => env('RICEMILL_BRAND_NAME', 'Al Mustafa Rice Mills'),
         'name_ur' => env('RICEMILL_BRAND_NAME_UR', 'المصطفیٰ رائس ملز'),
@@ -36,7 +57,55 @@ return [
         'mfa_issuer' => env('RICEMILL_MFA_ISSUER', env('APP_NAME', 'Al Mustafa Rice Mills')),
     ],
 
+    /*
+     * Messages to parties (login details, money entries, vehicles). With no gateway address, each message
+     * waits in Masters → Party messages and the office sends it by hand (a WhatsApp link with the text).
+     * A gateway gets a JSON POST {to, text, sender} with "Authorization: Bearer <token>".
+     */
+    'messaging' => [
+        'sms_url' => env('RICEMILL_SMS_URL', ''),
+        'sms_token' => env('RICEMILL_SMS_TOKEN', ''),
+        'whatsapp_url' => env('RICEMILL_WHATSAPP_URL', ''),
+        'whatsapp_token' => env('RICEMILL_WHATSAPP_TOKEN', ''),
+        'sender' => env('RICEMILL_MESSAGE_SENDER', 'AlMustafa'),
+        // Address of the party sign-in page given in the login message.
+        'portal_url' => env('RICEMILL_PORTAL_URL', ''),
+
+        // WhatsApp Business Cloud API (Meta). Messages the mill starts must use an approved template (category
+        // Utility) with one variable inside fixed words: "*Al Mustafa Rice Mills*", a new line, "{{1}}", a new line,
+        // "Thank you for working with us." (see docs/party-accounts-and-messages.md).
+        'whatsapp_cloud' => [
+            'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID', ''),
+            'access_token' => env('WHATSAPP_ACCESS_TOKEN', ''),
+            'template' => env('WHATSAPP_TEMPLATE', 'mill_update'),
+            'language' => env('WHATSAPP_TEMPLATE_LANGUAGE', 'en'),
+            'api_version' => env('WHATSAPP_API_VERSION', 'v21.0'),
+        ],
+
+        // Firebase Cloud Messaging: notifications on the phones and browsers parties turned them on for.
+        'firebase' => [
+            // The service account key (JSON from Firebase → Project settings → Service accounts), kept outside public/.
+            'credentials' => env('FIREBASE_CREDENTIALS', ''),
+            // The web app (Project settings → General → Your apps) and the Web Push key (Cloud Messaging).
+            'web' => [
+                'apiKey' => env('FIREBASE_API_KEY', ''),
+                'authDomain' => env('FIREBASE_AUTH_DOMAIN', ''),
+                'projectId' => env('FIREBASE_PROJECT_ID', ''),
+                'messagingSenderId' => env('FIREBASE_MESSAGING_SENDER_ID', ''),
+                'appId' => env('FIREBASE_APP_ID', ''),
+            ],
+            'vapid_key' => env('FIREBASE_VAPID_KEY', ''),
+        ],
+    ],
+
     'security' => [
+        // The reverse proxy / load balancer in front of the app, if any (comma-separated IPs or CIDR ranges,
+        // e.g. "10.0.0.5" or "10.0.0.0/24"). Only these may say who the visitor is (X-Forwarded-For), so the
+        // IP allow-list, per-address lock-outs and rate limits see the real visitor. Empty: no proxy is
+        // trusted (right when PHP runs behind nginx/Apache on the same server). Never "*".
+        'trusted_proxies' => array_values(array_filter(array_map('trim', explode(',', (string) env('TRUSTED_PROXIES', ''))),
+            fn (string $p) => $p !== '' && $p !== '*' && $p !== '**')),
+
         // Owner may only sign in from an allow-listed IP (production: true).
         'super_admin_require_ip_allowlist' => (bool) env('RICEMILL_SA_REQUIRE_IP_ALLOWLIST', false),
         // Owner may only sign in from a device approved by another Owner.
@@ -47,7 +116,7 @@ return [
         // Security → Sign-in rules: everyone | selected (accounts switched on one by one) | off.
         'trusted_devices_default' => env('RICEMILL_TRUSTED_DEVICES', 'off'),
         // Roles left out of "everyone": employees punch from a phone HR already approves (attendance devices).
-        'trusted_devices_exempt_roles' => ['EMPLOYEE'],
+        'trusted_devices_exempt_roles' => ['EMPLOYEE', 'PARTY'],   // they see only their own records
         'hsts' => (bool) env('RICEMILL_HSTS', true),
         // Discourage screenshots and recordings in the browser: watermark with the user's name, IP and
         // time, page hidden while the window is not in focus, printing blocked (public/js/screen-guard.js).
@@ -66,6 +135,10 @@ return [
         'progressive_delay_after' => 3,
         'max_progressive_delay_seconds' => 8,
         'lockouts_before_admin_unlock' => 3,
+        // Wrong sign-ins lock out the ADDRESS they come from (max_failed_attempts per address). The whole
+        // account is locked only after this many failures from any mix of addresses since the last good
+        // sign-in, so a stranger cannot lock out the real person (see LoginService::registerFailure).
+        'account_lock_after' => (int) env('RICEMILL_ACCOUNT_LOCK_AFTER', 30),
         // Access review: accounts without a sign-in for this long are "dormant".
         'dormant_days' => (int) env('RICEMILL_DORMANT_DAYS', 30),
     ],
@@ -102,8 +175,6 @@ return [
     'accounts' => [
         // Round the amount owed on each purchase bill to the rupee (difference to "Round off").
         'round_bills_to_rupee' => (bool) env('RICEMILL_ROUND_BILLS_TO_RUPEE', true),
-        // Payments above this need a second, different approver (paisa; default Rs 500,000).
-        'second_approval_above_paise' => (int) env('RICEMILL_SECOND_APPROVAL_ABOVE_PAISE', 500_000_00),
         // Income Tax Ordinance 2001, s. 21(l): an expense paid in cash above Rs 250,000 is not deductible,
         // so cash to one person in one day is refused above this (paisa). Pay through the bank instead.
         'cash_limit_per_day_paise' => (int) env('RICEMILL_CASH_LIMIT_PER_DAY_PAISE', 250_000_00),
@@ -241,6 +312,33 @@ return [
 
     'approvals' => [
         'expire_after_hours' => (int) env('RICEMILL_APPROVAL_EXPIRY_HOURS', 72),
+    ],
+
+    'saas' => [
+        // The product's own name (not a customer's brand). Customers are opened only by the platform admin.
+        'product_name' => env('SAAS_PRODUCT_NAME', env('PRODUCT_NAME', 'MillNexa')),
+        'trial_days' => (int) env('SAAS_TRIAL_DAYS', 14),
+        // The plan a new customer's free trial starts on when none is chosen.
+        'trial_plan' => env('SAAS_TRIAL_PLAN', 'standard'),
+        // Shown to a customer whose trial is over or whose access is paused.
+        'contact' => env('SAAS_CONTACT', ''),
+        'billing' => [
+            // Monthly invoices are issued on the 1st and due this many days later.
+            'due_days' => (int) env('SAAS_INVOICE_DUE_DAYS', 10),
+            // Days after the due date before an unpaid customer becomes read-only (it can look, not change).
+            'grace_days' => (int) env('SAAS_GRACE_DAYS', 7),
+            // Days after the due date before an unpaid customer is paused (0: never automatically).
+            'suspend_after_days' => (int) env('SAAS_SUSPEND_AFTER_DAYS', 0),
+            'number_prefix' => env('SAAS_INVOICE_PREFIX', 'SUB'),
+            // On every invoice: who bills, and where to send the bank transfer.
+            'seller_name' => env('SAAS_SELLER_NAME', ''),
+            'seller_address' => env('SAAS_SELLER_ADDRESS', ''),
+            'seller_ntn' => env('SAAS_SELLER_NTN', ''),
+            'bank_title' => env('SAAS_BANK_TITLE', ''),
+            'bank_name' => env('SAAS_BANK_NAME', ''),
+            'bank_account' => env('SAAS_BANK_ACCOUNT', ''),
+            'bank_iban' => env('SAAS_BANK_IBAN', ''),
+        ],
     ],
 
 ];

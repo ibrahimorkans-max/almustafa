@@ -19,9 +19,13 @@ final class EntityPolicy
         return $user->hasPermission('entity.view');
     }
 
+    /**
+     * A customer never creates its own mills or companies: the product owner adds them (Platform →
+     * Customers → a customer → Add a mill), within the customer's plan.
+     */
     public function create(LoginAccount $user): bool
     {
-        return $user->isOwner() && $user->hasPermission('entity.manage');
+        return false;
     }
 
     /** All firms with entity.manage (Owner); the own mill only with entity.edit_own (Super Admin). */

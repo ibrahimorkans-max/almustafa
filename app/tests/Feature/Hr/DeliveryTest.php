@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Accounts\ChartOfAccounts;
+use App\Domain\Documents\DocumentVerifier;
 use App\Domain\Documents\Engine\DocumentBatches;
 use App\Domain\Documents\Engine\DocumentService;
 use App\Domain\Documents\Engine\DocumentSharing;
@@ -10,16 +11,19 @@ use App\Domain\Hr\Payroll\PayrollService;
 use App\Domain\Hr\Payroll\PayrollSettings;
 use App\Domain\Hr\Payroll\SalaryPaymentService;
 use App\Domain\Hr\SalaryStructureService;
+use App\Domain\Saas\CustomerAccess;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Pages\MyDocumentsPage;
 use App\Filament\Resources\Hr\DocumentBatchResource\Pages\ListDocumentBatches;
 use App\Filament\Resources\Hr\GeneratedDocumentResource\Pages\ListGeneratedDocuments;
 use App\Mail\DocumentMail;
 use App\Models\Alert;
+use App\Models\Customer;
 use App\Models\Documents\DocumentAccessLog;
 use App\Models\Documents\DocumentBatch;
 use App\Models\Documents\DocumentShare;
 use App\Models\Documents\GeneratedDocument;
+use App\Models\Entity;
 use App\Models\Hr\AttendanceLog;
 use App\Models\Hr\Employee;
 use App\Models\Hr\PayrollRun;
@@ -84,6 +88,22 @@ function dlPayslip(object $t, PayrollRun $run, Employee $e): GeneratedDocument
 }
 
 describe('sharing', function () {
+    it('shows nothing of a company whose access is paused: shared links close and the verify page hides the details', function () {
+        $doc = dlPayslip($this, dlFinalize($this), $this->a);
+        $path = (string) parse_url($this->sharing->share($doc, 'link', null, 24)['url'], PHP_URL_PATH);
+        $customerId = Make::system(fn () => Entity::query()->whereKey($doc->entity_id)->value('customer_id'));
+        Make::system(fn () => Customer::query()->whereKey($customerId)->update(['status' => Customer::SUSPENDED]));
+        app(CustomerAccess::class)->forget();
+
+        $this->get($path)->assertStatus(410);
+        $check = app(DocumentVerifier::class)->verify($doc->number, $doc->verify_code);
+        expect($check['facts'])->toBe(['Status' => 'Issued by this system. The issuer\'s account is blocked, so its details are not shown.']);
+
+        Make::system(fn () => Customer::query()->whereKey($customerId)->update(['status' => Customer::ACTIVE]));
+        app(CustomerAccess::class)->forget();
+        $this->get($path)->assertOk();
+    });
+
     it('opens a link until it expires, is used up or is revoked, and logs every opening and refusal', function () {
         $doc = dlPayslip($this, dlFinalize($this), $this->a);
         $r = $this->sharing->share($doc, 'link', null, 24, 2);

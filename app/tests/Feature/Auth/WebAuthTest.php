@@ -61,8 +61,11 @@ describe('sign-in page', function () {
             ->assertSet('awaitingCode', true);
         expect(auth('web')->check())->toBeFalse();
 
-        $page->fillForm(['code' => '000000'])->call('authenticate')->assertHasFormErrors(['code']);
+        // Six boxes that send the code by themselves; a wrong code empties them for another try.
+        $page->assertSee('Two-step verification')->assertSee('Digit 6 of 6')->assertSee('Lost your phone? Use a recovery code')->assertSee('Verify &amp; continue', false);
+        $page->fillForm(['code' => '000000'])->call('authenticate')->assertHasFormErrors(['code'])->assertSet('data.code', null);
         expect(auth('web')->check())->toBeFalse();
+        $page->call('toggleRecoveryCode')->assertSet('useRecoveryCode', true)->assertSee('Recovery code')->call('toggleRecoveryCode');
 
         $page->fillForm(['code' => Make::totp($owner)])->call('authenticate')->assertHasNoFormErrors();
         expect(auth('web')->id())->toBe($owner->id);
@@ -157,7 +160,8 @@ describe('after sign-in', function () {
         $gate = Make::account($this->entity, 'GATE_OPERATOR');
         $this->actingAs($gate, 'web')->withSession(Make::webSession($gate))->get('/admin')
             ->assertHeader('X-Frame-Options', 'DENY')
-            ->assertHeader('X-Content-Type-Options', 'nosniff');
+            ->assertHeader('X-Content-Type-Options', 'nosniff')
+            ->assertHeaderMissing('X-Powered-By');   // the PHP version is never told
     });
 });
 
@@ -214,5 +218,20 @@ describe('user administration', function () {
             ->not->toContain('Owner')
             ->not->toContain('Accountant')
             ->not->toContain('Super Admin');
+    });
+});
+
+describe('hardening', function () {
+    it('allows pages to load only from this site (and Firebase), never to be framed or re-based', function () {
+        $csp = (string) $this->get('/admin/login')->headers->get('Content-Security-Policy');
+        expect($csp)->toContain("default-src 'self'")->toContain("frame-ancestors 'none'")->toContain("object-src 'none'")
+            ->toContain("base-uri 'self'")->toContain("form-action 'self'")->toContain('connect-src')
+            ->not->toContain('*;')->not->toContain('script-src *');
+    });
+
+    it('believes a forwarded address only from the configured proxy', function () {
+        $this->get('/admin/login', ['X-Forwarded-For' => '198.51.100.9']);
+        expect(request()->ip())->toBe('127.0.0.1');   // no proxy configured: the header is ignored
+        expect(config('ricemill.security.trusted_proxies'))->toBe([]);
     });
 });

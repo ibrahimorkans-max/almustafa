@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Access\RoleTemplates;
 use App\Domain\Audit\Auditable;
+use App\Domain\Saas\CustomerAccess;
+use App\Domain\Saas\Modules;
+use App\Domain\Saas\PlanLimits;
 use App\Domain\Tenancy\BelongsToEntity;
+use App\Domain\Tenancy\TenantContext;
 use App\Support\Eloquent\HasOptimisticLock;
 use App\Support\Eloquent\TracksCreator;
 use Filament\Models\Contracts\FilamentUser;
@@ -26,6 +31,7 @@ use Spatie\LaravelPasskeys\Models\Concerns\InteractsWithPasskeys;
  *
  * @property string $id
  * @property string $entity_id
+ * @property bool $is_platform_admin the provider's account (never set from a form)
  * @property string $person_id
  * @property string $role_id
  * @property string $username
@@ -74,6 +80,14 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
     /** @deprecated earlier name of {@see self::STATUS_SUSPENDED} */
     public const STATUS_DISABLED = self::STATUS_SUSPENDED;
 
+    /** What the platform admin keeps of the Owner role: running the platform, not a mill. */
+    public const PLATFORM_RIGHTS = [
+        'user.view', 'user.manage', 'role.view', 'role.manage', 'device.view', 'device.manage',
+        'session.view_all', 'session.revoke_any', 'audit.view', 'audit.verify', 'settings.manage', 'approval.view', 'approval.decide',
+    ];
+
+    private ?string $customerIdCache = null;
+
     protected $fillable = [
         'entity_id', 'person_id', 'role_id', 'username', 'password', 'status', 'must_change_password',
     ];
@@ -98,6 +112,7 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
             'last_login_at' => 'datetime',
             'password_changed_at' => 'datetime',
             'must_change_password' => 'boolean',
+            'is_platform_admin' => 'boolean',
             'require_trusted_device' => 'boolean',
             'duress_pin_set_at' => 'datetime',
             'duress_suspends' => 'boolean',
@@ -112,6 +127,13 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
 
     protected static function booted(): void
     {
+        // The plan's staff-user limit (party logins and the platform's own accounts are not counted).
+        static::creating(function (LoginAccount $account): void {
+            $role = app(TenantContext::class)->runAsSystem(fn () => Role::query()->whereKey($account->role_id)->value('code'));
+            if ($role !== RoleTemplates::PARTY && ! ($account->getAttributes()['is_platform_admin'] ?? false)) {
+                app(PlanLimits::class)->assertCanAddUser($account->customerId());
+            }
+        });
         static::saving(function (LoginAccount $account): void {
             $account->username = mb_strtolower(trim($account->username));
             if ($account->isDirty('password')) {
@@ -176,6 +198,20 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
         return in_array($this->role?->code, (array) config('ricemill.security.duress_roles'), true);
     }
 
+    /** The provider's own account (platform console): the only one that may look across customers. */
+    public function isPlatformAdmin(): bool
+    {
+        // Not loaded (an account just made in code) counts as no.
+        return (bool) ($this->getAttributes()['is_platform_admin'] ?? false) && $this->isOwner();
+    }
+
+    /** The customer (company) this account works for: its mill's. */
+    public function customerId(): ?string
+    {
+        return $this->customerIdCache ??= app(TenantContext::class)
+            ->runAsSystem(fn () => Entity::query()->whereKey($this->entity_id)->value('customer_id'));
+    }
+
     public function isOwner(): bool
     {
         return (bool) $this->role?->is_super_admin;
@@ -191,10 +227,33 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
         return (bool) $this->role?->mfa_required;
     }
 
-    /** @return list<string> */
+    /**
+     * The role's rights, less those of modules the customer's plan does not include (SaaS): their screens,
+     * buttons, reports and API calls go away together; only the viewing rights while the customer is
+     * read-only for an overdue payment. The platform admin, and a customer without a plan, keep everything.
+     *
+     * @return list<string>
+     */
     public function permissionCodes(): array
     {
-        return $this->role?->permissionCodes() ?? [];
+        $codes = $this->role?->permissionCodes() ?? [];
+        if ($codes === []) {
+            return $codes;
+        }
+        if ($this->isPlatformAdmin()) {
+            // The product owner runs the platform, not a mill: its own logins, devices, sessions, audit and
+            // approvals; no mill screens (gate, stock, accounts …) in its menu.
+            return array_values(array_intersect($codes, self::PLATFORM_RIGHTS));
+        }
+        // Free trial over or access paused: no rights at all until it is paid (the payment page needs none).
+        if (app(CustomerAccess::class)->noRights($this)) {
+            return [];
+        }
+        $modules = app(PlanLimits::class)->modules($this->customerId());
+        $codes = $modules === null ? $codes : Modules::filter($codes, $modules);
+
+        // Payment overdue past the grace days: look, don't change.
+        return app(CustomerAccess::class)->readOnly($this) ? CustomerAccess::viewOnly($codes) : $codes;
     }
 
     /** Pending 2FA enrollment or a forced password change: the account holds no permissions yet. */
@@ -235,6 +294,6 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
 
     public function getPasskeyDisplayName(): string
     {
-        return ($this->person->full_name ?? $this->username).' ('.(config('ricemill.brand.name')).')';
+        return ($this->person->full_name ?? $this->username).' ('.config('ricemill.product.name').')';
     }
 }

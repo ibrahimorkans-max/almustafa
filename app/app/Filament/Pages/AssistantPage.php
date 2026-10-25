@@ -8,6 +8,7 @@ use App\Domain\Assistant\Assistant;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
 use Filament\Pages\Page;
+use Livewire\Attributes\Locked;
 
 /**
  * The action chatbot: ask questions and give instructions in words. Changes are shown as a card and
@@ -30,15 +31,21 @@ class AssistantPage extends Page
 
     public string $message = '';
 
-    /** @var list<array{role: string, text: string, links?: list<array{label: string, url: string}>, table?: array<string, mixed>|null, pending?: array<string, mixed>|null, done?: bool}> */
+    /**
+     * Only the server writes the conversation: a change waiting for Confirm cannot be altered in the browser
+     * between the card shown and the button pressed.
+     *
+     * @var list<array{role: string, text: string, links?: list<array{label: string, url: string}>, table?: array<string, mixed>|null, pending?: array<string, mixed>|null, done?: bool}>
+     */
+    #[Locked]
     public array $messages = [];
 
     public static function canAccess(): bool
     {
         $user = Filament::auth()->user();
 
-        // An archive-only account has nothing for the assistant to do.
-        return $user instanceof LoginAccount && (bool) config('ricemill.assistant.enabled') && ! Dashboard::archiveOnly($user);
+        // An archive-only account, and the product owner (no mill data), have nothing for the assistant to do.
+        return $user instanceof LoginAccount && (bool) config('ricemill.assistant.enabled') && ! Dashboard::archiveOnly($user) && ! $user->isPlatformAdmin();
     }
 
     public function mount(): void

@@ -11,7 +11,8 @@ use Illuminate\Database\Eloquent\Scope;
 /**
  * Application-level isolation (works on every database driver):
  *  - entity selected            → rows of that entity (+ global rows for models that allow them)
- *  - no entity, bypass enabled  → everything (system / Owner "all entities")
+ *  - customer mode              → rows of that customer's mills (an Owner across "all firms"; SaaS)
+ *  - no entity, bypass enabled  → everything (system / platform)
  *  - no context at all          → nothing (fail closed)
  */
 final class EntityScope implements Scope
@@ -35,6 +36,15 @@ final class EntityScope implements Scope
             } else {
                 $builder->where($column, $context->entityId());
             }
+
+            return;
+        }
+
+        if ($context->customerId() !== null && ! $context->bypassesIsolation()) {
+            $mills = fn ($q) => $q->select('id')->from('entities')->where('customer_id', $context->customerId());
+            $this->includeGlobalRows
+                ? $builder->where(fn (Builder $q) => $q->whereIn($column, $mills)->orWhereNull($column))
+                : $builder->whereIn($column, $mills);
 
             return;
         }

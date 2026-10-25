@@ -18,7 +18,7 @@ beforeEach(function () {
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     $this->entity = Make::entity('MNT');
     $this->owner = Make::account($this->entity, 'SUPER_ADMIN');
-    $this->sa = Make::owner($this->entity);
+    $this->sa = Make::platformAdmin($this->entity);   // maintenance stops every customer: the platform's
 });
 
 function scheduleAs(object $sa, string $message = 'Updating the system, back soon.', ?CarbonInterface $start = null, ?CarbonInterface $end = null): array
@@ -77,7 +77,7 @@ it('starts and ends on schedule, and can be ended early', function () {
 
 it('is for Super Admins only and needs a sensible window', function () {
     app(AuthContextBinder::class)->bind($this->owner);
-    expect(fn () => app(MaintenanceService::class)->schedule('Owner tries', now(), now()->addHour()))->toThrow(BusinessRuleViolation::class, 'Only an Owner');
+    expect(fn () => app(MaintenanceService::class)->schedule('Owner tries', now(), now()->addHour()))->toThrow(BusinessRuleViolation::class, 'Only the platform admin');
     app(AuthContextBinder::class)->bind($this->sa);
     expect(fn () => app(MaintenanceService::class)->schedule('Backwards', now(), now()->subHour()))->toThrow(BusinessRuleViolation::class, 'end time')
         ->and(fn () => app(MaintenanceService::class)->schedule('Too long', now(), now()->addDays(2)))->toThrow(BusinessRuleViolation::class, '24 hours');

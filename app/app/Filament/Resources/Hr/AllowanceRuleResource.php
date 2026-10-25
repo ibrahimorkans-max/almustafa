@@ -31,7 +31,7 @@ class AllowanceRuleResource extends Resource
 
     protected static ?string $navigationLabel = 'Allowance rules';
 
-    protected static ?int $navigationSort = 41;
+    protected static ?int $navigationSort = 71;
 
     public static function form(Form $form): Form
     {

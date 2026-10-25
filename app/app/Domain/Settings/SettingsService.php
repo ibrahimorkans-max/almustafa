@@ -34,19 +34,41 @@ final class SettingsService
      */
     public const SCREEN_GUARD = 'security.screen_guard';
 
+    /** 'on': nobody of this mill signs in, or stays signed in, outside its sites (HR → Sites). */
+    public const SIGN_IN_AREA = 'security.sign_in_area';
+
     /** How many months after closing a record moves from the working screens to the Office Desk (Owner, all mills). */
     public const ARCHIVE_RETENTION = 'archive.retention_months';
 
     /** The choices offered; at least 3 months so records still being worked on are never moved. */
     public const ARCHIVE_RETENTION_CHOICES = [3, 6, 12, 18, 24, 36, 48, 60];
 
+    /** Messages to parties, each kind on or off for a mill (App\Domain\Messaging\PartyMessenger). */
+    public const MESSAGE_EVENTS = [
+        'login' => 'Login details when a party account is made',
+        'money' => 'Each money entry with the party (bill, payment, receipt, invoice, reversal)',
+        'unloaded' => 'Vehicle unloaded at the mill',
+        'weighed' => 'Vehicle weights final (slip issued)',
+    ];
+
+    /** sms | whatsapp: how messages to parties are sent. */
+    public const MESSAGE_CHANNEL = 'messages.channel';
+
     /** @var array<string, array{default: mixed, allowed?: list<mixed>, scope: 'global'|'entity'}> */
     public const DEFINITIONS = [
+        'messages.login' => ['default' => 'on', 'allowed' => ['on', 'off'], 'scope' => 'entity'],
+        'messages.money' => ['default' => 'on', 'allowed' => ['on', 'off'], 'scope' => 'entity'],
+        'messages.unloaded' => ['default' => 'on', 'allowed' => ['on', 'off'], 'scope' => 'entity'],
+        'messages.weighed' => ['default' => 'on', 'allowed' => ['on', 'off'], 'scope' => 'entity'],
+        self::MESSAGE_CHANNEL => ['default' => 'whatsapp', 'allowed' => ['whatsapp', 'sms'], 'scope' => 'entity'],
+        // Also a notification on the phones and browsers the party turned notifications on for (Firebase).
+        'messages.push' => ['default' => 'on', 'allowed' => ['on', 'off'], 'scope' => 'entity'],
         // The default comes from RICEMILL_ARCHIVE_RETENTION_MONTHS; see archiveRetentionMonths().
+        // Each customer sets its own (stored on each of its mills); the all-mills row is the platform's default.
         self::ARCHIVE_RETENTION => [
             'default' => null,
             'allowed' => self::ARCHIVE_RETENTION_CHOICES,
-            'scope' => 'global',
+            'scope' => 'entity',
         ],
         self::LOGIN_MODE => [
             'default' => self::LOGIN_MODE_MULTI_ACCOUNT,
@@ -59,6 +81,7 @@ final class SettingsService
             'allowed' => self::TRUSTED_DEVICES_MODES,
             'scope' => 'entity',
         ],
+        self::SIGN_IN_AREA => ['default' => 'off', 'allowed' => ['on', 'off'], 'scope' => 'entity'],
         // The default comes from RICEMILL_SCREEN_GUARD; see screenGuard().
         self::SCREEN_GUARD => [
             'default' => null,
@@ -97,6 +120,11 @@ final class SettingsService
         if ($definition['scope'] === 'global' && $entityId !== null) {
             throw new InvalidArgumentException("{$key} is a global setting.");
         }
+        // A value for all mills applies to every customer: the platform admin's (or the system's) only.
+        $actor = $this->actor->account();
+        if ($entityId === null && $actor !== null && ! $actor->isPlatformAdmin()) {
+            throw new InvalidArgumentException("Only the platform admin can set {$key} for every customer.");
+        }
 
         $write = function () use ($key, $value, $entityId): void {
             DB::transaction(function () use ($key, $value, $entityId): void {
@@ -117,9 +145,9 @@ final class SettingsService
     }
 
     /** Months after closing before a record moves to the Office Desk: the Owner's choice, else RICEMILL_ARCHIVE_RETENTION_MONTHS. */
-    public function archiveRetentionMonths(): int
+    public function archiveRetentionMonths(?string $entityId = null): int
     {
-        $months = $this->get(self::ARCHIVE_RETENTION) ?? config('ricemill.archive.retention_months');
+        $months = $this->get(self::ARCHIVE_RETENTION, $entityId) ?? config('ricemill.archive.retention_months');
 
         return max(3, (int) $months);
     }
@@ -152,6 +180,22 @@ final class SettingsService
 
         return ['all' => (string) $all, 'mill' => $mill === null ? null : (string) $mill, 'enforced' => $enforced,
             'on' => $enforced || ($mill ?? $all) !== 'off'];
+    }
+
+    /** Whether this kind of message to parties is on for the mill. */
+    public function messageOn(string $event, ?string $entityId): bool
+    {
+        return isset(self::MESSAGE_EVENTS[$event]) && $this->get('messages.'.$event, $entityId) !== 'off';
+    }
+
+    public function pushOn(?string $entityId): bool
+    {
+        return $this->get('messages.push', $entityId) !== 'off';
+    }
+
+    public function messageChannel(?string $entityId): string
+    {
+        return $this->get(self::MESSAGE_CHANNEL, $entityId) === 'sms' ? 'sms' : 'whatsapp';
     }
 
     /** Removes a mill's own value, so the all-mills value applies again. */

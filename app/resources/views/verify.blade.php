@@ -1,4 +1,4 @@
-@php($brand = config('ricemill.brand'))
+@php($brand = config('ricemill.product'))
 <!doctype html>
 <html lang="en">
 <head>
@@ -7,11 +7,12 @@
     <meta name="robots" content="noindex">
     <title>Verify a document · {{ $brand['name'] }}</title>
     <link rel="icon" type="image/png" href="{{ asset($brand['favicon']) }}">
+    <meta name="theme-color" content="{{ $brand['green'] }}">
     <style>
         :root { --green: {{ $brand['green'] }}; --gold: {{ $brand['gold'] }}; }
         body { font-family: system-ui, "Segoe UI", sans-serif; max-width: 36rem; margin: 0 auto; padding: 1.25rem 1rem 3rem; color: #172019; background: #fff; }
         header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 3px solid var(--gold); padding-bottom: .75rem; }
-        header img { height: 64px; width: auto; }
+        header img { height: 48px; width: auto; }
         header .contact { text-align: right; font-size: .85rem; color: #4b5a50; }
         h1 { color: var(--green); font-size: 1.35rem; margin: 1.25rem 0 .25rem; }
         .ur { font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif; font-size: 1.1rem; color: #4b5a50; }
@@ -26,8 +27,8 @@
 </head>
 <body>
     <header>
-        <img src="{{ asset($brand['logo_wide']) }}" alt="{{ $brand['name'] }}">
-        <div class="contact">{{ $brand['address'] }}<br>Phone {{ $brand['phone'] }}</div>
+        <img src="{{ asset($brand['logo']) }}" alt="{{ $brand['name'] }}">
+        <div class="contact">{{ $brand['tagline'] }}</div>
     </header>
     <h1>Verify a document</h1>
     <div class="ur" lang="ur" dir="rtl">دستاویز کی تصدیق</div>
@@ -52,9 +53,9 @@
                 If your printout shows different figures, it has been altered.
             </div>
         @else
-            <div class="bad"><strong>Not verified.</strong> No document with this number and code exists. Check both, or treat the printout as suspect and call {{ $brand['phone'] }}.</div>
+            <div class="bad"><strong>Not verified.</strong> No document with this number and code exists. Check both, or treat the printout as suspect and call the company that issued it.</div>
         @endif
     @endif
-    <footer>{{ $brand['name'] }} · {{ $brand['name_ur'] }}</footer>
+    <footer>Document check by {{ $brand['name'] }} · {{ $brand['tagline'] }}</footer>
 </body>
 </html>

@@ -16,10 +16,10 @@ use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Gate\GateEntryResource;
 use App\Filament\Support\ApprovalNotice;
 use App\Filament\Support\AttachmentsPanel;
+use App\Filament\Support\NegotiationActions;
 use App\Filament\Support\Units;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
-use App\Models\Gate\GatePriceVersion;
 use App\Models\Gate\LabParameter;
 use App\Models\Gate\LabTest;
 use App\Models\LoginAccount;
@@ -50,17 +50,29 @@ class ViewGateEntry extends ViewRecord
         $percent = '/^\d{1,3}(\.\d{1,2})?$/';
         $pct = fn (int $bp) => rtrim(rtrim(number_format($bp / 100, 2, '.', ''), '0'), '.');
         $weighed = fn (GateEntry $e) => $has($e, 'gross_weighed');
-        $latestDecision = fn (GateEntry $e) => GateEvent::query()->where('gate_entry_id', $e->id)->whereIn('event', ['lab_accepted', 'lab_rejected'])
-            ->newestFirst()->value('event');
-        $pendingPrice = fn (GateEntry $e) => GatePriceVersion::query()->where('gate_entry_id', $e->id)->where('status', GatePriceVersion::PROPOSED)->orderByDesc('version')->first();
+        $latestDecision = fn (GateEntry $e) => NegotiationActions::labDecision($e);
         $settled = fn (GateEntry $e) => app(GateService::class)->settlementApproved($e);
-        $proposal = fn (GateEntry $e) => GateEvent::query()->where('gate_entry_id', $e->id)->where('event', 'settlement_proposed')->newestFirst()->first();
 
         return [
-            Action::make('labTest')->label('Record lab test')->icon('heroicon-o-beaker')
+            Action::make('labTest')->label(fn (GateEntry $e) => LabTest::query()->where('gate_entry_id', $e->id)->exists() ? 'Correct lab result' : 'Record lab test')->icon('heroicon-o-beaker')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $e->direction === 'inbound' && $can('lab.test') && ! $weighed($e))
-                ->modalDescription('Before any weighing. A result above its grace limit rejects the lot automatically.')
+                ->modalDescription('Before the loaded weight. A result above its grace limit rejects the lot automatically. A correction replaces the result (the earlier one stays in the history) and the lab decides again.')
+                ->fillForm(function (GateEntry $e): array {
+                    $last = LabTest::query()->where('gate_entry_id', $e->id)->latestFirst()->first();
+                    if ($last === null) {
+                        return [];
+                    }
+                    $fill = ['sample_code' => $last->sample_code, 'grade' => $last->grade, 'remarks' => $last->remarks];
+                    foreach ((array) ($last->results ?? []) as $code => $bp) {
+                        $fill['r_'.$code] = rtrim(rtrim(number_format(((int) $bp) / 100, 2, '.', ''), '0'), '.');
+                    }
+
+                    return $fill;
+                })
                 ->form(fn (GateEntry $e): array => [
+                    Textarea::make('correction_reason')->label('Why is the result corrected?')->maxLength(500)
+                        ->visible(fn () => LabTest::query()->where('gate_entry_id', $e->id)->exists())
+                        ->required(fn () => GateEvent::query()->where('gate_entry_id', $e->id)->whereIn('event', ['lab_accepted', 'lab_rejected'])->exists()),
                     TextInput::make('sample_code')->maxLength(40),
                     ...app(LabStandards::class)->parametersFor($e->product_id)->map(fn (LabParameter $p) => TextInput::make('r_'.$p->code)
                         ->label("{$p->name_en} ({$p->name_ur}) {$p->unit}")
@@ -70,13 +82,14 @@ class ViewGateEntry extends ViewRecord
                     Textarea::make('remarks')->maxLength(1000),
                 ])
                 ->action(function (GateEntry $e, array $data): void {
-                    $values = ['sample_code' => $data['sample_code'] ?? null, 'grade' => $data['grade'] ?? null, 'remarks' => $data['remarks'] ?? null, 'results' => []];
+                    $values = ['sample_code' => $data['sample_code'] ?? null, 'grade' => $data['grade'] ?? null, 'remarks' => $data['remarks'] ?? null,
+                        'correction_reason' => $data['correction_reason'] ?? null, 'results' => []];
                     foreach ($data as $key => $value) {
                         if (str_starts_with((string) $key, 'r_') && filled($value)) {
                             $values['results'][substr((string) $key, 2)] = Units::percentToBp((string) $value);
                         }
                     }
-                    $this->run(fn (GateService $g) => $g->recordLabTest($e, $values), 'Lab test recorded');
+                    $this->run(fn (GateService $g) => $g->recordLabTest($e, $values), filled($data['correction_reason'] ?? null) ? 'Lab result corrected' : 'Lab test recorded');
                 }),
             Action::make('accept')->label('Lab: accept')->color('success')->icon('heroicon-o-check')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $can('lab.decide') && ! $weighed($e) && LabTest::query()->where('gate_entry_id', $e->id)->exists()
@@ -88,33 +101,7 @@ class ViewGateEntry extends ViewRecord
                     && $latestDecision($e) !== 'lab_rejected')
                 ->form([Textarea::make('note')->required()->maxLength(1000)])
                 ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->decideLab($e, false, $data['note']), 'Lot rejected')),
-            Action::make('proposePrice')->label('Propose price')->icon('heroicon-o-currency-rupee')->color('gray')
-                ->visible(fn (GateEntry $e) => $e->isOpen() && $e->direction === 'inbound' && $can('purchase.negotiate') && ! $settled($e)
-                    && LabTest::query()->where('gate_entry_id', $e->id)->exists())
-                ->modalDescription(fn (GateEntry $e) => 'Offered (sauda) price: '.Units::paiseToRupees(app(GateService::class)->offeredPricePaise($e))
-                    .' per maund. Last accepted: '.Units::paiseToRupees(app(GateService::class)->acceptedPrice($e)?->price_paise_per_maund)
-                    .'. A new price is a new version; it is accepted by someone else.')
-                ->form([
-                    TextInput::make('price')->label('Price (Rs per maund)')->required()->regex(Units::DECIMAL_2),
-                    Textarea::make('reason')->label('Reason (why this price; required for a lower or revised price)')->maxLength(1000),
-                ])
-                ->action(fn (GateEntry $e, array $data) => $this->run(
-                    fn (GateService $g) => $g->proposePrice($e, Units::rupeesToPaise($data['price']), $data['reason'] ?? null), 'Price proposed')),
-            Action::make('acceptPrice')->label('Accept price')->icon('heroicon-o-check-badge')->color('success')
-                ->visible(fn (GateEntry $e) => $e->isOpen() && $can('purchase.approve') && $pendingPrice($e) !== null && ! $settled($e))
-                ->modalDescription(fn (GateEntry $e) => ($p = $pendingPrice($e)) ? 'Version '.$p->version.': '.Units::paiseToRupees($p->price_paise_per_maund)
-                    .' per maund'.($p->reason ? ' — '.$p->reason : '').'.' : null)
-                ->form([Textarea::make('note')->maxLength(1000)])
-                ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->decidePrice($e, true, $data['note'] ?? null), 'Price accepted')),
-            Action::make('rejectPrice')->label('Reject price')->icon('heroicon-o-x-circle')->color('danger')
-                ->visible(fn (GateEntry $e) => $e->isOpen() && $can('purchase.approve') && $pendingPrice($e) !== null && ! $settled($e))
-                ->form([Textarea::make('note')->label('Reason')->required()->maxLength(1000)])
-                ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->decidePrice($e, false, $data['note']), 'Price rejected')),
-            Action::make('acceptRejected')->label('Accept rejected lot (after negotiation)')->icon('heroicon-o-shield-check')->color('warning')
-                ->visible(fn (GateEntry $e) => $e->isOpen() && $can('purchase.approve') && $latestDecision($e) === 'lab_rejected')
-                ->modalDescription('Only with a price agreed after the rejection. The lot is then weighed and received like an accepted one; the reason is kept.')
-                ->form([Textarea::make('reason')->required()->minLength(10)->maxLength(1000)])
-                ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->acceptRejectedLot($e, $data['reason']), 'Rejected lot accepted after negotiation')),
+            ...NegotiationActions::prices(fn (callable $step, string $ok) => $this->run($step, $ok)),
             Action::make('unloaded')->label('Mark unloaded')->icon('heroicon-o-arrow-down-tray')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $e->direction === 'inbound' && $can('gate.entry') && ! $has($e, 'unloaded'))
                 ->modalDescription('The slip will book the net weight into this godown.')
@@ -135,39 +122,7 @@ class ViewGateEntry extends ViewRecord
                     Textarea::make('note')->maxLength(1000),
                 ])
                 ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->holdRejectedLot($e, $data['location'], $data['note'] ?? null), 'Lot held apart')),
-            Action::make('reopenSettlement')->label('Reopen settlement')->icon('heroicon-o-arrow-uturn-left')->color('gray')
-                ->visible(fn (GateEntry $e) => $e->isOpen() && $can('purchase.approve') && $settled($e) && ! $has($e, 'slip_issued'))
-                ->modalDescription('Before the slip only. The Caat and the price can then be proposed and approved again. The reason is kept.')
-                ->form([Textarea::make('reason')->required()->minLength(10)->maxLength(1000)])
-                ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->reopenSettlement($e, $data['reason']), 'Settlement reopened')),
-            Action::make('proposeSettlement')->label('Caat & price settlement')->icon('heroicon-o-calculator')->color('primary')
-                ->visible(fn (GateEntry $e) => $e->isOpen() && $e->direction === 'inbound' && $can('purchase.negotiate') && $e->tare_kg !== null && $e->gross_kg !== null
-                    && ! $settled($e) && $latestDecision($e) === 'lab_accepted')
-                ->modalDescription(fn (GateEntry $e) => 'Net '.number_format((float) $e->net_kg, 3).' kg ('.Units::kgToMaund($e->net_kg).' maund). '
-                    .'Payable weight = net − Waste Caat − (Caat per Maund × net maunds); stock receives the payable weight. '
-                    .'Price: '.Units::paiseToRupees(app(GateService::class)->acceptedPrice($e)->price_paise_per_maund ?? app(GateService::class)->offeredPricePaise($e))
-                    .' per maund (last accepted, else the sauda rate). Approved by someone else.')
-                ->fillForm(fn (GateEntry $e) => ['waste_kg' => (string) ($e->deduction_kg ?? '0'), 'per_maund_kg' => '0'])
-                ->form([
-                    TextInput::make('waste_kg')->label('Waste Caat (kg)')->helperText('Unusable material; starts at the deduction the lab rules give.')->required()->regex(Units::DECIMAL_3),
-                    TextInput::make('per_maund_kg')->label('Caat per Maund (kg per maund)')->required()->regex(Units::DECIMAL_3),
-                    Textarea::make('note')->maxLength(1000),
-                ])
-                ->action(fn (GateEntry $e, array $data) => $this->run(
-                    fn (GateService $g) => $g->proposeSettlement($e, (string) $data['waste_kg'], (string) $data['per_maund_kg'], $data['note'] ?? null), 'Settlement proposed')),
-            Action::make('approveSettlement')->label('Approve settlement')->icon('heroicon-o-check-badge')->color('success')
-                ->visible(fn (GateEntry $e) => $e->isOpen() && $can('purchase.approve') && ! $settled($e) && $proposal($e) !== null)
-                ->modalDescription(function (GateEntry $e) use ($proposal): ?string {
-                    $d = $proposal($e)?->data;
-
-                    return $d === null ? null : 'Net '.$d['net_kg'].' kg − Waste Caat '.$d['waste_caat_kg'].' kg − Caat per Maund '.$d['per_maund_caat_kg']
-                        .' kg ('.$d['per_maund_rate_kg'].' kg × maunds) = payable '.$d['payable_kg'].' kg ('.Units::kgToMaund((string) $d['payable_kg']).' maund), at '
-                        .Units::paiseToRupees((int) $d['price_paise_per_maund']).' per maund'
-                        .(! empty($d['rate_cut_paise_per_maund']) ? ' less the quality rate cut '.Units::paiseToRupees((int) $d['rate_cut_paise_per_maund']).' per maund' : '')
-                        .'. Then the slip books this into stock and the purchase bill.';
-                })
-                ->form([Textarea::make('note')->maxLength(1000)])
-                ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->approveSettlement($e, $data['note'] ?? null), 'Settlement approved')),
+            ...NegotiationActions::settlement(fn (callable $step, string $ok) => $this->run($step, $ok)),
             Action::make('slip')->label('Issue weighment slip')->icon('heroicon-o-document-text')->color('primary')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $can('weighment.capture') && ! $has($e, 'slip_issued') && $e->gross_kg !== null && $e->tare_kg !== null
                     && ($e->direction !== 'inbound' || $settled($e) || $latestDecision($e) !== 'lab_accepted'))
@@ -206,6 +161,13 @@ class ViewGateEntry extends ViewRecord
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $can('gate.entry'))
                 ->requiresConfirmation()
                 ->action(fn (GateEntry $e) => $this->run(fn (GateService $g) => $g->exit($e), 'Exit recorded')),
+            ActionGroup::make([
+                Action::make('token80')->label('Token slip — 80 mm roll')
+                    ->url(fn (GateEntry $e) => route('filament.admin.gate.token', ['id' => $e->id, 'paper' => 'roll']), shouldOpenInNewTab: true),
+                Action::make('token50')->label('Token slip — 50 mm roll')
+                    ->url(fn (GateEntry $e) => route('filament.admin.gate.token', ['id' => $e->id, 'paper' => 'roll50']), shouldOpenInNewTab: true),
+            ])->label(fn (GateEntry $e) => 'Print token '.($e->token_no ?? ''))->icon('heroicon-o-ticket')->color('gray')->button()
+                ->visible(fn (GateEntry $e) => $e->token_no !== null),
             AttachmentsPanel::action(),
             ActionGroup::make([
                 Action::make('manualWeight')->label('Enter manual weight (Owner / Super Admin)')->icon('heroicon-o-exclamation-triangle')->color('danger')

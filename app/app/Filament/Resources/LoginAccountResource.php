@@ -6,6 +6,7 @@ namespace App\Filament\Resources;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\AccountStatusService;
+use App\Domain\Auth\LoginService;
 use App\Domain\Auth\MfaService;
 use App\Domain\Auth\SessionService;
 use App\Domain\Security\DuressService;
@@ -151,13 +152,14 @@ class LoginAccountResource extends Resource
                         ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(500)])
                         ->action(fn (LoginAccount $r, array $data) => static::changeAccess($r, 'reinstate', $data['reason'])),
                     Action::make('unlock')->icon('heroicon-o-lock-open')
-                        ->visible(fn (LoginAccount $r) => $r->isLocked() && static::canManageSecurity($r))
+                        ->visible(fn (LoginAccount $r) => ($r->isLocked() || LoginService::hasAddressLocks($r)) && static::canManageSecurity($r))
                         ->requiresConfirmation()
                         ->modalDescription(fn (LoginAccount $r) => $r->needs_admin_unlock
                             ? "Locked {$r->lockouts_24h} times within 24 hours — check with the person that it was really them before unlocking."
                             : null)
                         ->action(function (LoginAccount $r): void {
                             $r->forceFill(['locked_until' => null, 'failed_attempts' => 0, 'needs_admin_unlock' => false, 'lockouts_24h' => 0])->save();
+                            LoginService::clearAddressLocks($r);   // and every address it was locked out from
                             app(AuditLogger::class)->record('auth.account.unlocked', $r);
                         }),
                     Action::make('clearDuress')->label('Clear duress alert')->icon('heroicon-o-exclamation-triangle')->color('danger')

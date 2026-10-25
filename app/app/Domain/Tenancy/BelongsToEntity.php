@@ -43,7 +43,11 @@ trait BelongsToEntity
         return property_exists(static::class, 'allowsGlobalRows') && static::$allowsGlobalRows;
     }
 
-    /** Outside bypass mode a model may only be written inside the current entity. */
+    /**
+     * Outside bypass mode a model may only be written inside the current entity — or, for a customer's
+     * Owner (in one of its mills or across "all firms"), inside one of that customer's mills: its own sign-in
+     * session and devices belong to its home mill while it works in another. Never another customer's.
+     */
     protected static function guardEntity(Model $model): void
     {
         $context = app(TenantContext::class);
@@ -53,10 +57,18 @@ trait BelongsToEntity
 
         $entityId = $model->getAttribute('entity_id');
         $original = $model->getOriginal('entity_id');
-
-        if ($entityId === null || $entityId !== $context->entityId() || ($model->exists && $original !== $entityId)) {
+        if ($entityId === null || ($model->exists && $original !== $entityId)) {
             throw new CrossEntityWrite($model::class);
         }
+        if ($entityId === $context->entityId()) {
+            return;
+        }
+        if ($context->customerId() !== null
+            && $context->runAsSystem(fn () => Entity::query()->whereKey($entityId)->value('customer_id')) === $context->customerId()) {
+            return;
+        }
+
+        throw new CrossEntityWrite($model::class);
     }
 
     /** @return BelongsTo<Entity, $this> */

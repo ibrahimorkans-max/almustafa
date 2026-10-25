@@ -36,7 +36,7 @@ class RecurringExpenseResource extends Resource
 
     protected static ?string $slug = 'recurring-expenses';
 
-    protected static ?int $navigationSort = 46;
+    protected static ?int $navigationSort = 80;
 
     public static function form(Form $form): Form
     {

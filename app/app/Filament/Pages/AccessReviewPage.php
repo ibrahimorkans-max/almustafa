@@ -21,7 +21,7 @@ class AccessReviewPage extends Page
 
     protected static ?string $slug = 'access-review';
 
-    protected static ?int $navigationSort = 15;
+    protected static ?int $navigationSort = 40;
 
     protected static string $view = 'filament.pages.access-review';
 

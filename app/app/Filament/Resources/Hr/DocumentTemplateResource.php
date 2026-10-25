@@ -41,7 +41,7 @@ class DocumentTemplateResource extends Resource
 
     protected static ?string $slug = 'hr/document-templates';
 
-    protected static ?int $navigationSort = 51;
+    protected static ?int $navigationSort = 73;
 
     /** @return list<Component> */
     public static function settingsForm(): array

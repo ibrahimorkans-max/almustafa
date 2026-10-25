@@ -36,7 +36,7 @@ class PayAdjustmentResource extends Resource
 
     protected static ?string $slug = 'hr/pay-adjustments';
 
-    protected static ?int $navigationSort = 42;
+    protected static ?int $navigationSort = 41;
 
     public static function getNavigationBadge(): ?string
     {

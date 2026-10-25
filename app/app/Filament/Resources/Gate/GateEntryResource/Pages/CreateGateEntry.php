@@ -7,7 +7,10 @@ namespace App\Filament\Resources\Gate\GateEntryResource\Pages;
 use App\Domain\Gate\GateService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Gate\GateEntryResource;
+use App\Models\Gate\GateEntry;
 use App\Support\Values\PakistanIds;
+use Filament\Notifications\Actions\Action as NotificationAction;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
@@ -33,6 +36,22 @@ class CreateGateEntry extends CreateRecord
         } catch (BusinessRuleViolation $e) {
             throw ValidationException::withMessages([($noPlate ? 'data.vehicle_description' : 'data.registration_no') => $e->getMessage()]);
         }
+    }
+
+    protected function getCreatedNotification(): ?Notification
+    {
+        /** @var GateEntry $entry */
+        $entry = $this->record;
+
+        return Notification::make()->success()->persistent()
+            ->title('Token '.$entry->token_no.' — '.$entry->vehicleLabel())
+            ->body('Give the driver the token slip; vehicles are served in token order.')
+            ->actions([
+                NotificationAction::make('print80')->label('Print token (80 mm)')->button()
+                    ->url(route('filament.admin.gate.token', ['id' => $entry->id, 'paper' => 'roll']), shouldOpenInNewTab: true),
+                NotificationAction::make('print50')->label('Print token (50 mm)')->button()->color('gray')
+                    ->url(route('filament.admin.gate.token', ['id' => $entry->id, 'paper' => 'roll50']), shouldOpenInNewTab: true),
+            ]);
     }
 
     protected function getRedirectUrl(): string

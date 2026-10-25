@@ -42,7 +42,7 @@ class ExpenseCategoryResource extends Resource
 
     protected static ?string $slug = 'expense-categories';
 
-    protected static ?int $navigationSort = 45;
+    protected static ?int $navigationSort = 90;
 
     public const KINDS = ['expense' => 'Expense', 'income' => 'Income'];
 

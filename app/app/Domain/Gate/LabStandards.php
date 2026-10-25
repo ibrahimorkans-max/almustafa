@@ -81,7 +81,7 @@ final class LabStandards
     /** @return list<array<string, mixed>> the results of the latest lab test of a vehicle above their grace limit */
     public function overGrace(GateEntry $entry): array
     {
-        $test = LabTest::query()->where('gate_entry_id', $entry->id)->orderByDesc('tested_at')->first();
+        $test = LabTest::query()->where('gate_entry_id', $entry->id)->latestFirst()->first();
 
         return array_values(array_filter((array) ($test->evaluation ?? []), fn ($r) => is_array($r) && ($r['verdict'] ?? null) === self::OVER));
     }

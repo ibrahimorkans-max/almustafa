@@ -29,7 +29,7 @@ class ScreenProtection extends Page
 
     protected static ?string $slug = 'screen-protection';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 60;
 
     protected static string $view = 'filament.pages.screen-protection';
 
@@ -46,11 +46,12 @@ class ScreenProtection extends Page
         return $user instanceof LoginAccount && ($user->isOwner() || $user->role?->code === RoleTemplates::SUPER_ADMIN);
     }
 
+    /** The all-mills value applies to every customer: the platform admin's. */
     public function isOwner(): bool
     {
         $user = Filament::auth()->user();
 
-        return $user instanceof LoginAccount && $user->isOwner();
+        return $user instanceof LoginAccount && $user->isPlatformAdmin();
     }
 
     public function millId(): ?string

@@ -23,6 +23,7 @@ use Filament\Facades\Filament;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 use Tests\Support\Make;
 
@@ -168,6 +169,17 @@ it('chats on the Assistant screen with Confirm and Cancel', function () {
 
     Livewire::test(AssistantPage::class)->set('message', 'arrived MNA-23-7777')->call('send')->call('confirm', 2)->assertSee('Arrival registered');
     expect(GateEntry::query()->where('registration_no', 'MNA237777')->exists())->toBeTrue();
+});
+
+it('runs exactly the change shown on the card: the browser cannot alter it before Confirm', function () {
+    botAs($this, $this->admin);
+
+    $page = Livewire::test(AssistantPage::class)->set('message', 'arrived MNA-23-7777')->call('send')->assertSee('Register the arrival of MNA237777');
+    expect(fn () => $page->set('messages.2.pending.input.registration_no', 'LES-99-1234'))
+        ->toThrow(CannotUpdateLockedPropertyException::class);
+    $page->call('confirm', 2)->assertSee('Arrival registered');
+    expect(GateEntry::query()->where('registration_no', 'MNA237777')->exists())->toBeTrue()
+        ->and(GateEntry::query()->where('registration_no', 'LES991234')->exists())->toBeFalse();
 });
 
 describe('every feature', function () {

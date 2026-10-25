@@ -10,6 +10,7 @@ use App\Domain\Auth\DeviceInfo;
 use App\Domain\Auth\LoginService;
 use App\Domain\Auth\SessionService;
 use App\Domain\Auth\TokenService;
+use App\Domain\Tenancy\TenantContext;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
 use App\Http\Requests\Api\RefreshRequest;
@@ -32,6 +33,9 @@ final class AuthController extends Controller
     public function login(LoginRequest $request, LoginService $login, TokenService $tokens, AuditLogger $audit): JsonResponse
     {
         $account = $login->verifyPassword($request->string('username')->toString(), $request->string('password')->toString(), $request->ip(), $request->header('X-Device-Id') ?? $request->input('device_uid'));
+        // "Only inside the mill": the app sends its position (latitude, longitude, accuracy) with the sign-in.
+        $login->assertInsideArea($account, $request->input('latitude'), $request->input('longitude'), $request->input('accuracy'),
+            $request->ip(), $request->header('X-Device-Id') ?? $request->input('device_uid'), $request);   // a gate agent is excused only when it signs this request
 
         if ($account->must_change_password) {
             $audit->record('auth.login.blocked', $account, meta: ['reason' => 'password_change_required']);
@@ -61,6 +65,13 @@ final class AuthController extends Controller
         }
 
         $session = $login->completeLogin($account, AuthSession::CHANNEL_API, $request->device(), $request->ip(), $request->userAgent(), $mfaPassed);
+        if (is_numeric($request->input('latitude')) && is_numeric($request->input('longitude'))) {
+            app(TenantContext::class)->runAsSystem(fn () => $session->forceFill([
+                'latitude' => round((float) $request->input('latitude'), 6), 'longitude' => round((float) $request->input('longitude'), 6),
+                'location_accuracy_m' => is_numeric($request->input('accuracy')) ? (int) $request->input('accuracy') : null,
+                'location_at' => now(), 'location_source' => 'app',
+            ])->save());
+        }
         $pair = $tokens->issue($session, $session->device, $account);
 
         return response()->json(['status' => 'ok', ...$pair->toArray(), 'account' => new AccountResource($account)]);

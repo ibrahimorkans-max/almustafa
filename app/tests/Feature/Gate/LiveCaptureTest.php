@@ -76,7 +76,8 @@ it('records the gross weight from a stable live reading with the readings as evi
         ->and($w->readings['samples'])->toHaveCount((int) config('ricemill.gate.min_stable_samples'))
         ->and($w->created_by)->toBe($this->operator->id)
         ->and($this->entry->fresh()->status)->toBe('gross_weighed')
-        ->and(app(LiveCapture::class)->waiting())->toHaveCount(0);   // the lab comes next, not the scale
+        // Still listed: its empty weight comes next, after unloading (chosen on the same screen).
+        ->and(app(LiveCapture::class)->waiting()->pluck('kind')->all())->toBe(['tare']);
 });
 
 it('refuses while the weight moves, without a signal, or before enough readings', function () {
@@ -100,14 +101,17 @@ it('lets the operator record from the Live weight board, and only someone who ma
     lwcFeed($this, array_fill(0, 6, 25480));
     lwcSignIn($this, $this->operator);
 
-    Livewire::test(LiveWeightBoard::class)->assertSee('Vehicle on the platform')->assertSee('needs gross')
-        ->call('recordWeight', $this->f->scale->id)->assertNotified('Choose the vehicle on the platform first.')
-        ->set('selected.'.$this->f->scale->id, $this->entry->id)->assertSee('Record gross')
-        ->call('recordWeight', $this->f->scale->id)->assertNotified('Gross 25,480 kg recorded for MNA211234.');
+    $sid = $this->f->scale->id;
+    Livewire::test(LiveWeightBoard::class)->assertSee('Vehicle number')->assertSee('Token 1 · MNA211234')
+        ->call('recordWeight', $sid)->assertNotified('Type the vehicle number, e.g. MNA-21-1234.')
+        // Typing a vehicle that is already inside fills in its party and kind.
+        ->set('plate.'.$sid, 'mna-21-1234')->assertSet('party.'.$sid, 'Muhammad Aslam')->assertSet('kind.'.$sid, 'paddy')
+        ->assertSee('Record loaded weight (gross)')
+        ->call('recordWeight', $sid)->assertNotified('Loaded weight (gross) 25,480 kg recorded — token 1 · MNA-21-1234');
     expect(Weighment::query()->where('gate_entry_id', $this->entry->id)->count())->toBe(1);
 
     lwcSignIn($this, Make::account($this->f->entity, 'LAB_TECHNICIAN'));
-    Livewire::test(LiveWeightBoard::class)->assertDontSee('Vehicle on the platform');
+    Livewire::test(LiveWeightBoard::class)->assertDontSee('Vehicle number');
 });
 
 it('lets the Super Admin check each weight: OK, or a query with a note, never their own', function () {
@@ -184,7 +188,7 @@ it('counts the gross and tare an inbound and an outbound vehicle need', function
     expect(LiveCapture::nextKind(tap($in, fn ($e) => $e->status = 'arrived')))->toBeNull() // waits for the lab first
         ->and(LiveCapture::nextKind(tap(clone $in, fn ($e) => $e->status = 'lab_accepted')))->toBe('gross')
         ->and(LiveCapture::nextKind(tap(clone $in, fn ($e) => $e->status = 'unloaded')))->toBe('tare')
-        ->and(LiveCapture::nextKind(tap(clone $in, fn ($e) => $e->status = 'gross_weighed')))->toBeNull()
+        ->and(LiveCapture::nextKind(tap(clone $in, fn ($e) => $e->status = 'gross_weighed')))->toBe('tare')   // unloaded on the weight screen first
         ->and(LiveCapture::nextKind(tap($out, fn ($e) => $e->status = 'arrived')))->toBe('tare')
         ->and(LiveCapture::nextKind(tap(clone $out, fn ($e) => $e->status = 'loaded')))->toBe('gross');
 });

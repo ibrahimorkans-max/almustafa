@@ -130,7 +130,7 @@ final class Reimbursements
 
         return $this->decide($claim, Reimbursement::CHECKED, function (Reimbursement $c) use ($who, $note): void {
             $this->notClaimant($c, $who);
-            if ($c->checked_by === $who->id) {
+            if ($c->checked_by === $who->id && ! SelfApproval::allowed($who)) {
                 throw new BusinessRuleViolation('The person who checked the claim cannot also approve it.');
             }
             $date = CarbonImmutable::now('Asia/Karachi');

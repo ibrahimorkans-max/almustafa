@@ -143,6 +143,9 @@ class ApiClient:
             headers["Content-Type"] = content_type
         if auth and self.access:
             headers["Authorization"] = f"Bearer {self.access}"
+        # Every request is signed, sign-in included: at a mill that allows sign-in only inside its premises,
+        # the server excuses the agent (no GPS) only when the sign-in carries this agent's signature.
+        if self.creds.signing_secret:
             headers.update(sign(self.creds.signing_secret, method, uri, body))
 
         status, payload = self.transport.request(method, self.base + uri, headers, body)

@@ -14,6 +14,11 @@ from decimal import Decimal
 from typing import Callable, Iterator
 
 from .api import ApiClient, ApiError, OfflineError
+from .doctor import explain, kg_text
+
+# Answers that will not change by trying again every second (wrong password, PC not allowed...):
+# streaming stops so the login is not locked by repeated failures.
+FATAL_STATUSES = {401, 403}
 
 
 @dataclass
@@ -22,12 +27,14 @@ class LiveStats:
     sent: int = 0
     dropped: int = 0
     last_error: str | None = None
+    stopped: str | None = None
     sent_values: list[tuple[str, bool]] = field(default_factory=list)
 
 
 class LiveWeightStreamer:
     def __init__(self, samples: Iterator[tuple[Decimal, int]], api: ApiClient, scale_id: str, resolution_kg: Decimal,
-                 window: int = 4, interval_s: float = 1.0, clock: Callable[[], float] = time.monotonic) -> None:
+                 window: int = 4, interval_s: float = 1.0, clock: Callable[[], float] = time.monotonic,
+                 report: Callable[[str], None] | None = None, report_every_s: float = 30.0) -> None:
         self.samples = samples
         self.api = api
         self.scale_id = scale_id
@@ -35,6 +42,8 @@ class LiveWeightStreamer:
         self.interval = interval_s
         self.clock = clock
         self._recent: deque[Decimal] = deque(maxlen=max(2, window))
+        self.report = report or (lambda _m: None)
+        self.report_every = report_every_s
 
     def stable(self) -> bool:
         return len(self._recent) == self._recent.maxlen and max(self._recent) - min(self._recent) <= self.resolution
@@ -42,6 +51,8 @@ class LiveWeightStreamer:
     def run(self, max_sends: int | None = None) -> LiveStats:
         stats = LiveStats()
         next_send = self.clock()
+        next_report = next_send
+        failing: str | None = None
         for weight, _at_ms in self.samples:
             stats.readings += 1
             self._recent.append(weight)
@@ -54,9 +65,23 @@ class LiveWeightStreamer:
                 self.api.call("POST", "/gate/live-weight", {"scale_id": self.scale_id, "kg": str(weight), "stable": stable})
                 stats.sent += 1
                 stats.sent_values.append((str(weight), stable))
+                if failing is not None or stats.sent == 1 or now >= next_report:
+                    self.report(f"{time.strftime('%H:%M:%S')}  sending to the ERP: {kg_text(weight)} kg" + (" (stable)" if stable else "")
+                                + ("  - connection back" if failing is not None else ""))
+                    next_report = now + self.report_every
+                    failing = None
             except (OfflineError, ApiError) as e:
                 stats.dropped += 1
                 stats.last_error = str(e)
+                problem = explain(e)
+                if isinstance(e, ApiError) and e.status in FATAL_STATUSES:
+                    self.report(str(problem) + "\nLive weight stopped; fix this and start it again.")
+                    stats.stopped = problem.what
+                    break
+                if problem.what != failing:
+                    self.report(f"{time.strftime('%H:%M:%S')}  NOT SENT - {problem.what}\n"
+                                f"          {problem.fix}\n          (keeps trying every second)")
+                    failing = problem.what
             if max_sends is not None and stats.sent + stats.dropped >= max_sends:
                 break
         return stats

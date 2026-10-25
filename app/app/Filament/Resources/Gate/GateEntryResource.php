@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Gate;
 
 use App\Domain\Gate\GateService;
+use App\Domain\Gate\LabReport;
 use App\Domain\Gate\LabStandards;
 use App\Filament\Resources\Gate\GateEntryResource\Pages;
 use App\Filament\Support\AttachmentsPanel;
@@ -57,7 +58,7 @@ class GateEntryResource extends Resource
     public const FLAG_LABELS = [
         'unknown_vehicle' => 'Unknown vehicle', 'blocked_vehicle' => 'BLOCKED vehicle', 'sauda_not_open' => 'Sauda not open',
         'stability_unverified' => 'Weight not proven stable', 'no_photo' => 'No camera photo', 'scale_certificate_invalid' => 'Scale certificate invalid',
-        'tare_deviation' => 'Tare differs from usual', 'manual_override' => 'Manual weight (approved)', 'out_of_order' => 'Steps out of order',
+        'tare_deviation' => 'Tare differs from usual', 'manual_override' => 'Manual weight', 'manual_entry' => 'Weight typed by hand', 'no_slip_evidence' => 'Typed weight without slip evidence', 'out_of_order' => 'Steps out of order',
         'net_not_positive' => 'Net not positive', 'no_godown' => 'Not booked into stock (no godown)',
         'plate_mismatch' => 'Plate read ≠ typed number', 'barrier_manual_open' => 'Barrier opened by hand',
         'quantity_out_of_tolerance' => 'Load outside order tolerance', 'bag_weight_mismatch' => 'Bags × size ≠ net',
@@ -106,12 +107,15 @@ class GateEntryResource extends Resource
     {
         return $table
             ->columns([
+                TextColumn::make('token_no')->label('Token')->weight('bold')->sortable()->placeholder('—')
+                    ->description(fn (GateEntry $record) => $record->token_date?->isToday() ? null : $record->token_date?->format('d M')),
                 TextColumn::make('number')->searchable(),
                 TextColumn::make('registration_no')->label('Vehicle')->searchable(['registration_no', 'vehicle_description'])->fontFamily('mono')
                     ->formatStateUsing(fn (GateEntry $record) => $record->no_plate ? 'No plate' : $record->registration_no)
                     ->description(fn (GateEntry $record) => $record->no_plate ? Vehicle::typeLabel($record->vehicle_type).' · '.$record->vehicle_description
                         : ($record->vehicle_type ? Vehicle::typeLabel($record->vehicle_type) : null)),
                 TextColumn::make('party.name')->label('Party')->placeholder('—'),
+                TextColumn::make('item')->label('Item')->state(fn (GateEntry $record) => $record->itemLabel())->toggleable(),
                 TextColumn::make('sauda.number')->label('Sauda')->placeholder('—'),
                 TextColumn::make('status')->badge()->color(fn (string $state) => static::statusColor($state)),
                 TextColumn::make('net_kg')->label('Net (maund)')->formatStateUsing(fn (?string $state) => Units::kgToMaund($state))->alignEnd()->placeholder('—'),
@@ -141,7 +145,8 @@ class GateEntryResource extends Resource
                 TextEntry::make('direction')->badge(),
                 TextEntry::make('party.name')->label('Party')->placeholder('—'),
                 TextEntry::make('sauda.number')->label('Sauda')->placeholder('—'),
-                TextEntry::make('product.name')->label('Product')->placeholder('—'),
+                TextEntry::make('product.name')->label('Product / item')->placeholder('—')
+                    ->state(fn (GateEntry $record) => $record->itemLabel()),
                 TextEntry::make('bag_count')->label('Bags')->placeholder('—'),
                 TextEntry::make('godown.name')->label('Unloaded into')->placeholder('—'),
                 TextEntry::make('flags')->badge()->color('danger')->columnSpanFull()
@@ -165,18 +170,31 @@ class GateEntryResource extends Resource
                     TextEntry::make('photo_sha256')->label('Photo')->formatStateUsing(fn (?string $state) => $state ? substr($state, 0, 12).'…' : '—'),
                 ]),
             ]),
-            Section::make('Lab results against the limits')->schema([
-                TextEntry::make('lab_evaluation')->hiddenLabel()->html()
+            Section::make('Lab report')->schema([
+                TextEntry::make('lab_report')->hiddenLabel()->html()
                     ->state(function (GateEntry $record): string {
-                        $test = $record->labTests()->orderByDesc('tested_at')->first();
-                        $rows = (array) ($test->evaluation ?? []);
-                        if ($rows === []) {
-                            return '<span class="text-sm text-gray-500">No result for the configured lab tests yet.</span>';
+                        $report = LabReport::for($record);
+                        if ($report['test'] === null) {
+                            return '<span class="text-sm text-gray-500">No lab result yet.</span>';
+                        }
+                        $rows = array_map(fn (array $r) => '<li class="'.match ($r['verdict']) {
+                            LabStandards::OVER => 'font-semibold text-danger-600', LabStandards::GRACE => 'text-warning-600', default => '',
+                        }.'">'.e(LabStandards::describe($r)).'</li>', $report['rows']);
+                        $decision = LabReport::decisionLabel($report);
+                        $html = '<div class="space-y-2 text-sm"><ul class="space-y-1">'.implode('', $rows).'</ul>'
+                            .'<div><span class="text-gray-500">Decision:</span> <strong class="'.($report['decision'] === 'rejected' ? 'text-danger-600' : '').'">'.e($decision).'</strong>'
+                            .($report['test']->grade ? ' · grade '.e($report['test']->grade) : '').'</div>';
+                        if ($report['rejected_reason']) {
+                            $html .= '<div class="rounded-lg bg-danger-50 p-2 text-danger-700 dark:bg-danger-500/10 dark:text-danger-400"><strong>Rejected because:</strong> '.e($report['rejected_reason']).'</div>';
+                        }
+                        if ($report['after_negotiation'] && $report['accepted_reason']) {
+                            $html .= '<div><span class="text-gray-500">Taken in because:</span> '.e($report['accepted_reason']).'</div>';
+                        }
+                        if ($report['corrections'] > 0) {
+                            $html .= '<div class="text-xs text-gray-500">Result corrected '.$report['corrections'].'× (see the timeline for each correction and its reason).</div>';
                         }
 
-                        return '<ul class="space-y-1 text-sm">'.implode('', array_map(fn (array $r) => '<li class="'.match ($r['verdict']) {
-                            LabStandards::OVER => 'font-semibold text-danger-600', LabStandards::GRACE => 'text-warning-600', default => '',
-                        }.'">'.e(LabStandards::describe($r)).'</li>', $rows)).'</ul>';
+                        return $html.'</div>';
                     }),
             ])->visible(fn (GateEntry $record) => $record->direction === 'inbound'),
             Section::make('Negotiation (price versions)')->schema([

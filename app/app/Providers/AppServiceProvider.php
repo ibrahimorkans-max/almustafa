@@ -14,6 +14,8 @@ use App\Domain\Hr\Attendance\DeviceClock;
 use App\Domain\Hr\Attendance\IntegrityVerifier;
 use App\Domain\Hr\Attendance\UnconfiguredIntegrityVerifier;
 use App\Domain\Ops\OpsAlerts;
+use App\Domain\Saas\CustomerAccess;
+use App\Domain\Saas\PlanLimits;
 use App\Domain\Sync\SyncRegistry;
 use App\Domain\Tenancy\Exceptions\MissingTenantContext;
 use App\Domain\Tenancy\TenantContext;
@@ -55,6 +57,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Events\ScheduledTaskFailed;
 use Illuminate\Console\Events\ScheduledTaskFinished;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
@@ -68,6 +71,7 @@ use Illuminate\Validation\Rules\Password;
 use Livewire\ComponentHookRegistry;
 use Livewire\Livewire;
 use PragmaRX\Google2FA\Google2FA;
+use Symfony\Component\HttpFoundation\Request as SymfonyRequest;
 use Throwable;
 
 class AppServiceProvider extends ServiceProvider
@@ -81,6 +85,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Per request / per job state (flushed between Octane requests and queue jobs).
         $this->app->scoped(TenantContext::class);
+        $this->app->scoped(PlanLimits::class);
+        $this->app->scoped(CustomerAccess::class);
         $this->app->scoped(ActorContext::class);
         $this->app->scoped(SyncRegistry::class);
         $this->app->scoped(DeviceClock::class);
@@ -91,6 +97,15 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Only the configured proxy may say who the visitor is (TRUSTED_PROXIES); nobody else's
+        // X-Forwarded-For is believed, so a visitor cannot pretend to be on the mill's network.
+        $proxies = (array) config('ricemill.security.trusted_proxies', []);
+        if ($proxies !== []) {
+            TrustProxies::at($proxies);
+            TrustProxies::withHeaders(SymfonyRequest::HEADER_X_FORWARDED_FOR | SymfonyRequest::HEADER_X_FORWARDED_HOST
+                | SymfonyRequest::HEADER_X_FORWARDED_PORT | SymfonyRequest::HEADER_X_FORWARDED_PROTO);
+        }
+
         Model::preventSilentlyDiscardingAttributes(! $this->app->isProduction());
         Model::preventAccessingMissingAttributes(! $this->app->isProduction());
         // Times are stored in UTC; every screen shows them in Pakistan time unless a column says otherwise.

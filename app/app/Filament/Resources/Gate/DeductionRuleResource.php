@@ -34,7 +34,7 @@ class DeductionRuleResource extends Resource
 
     protected static ?string $slug = 'quality-deductions';
 
-    protected static ?int $navigationSort = 40;
+    protected static ?int $navigationSort = 70;
 
     public static function form(Form $form): Form
     {

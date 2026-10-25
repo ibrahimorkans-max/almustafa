@@ -7,8 +7,12 @@ namespace App\Http\Middleware;
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Auth\IpAllowlistPolicy;
 use App\Domain\Auth\SessionService;
+use App\Domain\Saas\CustomerAccess;
+use App\Domain\Saas\PaymentGate;
 use App\Domain\Security\Lockdown;
+use App\Domain\Security\SignInArea;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Pages\PaymentRequiredPage;
 use App\Models\AuthSession;
 use App\Models\LoginAccount;
 use Closure;
@@ -69,6 +73,10 @@ final class EnsureWebAuthSession
             return $this->endSession($request, $ownSession ? $session : null, 'lockdown', Lockdown::MESSAGE);
         }
 
+        if (app(CustomerAccess::class)->signInBlocked($account)) {
+            return $this->endSession($request, $ownSession ? $session : null, 'customer_cancelled', app(CustomerAccess::class)->message('cancelled'));
+        }
+
         $idle = (int) config('ricemill.auth.web_idle_minutes');
         if (! $ownSession || ! $this->sessions->isUsable($session, $idle)) {
             return $this->endSession($request, $ownSession ? $session : null, 'expired_or_revoked');
@@ -78,6 +86,18 @@ final class EnsureWebAuthSession
             $this->sessions->revoke($session, 'ip_not_allowed');
 
             return $this->endSession($request, null, 'ip_not_allowed');
+        }
+
+        // "Only inside the mill": the session's own last position (reported by the page every few minutes)
+        // must be recent and inside the mill; otherwise it ends here.
+        $area = app(SignInArea::class);
+        if ($area->enforced($account)) {
+            $fresh = $session->location_at !== null && $session->location_at->gt(now()->subMinutes(SignInArea::STALE_MINUTES));
+            if (! $fresh || ! $area->inside($area->mills($account), (float) $session->latitude, (float) $session->longitude, $session->location_accuracy_m)) {
+                $this->sessions->revoke($session, SignInArea::OUTSIDE);
+
+                return $this->endSession($request, null, SignInArea::OUTSIDE, SignInArea::message($fresh ? SignInArea::OUTSIDE : SignInArea::LOCATION_NEEDED));
+            }
         }
 
         $this->sessions->touch($session);
@@ -91,6 +111,23 @@ final class EnsureWebAuthSession
             if ($account->must_change_password) {
                 return redirect()->route('filament.admin.pages.change-password');
             }
+        }
+
+        // SaaS: the free trial is over: the payment page, and nothing else.
+        if (app(CustomerAccess::class)->paymentDue($account) !== null && ! PaymentGate::allows($request)) {
+            if ($livewire) {
+                abort(403, 'Payment is needed before this can be used.');
+            }
+
+            return redirect(PaymentRequiredPage::getUrl());
+        }
+        // Blocked: signed in, but no screen with the company's data opens (the start page explains).
+        if (app(CustomerAccess::class)->blocked($account) && ! PaymentGate::allowsBlocked($request)) {
+            if ($livewire) {
+                abort(403, 'This account is blocked.');
+            }
+
+            return redirect(Filament::getUrl());
         }
 
         return $next($request);

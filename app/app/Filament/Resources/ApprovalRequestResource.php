@@ -38,7 +38,7 @@ class ApprovalRequestResource extends Resource
 
     protected static ?string $slug = 'approvals';
 
-    protected static ?int $navigationSort = 40;
+    protected static ?int $navigationSort = 10;
 
     public static function getNavigationBadge(): ?string
     {

@@ -61,7 +61,7 @@ it('lets the Owner make it compulsory, which a mill cannot turn off', function (
     scrSignIn($this, $admin);
     Livewire::test(ScreenProtection::class)->set('mill', 'off')->call('saveMill');
 
-    $owner = Make::owner($this->entity);
+    $owner = Make::platformAdmin($this->entity);   // the all-mills value is the platform's
     scrSignIn($this, $owner);
     Livewire::test(ScreenProtection::class)->assertSee('All mills (Owner)')
         ->set('all', 'enforced')->call('saveAll')->assertNotified('Saved for all mills. It applies from the next page opened.');
@@ -76,7 +76,7 @@ it('lets the Owner make it compulsory, which a mill cannot turn off', function (
 });
 
 it('lets the Owner turn it off for all mills, and a mill on again for itself', function () {
-    scrSignIn($this, Make::owner($this->entity));
+    scrSignIn($this, Make::platformAdmin($this->entity));
     Livewire::test(ScreenProtection::class)->set('all', 'off')->call('saveAll');
     expect(app(SettingsService::class)->screenGuard($this->entity->id)['on'])->toBeFalse();
 

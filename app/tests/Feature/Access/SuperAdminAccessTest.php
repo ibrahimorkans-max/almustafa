@@ -6,6 +6,9 @@ use App\Domain\Access\PermissionCatalog;
 use App\Domain\Access\RoleTemplates;
 use App\Domain\Auth\AuthContextBinder;
 use App\Filament\Pages\MyDocumentsPage;
+use App\Filament\Pages\PartyPortalPage;
+use App\Filament\Pages\PaymentRequiredPage;
+use App\Filament\Pages\SecuritySettings;
 use App\Filament\Pages\SwitchContext;
 use App\Filament\Resources\Pricing\PriceListResource\Pages\CreatePriceList;
 use App\Http\Middleware\EnsureWebAuthSession;
@@ -35,7 +38,7 @@ function adminUrls(LoginAccount $sa, ?string $workingEntity): array
     auth('web')->setUser($sa);
     app(AuthContextBinder::class)->bind($sa, null, null, $workingEntity);
     $urls = [];
-    foreach (Filament::getPanel('admin')->getResources() as $resource) {
+    foreach (array_filter(Filament::getPanel('admin')->getResources(), fn (string $r) => ! str_contains($r, '\\Platform\\')) as $resource) {
         $record = $resource::getEloquentQuery()->first();
         foreach (array_keys($resource::getPages()) as $page) {
             if (in_array($page, ['index', 'create'], true)) {
@@ -45,7 +48,8 @@ function adminUrls(LoginAccount $sa, ?string $workingEntity): array
             }
         }
     }
-    foreach (array_diff(Filament::getPanel('admin')->getPages(), [MyDocumentsPage::class]) as $page) {
+    // Own-records pages (an employee's documents, a party's account) and the platform admin's pages.
+    foreach (array_filter(array_diff(Filament::getPanel('admin')->getPages(), [MyDocumentsPage::class, PartyPortalPage::class, SecuritySettings::class, PaymentRequiredPage::class]), fn (string $p) => ! str_contains($p, '\\Platform\\')) as $page) {
         $urls[$page::getUrl()] = 'page';
     }
     Make::reset();
@@ -56,8 +60,8 @@ function adminUrls(LoginAccount $sa, ?string $workingEntity): array
 it('holds every catalogued permission except the "own records only" narrowing ones', function () {
     $missing = array_values(array_diff(PermissionCatalog::codes(), Make::system(fn () => $this->sa->fresh()->permissionCodes())));
     sort($missing);
-    expect($missing)->toBe(['commission.view_own', 'deal.view_own'])
-        ->and(RoleTemplates::get(RoleTemplates::OWNER)['permissions'])->not->toContain('deal.view_own');
+    expect($missing)->toBe(['commission.view_own', 'deal.view_own', 'portal.view_own'])
+        ->and(RoleTemplates::get(RoleTemplates::OWNER)['permissions'])->not->toContain('deal.view_own')->not->toContain('portal.view_own');
 });
 
 it('opens every admin screen of the working firm without a 403 or an error', function () {

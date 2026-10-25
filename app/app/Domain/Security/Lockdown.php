@@ -40,6 +40,8 @@ final class Lockdown
     /** @return object the new lock row */
     public function lock(?string $entityId, string $reason, string $code): object
     {
+        // Whether this person may lock this scope at all — before the one-time code is used up.
+        $this->assertScope($this->actor->account() ?? throw new BusinessRuleViolation('Only an Owner can lock or unlock the system.'), $entityId);
         $admin = $this->ownerWithCode($code);
         if (mb_strlen(trim($reason)) < 5) {
             throw new BusinessRuleViolation('Give the reason for the lockdown; the Owner and Super Admins will see it.');
@@ -74,9 +76,10 @@ final class Lockdown
 
     public function unlock(string $lockId, string $reason, string $code): void
     {
-        $admin = $this->ownerWithCode($code);
         $lock = DB::table('system_locks')->where('id', $lockId)->whereNull('unlocked_at')->first()
             ?? throw new BusinessRuleViolation('This lockdown is not active.');
+        $this->assertScope($this->actor->account() ?? throw new BusinessRuleViolation('Only an Owner can lock or unlock the system.'), $lock->entity_id);
+        $admin = $this->ownerWithCode($code);
         if (mb_strlen(trim($reason)) < 5) {
             throw new BusinessRuleViolation('Say why it is safe to unlock.');
         }
@@ -114,10 +117,33 @@ final class Lockdown
         return Cache::remember(self::CACHE_KEY, 30, fn () => DB::table('system_locks')->whereNull('unlocked_at')->orderBy('locked_at')->get()->all());
     }
 
-    /** Applies to everybody except Owners. */
+    /**
+     * A whole-system lock (the platform's) applies to everybody except the platform admins; a mill's lock to
+     * everybody in that mill except the Owners.
+     */
     public function blocks(LoginAccount $account): bool
     {
-        return ! $account->isOwner() && $this->isLocked($account->entity_id);
+        if ($account->isPlatformAdmin()) {
+            return false;
+        }
+        $lock = $this->activeLock($account->entity_id);
+
+        return $lock !== null && ($lock->scope === 'system' || ! $account->isOwner());
+    }
+
+    /** The whole system is the platform admin's; a customer's Owner locks and unlocks its own mills only. */
+    private function assertScope(LoginAccount $admin, ?string $entityId): void
+    {
+        if ($admin->isPlatformAdmin()) {
+            return;
+        }
+        if ($entityId === null) {
+            throw new BusinessRuleViolation('Only the platform admin can lock the whole system. Lock one of your mills instead.');
+        }
+        $customer = $this->tenant->runAsSystem(fn () => Entity::query()->whereKey($entityId)->value('customer_id'));
+        if ($customer === null || $customer !== $admin->customerId()) {
+            throw new BusinessRuleViolation('You can lock only your own mills.');
+        }
     }
 
     private function ownerWithCode(string $code): LoginAccount
@@ -139,8 +165,11 @@ final class Lockdown
     {
         return $this->tenant->runAsSystem(function () use ($entityId): int {
             $sessions = AuthSession::query()->whereNull('revoked_at')
-                ->whereHas('loginAccount', fn ($q) => $q->whereHas('role', fn ($r) => $r->where('is_super_admin', false))
-                    ->when($entityId !== null, fn ($q) => $q->where('entity_id', $entityId)))
+                ->whereHas('loginAccount', fn ($q) => $entityId === null
+                    // The whole system: everyone but the platform admins.
+                    ? $q->where('is_platform_admin', false)
+                    // One mill: everyone in it but the Owners.
+                    : $q->whereHas('role', fn ($r) => $r->where('is_super_admin', false))->where('entity_id', $entityId))
                 ->get();
             $sessions->each(fn (AuthSession $s) => $this->sessions->revoke($s, 'lockdown'));
 

@@ -40,7 +40,8 @@ class SecuritySettings extends Page implements HasForms
     {
         $user = Filament::auth()->user();
 
-        return $user instanceof LoginAccount && $user->isOwner() && $user->hasPermission('settings.manage');
+        // Sign-in for every customer: the platform admin's.
+        return $user instanceof LoginAccount && $user->isPlatformAdmin() && $user->hasPermission('settings.manage');
     }
 
     public function mount(): void

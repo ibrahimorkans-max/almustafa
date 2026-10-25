@@ -25,7 +25,7 @@ class LeaveTypeResource extends Resource
 
     protected static ?string $navigationGroup = HrScope::GROUP;
 
-    protected static ?int $navigationSort = 90;
+    protected static ?int $navigationSort = 64;
 
     public static function form(Form $form): Form
     {

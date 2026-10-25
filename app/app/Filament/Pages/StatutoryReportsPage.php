@@ -7,7 +7,6 @@ namespace App\Filament\Pages;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Hr\Payroll\StatutoryReports;
 use App\Domain\Shared\BusinessRuleViolation;
-use App\Filament\Resources\Hr\HrScope;
 use App\Http\Controllers\ReportPrintController;
 use App\Models\LoginAccount;
 use App\Support\Export\XlsxWriter;
@@ -23,7 +22,7 @@ class StatutoryReportsPage extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
 
-    protected static ?string $navigationGroup = HrScope::GROUP;
+    protected static ?string $navigationGroup = 'Reports';
 
     protected static ?string $navigationLabel = 'Statutory reports';
 
@@ -31,7 +30,7 @@ class StatutoryReportsPage extends Page
 
     protected static ?string $slug = 'hr/statutory-reports';
 
-    protected static ?int $navigationSort = 44;
+    protected static ?int $navigationSort = 70;
 
     protected static string $view = 'filament.pages.statutory-reports';
 

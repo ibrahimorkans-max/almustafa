@@ -26,7 +26,7 @@ class BusinessReportPage extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
 
-    protected static ?string $navigationGroup = 'Administration';
+    protected static ?string $navigationGroup = 'Reports';
 
     protected static ?string $navigationLabel = 'Complete business report';
 
@@ -34,7 +34,7 @@ class BusinessReportPage extends Page
 
     protected static ?string $slug = 'business-report';
 
-    protected static ?int $navigationSort = 49;
+    protected static ?int $navigationSort = 20;
 
     protected static string $view = 'filament.pages.business-report';
 

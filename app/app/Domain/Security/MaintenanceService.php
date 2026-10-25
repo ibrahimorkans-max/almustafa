@@ -36,8 +36,8 @@ final class MaintenanceService
     public function schedule(string $message, CarbonInterface $startsAt, CarbonInterface $endsAt): array
     {
         $admin = $this->actor->account();
-        if ($admin === null || ! $admin->isOwner()) {
-            throw new BusinessRuleViolation('Only an Owner can schedule maintenance.');
+        if ($admin === null || ! $admin->isPlatformAdmin()) {
+            throw new BusinessRuleViolation('Only the platform admin can schedule maintenance (it stops every customer).');
         }
         $message = trim($message);
         if (mb_strlen($message) < 5) {
@@ -67,8 +67,8 @@ final class MaintenanceService
     public function end(string $id): void
     {
         $admin = $this->actor->account();
-        if ($admin === null || ! $admin->isOwner()) {
-            throw new BusinessRuleViolation('Only an Owner can end maintenance.');
+        if ($admin === null || ! $admin->isPlatformAdmin()) {
+            throw new BusinessRuleViolation('Only the platform admin can end maintenance.');
         }
         $updated = DB::table('maintenance_windows')->where('id', $id)->whereNull('ended_at')
             ->update(['ended_by' => $admin->id, 'ended_at' => now()->utc()->format('Y-m-d H:i:s.v')]);

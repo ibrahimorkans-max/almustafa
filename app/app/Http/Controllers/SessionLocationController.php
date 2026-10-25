@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Auth\ActorContext;
+use App\Domain\Auth\SessionService;
 use App\Domain\Security\ReverseGeocoder;
+use App\Domain\Security\SignInArea;
 use App\Domain\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -44,6 +46,15 @@ final class SessionLocationController
                 'country' => $place['country'] ?? null, 'country_name' => $place['country_name'] ?? null];
         }
         $tenant->runAsSystem(fn () => $session->forceFill($fill)->save());
+
+        // "Only inside the mill": a session that has left the mill ends now (the page reloads to sign-in).
+        $account = $actor->account();
+        $area = app(SignInArea::class);
+        if ($account !== null && $area->enforced($account) && ! $area->inside($area->mills($account), $lat, $lng, isset($data['accuracy']) ? (int) $data['accuracy'] : null)) {
+            app(SessionService::class)->revoke($session, SignInArea::OUTSIDE);
+
+            return response()->json(['ok' => false, 'signed_out' => true, 'message' => SignInArea::message(SignInArea::OUTSIDE)]);
+        }
 
         return response()->json(['ok' => true, 'place' => $session->placeLabel()]);
     }

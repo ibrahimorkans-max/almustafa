@@ -54,6 +54,7 @@ ricemill-agent --config agent.toml live                                # live we
 ricemill-agent --config agent.toml live --simulate 24560 --count 10    # simulator
 ricemill-agent ports                                                   # COM ports of this PC
 ricemill-agent --config agent.toml detect --write                      # find port, speed and format of the indicator
+ricemill-agent --config agent.toml check                               # test every step to the Live weight screen; says what to fix
 ricemill-agent --config agent.toml watch                               # readings as the agent reads them
 ricemill-agent cameras                                                 # USB cameras (needs ffmpeg)
 ricemill-agent --config agent.toml camera-test                         # one photo -> camera-test.jpg

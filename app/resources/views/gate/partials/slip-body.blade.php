@@ -106,6 +106,9 @@
 @if ($d['flags'] !== [])
     <div class="notice flags small">Notes: {{ implode(' · ', $d['flags']) }}</div>
 @endif
+@if (($brand['slip_note'] ?? '') !== '')
+    <div class="box small">{{ $brand['slip_note'] }}</div>
+@endif
 
 @if ($inbound && (($d['settlement'] ?? []) !== []))
     @include('pdf.signatures', ['signs' => [['Weighbridge operator', 'کانٹا آپریٹر'], ['Prepared by', 'تیار کنندہ'], ['Checked by (second person)', 'جانچ کنندہ'], ['Approved by', 'منظور کنندہ']]])

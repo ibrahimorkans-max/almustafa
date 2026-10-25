@@ -36,7 +36,7 @@ class LeaveRequestResource extends Resource
 
     protected static ?string $modelLabel = 'leave request';
 
-    protected static ?int $navigationSort = 12;
+    protected static ?int $navigationSort = 22;
 
     public static function getNavigationBadge(): ?string
     {

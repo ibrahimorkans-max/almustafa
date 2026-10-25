@@ -37,7 +37,7 @@ class PayrollSettingsPage extends Page
 
     protected static ?string $slug = 'hr/payroll-settings';
 
-    protected static ?int $navigationSort = 40;
+    protected static ?int $navigationSort = 72;
 
     protected static string $view = 'filament.pages.payroll-settings';
 

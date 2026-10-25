@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Domain\Gate;
 
 use App\Domain\Accounts\PurchaseBillService;
+use App\Domain\Approvals\SelfApproval;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
 use App\Domain\Inventory\StockLedger;
+use App\Domain\Messaging\PartyEventMessages;
 use App\Domain\Procurement\SaudaService;
+use App\Domain\Saas\PlanLimits;
 use App\Domain\Sales\SalesBillService;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Domain\Tenancy\TenantContext;
 use App\Models\Gate\DeductionRule;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
@@ -28,6 +32,7 @@ use App\Support\Values\PakistanIds;
 use App\Support\Values\Weight;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -62,6 +67,9 @@ final class GateService
         $occurredAt ??= now();
 
         return DB::transaction(function () use ($data, $id, $occurredAt): GateEntry {
+            // The plan's vehicles-a-month limit, checked inside the transaction that registers the vehicle
+            // (the customer's row stays locked until it is saved, so two arrivals cannot both take the last place).
+            app(PlanLimits::class)->assertCanAddVehicle(app(TenantContext::class)->entityId());
             $noPlate = (bool) ($data['no_plate'] ?? false);
             $type = isset($data['vehicle_type']) && $data['vehicle_type'] !== '' ? (string) $data['vehicle_type'] : null;
             if ($type !== null && ! in_array($type, Vehicle::TYPES, true)) {
@@ -116,6 +124,7 @@ final class GateService
                 'vehicle_type' => $type ?? $vehicle?->vehicle_type,
                 'no_plate' => $noPlate,
                 'vehicle_description' => $description === '' ? null : mb_substr($description, 0, 160),
+                'goods_description' => isset($data['goods_description']) && trim((string) $data['goods_description']) !== '' ? mb_substr(trim((string) $data['goods_description']), 0, 160) : null,
                 'driver_id' => $data['driver_id'] ?? $vehicle?->default_driver_id,
                 'driver_name' => $data['driver_name'] ?? null,
                 'party_id' => $data['party_id'] ?? $sauda?->party_id,
@@ -128,6 +137,11 @@ final class GateService
                 $entry->id = $id;
             }
             $entry->number = $this->numbers->next(DocumentNumbers::GATE, $occurredAt);
+            // The day's token, in order of arrival (first come, first served).
+            $day = CarbonImmutable::instance($occurredAt)->timezone('Asia/Karachi')->toDateString();
+            $entry->token_date = Carbon::parse($day, 'Asia/Karachi')->startOfDay();
+            $entry->token_no = $this->numbers->nextDaily('TOKEN', $day,
+                fn () => (int) GateEntry::query()->whereDate('token_date', $day)->max('token_no'));
             if ($noPlate) {
                 $entry->registration_no = substr(GateEntry::NO_PLATE_PREFIX.preg_replace('/\D/', '', $entry->number), 0, 24);
             }
@@ -274,7 +288,13 @@ final class GateService
             if ($entry->direction === 'inbound' && $this->hasEvent($entry, 'gross_weighed')) {
                 throw new BusinessRuleViolation('This lot has already been weighed; the lab result belongs before weighing.');
             }
-            $previous = LabTest::query()->where('gate_entry_id', $entry->id)->orderByDesc('tested_at')->first();
+            $previous = LabTest::query()->where('gate_entry_id', $entry->id)->latestFirst()->first();
+            // A second result corrects the first; once the lab has decided, the correction needs its reason.
+            $why = trim((string) ($values['correction_reason'] ?? ''));
+            $decided = $this->hasEvent($entry, 'lab_accepted') || $this->hasEvent($entry, 'lab_rejected');
+            if ($previous !== null && $decided && $why === '') {
+                throw new BusinessRuleViolation('The lab has already decided on this lot. Give the reason for correcting the result.');
+            }
             $known = $this->standards->parametersFor($entry->product_id);
             $results = [];
             foreach ((array) ($values['results'] ?? []) as $code => $bp) {
@@ -307,6 +327,13 @@ final class GateService
             $test->entity_id = $entry->entity_id;
             $test->created_at = now();
             $test->save();
+            if ($previous !== null) {
+                $this->appendEvent($entry, 'lab_corrected', [
+                    'lab_test_id' => $test->id, 'previous_lab_test_id' => $previous->id, 'reason' => $why === '' ? 'Re-tested before the decision' : $why,
+                    'previous_results' => $previous->results, 'results' => $results, 'cleared_decision' => $decided,
+                ], $testedAt ?? now(), false);
+                $this->project($entry);
+            }
 
             // Beyond a grace limit: rejected at once, with the reason.
             $over = array_values(array_filter($evaluation, fn (array $r) => $r['verdict'] === LabStandards::OVER));
@@ -333,7 +360,7 @@ final class GateService
 
         return DB::transaction(function () use ($entry, $accept, $note, $at, $strict): GateEvent {
             $entry = $this->lock($entry);
-            $test = LabTest::query()->where('gate_entry_id', $entry->id)->orderByDesc('tested_at')->first()
+            $test = LabTest::query()->where('gate_entry_id', $entry->id)->latestFirst()->first()
                 ?? throw new BusinessRuleViolation('Record a lab test before deciding.');
             if ($accept && $this->standards->overGrace($entry) !== []) {
                 throw new BusinessRuleViolation('A result is above its grace limit, so the lot was rejected. It can come in only through negotiation, approved by the Purchase Manager.');
@@ -440,7 +467,7 @@ final class GateService
             $entry = $this->lock($entry);
             $version = GatePriceVersion::query()->where('gate_entry_id', $entry->id)->where('status', GatePriceVersion::PROPOSED)
                 ->orderByDesc('version')->lockForUpdate()->first() ?? throw new BusinessRuleViolation('No price is waiting for a decision.');
-            if ($version->proposed_by !== null && $version->proposed_by === $this->actor->accountId()) {
+            if ($version->proposed_by !== null && $version->proposed_by === $this->actor->accountId() && ! SelfApproval::allowed($this->actor->account())) {
                 throw new BusinessRuleViolation('A price is decided by someone other than the person who proposed it.');
             }
             if (! $accept && trim((string) $note) === '') {
@@ -478,7 +505,7 @@ final class GateService
             if ($price === null || $price->decided_at === null || $price->decided_at->lt($rejection->recorded_at)) {
                 throw new BusinessRuleViolation('First agree a price for the rejected lot: propose it and have it accepted.');
             }
-            $test = LabTest::query()->where('gate_entry_id', $entry->id)->orderByDesc('tested_at')->firstOrFail();
+            $test = LabTest::query()->where('gate_entry_id', $entry->id)->latestFirst()->firstOrFail();
             [$data] = $this->labDecisionData($entry, $test, $reason);
             $event = $this->appendEvent($entry, 'lab_accepted', $data + [
                 'after_negotiation' => true, 'price_version_id' => $price->id, 'price_paise_per_maund' => $price->price_paise_per_maund,
@@ -634,7 +661,8 @@ final class GateService
                 throw new BusinessRuleViolation('The settlement was reopened: propose it again.');
             }
             $me = $this->actor->accountId();
-            if ($proposal->actor_login_account_id !== null && $proposal->actor_login_account_id === $me) {
+            $mainUser = SelfApproval::allowed($this->actor->account());
+            if ($proposal->actor_login_account_id !== null && $proposal->actor_login_account_id === $me && ! $mainUser) {
                 throw new BusinessRuleViolation('A settlement is approved by someone other than the person who proposed it.');
             }
             $this->project($entry);
@@ -643,7 +671,7 @@ final class GateService
             }
             $price = GatePriceVersion::query()->lockForUpdate()->findOrFail($proposal->data['price_version_id']);
             if ($price->status === GatePriceVersion::PROPOSED) {
-                if ($price->proposed_by !== null && $price->proposed_by === $me) {
+                if ($price->proposed_by !== null && $price->proposed_by === $me && ! $mainUser) {
                     throw new BusinessRuleViolation('You proposed this price; someone else approves it.');
                 }
                 $price->forceFill(['status' => GatePriceVersion::ACCEPTED, 'decided_by' => $me, 'decided_at' => now(),
@@ -667,7 +695,7 @@ final class GateService
     {
         $this->require('gate.entry');
 
-        return $this->simpleEvent($entry, 'unloaded', $at, $strict, function (GateEntry $e): void {
+        $event = $this->simpleEvent($entry, 'unloaded', $at, $strict, function (GateEntry $e): void {
             if ($e->direction === 'inbound' && ! $this->hasEvent($e, 'lab_accepted')) {
                 throw new BusinessRuleViolation('Unload only after the lab has accepted the lot.');
             }
@@ -679,6 +707,12 @@ final class GateService
                 $e->godown_id = $godown->id;
             }
         });
+        if ($entry->direction === 'inbound') {
+            // The party hears that its vehicle was unloaded (once this is saved).
+            app(PartyEventMessages::class)->unloaded($entry->fresh() ?? $entry);
+        }
+
+        return $event;
     }
 
     /**
@@ -737,6 +771,8 @@ final class GateService
                 $this->dispatch($entry, $order);
             }
             $this->project($entry);
+            // The party hears the final weights (once the slip is saved).
+            app(PartyEventMessages::class)->weighed($entry);
 
             return $event;
         });
@@ -842,6 +878,9 @@ final class GateService
     public function project(GateEntry $entry): GateEntry
     {
         $events = GateEvent::query()->where('gate_entry_id', $entry->id)->chronological()->get();
+        // A corrected lab result clears the lab decisions taken before it (they stay in the timeline).
+        $corrected = $events->where('event', 'lab_corrected')->last()?->seq;
+        $events = $events->reject(fn (GateEvent $e) => $corrected !== null && in_array($e->event, ['lab_accepted', 'lab_rejected'], true) && $e->seq < $corrected)->values();
         $names = $events->pluck('event')->all();
 
         $effective = fn (string $kind) => Weighment::query()->where('gate_entry_id', $entry->id)->where('kind', $kind)
@@ -1037,7 +1076,14 @@ final class GateService
 
     private function hasEvent(GateEntry $entry, string $event): bool
     {
-        return GateEvent::query()->where('gate_entry_id', $entry->id)->where('event', $event)->exists();
+        $query = GateEvent::query()->where('gate_entry_id', $entry->id)->where('event', $event);
+        if (in_array($event, ['lab_accepted', 'lab_rejected'], true)) {
+            // Lab decisions before a corrected result no longer count.
+            $corrected = GateEvent::query()->where('gate_entry_id', $entry->id)->where('event', 'lab_corrected')->max('seq');
+            $query->when($corrected !== null, fn ($q) => $q->where('seq', '>', $corrected));
+        }
+
+        return $query->exists();
     }
 
     private function lastEventName(GateEntry $entry): ?string

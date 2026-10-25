@@ -6,11 +6,14 @@ namespace App\Domain\Documents\Engine;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
+use App\Domain\Documents\PdfRenderer;
+use App\Domain\Saas\CustomerAccess;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Mail\DocumentMail;
 use App\Models\Documents\DocumentShare;
 use App\Models\Documents\GeneratedDocument;
+use App\Models\Entity;
 use App\Models\Hr\Employee;
 use App\Support\Values\PakistanIds;
 use Illuminate\Support\Facades\DB;
@@ -71,7 +74,7 @@ final class DocumentSharing
             $share->forceFill(['protected' => $protect])->save();
             $url = route('documents.shared', ['token' => $token]);
             $title = DocumentTypes::get($doc->doc_type)->label().' '.$doc->displayNumber();
-            $mill = (string) config('ricemill.brand.name');
+            $mill = PdfRenderer::brand($this->tenant->runAsSystem(fn () => Entity::query()->find($doc->entity_id)))['name'];   // the issuing mill, not the first installation
             $until = $share->expires_at->timezone('Asia/Karachi')->format('d M Y H:i');
             $message = "{$mill}: {$title}. Open until {$until} PKT: {$url}".($protect ? ' (password: last 5 digits of your CNIC)' : '');
             $sendUrl = null;
@@ -113,7 +116,8 @@ final class DocumentSharing
     public function open(string $token): ?array
     {
         $share = $this->tenant->runAsSystem(fn () => DocumentShare::query()->where('token_hash', hash('sha256', $token))->first());
-        if ($share === null) {
+        // SaaS: nothing of a company whose access is stopped is shown, shared links included.
+        if ($share === null || app(CustomerAccess::class)->millBlocked($share->entity_id)) {
             return null;
         }
 

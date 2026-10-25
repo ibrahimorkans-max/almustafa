@@ -44,8 +44,9 @@ final class ChangeRolePermissions implements ApprovalAction, ExplainsCheckerRule
         if ($role === null) {
             throw ValidationException::withMessages(['role_id' => 'Role not found.']);
         }
-        if ($role->is_super_admin && ! $maker->isOwner()) {
-            throw ValidationException::withMessages(['role_id' => 'Only an Owner can request changes to the Owner role.']);
+        if (($role->is_super_admin || $role->entity_id === null) && ! $maker->isPlatformAdmin()) {
+            // The Owner role (and any role shared by all mills) is shared by every customer.
+            throw ValidationException::withMessages(['role_id' => 'The Owner role is shared by every customer: only the platform admin can change it.']);
         }
 
         $permissions = array_values(array_unique(array_map('strval', (array) ($payload['permissions'] ?? []))));
@@ -74,8 +75,8 @@ final class ChangeRolePermissions implements ApprovalAction, ExplainsCheckerRule
         if ($role === null) {
             return 'The role in this request no longer exists.';
         }
-        if ($role->is_super_admin && ! $checker->isOwner()) {
-            return 'Only another Owner can decide changes to the Owner role.';
+        if (($role->is_super_admin || $role->entity_id === null) && ! $checker->isPlatformAdmin()) {
+            return 'Only another platform admin can decide changes to the Owner role.';
         }
 
         return 'You can only grant permissions you hold yourself: '
@@ -88,7 +89,7 @@ final class ChangeRolePermissions implements ApprovalAction, ExplainsCheckerRule
         if ($role === null) {
             return false;
         }
-        if ($role->is_super_admin && ! $checker->isOwner()) {
+        if (($role->is_super_admin || $role->entity_id === null) && ! $checker->isPlatformAdmin()) {
             return false;
         }
 

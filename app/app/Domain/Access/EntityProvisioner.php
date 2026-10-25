@@ -8,7 +8,9 @@ use App\Domain\Accounts\ChartOfAccounts;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Gate\LabStandards;
 use App\Domain\Hr\HrInstaller;
+use App\Domain\Saas\PlanLimits;
 use App\Domain\Tenancy\TenantContext;
+use App\Models\Customer;
 use App\Models\Entity;
 use App\Models\Gate\LabParameter;
 use App\Models\Masters\TaxRate;
@@ -28,12 +30,32 @@ final class EntityProvisioner
         private readonly HrInstaller $hr,
     ) {}
 
+    /** C0001, C0002, … */
+    public static function nextCustomerCode(): string
+    {
+        $last = Customer::query()->where('code', 'like', 'C%')->orderByDesc('code')->value('code');
+
+        return sprintf('C%04d', ((int) substr((string) $last, 1)) + 1);
+    }
+
     /**
      * @param  array<string, mixed>  $attributes
      */
     public function create(array $attributes): Entity
     {
+        // Every mill belongs to a customer: the one given, the signed-in Owner's, or a new one of its own.
+        $attributes['customer_id'] ??= $this->tenant->customerId();
+
         return $this->tenant->runAsSystem(fn () => DB::transaction(function () use ($attributes): Entity {
+            if ($attributes['customer_id'] !== null) {
+                app(PlanLimits::class)->assertCanAddMill($attributes['customer_id']);   // the plan's mills limit
+            }
+            if ($attributes['customer_id'] === null) {
+                $attributes['customer_id'] = Customer::query()->create([
+                    'code' => self::nextCustomerCode(), 'name' => (string) ($attributes['legal_name'] ?? $attributes['name'] ?? 'New customer'),
+                    'status' => Customer::ACTIVE,
+                ])->id;
+            }
             $entity = Entity::query()->create($attributes);
             $now = now();
 

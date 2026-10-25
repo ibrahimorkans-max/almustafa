@@ -44,7 +44,7 @@ class VehicleRegisterPage extends Page implements HasTable
 
     protected static ?string $slug = 'vehicle-register';
 
-    protected static ?int $navigationSort = 11;
+    protected static ?int $navigationSort = 50;
 
     protected static string $view = 'filament.pages.vehicle-register';
 

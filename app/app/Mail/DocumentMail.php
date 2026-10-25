@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
+use App\Domain\Documents\PdfRenderer;
+use App\Domain\Tenancy\TenantContext;
 use App\Models\Documents\GeneratedDocument;
+use App\Models\Entity;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -25,15 +28,25 @@ final class DocumentMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: config('ricemill.brand.name').' — '.$this->title);
+        return new Envelope(subject: $this->brand()['name'].' — '.$this->title);
     }
 
     public function content(): Content
     {
         return new Content(text: 'mail.document', with: [
-            'title' => $this->title, 'mill' => config('ricemill.brand.name'), 'phone' => config('ricemill.brand.phone'),
+            'title' => $this->title, 'mill' => $this->brand()['name'], 'phone' => $this->brand()['phone'],
             'number' => $this->document->displayNumber(), 'code' => $this->document->verify_code, 'verify' => url('/verify'),
         ]);
+    }
+
+    /**
+     * The issuing mill's own name and phone (each customer's mills sign as themselves).
+     *
+     * @return array<string, mixed>
+     */
+    private function brand(): array
+    {
+        return PdfRenderer::brand(app(TenantContext::class)->runAsSystem(fn () => Entity::query()->find($this->document->entity_id)));
     }
 
     /** @return list<Attachment> */
