@@ -14,6 +14,9 @@ Schedule::command('scales:certificate-reminders')->dailyAt('08:00')->timezone('A
 Schedule::command('audit:verify')->dailyAt('02:00')->timezone('Asia/Karachi')->withoutOverlapping();
 Schedule::command('stock:verify')->dailyAt('02:30')->timezone('Asia/Karachi')->withoutOverlapping();
 Schedule::command('books:verify')->dailyAt('02:45')->timezone('Asia/Karachi')->withoutOverlapping();
+Schedule::command('saas:invoices')->monthlyOn(1, '06:00')->timezone('Asia/Karachi')->withoutOverlapping();
+Schedule::command('saas:billing-check')->dailyAt('09:15')->timezone('Asia/Karachi')->withoutOverlapping();
+Schedule::command('saas:trial-reminders')->dailyAt('09:00')->timezone('Asia/Karachi')->withoutOverlapping();
 Schedule::command('archive:run')->monthlyOn(1, '03:30')->timezone('Asia/Karachi')->withoutOverlapping();
 Schedule::command('anomalies:scan')->dailyAt('03:00')->timezone('Asia/Karachi')->withoutOverlapping();
 

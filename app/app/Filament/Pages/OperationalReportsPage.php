@@ -18,15 +18,15 @@ class OperationalReportsPage extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-table-cells';
 
-    protected static ?string $navigationGroup = 'Administration';
+    protected static ?string $navigationGroup = 'Reports';
 
-    protected static ?string $navigationLabel = 'Reports';
+    protected static ?string $navigationLabel = 'Operations reports';
 
-    protected static ?string $title = 'Reports';
+    protected static ?string $title = 'Operations reports';
 
     protected static ?string $slug = 'reports';
 
-    protected static ?int $navigationSort = 50;
+    protected static ?int $navigationSort = 60;
 
     protected static string $view = 'filament.pages.operational-reports';
 

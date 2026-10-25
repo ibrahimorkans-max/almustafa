@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Security;
 
 use App\Domain\Tenancy\TenantContext;
+use App\Models\Entity;
 use App\Models\LoginAccount;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Collection;
@@ -22,16 +23,26 @@ final class SecurityNotifier
     public function __construct(private readonly TenantContext $tenant) {}
 
     /**
-     * @param  string|null  $entityId  null = every firm
+     * Within one customer (SaaS): a mill's event reaches that mill's Super Admins and its customer's Owners;
+     * an event of all firms reaches the current customer's Super Admins and Owners; an event of the whole
+     * system (no customer) reaches every Owner and Super Admin. Otherwise never another customer.
+     *
+     * @param  string|null  $entityId  null = every firm (of the current customer)
      * @return int number of people reached in-app
      */
     public function owners(?string $entityId, string $title, string $body, bool $includeOwners = true): int
     {
+        $customer = $entityId !== null
+            ? $this->tenant->runAsSystem(fn () => Entity::query()->whereKey($entityId)->value('customer_id'))
+            : $this->tenant->customerId();
         $people = $this->tenant->runAsSystem(fn () => LoginAccount::query()->with(['role', 'person'])
             ->where('status', LoginAccount::STATUS_ACTIVE)
+            ->when($customer !== null, fn ($q) => $q->whereIn('entity_id', Entity::query()->where('customer_id', $customer)->select('id')))
             ->get()
-            ->filter(fn (LoginAccount $a) => ($a->role?->code === 'SUPER_ADMIN' && ($entityId === null || $a->entity_id === $entityId))
-                || ($includeOwners && $a->isOwner()))
+            ->filter(fn (LoginAccount $a) => $customer === null
+                // The whole system (e.g. the platform's lockdown) concerns every customer's Owners and Super Admins.
+                ? ($a->isOwner() || $a->role?->code === 'SUPER_ADMIN')
+                : (($a->role?->code === 'SUPER_ADMIN' && ($entityId === null || $a->entity_id === $entityId)) || ($includeOwners && $a->isOwner())))
             ->values());
 
         return $this->send($people, $title, $body);

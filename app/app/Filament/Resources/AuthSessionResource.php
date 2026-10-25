@@ -37,7 +37,7 @@ class AuthSessionResource extends Resource
 
     protected static ?string $slug = 'sessions';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 20;
 
     /** @return Builder<AuthSession> */
     public static function getEloquentQuery(): Builder

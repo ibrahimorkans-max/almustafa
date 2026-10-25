@@ -69,7 +69,7 @@ describe('login', function () {
             ->and($wrong->json('error'))->toBe('invalid_credentials');
     });
 
-    it('locks the account after 5 failures, even for the right password', function () {
+    it('locks out the address after 5 failures, even for the right password, but not the account elsewhere', function () {
         $this->withoutMiddleware(ThrottleRequests::class);
         $gate = Make::account($this->entity, 'GATE_OPERATOR');
 
@@ -78,14 +78,31 @@ describe('login', function () {
             $this->travel(10)->seconds(); // past the progressive delay after the 3rd and 4th failure
         }
 
-        $this->postJson('/api/v1/auth/login', loginBody($gate))->assertStatus(401);
+        $this->postJson('/api/v1/auth/login', loginBody($gate))->assertStatus(401);   // the right password, from the guessing address
 
-        expect(Make::system(fn () => $gate->fresh()->isLocked()))->toBeTrue()
-            ->and(auditActions())->toContain('auth.account.locked')
+        expect(Make::system(fn () => $gate->fresh()->isLocked()))->toBeFalse()   // the account itself is not locked
+            ->and(auditActions())->toContain('auth.address.locked')->not->toContain('auth.account.locked')
             ->and(array_count_values(auditActions())['auth.login.failed'])->toBe(5);
 
+        // The real person, from another address (the mill), still signs in.
+        $this->withServerVariables(['REMOTE_ADDR' => '10.20.30.40'])->postJson('/api/v1/auth/login', loginBody($gate))->assertOk();
+
         $this->travel(16)->minutes();
-        $this->postJson('/api/v1/auth/login', loginBody($gate))->assertOk();
+        $this->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])->postJson('/api/v1/auth/login', loginBody($gate))->assertOk();
+    });
+
+    it('locks the whole account only after many failures from many addresses', function () {
+        $this->withoutMiddleware(ThrottleRequests::class);
+        config(['ricemill.security.account_lock_after' => 8]);
+        $gate = Make::account($this->entity, 'GATE_OPERATOR');
+
+        foreach (range(1, 8) as $i) {   // two failures each from four addresses: no address reaches 5
+            $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.'.intdiv($i + 1, 2)])
+                ->postJson('/api/v1/auth/login', ['password' => "wrong-{$i}"] + loginBody($gate))->assertStatus(401);
+        }
+
+        expect(Make::system(fn () => $gate->fresh()->isLocked()))->toBeTrue()->and(auditActions())->toContain('auth.account.locked');
+        $this->withServerVariables(['REMOTE_ADDR' => '10.20.30.40'])->postJson('/api/v1/auth/login', loginBody($gate))->assertStatus(401);
     });
 
     it('rate-limits login attempts per username and IP', function () {
@@ -160,7 +177,9 @@ describe('two-factor authentication', function () {
             $this->postJson('/api/v1/auth/login', loginBody($accountant, ['otp' => '00000'.$i]));
         }
 
-        expect(Make::system(fn () => $accountant->fresh()->isLocked()))->toBeTrue();
+        // Wrong codes lock out the address they came from, like wrong passwords.
+        expect(app(\App\Domain\Auth\LoginService::class)->addressLockedUntil($accountant, '127.0.0.1')?->isFuture())->toBeTrue();
+        $this->postJson('/api/v1/auth/login', loginBody($accountant, ['otp' => Make::totp($accountant)]))->assertStatus(401);
     });
 });
 

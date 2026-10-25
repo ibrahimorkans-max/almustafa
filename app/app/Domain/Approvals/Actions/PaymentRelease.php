@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domain\Approvals\Actions;
 
 use App\Domain\Accounts\PaymentService;
-use App\Domain\Approvals\ApprovalService;
 use App\Domain\Approvals\Contracts\ApprovalAction;
 use App\Domain\Approvals\Contracts\ExplainsCheckerRule;
 use App\Domain\Approvals\Contracts\HandlesRejection;
@@ -19,9 +18,10 @@ use App\Support\Values\Money;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Releases a payment. Stage 1 is decided by a different person with `payment.approve`; above the
- * configured amount the first approval only moves the payment to "first approved" and raises a
- * stage-2 request, which needs yet another person (neither the requester nor the first approver).
+ * Releases a payment: one approval by someone with `payment.approve`, whatever the amount. It is a
+ * different person from the one who entered it, except for the main users (SelfApproval), who release
+ * their own payments at once. A payment left "first approved" by the old two-stage rule is released by
+ * its pending stage-2 request in the same way.
  */
 final class PaymentRelease implements ApprovalAction, ExplainsCheckerRule, HandlesRejection
 {
@@ -84,20 +84,6 @@ final class PaymentRelease implements ApprovalAction, ExplainsCheckerRule, Handl
         $stage = (int) $request->payload['stage'];
         if ($payment === null || $payment->status !== ($stage === 1 ? Payment::PENDING : Payment::FIRST_APPROVED)) {
             throw new ApprovalDenied('The payment is no longer waiting for this approval.');
-        }
-
-        if ($stage === 1 && $payment->amount_paise > (int) config('ricemill.accounts.second_approval_above_paise')) {
-            $payment->forceFill(['status' => Payment::FIRST_APPROVED])->save();
-            // The first approver becomes the maker of stage 2, so maker-checker excludes them;
-            // the original requester is excluded through the payload.
-            $second = app(ApprovalService::class)->submitFor($checker, self::KEY, [
-                'payment_id' => $payment->id, 'stage' => 2, 'requester_person_id' => $request->maker_person_id,
-            ], "Second approval: {$request->summary}", $request->reason, systemInitiated: true);
-            // Re-read: when the Owner or a Super Admin approved stage 1, stage 2 was applied at once and released the payment.
-            $payment = Payment::query()->whereKey($payment->id)->lockForUpdate()->firstOrFail();
-            $payment->forceFill(['approval_request_id' => $second->id])->save();
-
-            return ['status' => $payment->status, 'second_request_id' => $second->id];
         }
 
         try {

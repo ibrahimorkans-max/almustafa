@@ -283,7 +283,7 @@ final class VehicleRegister
             'driver' => $e->driver->name ?? $e->driver_name,
             'driver_phone' => $e->driver?->phone,
             'party' => $e->party?->name,
-            'product' => $e->product?->name,
+            'product' => $e->product->name ?? $e->goods_description,
             'sauda' => $e->sauda?->number,
             'bags' => $e->bag_count,
             'godown' => $e->godown?->name,
@@ -415,7 +415,7 @@ final class VehicleRegister
             ])->values()->all();
 
         $lab = [];
-        $test = LabTest::query()->where('gate_entry_id', $e->id)->orderByDesc('tested_at')->first();
+        $test = LabTest::query()->where('gate_entry_id', $e->id)->latestFirst()->first();
         if ($test !== null) {
             foreach (LabTest::PARAMETERS as $parameter => $column) {
                 $value = $test->getAttribute($column);

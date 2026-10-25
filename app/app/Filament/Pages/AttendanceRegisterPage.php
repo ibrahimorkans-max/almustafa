@@ -24,7 +24,7 @@ class AttendanceRegisterPage extends Page
 
     protected static ?string $slug = 'hr/attendance-register';
 
-    protected static ?int $navigationSort = 16;
+    protected static ?int $navigationSort = 21;
 
     protected static string $view = 'filament.pages.attendance-register';
 

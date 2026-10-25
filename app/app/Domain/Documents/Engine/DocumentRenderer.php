@@ -225,6 +225,13 @@ final class DocumentRenderer
             $brand['ntn'] = null;
             $brand['strn'] = null;
         }
+        if ($web) {   // a browser cannot open a server file path: the logos go inline
+            foreach (['logo', 'emblem'] as $key) {
+                $path = $brand[$key];
+                $brand[$key] = is_string($path) && is_file($path)
+                    ? 'data:'.(mime_content_type($path) ?: 'image/png').';base64,'.base64_encode((string) file_get_contents($path)) : null;
+            }
+        }
         $verify = $v['toggles']['qr'] ? ($v['verify'] ?? null) : null;
         $verifyUrl = $verify !== null ? PdfRenderer::verifyUrl($verify['doc'], $verify['code']) : null;
         $image = function (?string $id) use ($web): ?string {

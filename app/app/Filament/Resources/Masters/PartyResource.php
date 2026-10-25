@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Masters;
 use App\Filament\Resources\Masters\Concerns\MasterResourceHelpers;
 use App\Filament\Resources\Masters\PartyResource\Pages;
 use App\Filament\Resources\Masters\PartyResource\RelationManagers\BankAccountsRelationManager;
+use App\Filament\Support\PartyLogin;
 use App\Models\Masters\Party;
 use App\Support\BlindIndex;
 use App\Support\Values\Money;
@@ -68,6 +69,11 @@ class PartyResource extends Resource
                 Textarea::make('address')->rows(2)->maxLength(500)->columnSpan(2),
                 TextInput::make('city')->maxLength(80),
                 Select::make('province')->options(array_combine(PakistanIds::PROVINCES, PakistanIds::PROVINCES))->default('Punjab'),
+                Toggle::make('messages_on')->label('Send messages to this party')->default(true)
+                    ->helperText('Money entries, vehicles unloaded and weighed, login details (each kind can be switched off for the mill in Party messages).'),
+                Toggle::make('make_login')->label('Make a login for this party and send the details')->dehydrated(false)
+                    ->helperText('The party then sees its own vehicles, bills, payments and balance. Needs a mobile number.')
+                    ->visible(fn (string $operation) => $operation === 'create' && PartyLogin::allowed()),
             ]),
             Section::make('Tax & credit')->columns(3)->schema([
                 TextInput::make('ntn')->label('NTN')->maxLength(20)->placeholder('1234567-8')

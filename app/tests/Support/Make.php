@@ -6,6 +6,7 @@ namespace Tests\Support;
 
 use App\Domain\Access\AccessCatalogSync;
 use App\Domain\Access\EntityProvisioner;
+use App\Domain\Access\RoleTemplates;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Auth\DeviceInfo;
@@ -15,11 +16,13 @@ use App\Domain\Auth\TokenService;
 use App\Domain\Tenancy\TenantContext;
 use App\Http\Middleware\EnsureWebAuthSession;
 use App\Models\AuthSession;
+use App\Models\Customer;
 use App\Models\Device;
 use App\Models\Entity;
 use App\Models\LoginAccount;
 use App\Models\Person;
 use App\Models\Role;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
 
@@ -31,13 +34,46 @@ final class Make
     public static function entity(string $code = 'E1'): Entity
     {
         return app(EntityProvisioner::class)->create([
-            'code' => $code, 'name' => "Mill {$code}", 'status' => Entity::STATUS_ACTIVE,
+            'code' => $code, 'name' => "Mill {$code}", 'status' => Entity::STATUS_ACTIVE, 'customer_id' => self::customer()->id,
         ]);
+    }
+
+    /** The test customer every test mill belongs to (one company, as before SaaS), or another one by code. */
+    public static function customer(string $code = 'TEST'): Customer
+    {
+        return self::system(fn () => Customer::query()->firstOrCreate(['code' => $code], ['name' => "Customer {$code}", 'status' => Customer::ACTIVE]));
     }
 
     /**
      * @param  array{mfa?: bool, person?: Person, username?: string, status?: string, must_change_password?: bool}  $options
      */
+    /**
+     * An accounts clerk: a mill role with the Accountant's rights except releasing payments and deciding
+     * requests, and not a main user (App\Domain\Approvals\SelfApproval) — what the Accountant was before
+     * main users approved their own work. Tests of the two-person rule enter work with it.
+     *
+     * @param  array<string, mixed>  $options
+     */
+    public static function clerk(Entity $entity, array $options = []): LoginAccount
+    {
+        self::system(function () use ($entity): void {
+            if (Role::query()->where('entity_id', $entity->id)->where('code', 'ACCOUNTS_CLERK')->exists()) {
+                return;
+            }
+            $template = RoleTemplates::get(RoleTemplates::ACCOUNTANT);
+            $role = Role::query()->create([
+                'entity_id' => $entity->id, 'code' => 'ACCOUNTS_CLERK', 'name' => 'Accounts clerk', 'is_system' => false,
+                'is_super_admin' => false, 'mfa_required' => false, 'session_max_minutes' => $template['session_max_minutes'],
+            ]);
+            $rights = array_values(array_diff($template['permissions'], ['payment.approve', 'approval.decide']));
+            DB::table('role_permissions')->insert(array_map(fn (string $p) => [
+                'role_id' => $role->id, 'permission_code' => $p, 'entity_id' => $entity->id, 'created_at' => now(),
+            ], $rights));
+        });
+
+        return self::account($entity, 'ACCOUNTS_CLERK', $options);
+    }
+
     public static function account(Entity $entity, string $roleCode, array $options = []): LoginAccount
     {
         return self::system(function () use ($entity, $roleCode, $options): LoginAccount {
@@ -69,13 +105,22 @@ final class Make
                 ])->save();
             }
 
-            return $account->fresh(['role', 'person', 'entity']);
+            return self::system(fn () => $account->fresh(['role', 'person', 'entity']));
         });
     }
 
     public static function owner(Entity $home, bool $trustedDeviceUid = true): LoginAccount
     {
         return self::account($home, 'OWNER');
+    }
+
+    /** A platform admin (the provider): an Owner with the platform flag, set only from the command line in real life. */
+    public static function platformAdmin(Entity $home): LoginAccount
+    {
+        $account = self::account($home, 'OWNER');
+        self::system(fn () => $account->forceFill(['is_platform_admin' => true])->save());
+
+        return self::system(fn () => $account->fresh(['role', 'person', 'entity']));
     }
 
     public static function totp(LoginAccount $account): string

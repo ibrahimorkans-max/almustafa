@@ -131,20 +131,21 @@ it('lets the Owner and the Office Coordinator choose after how many months close
     arcSignIn($this, Make::owner($this->entity));
     Livewire::test(ArchiveSearch::class)->assertSee('When closed records move here')
         ->set('retention', 12)->call('saveRetention')->assertNotified();
-    expect($settings->archiveRetentionMonths())->toBe(12)
+    // Saved for the Owner's mills (each customer has its own).
+    expect($settings->archiveRetentionMonths($this->entity->id))->toBe(12)
         ->and(AuditLog::query()->where('action', 'settings.archive_retention_changed')->exists())->toBeTrue();
 
     // Fewer months than offered is refused.
     Livewire::test(ArchiveSearch::class)->set('retention', 1)->call('saveRetention')->assertHasErrors('retention');
-    expect($settings->archiveRetentionMonths())->toBe(12);
+    expect($settings->archiveRetentionMonths($this->entity->id))->toBe(12);
 
     // The monthly run uses the chosen period.
-    $this->artisan('archive:run --dry-run')->expectsOutputToContain('Closed before '.now()->subMonths(12)->toDateString())->assertSuccessful();
+    $this->artisan('archive:run --dry-run')->expectsOutputToContain('closed before '.now()->subMonths(12)->toDateString())->assertSuccessful();
 
     // The Office Coordinator sets it too; the mill's Super Admin does not see or change it.
     arcSignIn($this, Make::account($this->entity, 'OFFICE_COORDINATOR'));
     Livewire::test(ArchiveSearch::class)->assertSee('When closed records move here')->set('retention', 6)->call('saveRetention')->assertNotified();
-    expect($settings->archiveRetentionMonths())->toBe(6);
+    expect($settings->archiveRetentionMonths($this->entity->id))->toBe(6);
 
     arcSignIn($this, $this->admin);
     Livewire::test(ArchiveSearch::class)->assertDontSee('When closed records move here')->call('saveRetention')->assertForbidden();

@@ -36,7 +36,7 @@ class BankStatementLineResource extends Resource
 
     protected static ?string $slug = 'bank-reconciliation';
 
-    protected static ?int $navigationSort = 60;
+    protected static ?int $navigationSort = 70;
 
     public static function table(Table $table): Table
     {

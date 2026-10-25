@@ -42,7 +42,7 @@ class WeighmentCheckResource extends Resource
 
     protected static ?string $slug = 'weight-checks';
 
-    protected static ?int $navigationSort = 13;
+    protected static ?int $navigationSort = 40;
 
     public static function canViewAny(): bool
     {

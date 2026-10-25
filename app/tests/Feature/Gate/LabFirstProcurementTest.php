@@ -162,18 +162,25 @@ it('checks the settlement: numbers only, Caat below the net weight, approved by 
 
     expect(fn () => $this->gate->issueSlip($this->e))->toThrow(BusinessRuleViolation::class, 'Approve the settlement');
 
-    $this->f->as($this->manager);
+    // The Purchase Officer (not a main user) proposes; approving is for someone with purchase.approve.
+    $this->f->as($this->officer);
     expect(fn () => $this->gate->proposeSettlement($this->e, 'lots', '0'))->toThrow(BusinessRuleViolation::class, 'number of kg')
         ->and(fn () => $this->gate->proposeSettlement($this->e, '15000', '1'))->toThrow(BusinessRuleViolation::class, 'cannot reach the net weight');
     $this->gate->proposeSettlement($this->e, '240', '0.5');
-    expect(fn () => $this->gate->approveSettlement($this->e))->toThrow(BusinessRuleViolation::class, 'someone other than the person who proposed it');
+    expect(fn () => $this->gate->approveSettlement($this->e))->toThrow(BusinessRuleViolation::class);
 
-    // At the offered (sauda) price, approved by another person: the lab's quality rate cut still applies.
-    $this->f->as($this->f->owner);
+    // At the offered (sauda) price, approved by the Purchase Manager: the lab's quality rate cut still applies.
+    $this->f->as($this->manager);
     $this->gate->approveSettlement($this->e);
     expect($this->e->fresh()->payable_kg)->toBe('14819.375') // 15,250 − 240 − 0.5 × 381.25
         ->and($this->gate->acceptedPrice($this->e)->price_paise_per_maund)->toBe(100000)
         ->and(fn () => $this->gate->proposePrice($this->e, 90000, 'Too late'))->toThrow(BusinessRuleViolation::class, 'approved');
+
+    // A main user (the Purchase Manager) may propose and approve their own settlement.
+    $this->gate->reopenSettlement($this->e, 'Waste Caat was weighed again on the floor');
+    $this->gate->proposeSettlement($this->e, '200', '0.5');
+    $this->gate->approveSettlement($this->e);
+    expect($this->e->fresh()->payable_kg)->toBe('14859.375');   // 15,250 − 200 − 0.5 × 381.25
 });
 
 it('lets the Lab Supervisor set the lab limits, and the gate staff only see them', function () {

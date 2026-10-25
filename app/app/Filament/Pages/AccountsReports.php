@@ -40,7 +40,7 @@ class AccountsReports extends Page implements HasForms
 
     protected static ?string $navigationIcon = 'heroicon-o-presentation-chart-line';
 
-    protected static ?string $navigationGroup = 'Accounts';
+    protected static ?string $navigationGroup = 'Reports';
 
     protected static ?string $navigationLabel = 'Books & reports';
 
@@ -48,7 +48,7 @@ class AccountsReports extends Page implements HasForms
 
     protected static ?string $slug = 'accounts-reports';
 
-    protected static ?int $navigationSort = 70;
+    protected static ?int $navigationSort = 40;
 
     protected static string $view = 'filament.pages.accounts-reports';
 

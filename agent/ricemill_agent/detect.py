@@ -48,7 +48,7 @@ class Candidate:
         ])
 
     def describe(self) -> str:
-        sample = ", ".join(str(w.normalize()) for w in self.weights[-5:])
+        sample = ", ".join(format(w.normalize(), "f") for w in self.weights[-5:])
         return f"{self.port} at {self.baudrate} baud, format {self.fmt}: {len(self.weights)} readings (last: {sample} kg)"
 
 

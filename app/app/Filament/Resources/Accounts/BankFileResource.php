@@ -29,7 +29,7 @@ class BankFileResource extends Resource
 
     protected static ?string $slug = 'bank-files';
 
-    protected static ?int $navigationSort = 50;
+    protected static ?int $navigationSort = 60;
 
     public static function table(Table $table): Table
     {

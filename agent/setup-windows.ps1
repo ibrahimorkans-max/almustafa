@@ -43,7 +43,8 @@ if (-not (Test-Path agent.toml)) {
     $text = $text -replace '(?m)^signing_secret = ""', "signing_secret = `"$secret`""
     $text = $text -replace '(?m)^key = ""', "key = `"$keyProtected`""
     $text = $text -replace '(?m)^id = ""', "id = `"$scale`""
-    Set-Content -Path agent.toml -Value $text -Encoding UTF8
+    # UTF-8 without a byte-order mark (Windows PowerShell 5.1 adds one with -Encoding UTF8, which TOML rejects)
+    [System.IO.File]::WriteAllText((Join-Path (Get-Location) 'agent.toml'), $text, (New-Object System.Text.UTF8Encoding $false))
     Write-Host 'agent.toml written (secrets protected for this PC only).'
 } else {
     Write-Host 'agent.toml already exists; keeping it.'

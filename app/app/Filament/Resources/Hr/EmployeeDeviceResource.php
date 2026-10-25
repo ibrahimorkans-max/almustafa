@@ -31,7 +31,7 @@ class EmployeeDeviceResource extends Resource
 
     protected static ?string $modelLabel = 'attendance device';
 
-    protected static ?int $navigationSort = 60;
+    protected static ?int $navigationSort = 66;
 
     public static function getNavigationBadge(): ?string
     {

@@ -51,7 +51,7 @@ class ExpenseResource extends Resource
 
     protected static ?string $slug = 'expenses';
 
-    protected static ?int $navigationSort = 44;
+    protected static ?int $navigationSort = 30;
 
     public static function getNavigationBadge(): ?string
     {

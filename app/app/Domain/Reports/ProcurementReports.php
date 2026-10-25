@@ -134,7 +134,7 @@ final class ProcurementReports
     {
         $rows = [];
         foreach ($entries as $e) {
-            $test = $e->labTests()->orderByDesc('tested_at')->first();
+            $test = $e->labTests()->latestFirst()->first();
             if ($test === null) {
                 continue;
             }

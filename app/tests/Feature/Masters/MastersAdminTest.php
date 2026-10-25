@@ -100,8 +100,8 @@ it('creates a party with roles, credit limit in paisa and a validated NTN / STRN
 });
 
 it('files a bank account request instead of saving it', function () {
-    // A staff requester: the Owner's and Super Admin's own requests are applied at once.
-    $owner = Make::account($this->entity, 'ACCOUNTANT');
+    // A staff requester who is not a main user: the main users' own requests are applied at once.
+    $owner = Make::clerk($this->entity);
     signIn($this, $owner);
     $party = Party::query()->create(['code' => 'V1', 'name' => 'Vendor', 'is_vendor' => true]);
 

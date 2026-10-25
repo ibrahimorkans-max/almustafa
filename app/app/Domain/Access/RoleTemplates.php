@@ -31,6 +31,9 @@ final class RoleTemplates
 
     public const BROKER = 'BROKER';
 
+    /** A supplier or buyer signing in to see its own vehicles, bills, payments and balance. */
+    public const PARTY = 'PARTY';
+
     public const HR_MANAGER = 'HR_MANAGER';
 
     public const EMPLOYEE = 'EMPLOYEE';
@@ -64,14 +67,14 @@ final class RoleTemplates
                 'global' => true,
                 'mfa_required' => true,
                 'session_max_minutes' => 720,
-                'permissions' => $except('deal.view_own', 'commission.view_own'),
+                'permissions' => $except('deal.view_own', 'commission.view_own', 'portal.view_own'),
             ],
             self::SUPER_ADMIN => [
                 'name' => 'Owner',
                 'global' => false,
                 'mfa_required' => true,
                 'session_max_minutes' => 720,
-                'permissions' => $except('entity.manage', 'deal.view_own', 'commission.view_own'),
+                'permissions' => $except('entity.manage', 'deal.view_own', 'commission.view_own', 'portal.view_own'),
             ],
             self::EXECUTIVE => [
                 'name' => 'Executive',
@@ -97,7 +100,7 @@ final class RoleTemplates
                     'entity.view', 'approval.view',
                     'master.view', 'master.manage',
                     'deal.view', 'quote.view', 'stock.view', 'sales.view', 'claim.view',
-                    'ledger.view', 'ledger.post', 'voucher.reverse', 'payment.create', 'bank.view',
+                    'ledger.view', 'ledger.post', 'voucher.reverse', 'payment.create', 'payment.approve', 'approval.decide', 'bank.view', 'messages.manage',
                     'pricing.view', 'dashboard.view', 'report.view', 'report.tax',
                     'hr.employee.view', 'hr.salary.view', 'hr.payroll.approve', 'hr.documents.generate',
                     'wages.daily.manage', 'wages.daily.pay',
@@ -111,7 +114,7 @@ final class RoleTemplates
                 'permissions' => [
                     'entity.view', 'approval.view', 'device.view',
                     'master.view', 'master.manage', 'sync.review',
-                    'deal.view', 'gate.entry', 'weighment.capture', 'weighment.override', 'lab.test', 'lab.decide', 'purchase.negotiate',
+                    'deal.view', 'gate.entry', 'weighment.capture', 'weighment.override', 'weighment.manual', 'lab.test', 'lab.decide', 'purchase.negotiate',
                     'production.view', 'production.log', 'batch.manage',
                     'stock.view', 'requisition.create', 'requisition.approve',
                     'sales.view', 'dispatch.manage', 'gatepass.issue',
@@ -156,7 +159,7 @@ final class RoleTemplates
                 'global' => false,
                 'mfa_required' => true,
                 'session_max_minutes' => 720,
-                'permissions' => ['entity.view', 'master.view', 'deal.view', 'deal.create', 'purchase.negotiate', 'purchase.approve',
+                'permissions' => ['entity.view', 'master.view', 'deal.view', 'deal.create', 'deal.approve', 'approval.decide', 'purchase.negotiate', 'purchase.approve',
                     'pricing.view', 'report.view', 'dashboard.view', 'approval.view'],
             ],
             self::FINANCE_MANAGER => [
@@ -167,7 +170,7 @@ final class RoleTemplates
                 'permissions' => [
                     'entity.view', 'approval.view', 'approval.decide', 'master.view',
                     'deal.view', 'stock.view', 'sales.view', 'claim.view', 'claim.approve', 'pricing.view',
-                    'ledger.view', 'ledger.post', 'voucher.reverse', 'payment.create', 'payment.approve', 'bank.view', 'period.lock',
+                    'ledger.view', 'ledger.post', 'voucher.reverse', 'payment.create', 'payment.approve', 'bank.view', 'period.lock', 'messages.manage',
                     'dashboard.view', 'report.view', 'report.tax', 'purchase.approve', 'wages.daily.pay',
                 ],
             ],
@@ -204,6 +207,13 @@ final class RoleTemplates
                 'session_max_minutes' => 720,
                 'permissions' => [],
             ],
+            self::PARTY => [
+                'name' => 'Party (supplier / buyer)',
+                'global' => false,
+                'mfa_required' => false,
+                'session_max_minutes' => 240,
+                'permissions' => ['portal.view_own'],
+            ],
             self::OFFICE_COORDINATOR => [
                 'name' => 'Office Coordinator',
                 'global' => false,
@@ -216,7 +226,7 @@ final class RoleTemplates
         // Every staff role marks its own attendance and asks for its own leave (brokers are not employees; Owner / Super Admin
         // already hold every permission; the Office Coordinator has the Archive screen and nothing else).
         foreach ($templates as $code => $template) {
-            if ($template['global'] || in_array($code, [self::BROKER, self::SUPER_ADMIN, self::OFFICE_COORDINATOR], true)) {
+            if ($template['global'] || in_array($code, [self::BROKER, self::PARTY, self::SUPER_ADMIN, self::OFFICE_COORDINATOR], true)) {
                 continue;
             }
             foreach (['hr.attendance.punch', 'hr.leave.request'] as $own) {

@@ -25,6 +25,10 @@ final class LoginRequest extends FormRequest
             'otp' => ['nullable', 'string', 'max:32'],
             'device_uid' => ['required', 'string', 'min:16', 'max:100', 'regex:/^[A-Za-z0-9._:-]+$/'],
             'device_name' => ['nullable', 'string', 'max:120'],
+            // The phone's position, for a mill that allows sign-in only inside its premises.
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'accuracy' => ['nullable', 'integer', 'min:0', 'max:1000000'],
             'platform' => ['required', 'string', Rule::in(array_diff(Device::PLATFORMS, ['web']))],
         ];
     }

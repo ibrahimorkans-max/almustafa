@@ -28,7 +28,7 @@ class EntityResource extends Resource
 
     protected static ?string $navigationLabel = 'Entities (firms / mills)';
 
-    protected static ?int $navigationSort = 10;
+    protected static ?int $navigationSort = 50;
 
     public static function form(Form $form): Form
     {

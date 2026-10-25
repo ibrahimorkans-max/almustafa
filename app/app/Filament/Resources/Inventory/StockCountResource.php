@@ -26,7 +26,7 @@ class StockCountResource extends Resource
 
     protected static ?string $slug = 'stock-counts';
 
-    protected static ?int $navigationSort = 60;
+    protected static ?int $navigationSort = 50;
 
     public static function statusColor(string $status): string
     {

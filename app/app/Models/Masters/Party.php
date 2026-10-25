@@ -46,6 +46,7 @@ use Illuminate\Validation\Rule;
  * @property int|null $credit_limit_paise
  * @property int|null $credit_days
  * @property string|null $login_account_id
+ * @property bool $messages_on the party gets messages (login details, money entries, vehicles)
  * @property string $status
  * @property string|null $notes
  */
@@ -65,7 +66,7 @@ class Party extends MasterModel
         'code', 'name', 'legal_name', 'is_customer', 'is_vendor', 'is_broker', 'is_farmer', 'is_transporter',
         'contact_person', 'phone', 'email', 'address', 'city', 'province',
         'tax_registration', 'strn', 'ntn', 'cnic', 'atl_status', 'atl_checked_on',
-        'credit_limit_paise', 'credit_days', 'status', 'notes', 'wht_exempt',
+        'credit_limit_paise', 'credit_days', 'status', 'notes', 'wht_exempt', 'messages_on',
     ];
 
     protected $hidden = ['strn_index', 'ntn_index', 'cnic_index'];
@@ -77,7 +78,7 @@ class Party extends MasterModel
     {
         return [
             'wht_exempt' => 'boolean', 'is_customer' => 'boolean', 'is_vendor' => 'boolean', 'is_broker' => 'boolean',
-            'is_farmer' => 'boolean', 'is_transporter' => 'boolean',
+            'is_farmer' => 'boolean', 'is_transporter' => 'boolean', 'messages_on' => 'boolean',
             'strn' => 'encrypted', 'ntn' => 'encrypted', 'cnic' => 'encrypted', 'atl_checked_on' => 'date',
             'credit_limit_paise' => 'integer', 'credit_days' => 'integer',
             'version' => 'integer', 'archived_at' => 'datetime',
@@ -169,6 +170,7 @@ class Party extends MasterModel
             'credit_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'status' => ['sometimes', Rule::in(['active', 'blocked'])],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'messages_on' => ['sometimes', 'boolean'],
         ];
     }
 

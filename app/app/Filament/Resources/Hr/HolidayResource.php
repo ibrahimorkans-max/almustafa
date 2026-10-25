@@ -25,7 +25,7 @@ class HolidayResource extends Resource
 
     protected static ?string $navigationGroup = HrScope::GROUP;
 
-    protected static ?int $navigationSort = 80;
+    protected static ?int $navigationSort = 63;
 
     public static function form(Form $form): Form
     {

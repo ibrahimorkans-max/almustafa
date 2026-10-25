@@ -32,7 +32,7 @@ class DocumentBatchResource extends Resource
 
     protected static ?string $slug = 'hr/document-batches';
 
-    protected static ?int $navigationSort = 52;
+    protected static ?int $navigationSort = 51;
 
     public static function canViewAny(): bool
     {

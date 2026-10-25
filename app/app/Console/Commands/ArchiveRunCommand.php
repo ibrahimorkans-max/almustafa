@@ -8,6 +8,7 @@ use App\Domain\Archive\ArchiveService;
 use App\Domain\Security\Lockdown;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Tenancy\TenantContext;
+use App\Models\Entity;
 use Illuminate\Console\Command;
 
 final class ArchiveRunCommand extends Command
@@ -23,12 +24,20 @@ final class ArchiveRunCommand extends Command
 
             return self::SUCCESS;
         }
-        $months = (int) ($this->option('months') ?? app(SettingsService::class)->archiveRetentionMonths());
-        $cutoff = now()->subMonths(max(1, $months));
-        $counts = $tenant->runAsSystem(fn () => $archive->run($cutoff, (bool) $this->option('dry-run')));
+        // Mill by mill: each customer has its own retention period.
+        $settings = app(SettingsService::class);
+        $totals = [];
+        foreach ($tenant->runAsSystem(fn () => Entity::query()->where('status', Entity::STATUS_ACTIVE)->orderBy('code')->get()) as $mill) {
+            $months = (int) ($this->option('months') ?? $settings->archiveRetentionMonths($mill->id));
+            $cutoff = now()->subMonths(max(1, $months));
+            $counts = $tenant->runInEntity($mill->id, fn () => $archive->run($cutoff, (bool) $this->option('dry-run')));
+            foreach ($counts as $type => $n) {
+                $totals[$type] = ($totals[$type] ?? 0) + $n;
+            }
+            $this->line(sprintf('%s: closed before %s (%d months), %d records.', $mill->code, $cutoff->toDateString(), $months, array_sum($counts)));
+        }
 
-        $this->table(['type', $this->option('dry-run') ? 'would archive' : 'archived'], collect($counts)->map(fn ($n, $t) => [$t, $n])->values()->all());
-        $this->info(sprintf('Closed before %s.', $cutoff->toDateString()));
+        $this->table(['type', $this->option('dry-run') ? 'would archive' : 'archived'], collect($totals)->map(fn ($n, $t) => [$t, $n])->values()->all());
 
         return self::SUCCESS;
     }

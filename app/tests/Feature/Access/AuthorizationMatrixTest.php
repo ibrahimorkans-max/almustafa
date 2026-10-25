@@ -119,7 +119,8 @@ it('shows the settings page to Super Admin only', function (string $role) {
     $status = $this->actingAs($account, 'web')->withSession(Make::webSession($account))
         ->get('/admin/security-settings')->getStatusCode();
 
-    expect($status)->toBe($role === 'OWNER' ? 200 : 403);
+    // Sign-in for every customer is the platform admin's: no customer role sees it, not even the Owner.
+    expect($status)->toBe(403);
 })->with('roles');
 
 it('protects the audit API by permission', function (string $role) {

@@ -39,7 +39,7 @@ class AttendanceLogResource extends Resource
 
     protected static ?string $slug = 'hr/attendance';
 
-    protected static ?int $navigationSort = 15;
+    protected static ?int $navigationSort = 20;
 
     public static function canCreate(): bool
     {

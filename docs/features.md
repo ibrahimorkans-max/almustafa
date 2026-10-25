@@ -13,14 +13,16 @@ audit log.
 ## Operations (phases 3–4, 6)
 * Procurement: requirements, quotes, deals (sauda) with approval; brokers see only their own deals.
 * Gate and weighbridge: stable-weight evidence, repeat-tare check, scale certificates, lab tests, slips; offline gate agent with ANPR, boom barrier and display board (fails closed).
+* Tokens (first come, first served) with a token slip; Live weight page with Loaded / Empty weight buttons and one weight typed by hand (Supervisor+, reason and slip); lab tests per product and variety, correctable with a reason; Negotiation page with the full price and Caat timeline; weight bill without amounts; every slip and report on A4, A6, Letter or an 80 mm roll (see `printing-weighing-tokens.md`).
 * Small and unregistered vehicles at the gate: mini truck, loader rickshaw, rickshaw, motorbike, bicycle, bullock cart (bail gari), donkey cart, horse cart (tanga), hand cart (rehri). A vehicle with no number plate is entered with its kind and a description; it gets its own reference (NOPLATE + gate entry number) and the flag `no_number_plate`.
 * Stock ledger (never negative), requisitions, stock counts with approval, production batches with yield and loss alerts.
 * Sales: deals, dispatch orders, credit control with override approval, GST invoices, gate passes.
 
 ## Money and tax (phases 5, 7–8)
-* Purchase bills from weighbridge slips, payments with second approval above ₹5 lakh, bank files and reconciliation, vouchers, period locks.
+* Purchase bills from weighbridge slips, payments released with one approval (main users release their own), bank files and reconciliation, vouchers, period locks.
 * Claims with credit / debit notes, price lists, confidential margins, archive.
 * GST returns (GSTR-1, 3B), e-invoice / e-way bill through a provider seam, TDS 194Q, reports, dashboard, anomaly alerts, public `/verify` for printed documents.
+* Party accounts: a supplier or buyer signs in to see only its own vehicles, account entries, bills and balance; messages to parties (login details, each money entry with the balance, vehicle unloaded, weights final) by WhatsApp or SMS, each kind switchable, with an outbox for sending by hand until a gateway is connected (see `party-accounts-and-messages.md`).
 * Cash book and bank book with a daily closing, and supporting files on vehicles, bills, payments and approvals (see `cashbook-bankbook-attachments.md`).
 
 ## Operations safety (phase 9)

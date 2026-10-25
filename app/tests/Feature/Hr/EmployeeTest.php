@@ -185,9 +185,8 @@ describe('salary account (maker-checker)', function () {
             ->and(app(ApprovalService::class)->decisionBlocker($this->f->hr, $req))->toContain('cannot approve your own request')
             ->and(app(ApprovalService::class)->decisionBlocker($this->f->supervisor, $req))->not->toBeNull();
 
-        // The Accountant template holds hr.payroll.approve but no approval rights at all (approval.decide);
-        // the screen says so, and the Owner approves.
-        expect(app(ApprovalService::class)->decisionBlocker($this->f->accountant, $req))->toContain("'approval.decide'");
+        // The Accountant holds hr.payroll.approve and, as a main user, approval.decide: it may approve too.
+        expect(app(ApprovalService::class)->decisionBlocker($this->f->accountant, $req))->toBeNull();
         $this->f->as($this->f->owner);
         $done = app(ApprovalService::class)->approve($req, $this->f->owner, 'Checked against the passbook');
         $fresh = $e->fresh();

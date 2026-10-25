@@ -6,6 +6,7 @@ namespace App\Domain\Accounts;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Documents\DocumentNumbers;
+use App\Domain\Messaging\PartyEventMessages;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Accounts\LedgerAccount;
 use App\Models\Accounts\Voucher;
@@ -90,6 +91,8 @@ final class Books
                 'type' => $type, 'number' => $voucher->number, 'date' => $day->toDateString(), 'total_paise' => $dr,
                 'lines' => array_map(fn (array $l) => [$l['account']->code, $l['dr'] ?? 0, $l['cr'] ?? 0], $lines),
             ], array_filter($source));
+            // Each party in it hears of it (once the voucher is saved), with its balance after it.
+            app(PartyEventMessages::class)->voucherPosted($voucher, $lines, fn (LedgerAccount $ledger) => $this->balance($ledger));
 
             return $voucher;
         });

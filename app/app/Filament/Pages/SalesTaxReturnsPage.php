@@ -20,7 +20,7 @@ class SalesTaxReturnsPage extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
 
-    protected static ?string $navigationGroup = 'Accounts';
+    protected static ?string $navigationGroup = 'Reports';
 
     protected static ?string $navigationLabel = 'Tax registers';
 
@@ -28,7 +28,7 @@ class SalesTaxReturnsPage extends Page
 
     protected static ?string $slug = 'tax-registers';
 
-    protected static ?int $navigationSort = 75;
+    protected static ?int $navigationSort = 50;
 
     protected static string $view = 'filament.pages.tax-registers';
 

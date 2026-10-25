@@ -23,7 +23,7 @@ class ShiftResource extends Resource
 
     protected static ?string $navigationGroup = HrScope::GROUP;
 
-    protected static ?int $navigationSort = 70;
+    protected static ?int $navigationSort = 62;
 
     public static function form(Form $form): Form
     {

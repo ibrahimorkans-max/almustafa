@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Security\MaintenanceService;
+use App\Http\Controllers\FirebaseServiceWorkerController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\SharedDocumentController;
 use App\Http\Controllers\VerifyDocumentController;
@@ -16,6 +17,9 @@ Route::get('/verify', VerifyDocumentController::class)->middleware('throttle:30,
 Route::get('/d/{token}', SharedDocumentController::class)->middleware('throttle:30,1')->name('documents.shared');
 
 // Uptime monitoring: states and ages only, no secrets or versions.
+// Firebase notifications for parties: the service worker must be served from the site root.
+Route::get('/firebase-messaging-sw.js', FirebaseServiceWorkerController::class)->middleware('throttle:60,1')->name('firebase.sw');
+
 Route::get('/health', HealthController::class)->middleware('throttle:60,1')->name('health');
 
 // Secret link given to the Owner who schedules maintenance: keeps working during the window.

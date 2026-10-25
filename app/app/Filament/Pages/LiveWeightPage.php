@@ -20,7 +20,7 @@ class LiveWeightPage extends Page
 
     protected static ?string $slug = 'live-weight';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 20;
 
     protected static string $view = 'filament.pages.live-weight';
 

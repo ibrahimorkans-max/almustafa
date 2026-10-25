@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Masters\PartyResource\Pages;
 
 use App\Filament\Resources\Masters\PartyResource;
+use App\Filament\Support\PartyLogin;
 use Filament\Resources\Pages\EditRecord;
 
 class EditParty extends EditRecord
@@ -13,7 +14,7 @@ class EditParty extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [];
+        return [PartyLogin::action()];
     }
 
     /** @param  array<string, mixed>  $data */

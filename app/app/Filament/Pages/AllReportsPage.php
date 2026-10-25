@@ -21,7 +21,7 @@ class AllReportsPage extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-printer';
 
-    protected static ?string $navigationGroup = 'Administration';
+    protected static ?string $navigationGroup = 'Reports';
 
     protected static ?string $navigationLabel = 'All reports (print in one click)';
 
@@ -29,7 +29,7 @@ class AllReportsPage extends Page
 
     protected static ?string $slug = 'all-reports';
 
-    protected static ?int $navigationSort = 48;
+    protected static ?int $navigationSort = 10;
 
     protected static string $view = 'filament.pages.all-reports';
 

@@ -7,6 +7,7 @@
     simulate REG GROSS TARE      full inbound weighing with the simulated indicator
     gate in|out [--entry ID]     plate read + server decision; opens the barrier only on yes
     manual-open in|out REASON    guard override (recorded and flagged)
+    check                        test everything in order (settings, indicator, ERP, sign-in, live weight) and say what to fix
     live [--simulate KG]         send the indicator reading about once a second for the screens
     ports                        list the COM (serial) ports of this PC
     detect [--port COM3] [--write]   find the indicator's port, speed and format (and write them to agent.toml)
@@ -33,6 +34,7 @@ from .drivers.display import SimulatedDisplay, TcpTextDisplay
 from .drivers.indicator import SerialIndicator, SimulatedIndicator, TcpIndicator, make_parser
 from .gate import GateAgent
 from .gate_control import GateController
+from .doctor import explain, kg_text, reach_server, run_check
 from .live import LiveWeightStreamer
 from . import secrets
 from .queue import LocalStore
@@ -77,8 +79,9 @@ def write_indicator(path: str, block: str) -> None:
     from pathlib import Path
 
     file = Path(path)
-    text = file.read_text(encoding="utf-8") if file.exists() else ""
-    section = re.compile(r"^\[indicator\][^\[]*", re.M)
+    text = file.read_text(encoding="utf-8-sig") if file.exists() else ""
+    # The section runs to the next line that starts a section; a "[" inside a comment does not end it.
+    section = re.compile(r"^\[indicator\][^\n]*\n(?:(?!\[)[^\n]*(?:\n|\Z))*", re.M)
     text = section.sub(lambda _m: block + "\n\n", text, count=1) if section.search(text) else text.rstrip() + "\n\n" + block + "\n"
     file.write_text(text, encoding="utf-8")
 
@@ -88,7 +91,7 @@ def hardware_section(path: str, name: str) -> dict:
     import tomllib
     from pathlib import Path
 
-    return tomllib.loads(Path(path).read_text(encoding="utf-8")).get(name, {}) if Path(path).exists() else {}
+    return tomllib.loads(Path(path).read_text(encoding="utf-8-sig")).get(name, {}) if Path(path).exists() else {}
 
 
 def build_gate(cfg: AgentConfig, store: LocalStore, api: ApiClient, simulated_plate: str | None = None) -> GateController:
@@ -111,9 +114,28 @@ def build_gate(cfg: AgentConfig, store: LocalStore, api: ApiClient, simulated_pl
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Runs a command; any problem is printed as one plain sentence and what to do, not a Python traceback."""
+    for stream in (sys.stdout, sys.stderr):
+        try:  # a Windows console cannot show every character; show "?" rather than fail
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
+    try:
+        return _main(argv)
+    except KeyboardInterrupt:
+        print("\nStopped.")
+        return 130
+    except Exception as e:  # noqa: BLE001 - shown to the operator in plain words
+        print("\n" + str(explain(e)), file=sys.stderr)
+        print("Run  .venv\\Scripts\\ricemill-agent --config agent.toml check  to test every step.", file=sys.stderr)
+        return 1
+
+
+def _main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="ricemill-agent")
     p.add_argument("--config", default="agent.toml")
     sub = p.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("check", help="test every step from the indicator to the Live weight screen")
     sub.add_parser("status")
     sub.add_parser("sync")
     sub.add_parser("new-store-key")
@@ -156,6 +178,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd in ("ports", "detect", "watch", "cameras", "camera-test"):
         return hardware_command(args)
+    if args.cmd == "check":
+        print("Checking every step from the indicator to the Live weight screen...\n")
+        steps = run_check(
+            args.config, load_config=AgentConfig.load,
+            make_api=lambda cfg: ApiClient(cfg.server_url, Credentials(cfg.username, cfg.password, cfg.device_uid, cfg.signing_secret)),
+            make_samples=lambda cfg: build_indicator(cfg).samples(), reach=reach_server,
+        )
+        return 0 if steps and all(s.ok for s in steps) and steps[-1].name == "Live weight" else 1
 
     if args.cmd == "new-store-key":
         print(LocalStore.new_key().decode())
@@ -208,9 +238,10 @@ def main(argv: list[str] | None = None) -> int:
             samples = repeat()
         else:
             samples = build_indicator(cfg).samples()
-        stats = LiveWeightStreamer(samples, api, cfg.scale_id, cfg.resolution_kg).run(args.count)
+        print(f"Live weight for {cfg.server_url} - leave this window open (Ctrl+C stops it).")
+        stats = LiveWeightStreamer(samples, api, cfg.scale_id, cfg.resolution_kg, report=lambda m: print(m, flush=True)).run(args.count)
         print(json.dumps({"readings": stats.readings, "sent": stats.sent, "dropped": stats.dropped, "last_error": stats.last_error}))
-        return 0
+        return 1 if stats.stopped else 0
     if args.cmd == "manual-open":
         build_gate(cfg, store, api).manual_open(args.side, args.reason, args.entry)
         print("barrier opened manually; the event is queued for sync")
@@ -254,7 +285,7 @@ def hardware_command(args) -> int:  # pragma: no cover - needs the machine
         indicator = indicator_from(hardware_section(args.config, "indicator"))
         end = time.monotonic() + args.seconds
         for weight, _ in indicator.samples():
-            print(f"{time.strftime('%H:%M:%S')}  {weight.normalize():>10} kg")
+            print(f"{time.strftime('%H:%M:%S')}  {kg_text(weight):>10} kg")
             if time.monotonic() > end:
                 break
         return 0

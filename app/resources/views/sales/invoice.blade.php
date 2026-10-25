@@ -85,14 +85,24 @@
             <div class="words">{{ $words }}</div>
             <div class="box small">
                 <div class="b">Terms</div>
-                <div>Payment within {{ $bill->bill_date->diffInDays($bill->due_date) }} days of the invoice date, into the mill's bank account only.
-                    Weights are from the mill weighbridge slip quoted above.</div>
+                @if ($brand['invoice_terms'] !== '')
+                    <div>{!! nl2br(e($brand['invoice_terms'])) !!}</div>
+                @else
+                    <div>Payment within {{ $bill->bill_date->diffInDays($bill->due_date) }} days of the invoice date, into the mill's bank account only.
+                        Weights are from the mill weighbridge slip quoted above.</div>
+                @endif
                 @if (! $taxInvoice)
                     <div class="muted" style="margin-top: 3pt;">The seller is not registered for sales tax; no sales tax is charged on this invoice.</div>
                 @elseif ($bill->tax_exempt)
                     <div class="muted" style="margin-top: 3pt;">Supply exempt from sales tax.</div>
                 @endif
             </div>
+            @if ($brand['bank'] !== [])
+                <div class="box small">
+                    <div class="b">Pay into</div>
+                    @foreach ($brand['bank'] as $label => $value)<div>{{ $label }}: <span class="b">{{ $value }}</span></div>@endforeach
+                </div>
+            @endif
         </td>
         <td style="width: 52%; vertical-align: top;">
             <table class="grid" style="margin-top: 0;">

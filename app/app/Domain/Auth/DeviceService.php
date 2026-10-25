@@ -10,10 +10,14 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\Exceptions\AuthenticationFailed;
 use App\Domain\Security\SecurityNotifier;
 use App\Domain\Settings\SettingsService;
+use App\Domain\Tenancy\TenantContext;
 use App\Models\ApprovalRequest;
 use App\Models\AuthSession;
+use App\Models\Customer;
 use App\Models\Device;
+use App\Models\Entity;
 use App\Models\LoginAccount;
+use App\Models\Role;
 use Illuminate\Support\Facades\DB;
 
 final class DeviceService
@@ -206,6 +210,14 @@ final class DeviceService
 
             return;
         }
+        // SaaS: a new customer's first Owner has nobody to approve its first device; the same "installation"
+        // rule, once per customer (until any of its Owners has a trusted device).
+        if (! $hasTrusted && $account->isOwner() && ! $account->isPlatformAdmin() && $account->customerId() !== null
+            && ! $this->ownersApproveDevices($account->customerId())) {
+            $this->trust($device, null, 'customer_first_device');
+
+            return;
+        }
 
         $pending = ApprovalRequest::query()
             ->where('action', TrustDevice::KEY)
@@ -222,5 +234,19 @@ final class DeviceService
         $this->audit->record('auth.login.blocked', $account, meta: ['reason' => 'device_not_trusted', 'device_id' => $device->id]);
 
         throw new AuthenticationFailed(AuthenticationFailed::DEVICE_PENDING_APPROVAL, 'device_not_trusted', 403);
+    }
+
+    /**
+     * Whether the customer's Owners approve new Owner devices: always for the first installation, and for a
+     * customer opened by sign-up or the platform once any of its active Owners has a trusted device.
+     */
+    private function ownersApproveDevices(string $customerId): bool
+    {
+        return app(TenantContext::class)->runAsSystem(fn () => Customer::query()->whereKey($customerId)->whereNull('source')->exists()   // the first installation: Owners approve
+            || Device::query()->whereNotNull('trusted_at')
+                ->whereIn('login_account_id', LoginAccount::query()->where('status', LoginAccount::STATUS_ACTIVE)
+                    ->whereIn('entity_id', Entity::query()->where('customer_id', $customerId)->select('id'))
+                    ->whereIn('role_id', Role::query()->where('is_super_admin', true)->select('id'))->select('id'))
+                ->exists());
     }
 }

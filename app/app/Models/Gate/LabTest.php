@@ -8,6 +8,7 @@ use App\Domain\Audit\Auditable;
 use App\Domain\Tenancy\BelongsToEntity;
 use App\Support\Eloquent\AppendOnly;
 use App\Support\Eloquent\TracksCreator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -66,6 +67,18 @@ class LabTest extends Model
             'damaged_bp' => 'integer', 'immature_bp' => 'integer', 'chalky_bp' => 'integer',
             'tested_at' => 'datetime', 'created_at' => 'datetime', 'results' => 'array', 'evaluation' => 'array',
         ];
+    }
+
+    /**
+     * Newest result first. Results recorded in the same second are told apart by the correction chain:
+     * the one no later result corrects (supersedes) comes first.
+     *
+     * @param  Builder<static>  $query
+     */
+    public function scopeLatestFirst(Builder $query): void
+    {
+        $query->orderByDesc('tested_at')
+            ->orderByRaw('(select count(*) from lab_tests later where later.supersedes_id = lab_tests.id) asc');
     }
 
     /** @return array<string, int> parameter => basis points, only measured ones (the configured lab tests and the older fixed columns) */

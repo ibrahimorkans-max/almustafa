@@ -1,12 +1,15 @@
 /*
  * After sign-in, asks the browser for its exact position (GPS on phones, Wi-Fi elsewhere; the browser
- * shows its own permission prompt, refusing is fine) and attaches it to this session, so Security →
- * Sessions shows the area, city, region and country where the person really is, not only the city of
- * the IP address. Sent once when a page opens and again every 15 minutes while the page stays open.
+ * shows its own permission prompt) and attaches it to this session, so Security → Sessions shows the
+ * area, city, region and country where the person really is, not only the city of the IP address. Sent
+ * once when a page opens and again every 10 minutes while the page stays open.
+ *
+ * For a mill with "Only inside the mill" switched on, the position is required: a session that leaves
+ * the mill, or stops sending its position, is ended, and the page goes back to sign-in.
  */
 (function () {
     const key = 'rm_session_location_at';
-    const every = 15 * 60 * 1000;
+    const every = 10 * 60 * 1000;
     if (!navigator.geolocation || !window.isSecureContext) return;
     const token = document.querySelector('meta[name="csrf-token"]');
     const url = document.currentScript && document.currentScript.dataset.url;
@@ -25,7 +28,10 @@
                 credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token.content, 'Accept': 'application/json' },
                 body: JSON.stringify({ latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: Math.round(p.coords.accuracy) }),
-            }).catch(() => {}),
+            })
+                .then((r) => r.json())
+                .then((r) => { if (r && r.signed_out) window.location.reload(); })
+                .catch(() => {}),
             () => {},
             { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 },
         );

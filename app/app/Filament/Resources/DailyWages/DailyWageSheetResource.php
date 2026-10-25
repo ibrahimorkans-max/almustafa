@@ -55,7 +55,7 @@ class DailyWageSheetResource extends Resource
 
     protected static ?string $slug = 'daily-wages';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 10;
 
     public const PAY = ['draft' => 'Save as draft (book later)', 'cash' => 'Paid now in cash', 'bank' => 'Paid now from the bank', 'later' => 'Book now, pay later'];
 

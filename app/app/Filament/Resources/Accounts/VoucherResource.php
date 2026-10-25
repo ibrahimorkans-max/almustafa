@@ -35,7 +35,7 @@ class VoucherResource extends Resource
 
     protected static ?string $slug = 'vouchers';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 40;
 
     /** @var array<string, string> */
     public const TYPE_LABELS = [

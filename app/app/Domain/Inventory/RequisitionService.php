@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Inventory;
 
+use App\Domain\Approvals\SelfApproval;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
 use App\Domain\Production\ProductionService;
@@ -167,7 +168,7 @@ final class RequisitionService
         $makerPerson = $requisition->created_by
             ? LoginAccount::query()->whereKey($requisition->created_by)->value('person_id')
             : null;
-        if ($makerPerson !== null && $makerPerson === $this->actor->personId()) {
+        if ($makerPerson !== null && $makerPerson === $this->actor->personId() && ! SelfApproval::allowed($this->actor->account())) {
             throw new BusinessRuleViolation('The requester cannot approve their own requisition.');
         }
     }

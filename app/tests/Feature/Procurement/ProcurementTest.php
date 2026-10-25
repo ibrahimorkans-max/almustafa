@@ -136,7 +136,7 @@ describe('sauda lifecycle', function () {
     it('timestamps every transition with the actor', function () {
         $this->f->as($this->f->owner2);
         app(SaudaService::class)->approve($this->sauda);
-        $events = SaudaEvent::query()->where('sauda_id', $this->sauda->id)->orderBy('occurred_at')->get();
+        $events = SaudaEvent::query()->where('sauda_id', $this->sauda->id)->orderBy('occurred_at')->orderBy('id')->get();   // ids are time-ordered: the tie-breaker within a second
 
         expect($events->pluck('event')->all())->toBe(['created', 'submitted', 'approved'])
             ->and($events->last()->actor_login_account_id)->toBe($this->f->owner2->id)

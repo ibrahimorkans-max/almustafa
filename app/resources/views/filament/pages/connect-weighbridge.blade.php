@@ -171,6 +171,7 @@
     <x-filament::section collapsible collapsed>
         <x-slot name="heading">If something is wrong</x-slot>
         <ul class="list-disc space-y-1 pl-5 text-sm">
+            <li><strong>First</strong>: on the weighbridge PC run <code>.venv\Scriptsicemill-agent --config agent.toml check</code>. It tests every step in order and says in plain words what is wrong and what to do.</li>
             <li><strong>No signal</strong>: is the agent running (live)? Is the PC online, the cable in, the indicator on?</li>
             <li><strong>detect finds nothing</strong>: continuous output is off, wrong cable (try null-modem), or another program uses the COM port.</li>
             <li><strong>Wrong numbers</strong> (×1000, missing digits): run detect again with a weight on; for unusual indicators set frame_pattern in agent.toml.</li>

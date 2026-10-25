@@ -21,3 +21,7 @@ __pycache__/
 agent/agent.toml
 *.sqlite3
 *.sqlite3-*
+
+# never commit: a stray copy of demo passwords outside app/, and built agent packages
+/storage/
+*.zip

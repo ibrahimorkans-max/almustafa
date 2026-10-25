@@ -34,7 +34,7 @@ class ConnectWeighbridge extends Page
 
     protected static ?string $slug = 'connect-weighbridge';
 
-    protected static ?int $navigationSort = 31;
+    protected static ?int $navigationSort = 90;
 
     protected static string $view = 'filament.pages.connect-weighbridge';
 
@@ -241,11 +241,12 @@ class ConnectWeighbridge extends Page
                 'title' => 'Test the connection and the live weight', 'device' => 'Weighbridge PC and ERP',
                 'intro' => 'The PC talks to the ERP, and the weight appears on the screens.',
                 'do' => [
+                    'Run check: it tests every step (settings, indicator, ERP, sign-in, live weight) and says in plain words what to fix.',
                     'Run sync: it must finish without an error.',
                     'Run live and open Live weight: the number follows the indicator within a second and shows Stable when it settles.',
                     'Check with a known weight.',
                 ],
-                'commands' => ['.venv\Scripts\ricemill-agent --config agent.toml sync', '.venv\Scripts\ricemill-agent --config agent.toml live'],
+                'commands' => ['.venv\Scripts\ricemill-agent --config agent.toml check', '.venv\Scripts\ricemill-agent --config agent.toml sync', '.venv\Scripts\ricemill-agent --config agent.toml live'],
                 'links' => [['label' => 'Live weight', 'url' => LiveWeightPage::getUrl()]],
                 'auto' => collect($scales)->contains(fn ($s) => $s['live']),
             ],

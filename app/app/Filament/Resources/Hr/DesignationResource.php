@@ -22,7 +22,7 @@ class DesignationResource extends Resource
 
     protected static ?string $navigationGroup = HrScope::GROUP;
 
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 61;
 
     public static function form(Form $form): Form
     {

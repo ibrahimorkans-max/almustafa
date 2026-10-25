@@ -11,6 +11,7 @@ use App\Domain\Gate\VehicleRegister;
 use App\Domain\Security\PanicButton;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Models\Entity;
 use App\Models\Gate\GateEntry;
 use App\Models\LoginAccount;
 use Carbon\CarbonImmutable;
@@ -67,7 +68,25 @@ class ArchiveSearch extends Page
         $today = CarbonImmutable::now('Asia/Karachi');
         $this->from = $today->subYears(2)->startOfYear()->toDateString();
         $this->to = $today->toDateString();
-        $this->retention = app(SettingsService::class)->archiveRetentionMonths();
+        $this->retention = app(SettingsService::class)->archiveRetentionMonths($this->retentionMills()[0] ?? null);
+    }
+
+    /**
+     * The mills a retention change applies to: the platform admin's is every customer's default (none here),
+     * a customer's Owner sets all its own mills, the Office Coordinator its own mill.
+     *
+     * @return list<string>
+     */
+    private function retentionMills(): array
+    {
+        $user = Filament::auth()->user();
+        if (! $user instanceof LoginAccount || $user->isPlatformAdmin()) {
+            return [];
+        }
+
+        return $user->isOwner()
+            ? Entity::query()->orderBy('code')->pluck('id')->all()
+            : [$user->entity_id];
     }
 
     public function search(): void
@@ -96,8 +115,14 @@ class ArchiveSearch extends Page
         abort_unless($this->canSetRetention(), 403);
         $this->validate(['retention' => ['required', 'integer', 'in:'.implode(',', SettingsService::ARCHIVE_RETENTION_CHOICES)]]);
         $settings = app(SettingsService::class);
-        $before = $settings->archiveRetentionMonths();
-        $settings->put(SettingsService::ARCHIVE_RETENTION, $this->retention, null);
+        $mills = $this->retentionMills();
+        $before = $settings->archiveRetentionMonths($mills[0] ?? null);
+        if ($mills === []) {
+            $settings->put(SettingsService::ARCHIVE_RETENTION, $this->retention, null);   // the platform's default
+        }
+        foreach ($mills as $mill) {
+            $settings->put(SettingsService::ARCHIVE_RETENTION, $this->retention, $mill);
+        }
         app(AuditLogger::class)->record('settings.archive_retention_changed', null, ['months' => $before], ['months' => $this->retention]);
         Notification::make()->title("Saved: closed records move here {$this->retention} months after closing, from the next monthly run.")->success()->send();
     }

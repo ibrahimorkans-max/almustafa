@@ -33,7 +33,7 @@ class ScaleResource extends Resource
 
     protected static ?string $slug = 'weighbridges';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 80;
 
     public static function form(Form $form): Form
     {

@@ -30,7 +30,7 @@ class AlertResource extends Resource
 
     protected static ?string $navigationLabel = 'Alerts';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 60;
 
     /**
      * Each person sees only the alerts raised for permissions they hold.

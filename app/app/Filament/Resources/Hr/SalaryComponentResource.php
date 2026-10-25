@@ -28,7 +28,7 @@ class SalaryComponentResource extends Resource
 
     protected static ?string $modelLabel = 'pay head';
 
-    protected static ?int $navigationSort = 40;
+    protected static ?int $navigationSort = 70;
 
     public static function form(Form $form): Form
     {

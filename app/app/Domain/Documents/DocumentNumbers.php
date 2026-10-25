@@ -105,6 +105,34 @@ final class DocumentNumbers
         });
     }
 
+    /**
+     * A plain number that starts again every day (the gate token): 1, 2, 3 … in strict order, never the
+     * same twice, even when two vehicles arrive at the same moment (the day's counter row is locked).
+     * `startAfter` gives the first number of a day already in use (numbers issued before this counter).
+     *
+     * @param  string  $day  Y-m-d (Pakistan date)
+     * @param  (callable(): int)|null  $startAfter
+     */
+    public function nextDaily(string $series, string $day, ?callable $startAfter = null): int
+    {
+        $entityId = $this->tenant->requireEntityId();
+        $key = CarbonImmutable::parse($day)->format('ymd');   // fits the 7-character period column
+
+        return DB::transaction(function () use ($entityId, $series, $key, $startAfter): int {
+            $query = fn () => DB::table('document_sequences')
+                ->where('entity_id', $entityId)->where('series', $series)->where('financial_year', $key);
+            if (! $query()->exists()) {
+                DB::table('document_sequences')->insertOrIgnore([
+                    'entity_id' => $entityId, 'series' => $series, 'financial_year' => $key, 'last_number' => $startAfter !== null ? $startAfter() : 0,
+                ]);
+            }
+            $number = (int) $query()->lockForUpdate()->value('last_number') + 1;
+            $query()->update(['last_number' => $number]);
+
+            return $number;
+        });
+    }
+
     /** "2026-27" for any date from 1 Apr 2026 to 31 Mar 2027 (Indian time). */
     public static function financialYear(CarbonInterface $date): string
     {

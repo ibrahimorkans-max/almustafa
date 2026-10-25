@@ -6,6 +6,8 @@ namespace App\Filament\Pages;
 
 use App\Domain\Approvals\Actions\TrustDevice;
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Auth\ActorContext;
+use App\Domain\Security\SignInArea;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Tenancy\TenantContext;
 use App\Filament\Resources\ApprovalRequestResource;
@@ -13,6 +15,7 @@ use App\Models\ApprovalRequest;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
@@ -40,7 +43,7 @@ class SignInRules extends Page implements HasForms
 
     protected static ?string $slug = 'sign-in-rules';
 
-    protected static ?int $navigationSort = 29;
+    protected static ?int $navigationSort = 40;
 
     protected static string $view = 'filament.pages.sign-in-rules';
 
@@ -70,7 +73,8 @@ class SignInRules extends Page implements HasForms
         if (! $this->millChosen()) {
             return;
         }
-        $this->form->fill(['trusted_devices' => app(SettingsService::class)->trustedDevicesMode(app(TenantContext::class)->entityId())]);
+        $entityId = (string) app(TenantContext::class)->entityId();
+        $this->form->fill(['trusted_devices' => app(SettingsService::class)->trustedDevicesMode($entityId), 'sign_in_area' => app(SignInArea::class)->isOn($entityId)]);
     }
 
     public function form(Form $form): Form
@@ -87,7 +91,18 @@ class SignInRules extends Page implements HasForms
                     'selected' => 'For example only the Super Admin, accountant and HR.',
                     'off' => 'Not recommended once the mill is live.',
                 ]),
+            Toggle::make('sign_in_area')->label('Only inside the mill')
+                ->helperText(fn () => 'Nobody of this mill can sign in, or stay signed in, unless their phone or computer is inside one of the mill\'s sites (HR → Sites: '
+                    .$this->siteSummary().'). Location must be allowed in the browser and the app. A session that leaves the mill is ended.'),
         ]);
+    }
+
+    /** The mill's sites with a position, for the help text. */
+    public function siteSummary(): string
+    {
+        $sites = app(SignInArea::class)->sites([(string) app(TenantContext::class)->entityId()]);
+
+        return $sites->isEmpty() ? 'none yet: add one first' : $sites->map(fn ($s) => $s->name.', '.$s->radius_m.' m')->implode('; ');
     }
 
     public function pendingDevices(): int
@@ -104,10 +119,32 @@ class SignInRules extends Page implements HasForms
     {
         abort_unless(static::canAccess() && $this->millChosen(), 403);
         $entityId = (string) app(TenantContext::class)->entityId();
-        $mode = (string) $this->form->getState()['trusted_devices'];
+        $state = $this->form->getState();
+        $mode = (string) $state['trusted_devices'];
+        $area = app(SignInArea::class);
+        $areaOn = (bool) ($state['sign_in_area'] ?? false);
+        if ($areaOn && ! $area->isOn($entityId)) {
+            // Never lock the mill out by mistake: a site to be inside, and the person switching it on inside it now.
+            $session = app(ActorContext::class)->session();
+            $fresh = $session?->location_at !== null && $session->location_at->gt(now()->subMinutes(SignInArea::STALE_MINUTES));
+            $error = match (true) {
+                $area->sites([$entityId])->isEmpty() => 'Add the mill\'s site first (HR → Sites: its position and radius).',
+                ! $fresh => 'Allow location in this browser (and reload the page) so we can check you are at the mill before switching this on.',
+                ! $area->inside([$entityId], (float) $session->latitude, (float) $session->longitude, $session->location_accuracy_m) => 'Switch this on from inside the mill: you are outside its sites now.',
+                default => null,
+            };
+            if ($error !== null) {
+                Notification::make()->title($error)->danger()->persistent()->send();
+
+                return;
+            }
+        }
         $before = app(SettingsService::class)->trustedDevicesMode($entityId);
+        $areaBefore = $area->isOn($entityId);
         app(SettingsService::class)->put(SettingsService::TRUSTED_DEVICES, $mode, $entityId);
-        app(AuditLogger::class)->record('security.sign_in_rules_changed', null, meta: ['trusted_devices' => ['from' => $before, 'to' => $mode]]);
+        app(SettingsService::class)->put(SettingsService::SIGN_IN_AREA, $areaOn ? 'on' : 'off', $entityId);
+        app(AuditLogger::class)->record('security.sign_in_rules_changed', null, meta: ['trusted_devices' => ['from' => $before, 'to' => $mode],
+            'only_inside_the_mill' => ['from' => $areaBefore, 'to' => $areaOn]]);
         Notification::make()->title('Sign-in rules saved. They apply from the next sign-in.')->success()->send();
     }
 }

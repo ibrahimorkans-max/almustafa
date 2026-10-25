@@ -2,7 +2,9 @@
 
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
 use App\Domain\Auth\Exceptions\AuthenticationFailed;
+use App\Domain\Saas\CustomerAccess;
 use App\Domain\Security\MaintenanceService;
+use App\Domain\Security\SignInArea;
 use App\Domain\Tenancy\Exceptions\CrossEntityWrite;
 use App\Domain\Tenancy\Exceptions\MissingTenantContext;
 use App\Http\Middleware\CaptureClientContext;
@@ -52,6 +54,8 @@ return Application::configure(basePath: dirname(__DIR__))
             $message = match ($reason) {
                 'access_disabled' => 'Access disabled, contact your administrator.',
                 'system_locked' => 'System locked by administrator.',
+                'subscription_ended' => app(CustomerAccess::class)->message($request->attributes->get('auth_failure_detail')),
+                'outside_area' => SignInArea::message((string) $request->attributes->get('auth_failure_detail')),
                 'device_revoked' => 'This device is no longer allowed. Contact your administrator.',
                 default => 'Your session has ended. Please sign in again.',
             };

@@ -9,9 +9,9 @@
     table { border-collapse: collapse; width: 100%; }
 </style>
 <div @if ($p->rtl()) dir="rtl" @endif>
-    <div style="text-align: center;"><img src="{{ $brand['emblem'] }}" style="height: 12mm;" alt=""></div>
+    @if ($brand['emblem'])<div style="text-align: center;"><img src="{{ $brand['emblem'] }}" style="max-height: 12mm; max-width: 30mm;" alt=""></div>@endif
     <div style="text-align: center; font-weight: bold; font-size: 115%;">{{ $brand['name'] }}</div>
-    <div style="text-align: center; font-family: lateef; font-size: 130%;">{{ $brand['name_ur'] }}</div>
+    @if ($brand['name_ur'] !== '')<div style="text-align: center; font-family: lateef; font-size: 130%;">{{ $brand['name_ur'] }}</div>@endif
     <div style="text-align: center; font-size: 85%;">{{ $brand['address'] }} · {{ $brand['phone'] }}</div>
     <div style="text-align: center; font-weight: bold; border-top: 0.6pt solid #000; border-bottom: 0.6pt solid #000; margin: 2pt 0; padding: 1pt 0;">{{ $p->title($doc['title']) }}</div>
     @if ($watermark)

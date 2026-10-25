@@ -7,7 +7,7 @@ import unittest
 from decimal import Decimal
 from pathlib import Path
 
-from ricemill_agent.cli import camera_from, write_indicator
+from ricemill_agent.cli import camera_from, hardware_section, write_indicator
 from ricemill_agent.detect import analyse, detect
 from ricemill_agent.drivers.camera import FfmpegCamera, parse_dshow_devices
 from ricemill_agent.drivers.indicator import ReversedDigitsParser, make_parser, split_frames
@@ -69,6 +69,31 @@ class DetectTest(unittest.TestCase):
             self.assertIn('port = "COM3"', text)
             self.assertNotIn('type = "simulated"', text)
             self.assertIn('[camera]\ntype = "none"', text)
+
+    def test_reads_agent_toml_saved_with_a_byte_order_mark(self) -> None:
+        # Windows PowerShell 5.1 writes "UTF8" with a BOM; the agent must still read the file.
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "agent.toml"
+            path.write_bytes(b'\xef\xbb\xbf[indicator]\ntype = "serial"\nport = "COM1"\nbaudrate = 2400\n')
+            self.assertEqual(hardware_section(str(path), "indicator")["port"], "COM1")
+            write_indicator(str(path), '[indicator]\ntype = "serial"\nport = "COM1"\nbaudrate = 2400\nformat = "reversed"')
+            self.assertFalse(path.read_bytes().startswith(b"\xef\xbb\xbf"))
+            self.assertEqual(hardware_section(str(path), "indicator")["format"], "reversed")
+
+    def test_replaces_the_whole_example_indicator_section(self) -> None:
+        # The example's [indicator] comments contain "[" (frame_pattern); all of it must go, nothing left behind.
+        example = Path(__file__).resolve().parent.parent / "agent.example.toml"
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "agent.toml"
+            path.write_text(example.read_text(encoding="utf-8"), encoding="utf-8")
+            write_indicator(str(path), '[indicator]\ntype = "serial"\nport = "COM1"\nbaudrate = 2400\nformat = "reversed"')
+            text = path.read_text(encoding="utf-8")
+            import tomllib
+
+            data = tomllib.loads(text)
+            self.assertEqual(data["indicator"], {"type": "serial", "port": "COM1", "baudrate": 2400, "format": "reversed"})
+            self.assertIn("camera", data)
+            self.assertNotIn("frame_pattern", text.split("[camera]")[0])
 
 
 class CameraTest(unittest.TestCase):

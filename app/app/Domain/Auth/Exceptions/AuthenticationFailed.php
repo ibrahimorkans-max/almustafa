@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Auth\Exceptions;
 
+use App\Domain\Saas\CustomerAccess;
+use App\Domain\Security\SignInArea;
 use RuntimeException;
 
 /**
@@ -27,6 +29,12 @@ final class AuthenticationFailed extends RuntimeException
     public const ACCESS_DISABLED = 'access_disabled';
 
     public const SYSTEM_LOCKED = 'system_locked';
+
+    /** The customer's trial is over, or its access paused or closed (SaaS); the message says which. */
+    public const SUBSCRIPTION_ENDED = 'subscription_ended';
+
+    /** The mill allows sign-in only inside its premises (SignInArea); the reason says which: no position, or outside. */
+    public const OUTSIDE_AREA = 'outside_area';
 
     /** Neutral ending (used for the duress PIN): says nothing about why. */
     public const SIGNED_OUT = 'signed_out';
@@ -54,6 +62,8 @@ final class AuthenticationFailed extends RuntimeException
             self::SESSION_INVALID => 'Your session has ended. Please sign in again.',
             self::ACCESS_DISABLED => 'Access disabled, contact your administrator.',
             self::SYSTEM_LOCKED => 'System locked by administrator.',
+            self::SUBSCRIPTION_ENDED => app(CustomerAccess::class)->message($this->reason),
+            self::OUTSIDE_AREA => SignInArea::message($this->reason),
             self::SIGNED_OUT => 'Signed out. Please try again later.',
             default => 'These credentials do not match our records, or the account is locked.',
         };
