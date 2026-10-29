@@ -91,6 +91,7 @@ it('shows archived records by period on the Archive screen, in full, and restore
         ->set('type', 'gate_entry')->call('search')
         ->callAction('restorePeriod', ['reason' => 'Needed again for the buyer dispute'])->assertNotified('1 record(s) restored');
     expect(Make::system(fn () => $this->archived->fresh()->archived_at))->toBeNull();
+    arcSignIn($this, $this->admin);   // back on the working screens
     Livewire::test(ListGateEntries::class)->set('tableFilters.open.value', 'all')->assertCanSeeTableRecords([$this->archived->fresh()]);
 });
 

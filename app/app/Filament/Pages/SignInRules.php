@@ -113,6 +113,7 @@ class SignInRules extends Page implements HasForms
             Toggle::make('record_location')->label('Record location with entries')
                 ->helperText('Gate entries, paddy stock entries, expenses and roznamcha pages keep where the phone or computer was, when its browser is allowed to share it. Nothing is recorded when location is refused.'),
             Select::make('retention')->label('Closed records leave the working screens after')->visible(fn () => self::ownsRetention())
+                ->in(SettingsService::ARCHIVE_RETENTION_CHOICES)
                 ->options(array_combine(SettingsService::ARCHIVE_RETENTION_CHOICES, array_map(fn (int $m) => $m.' months', SettingsService::ARCHIVE_RETENTION_CHOICES)))
                 ->helperText('For all your mills. They go to the Office Coordinator\'s Office Desk at the next monthly run, where they can be read and restored.'),
         ]);
