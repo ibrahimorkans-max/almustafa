@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Access\PermissionCatalog;
 use App\Domain\Access\RoleTemplates;
 use App\Domain\Auth\AuthContextBinder;
+use App\Filament\Pages\ArchiveSearch;
 use App\Filament\Pages\MyDocumentsPage;
 use App\Filament\Pages\PartyPortalPage;
 use App\Filament\Pages\PaymentRequiredPage;
@@ -51,8 +52,9 @@ function adminUrls(LoginAccount $sa, ?string $workingEntity): array
             }
         }
     }
-    // Own-records pages (an employee's documents, a party's account) and the platform admin's pages.
-    foreach (array_filter(array_diff(Filament::getPanel('admin')->getPages(), [MyDocumentsPage::class, PartyPortalPage::class, SecuritySettings::class, PaymentRequiredPage::class]), fn (string $p) => ! str_contains($p, '\\Platform\\')) as $page) {
+    // Own-records pages (an employee's documents, a party's account), the Office Desk (the Office Coordinator's alone:
+    // its 403 for everyone else is tested in ArchiveScreenTest) and the platform admin's pages.
+    foreach (array_filter(array_diff(Filament::getPanel('admin')->getPages(), [MyDocumentsPage::class, PartyPortalPage::class, SecuritySettings::class, PaymentRequiredPage::class, ArchiveSearch::class]), fn (string $p) => ! str_contains($p, '\\Platform\\')) as $page) {
         $urls[$page::getUrl()] = 'page';
     }
     Make::reset();
@@ -60,10 +62,10 @@ function adminUrls(LoginAccount $sa, ?string $workingEntity): array
     return $urls;
 }
 
-it('holds every catalogued permission except the "own records only" narrowing ones', function () {
+it('holds every catalogued permission except the "own records only" narrowing ones and the Office Desk', function () {
     $missing = array_values(array_diff(PermissionCatalog::codes(), Make::system(fn () => $this->sa->fresh()->permissionCodes())));
     sort($missing);
-    expect($missing)->toBe(['commission.view_own', 'deal.view_own', 'portal.view_own'])
+    expect($missing)->toBe(['commission.view_own', 'deal.view_own', 'office.restore', 'office.view', 'portal.view_own'])
         ->and(RoleTemplates::get(RoleTemplates::OWNER)['permissions'])->not->toContain('deal.view_own')->not->toContain('portal.view_own');
 });
 

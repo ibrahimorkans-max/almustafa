@@ -254,10 +254,10 @@ describe('sessions', function () {
 });
 
 describe('owner rights', function () {
-    it('gives the owner every mill permission, including any added later, but not other firms or the narrowing ones', function () {
+    it('gives the owner every mill permission, including any added later, but not other firms, the narrowing ones or the Office Desk', function () {
         $missing = array_values(array_diff(PermissionCatalog::codes(), RoleTemplates::get(RoleTemplates::SUPER_ADMIN)['permissions']));
         sort($missing);
-        expect($missing)->toBe(['commission.view_own', 'deal.view_own', 'entity.manage', 'portal.view_own']);
+        expect($missing)->toBe(['commission.view_own', 'deal.view_own', 'entity.manage', 'office.restore', 'office.view', 'portal.view_own']);
     });
 
     it('lets the owner edit the own mill details but not its status, nor another firm', function () {

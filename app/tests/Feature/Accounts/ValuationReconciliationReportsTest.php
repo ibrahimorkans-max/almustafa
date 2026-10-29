@@ -21,6 +21,8 @@ use Tests\Support\AccountsFixtures;
 use Tests\Support\Make;
 
 beforeEach(function () {
+    // Pakistan dates against now(): at midday both clocks give the same day, whenever the tests are started.
+    $this->travelTo(now('Asia/Karachi')->setTime(12, 0));
     $this->f = new AccountsFixtures(Make::entity('VRR'));
     $this->entry = $this->f->receiveLot();
     $this->f->as($this->f->accountant);
