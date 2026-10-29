@@ -208,6 +208,8 @@ describe('archive', function () {
             ->and(GateEntry::query()->count())->toBe(2)
             ->and(Make::system(fn () => AuditLog::query()->where('action', 'archive.run')->exists()))->toBeTrue(); // global chain: the run spans all mills
 
+        // Reading and restoring archived records is the Office Coordinator's.
+        $this->f->as(Make::account($this->f->entity, 'OFFICE_COORDINATOR'));
         $found = $archive->search('mna21');
         expect($found)->toHaveCount(1)->and($found[0])->toMatchArray(['type' => 'gate_entry', 'id' => $this->old->id]);
 
