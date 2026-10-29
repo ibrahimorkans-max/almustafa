@@ -5,6 +5,7 @@
 @auth('web')
     <script src="{{ asset('js/sidebar-keep-open.js') }}?v=1"></script>
     <script src="{{ asset('js/print-frame.js') }}?v=1"></script>
+    <script src="{{ asset('js/live-weight.js') }}?v=1"></script>
 @endauth
 <script src="{{ asset('js/page-expiry.js') }}?v=2" data-token-url="{{ auth('web')->check() ? route('filament.admin.csrf-token') : '' }}"></script>
 @if (auth('web')->check() && app(\App\Domain\Settings\SettingsService::class)->screenGuard(app(\App\Domain\Tenancy\TenantContext::class)->entityId())['on'])

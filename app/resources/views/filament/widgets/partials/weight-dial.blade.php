@@ -4,6 +4,7 @@
      - the ring and the lamp are green when stable, amber while moving, grey without a signal (with how long ago);
      - the exact weight is in the digital window under the needle, the maund below it.
     Params: $kg (float|null), $capacity (float), $live (bool), $stable (bool), $code, $name (string), $age (int|null seconds)
+    The parts marked data-lw are kept current in the browser (public/js/live-weight.js), without redrawing the page.
 --}}
 @php
     $capacity = max(1.0, (float) $capacity);
@@ -26,7 +27,7 @@
 <svg viewBox="0 0 240 240" role="img" style="width: 100%; max-width: 240px; height: auto; display: block; margin: 0 auto;"
     aria-label="{{ $name }}: {{ $kg === null ? 'no reading' : number_format((float) $kg, 0).' kg' }}, {{ strtolower($status) }}">
     {{-- Bezel (status colour) and face --}}
-    <circle cx="{{ $c }}" cy="{{ $c }}" r="116" style="fill: rgb(var({{ $tone }})); transition: fill .4s;"/>
+    <circle data-lw="bezel" cx="{{ $c }}" cy="{{ $c }}" r="116" style="fill: rgb(var({{ $tone }})); transition: fill .4s;"/>
     <circle cx="{{ $c }}" cy="{{ $c }}" r="109" style="fill: #fbfbf8; stroke: rgb(var(--gray-300)); stroke-width: 1;"/>
 
     {{-- Marks and tonnes --}}
@@ -46,18 +47,18 @@
 
     {{-- Weighbridge and status, on the face --}}
     <text x="{{ $c }}" y="62" text-anchor="middle" style="font: 600 8.5px sans-serif; letter-spacing: .8px; fill: #6b7280;">{{ strtoupper($code) }} · {{ $tonnes ? 'TONNES' : 'KG' }}</text>
-    <circle cx="{{ $statusStart - 9 }}" cy="209.5" r="4.2" style="fill: rgb(var({{ $tone }}));"/>
-    <text x="{{ $statusStart }}" y="213" style="font: 700 9.5px sans-serif; letter-spacing: .6px; fill: rgb(var({{ $tone === '--gray-400' ? '--gray-500' : $tone }}));">{{ $status }}</text>
+    <circle data-lw="lamp" cx="{{ $statusStart - 9 }}" cy="209.5" r="4.2" style="fill: rgb(var({{ $tone }}));"/>
+    <text data-lw="status" x="{{ $statusStart }}" y="213" style="font: 700 9.5px sans-serif; letter-spacing: .6px; fill: rgb(var({{ $tone === '--gray-400' ? '--gray-500' : $tone }}));">{{ $status }}</text>
 
     {{-- Digital window: the exact weight --}}
     <rect x="{{ $c - 46 }}" y="150" width="92" height="30" rx="5" style="fill: #111827;"/>
-    <text x="{{ $c + 28 }}" y="171.5" text-anchor="end"
+    <text data-lw="figure" x="{{ $c + 28 }}" y="171.5" text-anchor="end"
         style="font: 700 18px ui-monospace, Menlo, Consolas, monospace; fill: {{ $live ? '#4ade80' : '#6b7280' }};">{{ $figure }}</text>
     <text x="{{ $c + 42 }}" y="171" text-anchor="end" style="font: 600 9px sans-serif; fill: #9ca3af;">kg</text>
-    <text x="{{ $c }}" y="194" text-anchor="middle" style="font: 600 10px sans-serif; fill: #4b5563;">{{ $kg !== null ? number_format((float) $kg / 40, 2).' maund' : 'no reading yet' }}</text>
+    <text data-lw="maund" x="{{ $c }}" y="194" text-anchor="middle" style="font: 600 10px sans-serif; fill: #4b5563;">{{ $kg !== null ? number_format((float) $kg / 40, 2).' maund' : 'no reading yet' }}</text>
 
     {{-- Needle: glides to the reading --}}
-    <g style="transform: rotate({{ $needle }}deg); transform-origin: {{ $c }}px {{ $c }}px; transition: transform .9s cubic-bezier(.2,.8,.2,1);">
+    <g data-lw="needle" style="transform: rotate({{ $needle }}deg); transform-origin: {{ $c }}px {{ $c }}px; transition: transform .9s cubic-bezier(.2,.8,.2,1);">
         <polygon points="{{ $c }},26 {{ $c + 4 }},{{ $c + 4 }} {{ $c - 4 }},{{ $c + 4 }}" style="fill: #dc2626;"/>
         <polygon points="{{ $c - 3.5 }},{{ $c + 4 }} {{ $c + 3.5 }},{{ $c + 4 }} {{ $c + 2 }},{{ $c + 18 }} {{ $c - 2 }},{{ $c + 18 }}" style="fill: #1f2937;"/>
     </g>
