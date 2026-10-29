@@ -29,6 +29,8 @@ use Tests\Support\Make;
  * with entries, export rights and watermarks, and the product owner's data visibility windows.
  */
 beforeEach(function () {
+    // Pakistan dates against now(): at midday both clocks give the same day, whenever the tests are started.
+    $this->travelTo(now('Asia/Karachi')->setTime(12, 0));
     $this->f = new GateFixtures(Make::entity('PH4'));
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     $this->customerId = $this->f->entity->customer_id;

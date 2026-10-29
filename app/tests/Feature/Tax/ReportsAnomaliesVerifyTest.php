@@ -20,6 +20,8 @@ use Tests\Support\Make;
 use Tests\Support\SalesFixtures;
 
 beforeEach(function () {
+    // Pakistan dates against now(): at midday both clocks give the same day, whenever the tests are started.
+    $this->travelTo(now('Asia/Karachi')->setTime(12, 0));
     $this->f = new SalesFixtures(Make::entity('RAV'));
 });
 

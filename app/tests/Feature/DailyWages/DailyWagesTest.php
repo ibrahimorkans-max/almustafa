@@ -29,6 +29,8 @@ use Livewire\Livewire;
 use Tests\Support\Make;
 
 beforeEach(function () {
+    // Pakistan dates against now(): at midday both clocks give the same day, whenever the tests are started.
+    $this->travelTo(now('Asia/Karachi')->setTime(12, 0));
     $this->entity = Make::entity('AMR');
     $this->seed(DemoMastersSeeder::class);
     $this->seed(DemoActivitySeeder::class);
