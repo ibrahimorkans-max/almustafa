@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Reports;
 
+use App\Domain\Saas\DataVisibility;
 use App\Models\Accounts\LedgerAccount;
 use App\Models\Accounts\VoucherLine;
 use App\Support\Values\Money;
@@ -24,6 +25,7 @@ final class CashBankBooks
      */
     public function build(string $kind, CarbonImmutable $from, CarbonImmutable $to): array
     {
+        $from = DataVisibility::clampDate($from, 'accounts');
         $span = $from->isSameDay($to) ? $from->format('d M Y') : $from->format('d M Y').' – '.$to->format('d M Y');
         $book = $kind === 'cash' ? 'Cash book' : 'Bank book';
         $parts = [];

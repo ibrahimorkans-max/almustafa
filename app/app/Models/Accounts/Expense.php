@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Accounts;
 
 use App\Domain\Audit\Auditable;
+use App\Domain\Security\RecordsEntryLocation;
 use App\Domain\Tenancy\BelongsToEntity;
 use App\Models\Gate\GateEntry;
 use App\Models\Masters\Party;
@@ -46,6 +47,7 @@ use Illuminate\Support\Carbon;
  * @property-read Party|null $party
  * @property-read StoredFile|null $receipt
  * @property-read Voucher|null $voucher
+ * @property array{lat: float, lng: float, accuracy_m: int|null, at: string}|null $captured_location where it was entered (EntryLocation)
  */
 class Expense extends Model
 {
@@ -53,6 +55,7 @@ class Expense extends Model
     use BelongsToEntity;
     use HasOptimisticLock;
     use HasUuids;
+    use RecordsEntryLocation;
     use TracksCreator;
 
     public const DRAFT = 'draft';

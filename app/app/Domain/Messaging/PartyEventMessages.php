@@ -78,7 +78,7 @@ final class PartyEventMessages
         }
         $text = MessageText::make($this->messenger->millName($entry->entity_id), 'Your vehicle was unloaded at the mill', array_values(array_filter([
             ['Vehicle', $entry->vehicleLabel(), true],
-            $entry->token_no !== null ? ['Token', (string) $entry->token_no, true] : null,
+            $entry->token_no !== null || $entry->token_serial !== null ? ['Token', $entry->tokenLabel(), true] : null,
             ['Item', $entry->itemLabel()],
             $entry->gross_kg !== null ? ['Loaded weight', self::kg($entry->gross_kg), true] : null,
             ['Time', now('Asia/Karachi')->format('d M Y, h:i A')],

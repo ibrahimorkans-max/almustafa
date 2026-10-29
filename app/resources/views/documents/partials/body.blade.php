@@ -11,7 +11,7 @@
     $accent = $minimal ? '#333333' : $brand['green'];
     $fields = $doc['fields'] ?? [];
     $tables = $doc['tables'] ?? [];
-    $pairs = $tight || $paper === 'a4_landscape' ? 3 : 2;
+    $pairs = $tight ? 3 : 2;
     $sideBySide = count($tables) === 2 && ($tight || $layout === 'classic');
     $td = 'padding: '.($tight ? '1.2pt 3pt' : '2pt 4pt').'; border-bottom: 0.4pt solid #d5dbe0;';
     $visibleCols = fn (array $t) => array_values(array_filter(array_keys($t['cols']), fn ($i) => $detailed || ! in_array($i, $t['detail'] ?? [], true)));

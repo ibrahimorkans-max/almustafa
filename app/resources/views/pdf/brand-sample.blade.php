@@ -1,5 +1,5 @@
 {{-- Print & branding preview: the letterhead, a table, the invoice terms, the bank, the slip note and the footer, as a real document would show them. --}}
-@php($small = in_array($paper ?? null, ['a6', 'roll', 'roll50'], true))
+@php($small = in_array($paper ?? null, ['a5', 'a6', 'roll', 'roll58', 'roll50'], true))
 <html>
 <head><meta charset="utf-8">@include('pdf.styles')</head>
 <body>

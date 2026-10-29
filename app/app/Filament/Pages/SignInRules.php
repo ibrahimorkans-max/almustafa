@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
+use App\Models\Entity;
 use App\Domain\Approvals\Actions\TrustDevice;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
@@ -15,6 +16,7 @@ use App\Models\ApprovalRequest;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -74,7 +76,18 @@ class SignInRules extends Page implements HasForms
             return;
         }
         $entityId = (string) app(TenantContext::class)->entityId();
-        $this->form->fill(['trusted_devices' => app(SettingsService::class)->trustedDevicesMode($entityId), 'sign_in_area' => app(SignInArea::class)->isOn($entityId)]);
+        $settings = app(SettingsService::class);
+        $this->form->fill(['trusted_devices' => $settings->trustedDevicesMode($entityId), 'sign_in_area' => app(SignInArea::class)->isOn($entityId),
+            'max_devices' => (int) $settings->get(SettingsService::MAX_DEVICES, $entityId), 'record_location' => $settings->get(SettingsService::RECORD_LOCATION, $entityId) === 'on',
+            'retention' => $settings->archiveRetentionMonths($entityId)]);
+    }
+
+    /** The Owner chooses when closed records leave the working screens (for all its mills); the Office Coordinator works with them. */
+    public static function ownsRetention(): bool
+    {
+        $user = Filament::auth()->user();
+
+        return $user instanceof LoginAccount && $user->isOwner() && ! $user->isPlatformAdmin();
     }
 
     public function form(Form $form): Form
@@ -94,6 +107,14 @@ class SignInRules extends Page implements HasForms
             Toggle::make('sign_in_area')->label('Only inside the mill')
                 ->helperText(fn () => 'Nobody of this mill can sign in, or stay signed in, unless their phone or computer is inside one of the mill\'s sites (HR → Sites: '
                     .$this->siteSummary().'). Location must be allowed in the browser and the app. A session that leaves the mill is ended.'),
+            Select::make('max_devices')->label('Devices per person')->required()
+                ->options(array_combine(SettingsService::MAX_DEVICES_CHOICES, array_map(fn (int $n) => $n === 0 ? 'No limit' : $n.($n === 1 ? ' device' : ' devices'), SettingsService::MAX_DEVICES_CHOICES)))
+                ->helperText('A new phone or computer is refused once the person already uses this many. They can remove an old one under Security → My devices. Gate computers are not counted.'),
+            Toggle::make('record_location')->label('Record location with entries')
+                ->helperText('Gate entries, paddy stock entries, expenses and roznamcha pages keep where the phone or computer was, when its browser is allowed to share it. Nothing is recorded when location is refused.'),
+            Select::make('retention')->label('Closed records leave the working screens after')->visible(fn () => self::ownsRetention())
+                ->options(array_combine(SettingsService::ARCHIVE_RETENTION_CHOICES, array_map(fn (int $m) => $m.' months', SettingsService::ARCHIVE_RETENTION_CHOICES)))
+                ->helperText('For all your mills. They go to the Office Coordinator\'s Office Desk at the next monthly run, where they can be read and restored.'),
         ]);
     }
 
@@ -143,8 +164,21 @@ class SignInRules extends Page implements HasForms
         $areaBefore = $area->isOn($entityId);
         app(SettingsService::class)->put(SettingsService::TRUSTED_DEVICES, $mode, $entityId);
         app(SettingsService::class)->put(SettingsService::SIGN_IN_AREA, $areaOn ? 'on' : 'off', $entityId);
+        $devicesBefore = (int) app(SettingsService::class)->get(SettingsService::MAX_DEVICES, $entityId);
+        app(SettingsService::class)->put(SettingsService::MAX_DEVICES, (int) $state['max_devices'], $entityId);
+        app(SettingsService::class)->put(SettingsService::RECORD_LOCATION, ($state['record_location'] ?? false) ? 'on' : 'off', $entityId);
+        if (self::ownsRetention() && isset($state['retention']) && in_array((int) $state['retention'], SettingsService::ARCHIVE_RETENTION_CHOICES, true)) {
+            $before = app(SettingsService::class)->archiveRetentionMonths($entityId);
+            if ($before !== (int) $state['retention']) {
+                foreach (Entity::query()->pluck('id') as $mill) {   // the Owner's mills
+                    app(SettingsService::class)->put(SettingsService::ARCHIVE_RETENTION, (int) $state['retention'], (string) $mill);
+                }
+                app(AuditLogger::class)->record('settings.archive_retention_changed', null, ['months' => $before], ['months' => (int) $state['retention']]);
+            }
+        }
         app(AuditLogger::class)->record('security.sign_in_rules_changed', null, meta: ['trusted_devices' => ['from' => $before, 'to' => $mode],
-            'only_inside_the_mill' => ['from' => $areaBefore, 'to' => $areaOn]]);
+            'only_inside_the_mill' => ['from' => $areaBefore, 'to' => $areaOn],
+            'max_devices' => ['from' => $devicesBefore, 'to' => (int) $state['max_devices']], 'record_location' => (bool) ($state['record_location'] ?? false)]);
         Notification::make()->title('Sign-in rules saved. They apply from the next sign-in.')->success()->send();
     }
 }

@@ -26,6 +26,14 @@ class SalesBillResource extends Resource
 {
     protected static ?string $model = SalesBill::class;
 
+    protected static ?string $recordTitleAttribute = 'number';
+
+    /** Found by the search box in the top bar (partial match, this mill only, and only for people who may open the list). */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['number'];
+    }
+
     protected static ?string $navigationIcon = 'heroicon-o-receipt-percent';
 
     protected static ?string $navigationGroup = 'Sales & dispatch';

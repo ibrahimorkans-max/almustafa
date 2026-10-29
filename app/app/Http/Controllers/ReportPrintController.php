@@ -52,7 +52,7 @@ final class ReportPrintController
             ]);
         }
 
-        return response($catalog->pdf($keys, $from, $to, $options), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="'.$name.'.pdf"']);
+        return response($catalog->pdf($keys, $from, $to, $options), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="'.$name.'.pdf"', 'X-Print-Frame' => '1']);
     }
 
     private static function date(mixed $value): ?CarbonImmutable

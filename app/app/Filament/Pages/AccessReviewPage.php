@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Domain\Security\AccessReview;
+use App\Filament\Support\ExportGuard;
 use App\Models\LoginAccount;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -54,7 +55,7 @@ class AccessReviewPage extends Page
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('csv')->label('Export CSV')->icon('heroicon-o-arrow-down-tray')
+            Action::make('csv')->visible(fn () => ExportGuard::allowed())->label('Export CSV')->icon('heroicon-o-arrow-down-tray')
                 ->action(fn () => response()->streamDownload(
                     fn () => print app(AccessReview::class)->csv(),
                     'access-review-'.now()->timezone('Asia/Karachi')->format('Y-m-d').'.csv',

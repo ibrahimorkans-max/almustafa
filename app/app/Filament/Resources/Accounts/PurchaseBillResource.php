@@ -23,6 +23,14 @@ class PurchaseBillResource extends Resource
 {
     protected static ?string $model = PurchaseBill::class;
 
+    protected static ?string $recordTitleAttribute = 'number';
+
+    /** Found by the search box in the top bar (partial match, this mill only, and only for people who may open the list). */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['number'];
+    }
+
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?string $navigationGroup = 'Accounts';

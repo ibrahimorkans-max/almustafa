@@ -41,6 +41,14 @@ class ProductionBatchResource extends Resource
 
     protected static ?string $model = ProductionBatch::class;
 
+    protected static ?string $recordTitleAttribute = 'number';
+
+    /** Found by the search box in the top bar (partial match, this mill only, and only for people who may open the list). */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['number'];
+    }
+
     protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
 
     protected static ?string $navigationGroup = 'Stock & production';
@@ -132,6 +140,13 @@ class ProductionBatchResource extends Resource
                 TextEntry::make('closed_at')->label('Closed')->dateTime('d M Y H:i')->placeholder('—'),
                 TextEntry::make('input_kg')->label('Paddy in (kg)')->fontFamily('mono'),
                 TextEntry::make('output_kg')->label('Output (kg)')->fontFamily('mono'),
+            ]),
+            Section::make('Input and outputs')->description('Paddy fed = all outputs + processing loss. Recovery = output ÷ paddy fed × 100.')->columns(4)->schema([
+                TextEntry::make('rec_input')->label('Paddy fed (kg)')->fontFamily('mono')->state(fn (ProductionBatch $record) => app(ProductionService::class)->reconciliation($record)['input_kg']),
+                TextEntry::make('rec_output')->label('All outputs (kg)')->fontFamily('mono')->state(fn (ProductionBatch $record) => app(ProductionService::class)->reconciliation($record)['output_kg']),
+                TextEntry::make('rec_loss')->label('Processing loss (kg)')->fontFamily('mono')->weight('bold')
+                    ->state(fn (ProductionBatch $record) => app(ProductionService::class)->reconciliation($record)['loss_kg']),
+                TextEntry::make('rec_loss_pct')->label('Processing loss')->state(fn (ProductionBatch $record) => app(ProductionService::class)->reconciliation($record)['loss_percent']),
             ]),
             Section::make(fn (ProductionBatch $record) => $record->isOpen() ? 'Yield so far' : 'Yield (frozen at close)')->schema([
                 TextEntry::make('unaccounted')->label('Unaccounted (input − all outputs)')

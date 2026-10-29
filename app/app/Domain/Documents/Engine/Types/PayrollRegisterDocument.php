@@ -9,7 +9,7 @@ use App\Models\Hr\PayrollItem;
 use App\Models\Hr\PayrollRun;
 use Illuminate\Database\Eloquent\Model;
 
-/** The payroll register: every employee of the month on one sheet, with the run's totals. A4 landscape. */
+/** The payroll register: every employee of the month on one sheet, with the run's totals. A4 portrait, the table shrunk to fit. */
 final class PayrollRegisterDocument extends BaseDocument
 {
     public function key(): string
@@ -51,7 +51,7 @@ final class PayrollRegisterDocument extends BaseDocument
 
     public function defaultPaper(): string
     {
-        return 'a4_landscape';
+        return 'a4';
     }
 
     public function build(Model $source, array $options): array

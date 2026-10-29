@@ -106,6 +106,28 @@ final class DocumentNumbers
     }
 
     /**
+     * A plain number that never resets (the gate token, and the counters behind master codes): 1, 2, 3 …
+     * per mill, never the same twice even when two are taken at the same moment (the counter row is
+     * locked), and not given back when the record is cancelled. A rolled-back record does not use one up.
+     */
+    public function nextSerial(string $series, ?string $entityId = null): int
+    {
+        $entityId ??= $this->tenant->requireEntityId();
+
+        return DB::transaction(function () use ($entityId, $series): int {
+            DB::table('document_sequences')->insertOrIgnore([
+                'entity_id' => $entityId, 'series' => $series, 'financial_year' => 'ALL', 'last_number' => 0,
+            ]);
+            $query = fn () => DB::table('document_sequences')
+                ->where('entity_id', $entityId)->where('series', $series)->where('financial_year', 'ALL');
+            $number = (int) $query()->lockForUpdate()->value('last_number') + 1;
+            $query()->update(['last_number' => $number]);
+
+            return $number;
+        });
+    }
+
+    /**
      * A plain number that starts again every day (the gate token): 1, 2, 3 … in strict order, never the
      * same twice, even when two vehicles arrive at the same moment (the day's counter row is locked).
      * `startAfter` gives the first number of a day already in use (numbers issued before this counter).

@@ -9,6 +9,7 @@ use App\Domain\Accounts\PaymentService;
 use App\Filament\Resources\Accounts\PaymentResource;
 use App\Filament\Resources\ApprovalRequestResource;
 use App\Filament\Support\AttachmentsPanel;
+use App\Filament\Support\PrintButton;
 use App\Filament\Support\RequestsVoucherReversal;
 use App\Filament\Support\RunsDomainActions;
 use App\Models\Accounts\Payment;
@@ -32,7 +33,9 @@ class ViewPayment extends ViewRecord
             Action::make('approval')->label('Open approval')->icon('heroicon-o-shield-check')
                 ->visible(fn (Payment $p) => $p->isOpen() && $p->approval_request_id !== null)
                 ->url(fn (Payment $p) => ApprovalRequestResource::getUrl('view', ['record' => $p->approval_request_id])),
-            Action::make('voucher')->label('Print payment voucher (PDF)')->icon('heroicon-o-printer')->color('gray')
+            PrintButton::dialog('printVoucher', 'Print payment voucher', fn (Payment $p) => [app(AccountsDocuments::class)->paymentVoucherPdf($p), str_replace('/', '-', $p->number).'.pdf'])
+                ->visible(fn (Payment $p) => $p->status === Payment::APPROVED),
+            Action::make('voucher')->label('Download voucher (PDF)')->icon('heroicon-o-arrow-down-tray')->color('gray')
                 ->visible(fn (Payment $p) => $p->status === Payment::APPROVED)
                 ->action(fn (Payment $p) => response()->streamDownload(
                     fn () => print app(AccountsDocuments::class)->paymentVoucherPdf($p),

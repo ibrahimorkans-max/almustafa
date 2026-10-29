@@ -27,7 +27,7 @@ class CreateRecurringExpense extends CreateRecord
     public static function save(?RecurringExpense $record, array $data): Model
     {
         $data['amount_paise'] = Units::rupeesToPaise((string) $data['amount']);
-        $data['pay_from_ledger_id'] = $data['via'] === 'cash' ? ($data['pay_from_ledger_id'] ?? null) : null;
+        $data['pay_from_ledger_id'] = $data['via'] !== 'party' ? ($data['pay_from_ledger_id'] ?? null) : null;
         $data['party_id'] = $data['via'] === 'party' ? ($data['party_id'] ?? null) : null;
         try {
             return app(Expenses::class)->saveTemplate($record, $data);

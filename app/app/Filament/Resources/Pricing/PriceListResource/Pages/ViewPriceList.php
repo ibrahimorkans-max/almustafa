@@ -9,6 +9,7 @@ use App\Domain\Pricing\PricingService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Pricing\PriceListResource;
 use App\Filament\Support\ApprovalNotice;
+use App\Filament\Support\ProductSelect;
 use App\Filament\Support\Units;
 use App\Models\LoginAccount;
 use App\Models\Masters\Product;
@@ -16,7 +17,6 @@ use App\Models\Pricing\PriceList;
 use App\Models\Pricing\PriceListItem;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -92,8 +92,7 @@ class ViewPriceList extends ViewRecord
                 ->visible(fn () => Filament::auth()->user()?->can('pricing.rate.edit') ?? false)
                 ->modalDescription('Applied after a different person approves it. The old rate stays in the history.')
                 ->form([
-                    Select::make('product_id')->label('Product')->required()->searchable()
-                        ->options(fn () => Product::query()->whereIn('category', ['rice', 'by_product'])->orderBy('name')->pluck('name', 'id')),
+                    ProductSelect::make('product_id', ['rice', 'by_product'])->required(),
                     TextInput::make('rate')->label('New rate (Rs per maund)')->required()->regex(Units::DECIMAL_2),
                     Textarea::make('reason')->required()->minLength(5)->maxLength(1000),
                 ])

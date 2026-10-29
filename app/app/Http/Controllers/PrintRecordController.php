@@ -34,6 +34,6 @@ final class PrintRecordController
         $audit->record('document.printed', $record, meta: ['type' => $type]);
         $name = Str::slug($label.' '.($record->getAttribute('number') ?? $id)).'.pdf';
 
-        return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="'.$name.'"']);
+        return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="'.$name.'"', 'X-Print-Frame' => '1']);
     }
 }

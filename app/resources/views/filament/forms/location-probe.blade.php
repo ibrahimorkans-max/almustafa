@@ -21,6 +21,10 @@
             );
         },
         init() {
+            // The installed app (PWA) opens without the browser bar: its sign-ins register it as the app.
+            if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true) {
+                $wire.$set('data.display_mode', 'standalone', false);
+            }
             navigator.permissions?.query({ name: 'geolocation' }).then((s) => { if (s.state === 'granted') this.read(false); }).catch(() => {});
         },
     }"

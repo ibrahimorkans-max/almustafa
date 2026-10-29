@@ -369,7 +369,7 @@ final class DocumentService
         $version = $layout !== null
             ? $this->templates->resolve($t->key(), $layout)
             : ($doc->templateVersion ?? $this->templates->resolve($t->key(), null, $asked['template_id'] ?? null));
-        $paper = $asked['paper'] ?? $doc->paper ?? $t->defaultPaper();
+        $paper = DocumentRenderer::paper($asked['paper'] ?? $doc->paper ?? $t->defaultPaper());
         if (! array_key_exists($paper, DocumentRenderer::PAPERS)) {
             throw new BusinessRuleViolation('Unknown paper size.');
         }

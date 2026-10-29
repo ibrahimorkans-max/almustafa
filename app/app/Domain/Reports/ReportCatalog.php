@@ -10,6 +10,7 @@ use App\Domain\Documents\PdfRenderer;
 use App\Domain\Gate\VehicleRegister;
 use App\Domain\Hr\Attendance\AttendanceRegister;
 use App\Domain\Hr\Payroll\StatutoryReports;
+use App\Domain\Saas\DataVisibility;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tax\SalesTaxReturns;
 use App\Domain\Tenancy\TenantContext;
@@ -130,6 +131,7 @@ final class ReportCatalog
      */
     public function build(string $key, CarbonImmutable $from, CarbonImmutable $to, array $options = []): array
     {
+        $from = DataVisibility::clampDate($from);
         [, $title, $period] = self::REPORTS[$key] ?? throw new BusinessRuleViolation("Unknown report {$key}.");
         if ($period === 'month') {
             $parts = [];

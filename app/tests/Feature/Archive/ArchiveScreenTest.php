@@ -8,7 +8,9 @@ use App\Domain\Gate\VehicleRegister;
 use App\Domain\Reports\OperationalReports;
 use App\Domain\Reports\ReportCatalog;
 use App\Domain\Settings\SettingsService;
+use App\Domain\Tenancy\TenantContext;
 use App\Filament\Pages\ArchiveSearch;
+use App\Filament\Pages\SignInRules;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Resources\Gate\GateEntryResource;
 use App\Filament\Resources\Gate\GateEntryResource\Pages\ListGateEntries;
@@ -33,6 +35,8 @@ beforeEach(function () {
     Make::reset();
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     $this->admin = Make::account($this->entity, 'SUPER_ADMIN');
+    // The Office Desk is the Office Coordinator's alone.
+    $this->keeper = Make::account($this->entity, 'OFFICE_COORDINATOR');
     // The first demo vehicle (exited) is archived; the second stays a working record.
     [$this->archived, $this->working] = Make::system(fn () => GateEntry::query()->where('status', 'exited')->orderBy('arrived_at')->take(2)->get()->all());
     Make::system(fn () => $this->archived->forceFill(['archived_at' => now()])->save());
@@ -69,7 +73,7 @@ it('keeps archived records out of every working screen, report and printout, wit
 });
 
 it('shows archived records by period on the Archive screen, in full, and restores the whole period with a reason', function () {
-    arcSignIn($this, $this->admin);
+    arcSignIn($this, $this->keeper);
     $page = Livewire::test(ArchiveSearch::class)
         ->set('from', now('Asia/Karachi')->subDays(30)->toDateString())->set('to', now('Asia/Karachi')->toDateString())
         ->set('type', 'gate_entry')->call('search')
@@ -90,12 +94,16 @@ it('shows archived records by period on the Archive screen, in full, and restore
     Livewire::test(ListGateEntries::class)->set('tableFilters.open.value', 'all')->assertCanSeeTableRecords([$this->archived->fresh()]);
 });
 
-it('opens the Archive screen for the Owner and the Super Admin only', function () {
-    arcSignIn($this, Make::account($this->entity, 'ACCOUNTANT'));
-    expect(ArchiveSearch::canAccess())->toBeFalse();
-    $this->get('/admin/office-desk')->assertForbidden();
+it('opens the Office Desk for the Office Coordinator only, not the Owner or the Super Admin', function () {
+    foreach ([Make::account($this->entity, 'ACCOUNTANT'), $this->admin, Make::owner($this->entity)] as $account) {
+        arcSignIn($this, $account);
+        expect(ArchiveSearch::canAccess())->toBeFalse();
+        $this->get('/admin/office-desk')->assertForbidden();
+        $menu = collect(Filament::getNavigation())->flatMap(fn ($group) => $group->getItems())->map(fn ($item) => $item->getLabel())->all();
+        expect($menu)->not->toContain('Office Desk');
+    }
 
-    arcSignIn($this, $this->admin);
+    arcSignIn($this, $this->keeper);
     $this->get('/admin/office-desk')->assertOk();
 });
 
@@ -128,15 +136,18 @@ it('lets the Owner and the Office Coordinator choose after how many months close
     $settings = app(SettingsService::class);
     expect($settings->archiveRetentionMonths())->toBe((int) config('ricemill.archive.retention_months'));
 
-    arcSignIn($this, Make::owner($this->entity));
-    Livewire::test(ArchiveSearch::class)->assertSee('When closed records move here')
-        ->set('retention', 12)->call('saveRetention')->assertNotified();
+    // The Owner chooses it under Security → Sign-in rules (no Office Desk for the Owner).
+    $owner = Make::owner($this->entity);
+    arcSignIn($this, $owner);
+    app(TenantContext::class)->enterEntity($this->entity->id);
+    Livewire::test(SignInRules::class)->assertSee('Closed records leave the working screens after')
+        ->fillForm(['retention' => 12])->call('save')->assertHasNoFormErrors()->assertNotified();
     // Saved for the Owner's mills (each customer has its own).
     expect($settings->archiveRetentionMonths($this->entity->id))->toBe(12)
         ->and(AuditLog::query()->where('action', 'settings.archive_retention_changed')->exists())->toBeTrue();
 
     // Fewer months than offered is refused.
-    Livewire::test(ArchiveSearch::class)->set('retention', 1)->call('saveRetention')->assertHasErrors('retention');
+    Livewire::test(SignInRules::class)->fillForm(['retention' => 1])->call('save')->assertHasFormErrors(['retention']);
     expect($settings->archiveRetentionMonths($this->entity->id))->toBe(12);
 
     // The monthly run uses the chosen period.
@@ -148,7 +159,8 @@ it('lets the Owner and the Office Coordinator choose after how many months close
     expect($settings->archiveRetentionMonths($this->entity->id))->toBe(6);
 
     arcSignIn($this, $this->admin);
-    Livewire::test(ArchiveSearch::class)->assertDontSee('When closed records move here')->call('saveRetention')->assertForbidden();
+    expect(ArchiveSearch::canAccess())->toBeFalse();
+    Livewire::test(SignInRules::class)->assertDontSee('Closed records leave the working screens after');
 });
 
 it('locks the account everywhere with the panic button when a device is lost or stolen', function () {
@@ -173,7 +185,7 @@ it('locks the account everywhere with the panic button when a device is lost or 
         ->and(Make::system(fn () => AuthSession::query()->find($elsewhere[EnsureWebAuthSession::SESSION_KEY])->revoked_at))->not->toBeNull()
         ->and(Make::system(fn () => AuditLog::query()->where('action', 'security.panic_button')->sole()->meta['note']))->toBe('Phone taken from the office');
 
-    // The Owner has no panic button here (nobody above the Owner could unlock the account).
+    // The Owner does not open the Office Desk at all.
     arcSignIn($this, Make::owner($this->entity));
-    Livewire::test(ArchiveSearch::class)->assertActionHidden('panic');
+    expect(ArchiveSearch::canAccess())->toBeFalse();
 });

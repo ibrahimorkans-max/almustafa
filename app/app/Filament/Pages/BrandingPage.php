@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Documents\PaperSize;
+use App\Domain\Settings\SettingsService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
@@ -15,6 +17,7 @@ use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -85,7 +88,14 @@ class BrandingPage extends Page implements HasForms
         $mill = $this->mill();
         if ($mill !== null) {
             abort_unless(Gate::allows('update', $mill), 403);
-            $this->form->fill(['legal_name' => $mill->legal_name ?: $mill->name] + $mill->only(self::FIELDS));
+            $settings = app(SettingsService::class);
+            $papers = [];
+            foreach (array_keys(PaperSize::KINDS) as $kind) {
+                $papers['paper_'.$kind] = $settings->get('print.paper.'.$kind, $mill->id);
+            }
+            [$w, $h] = PaperSize::custom($mill->id);
+            $this->form->fill(['legal_name' => $mill->legal_name ?: $mill->name] + $mill->only(self::FIELDS) + $papers
+                + ['custom_width' => (string) $w, 'custom_height' => (string) $h]);
         }
     }
 
@@ -127,6 +137,14 @@ class BrandingPage extends Page implements HasForms
                 TextInput::make('footer_note')->label('Footer line on every document')->maxLength(200)
                     ->placeholder('Thank you for your business'),
             ]),
+            Section::make('Paper per document')->columns(3)
+                ->description('Each kind of document prints on its own paper on every computer. Empty: the paper chosen on that computer (top bar), else the document\'s own size.')
+                ->schema([
+                    ...array_map(fn (string $kind, string $label) => Select::make('paper_'.$kind)->label($label)->options(PaperSize::OPTIONS)->placeholder('As chosen on the computer'),
+                        array_keys(PaperSize::KINDS), PaperSize::KINDS),
+                    TextInput::make('custom_width')->label('Custom paper width (mm)')->integer()->minValue(40)->maxValue(420),
+                    TextInput::make('custom_height')->label('Custom paper height (mm)')->integer()->minValue(40)->maxValue(1200),
+                ]),
             Section::make('Bank account on sales invoices')->columns(2)->schema([
                 TextInput::make('bank_title')->label('Account title')->maxLength(120),
                 TextInput::make('bank_name')->label('Bank and branch')->maxLength(120),
@@ -166,6 +184,17 @@ class BrandingPage extends Page implements HasForms
             array_intersect_key($data, array_flip(self::FIELDS)));
         $old = $mill->only(['logo_path', 'emblem_path']);
         $mill->fill($fields + $files)->save();
+        $settings = app(SettingsService::class);
+        foreach (array_keys(PaperSize::KINDS) as $kind) {
+            // Empty ('') = the paper chosen on each computer; written only when it changes.
+            $paper = isset(PaperSize::OPTIONS[(string) ($data['paper_'.$kind] ?? '')]) ? (string) $data['paper_'.$kind] : '';
+            if ($paper !== (string) $settings->get('print.paper.'.$kind, $mill->id)) {
+                $settings->put('print.paper.'.$kind, $paper, $mill->id);
+            }
+        }
+        if (filled($data['custom_width'] ?? null) && filled($data['custom_height'] ?? null)) {
+            $settings->put('print.custom_paper', ((int) $data['custom_width']).'x'.((int) $data['custom_height']), $mill->id);
+        }
         foreach ($files as $column => $path) {   // the replaced file goes
             if ($old[$column] !== null && $old[$column] !== $path) {
                 Storage::disk('local')->delete($old[$column]);

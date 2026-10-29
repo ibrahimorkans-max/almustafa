@@ -46,13 +46,13 @@ it('prints a list exactly as filtered and searched on the screen', function () {
     psSignIn($this, $this->admin);
     $numbers = Sauda::query()->orderBy('number')->pluck('number');
 
-    Livewire::test(ListSaudas::class)->call('printScreen')->assertFileDownloaded();
+    Livewire::test(ListSaudas::class)->call('printScreen')->assertDispatched('rm-print');
     expect(PdfRenderer::$lastHtml)->toContain($numbers[0])->toContain($numbers[1])->toContain('2 record(s)');
 
-    Livewire::test(ListSaudas::class)->set('tableSearch', $numbers[1])->call('printScreen')->assertFileDownloaded();
+    Livewire::test(ListSaudas::class)->set('tableSearch', $numbers[1])->call('printScreen')->assertDispatched('rm-print');
     expect(PdfRenderer::$lastHtml)->toContain($numbers[1])->not->toContain($numbers[0])->toContain('Search: '.$numbers[1]);
 
-    Livewire::test(ListGateEntries::class)->call('printScreen')->assertFileDownloaded();
+    Livewire::test(ListGateEntries::class)->call('printScreen')->assertDispatched('rm-print');
     expect(PdfRenderer::$lastHtml)->toContain('MNA234411');
 });
 
@@ -60,10 +60,10 @@ it('prints a record\'s own paper, or a record sheet when it has none', function 
     psSignIn($this, $this->admin);
     $sauda = Sauda::query()->orderBy('number')->firstOrFail();
 
-    Livewire::test(ViewSauda::class, ['record' => $sauda->id])->call('printScreen')->assertFileDownloaded();
+    Livewire::test(ViewSauda::class, ['record' => $sauda->id])->call('printScreen')->assertDispatched('rm-print');
     expect(PdfRenderer::$lastHtml)->toContain('PURCHASE CONTRACT (SAUDA)');
 
     $party = Party::query()->where('code', 'AMR-F001')->firstOrFail();
-    Livewire::test(EditParty::class, ['record' => $party->id])->call('printScreen')->assertFileDownloaded();
+    Livewire::test(EditParty::class, ['record' => $party->id])->call('printScreen')->assertDispatched('rm-print');
     expect(PdfRenderer::$lastHtml)->toContain('Muhammad Aslam (demo grower)')->toContain('Checked by (second person)');
 });

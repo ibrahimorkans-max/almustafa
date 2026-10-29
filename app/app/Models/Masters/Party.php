@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Masters;
 
+use App\Domain\Masters\MasterCodes;
 use App\Models\LoginAccount;
 use App\Support\BlindIndex;
 use App\Support\Values\PakistanIds;
@@ -28,6 +29,8 @@ use Illuminate\Validation\Rule;
  * @property bool $is_broker
  * @property bool $is_farmer
  * @property bool $is_transporter
+ * @property bool $is_contractor a labour contractor (paid by the weight its vehicles unload, load or carry)
+ * @property string|null $contractor_code CTR-ALI-0001
  * @property string|null $contact_person
  * @property string|null $phone
  * @property string|null $email
@@ -54,7 +57,7 @@ class Party extends MasterModel
 {
     public const SYNC_TYPE = 'party';
 
-    public const ROLES = ['is_customer', 'is_vendor', 'is_broker', 'is_farmer', 'is_transporter'];
+    public const ROLES = ['is_customer', 'is_vendor', 'is_broker', 'is_farmer', 'is_transporter', 'is_contractor'];
 
     /** registered = has an STRN (sales tax); unregistered = everyone else. */
     public const REGISTRATION_TYPES = ['registered', 'unregistered'];
@@ -63,7 +66,7 @@ class Party extends MasterModel
     public const ATL_STATUSES = ['active', 'inactive', 'unknown'];
 
     protected $fillable = [
-        'code', 'name', 'legal_name', 'is_customer', 'is_vendor', 'is_broker', 'is_farmer', 'is_transporter',
+        'code', 'name', 'legal_name', 'is_customer', 'is_vendor', 'is_broker', 'is_farmer', 'is_transporter', 'is_contractor',
         'contact_person', 'phone', 'email', 'address', 'city', 'province',
         'tax_registration', 'strn', 'ntn', 'cnic', 'atl_status', 'atl_checked_on',
         'credit_limit_paise', 'credit_days', 'status', 'notes', 'wht_exempt', 'messages_on',
@@ -78,7 +81,7 @@ class Party extends MasterModel
     {
         return [
             'wht_exempt' => 'boolean', 'is_customer' => 'boolean', 'is_vendor' => 'boolean', 'is_broker' => 'boolean',
-            'is_farmer' => 'boolean', 'is_transporter' => 'boolean', 'messages_on' => 'boolean',
+            'is_farmer' => 'boolean', 'is_transporter' => 'boolean', 'is_contractor' => 'boolean', 'messages_on' => 'boolean',
             'strn' => 'encrypted', 'ntn' => 'encrypted', 'cnic' => 'encrypted', 'atl_checked_on' => 'date',
             'credit_limit_paise' => 'integer', 'credit_days' => 'integer',
             'version' => 'integer', 'archived_at' => 'datetime',
@@ -100,6 +103,13 @@ class Party extends MasterModel
             $party->strn_index = BlindIndex::of($party->strn, 'strn');
             $party->ntn_index = BlindIndex::of($party->ntn, 'ntn');
             $party->cnic_index = BlindIndex::of($party->cnic, 'cnic');
+            // A labour contractor is paid like a vendor, and gets its own permanent code (CTR-ALI-0001).
+            if ($party->is_contractor) {
+                $party->is_vendor = true;
+                if (blank($party->contractor_code)) {
+                    $party->contractor_code = app(MasterCodes::class)->contractorCode($party);
+                }
+            }
         });
     }
 
@@ -129,13 +139,14 @@ class Party extends MasterModel
             $this->is_broker ? 'Broker / agent' : null,
             $this->is_farmer ? 'Farmer' : null,
             $this->is_transporter ? 'Transporter' : null,
+            $this->is_contractor ? 'Labour contractor' : null,
         ]));
     }
 
     public static function writeRules(?MasterModel $existing): array
     {
         return [
-            'code' => ['required', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'code' => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
             'name' => ['required', 'string', 'max:160'],
             'legal_name' => ['nullable', 'string', 'max:200'],
             'is_customer' => ['sometimes', 'boolean'],

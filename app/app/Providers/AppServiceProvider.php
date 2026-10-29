@@ -10,11 +10,14 @@ use App\Domain\Auth\ApiTokenGuard;
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Auth\SessionService;
 use App\Domain\Auth\TenantAwareUserProvider;
+use App\Domain\Banking\Mailbox;
+use App\Domain\Banking\ProviderMailbox;
 use App\Domain\Hr\Attendance\DeviceClock;
 use App\Domain\Hr\Attendance\IntegrityVerifier;
 use App\Domain\Hr\Attendance\UnconfiguredIntegrityVerifier;
 use App\Domain\Ops\OpsAlerts;
 use App\Domain\Saas\CustomerAccess;
+use App\Domain\Saas\DataVisibility;
 use App\Domain\Saas\PlanLimits;
 use App\Domain\Sync\SyncRegistry;
 use App\Domain\Tenancy\Exceptions\MissingTenantContext;
@@ -82,6 +85,9 @@ class AppServiceProvider extends ServiceProvider
         // them here, or real requests never see them (tests reboot Livewire and would hide that).
         ComponentHookRegistry::register(PrintScreenHook::class);
         ComponentHookRegistry::register(PrefillCreateFormHook::class);
+        // The real mailboxes (Gmail, Outlook, IMAP); tests bind a fake.
+        $this->app->booted(fn () => DataVisibility::register());
+        $this->app->bind(Mailbox::class, ProviderMailbox::class);
 
         // Per request / per job state (flushed between Octane requests and queue jobs).
         $this->app->scoped(TenantContext::class);
@@ -139,6 +145,7 @@ class AppServiceProvider extends ServiceProvider
             Masters\Vehicle::class => Policies\Masters\VehiclePolicy::class,
             Masters\Driver::class => Policies\Masters\DriverPolicy::class,
             Masters\Product::class => Policies\Masters\ProductPolicy::class,
+            Masters\PaddyVariety::class => Policies\Masters\PaddyVarietyPolicy::class,
             Masters\Brand::class => Policies\Masters\BrandPolicy::class,
             Masters\Godown::class => Policies\Masters\GodownPolicy::class,
             Masters\TaxRate::class => Policies\Masters\TaxRatePolicy::class,
@@ -154,6 +161,7 @@ class AppServiceProvider extends ServiceProvider
             Inventory\StockEntry::class => Policies\Phase4\StockEntryPolicy::class,
             Inventory\Requisition::class => Policies\Phase4\RequisitionPolicy::class,
             Inventory\StockCount::class => Policies\Phase4\StockCountPolicy::class,
+            Inventory\PaddyStockEntry::class => Policies\Phase4\PaddyStockEntryPolicy::class,
             Production\ProductionBatch::class => Policies\Phase4\ProductionBatchPolicy::class,
             Production\OutturnStandard::class => Policies\Phase4\OutturnStandardPolicy::class,
             Alert::class => Policies\Phase4\AlertPolicy::class,

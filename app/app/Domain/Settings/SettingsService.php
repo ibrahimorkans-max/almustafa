@@ -34,6 +34,17 @@ final class SettingsService
      */
     public const SCREEN_GUARD = 'security.screen_guard';
 
+    /** How many phones and computers one person may use (0: no limit). Gate agents are not counted. */
+    public const MAX_DEVICES = 'security.max_devices';
+
+    public const MAX_DEVICES_CHOICES = [0, 1, 2, 3, 4, 5, 10];
+
+    /** The mill's network scanner (eSCL), read by the mill server for roznamcha pages (NetworkScanner). */
+    public const SCANNER_URL = 'devices.scanner_url';
+
+    /** 'on': entries (gate, stock, expenses, roznamcha) keep where the device was, when its browser allows it. */
+    public const RECORD_LOCATION = 'privacy.record_location';
+
     /** 'on': nobody of this mill signs in, or stays signed in, outside its sites (HR → Sites). */
     public const SIGN_IN_AREA = 'security.sign_in_area';
 
@@ -82,6 +93,19 @@ final class SettingsService
             'scope' => 'entity',
         ],
         self::SIGN_IN_AREA => ['default' => 'off', 'allowed' => ['on', 'off'], 'scope' => 'entity'],
+        self::MAX_DEVICES => ['default' => 0, 'allowed' => self::MAX_DEVICES_CHOICES, 'scope' => 'entity'],
+        self::SCANNER_URL => ['default' => null, 'scope' => 'entity'],
+        self::RECORD_LOCATION => ['default' => 'off', 'allowed' => ['on', 'off'], 'scope' => 'entity'],
+        // Preferred paper per kind of document (PaperSize::KINDS); empty: the paper chosen on the device.
+        'print.paper.token' => ['default' => null, 'scope' => 'entity'],
+        'print.paper.slip' => ['default' => null, 'scope' => 'entity'],
+        'print.paper.invoice' => ['default' => null, 'scope' => 'entity'],
+        'print.paper.voucher' => ['default' => null, 'scope' => 'entity'],
+        'print.paper.statement' => ['default' => null, 'scope' => 'entity'],
+        'print.paper.report' => ['default' => null, 'scope' => 'entity'],
+        'print.paper.record' => ['default' => null, 'scope' => 'entity'],
+        // The custom paper, width x height in mm ("100x150").
+        'print.custom_paper' => ['default' => null, 'scope' => 'entity'],
         // The default comes from RICEMILL_SCREEN_GUARD; see screenGuard().
         self::SCREEN_GUARD => [
             'default' => null,

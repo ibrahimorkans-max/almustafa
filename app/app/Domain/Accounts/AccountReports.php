@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Accounts;
 
 use App\Domain\Claims\ClaimService;
+use App\Domain\Saas\DataVisibility;
 use App\Models\Accounts\AccountGroup;
 use App\Models\Accounts\LedgerAccount;
 use App\Models\Accounts\Payment;
@@ -25,6 +26,8 @@ final class AccountReports
      */
     public function ledgerStatement(LedgerAccount $account, CarbonInterface $from, CarbonInterface $to): array
     {
+        // Before the customer's window only the opening balance shows (the books themselves are complete).
+        $from = DataVisibility::clampDate($from, 'accounts');
         $opening = (int) VoucherLine::query()->where('ledger_account_id', $account->id)
             ->where('voucher_date', '<', $from->toDateString())
             ->selectRaw('COALESCE(SUM(dr_paise) - SUM(cr_paise), 0) AS b')->value('b');

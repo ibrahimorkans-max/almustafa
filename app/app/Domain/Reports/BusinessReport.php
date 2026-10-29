@@ -6,6 +6,7 @@ namespace App\Domain\Reports;
 
 use App\Domain\Accounts\AccountReports;
 use App\Domain\Accounts\FinancialReports;
+use App\Domain\Saas\DataVisibility;
 use App\Models\Accounts\Expense;
 use App\Models\Accounts\Payment;
 use App\Models\Claims\Claim;
@@ -37,6 +38,7 @@ final class BusinessReport
      */
     public function build(CarbonImmutable $from, CarbonImmutable $to): array
     {
+        $from = DataVisibility::clampDate($from);
         $pl = $this->financial->profitAndLoss($from, $to);
         $cash = $this->financial->cashFlow($from, $to);
         $stock = $this->financial->stockValueAt($to);

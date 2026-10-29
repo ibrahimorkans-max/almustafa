@@ -14,6 +14,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
@@ -51,9 +52,9 @@ class RecurringExpenseResource extends Resource
             TextInput::make('day_of_month')->label('Day of the month')->required()->integer()->minValue(1)->maxValue(28)->default(1),
             TextInput::make('starts_month')->label('First month')->required()->regex($month)->default(fn () => now('Asia/Karachi')->format('Y-m'))->placeholder('2026-10'),
             TextInput::make('ends_month')->label('Last month')->regex($month)->placeholder('open-ended'),
-            Radio::make('via')->label('Paid')->inline()->required()->default('cash')->live()->options(['cash' => 'Cash or bank', 'party' => 'On credit (a party)']),
-            Select::make('pay_from_ledger_id')->label('Cash or bank account')->options(fn () => ExpenseResource::cashLedgers())
-                ->visible(fn (Get $get) => $get('via') === 'cash')->required(fn (Get $get) => $get('via') === 'cash'),
+            Radio::make('via')->label('Paid from')->inline()->required()->default('cash')->live()->options(ExpenseResource::VIA)
+                ->afterStateUpdated(fn (Set $set) => $set('pay_from_ledger_id', null)),
+            ExpenseResource::ledgerSelect('pay_from_ledger_id'),
             Select::make('party_id')->label('Party (landlord, utility …)')->searchable()->options(fn () => ExpenseResource::parties())
                 ->visible(fn (Get $get) => $get('via') === 'party')->required(fn (Get $get) => $get('via') === 'party'),
             Toggle::make('active')->default(true),

@@ -9,6 +9,7 @@ use App\Domain\Documents\Engine\DocumentRenderer;
 use App\Domain\Documents\Engine\DocumentService;
 use App\Domain\Documents\Engine\DocumentTypes;
 use App\Domain\Documents\Engine\TemplateRepository;
+use App\Domain\Documents\PrintDelivery;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Documents\DocumentTemplate;
 use App\Models\Documents\GeneratedDocument;
@@ -19,6 +20,7 @@ use Filament\Forms\Components\Component;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Livewire\Livewire;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -28,6 +30,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 final class DocumentActions
 {
+    /** Print opens the print dialog (PrintDelivery); a file is saved only when asked for. */
+    public const DELIVERY = ['print' => 'Print now (print dialog)', 'download' => 'Download the file'];
+
     public static function allowed(string $permission = 'hr.documents.generate'): bool
     {
         $user = Filament::auth()->user();
@@ -45,6 +50,7 @@ final class DocumentActions
             Select::make('paper')->options(DocumentRenderer::PAPERS)->default($t->defaultPaper())->required(),
             Select::make('format')->options(DocumentRenderer::FORMATS)->default('pdf')->required(),
             Select::make('digits')->options(['western' => 'Western (123)', 'urdu' => 'Urdu (۱۲۳)'])->default('western')->required(),
+            Select::make('deliver')->label('Output')->options(self::DELIVERY)->default('print')->required(),
         ];
         if (in_array($type, ['salary_certificate', 'employment_letter'], true)) {
             $fields[] = TextInput::make('purpose')->label('Purpose (printed)')->maxLength(120)->placeholder('e.g. bank account opening');
@@ -74,12 +80,12 @@ final class DocumentActions
                 $out = $svc->preview($type, $sourceId, $options);
                 Notification::make()->title('Draft preview — not final yet, so not issued.')->warning()->send();
 
-                return self::stream($out);
+                return self::stream($out, $data['deliver'] ?? 'download');
             }
             $doc = $svc->issue($type, $sourceId, $options);
 
             // Just issued with these options, or asked for as issued: the original; otherwise a counted DUPLICATE.
-            return self::stream($doc->wasRecentlyCreated || $svc->asIssued($doc, $options) ? $svc->original($doc) : $svc->reprint($doc, $options));
+            return self::stream($doc->wasRecentlyCreated || $svc->asIssued($doc, $options) ? $svc->original($doc) : $svc->reprint($doc, $options), $data['deliver'] ?? 'download');
         } catch (BusinessRuleViolation $e) {
             Notification::make()->title($e->getMessage())->danger()->send();
 
@@ -91,7 +97,7 @@ final class DocumentActions
     public static function reprint(GeneratedDocument $doc, array $data): ?StreamedResponse
     {
         try {
-            return self::stream(app(DocumentService::class)->reprint($doc, self::options($data)));
+            return self::stream(app(DocumentService::class)->reprint($doc, self::options($data)), $data['deliver'] ?? 'download');
         } catch (BusinessRuleViolation $e) {
             Notification::make()->title($e->getMessage())->danger()->send();
 
@@ -99,9 +105,21 @@ final class DocumentActions
         }
     }
 
-    /** @param  array{bytes: string, mime: string, name: string}  $out */
-    public static function stream(array $out): StreamedResponse
+    /**
+     * A PDF or printable page asked to print goes to the print dialog of the page; anything else (and a
+     * download asked for) is saved as a file.
+     *
+     * @param  array{bytes: string, mime: string, name: string}  $out
+     */
+    public static function stream(array $out, string $deliver = 'download'): ?StreamedResponse
     {
+        $page = Livewire::current();
+        if ($deliver === 'print' && $page !== null && in_array($out['mime'], ['application/pdf', 'text/html'], true)) {
+            $page->dispatch('rm-print', url: PrintDelivery::stash($out['bytes'], $out['name'], $out['mime']));
+
+            return null;
+        }
+
         return response()->streamDownload(fn () => print $out['bytes'], $out['name'], ['Content-Type' => $out['mime']]);
     }
 

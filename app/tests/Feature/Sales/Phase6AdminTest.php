@@ -36,7 +36,8 @@ function signInP6(object $t, LoginAccount $account): void
 }
 
 dataset('phase 6 screens', [
-    'sales saudas' => ['/admin/sales/saudas', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR']],
+    // Sales deals follow sales rights ('sales.view'), not the purchase desk's 'deal.view'.
+    'sales saudas' => ['/admin/sales/saudas', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER']],
     'dispatch orders' => ['/admin/dispatch-orders', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER']],
     'invoices' => ['/admin/sales/invoices', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR', 'INVENTORY_MANAGER']],
 ]);

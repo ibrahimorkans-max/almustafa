@@ -138,3 +138,13 @@ it('does not let the counter approve their own adjustment', function () {
     expect(app(ApprovalService::class)->canDecide($this->f->storeManager, $request))->toBeFalse()
         ->and(app(ApprovalService::class)->canDecide($this->f->gate->owner, $request))->toBeTrue();
 });
+
+it('books a count at once when the person counting may approve their own adjustment', function () {
+    // The Owner's request is applied inside submit(); recording the count must not fail as stale.
+    $this->f->as($this->f->gate->owner);
+    $count = app(StockCountService::class)->record($this->f->paddy, $this->f->silo, '9900')->fresh();
+
+    expect($count->status)->toBe('applied')
+        ->and($count->approval_request_id)->not->toBeNull()
+        ->and($this->stock->balance($this->f->paddy, $this->f->silo)->kg)->toBe('9900.000');
+});

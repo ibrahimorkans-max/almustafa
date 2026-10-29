@@ -88,7 +88,7 @@ it('runs a vehicle visit from the gate screens', function () {
     signInAs($this, $sup);
 
     Livewire::test(CreateGateEntry::class)
-        ->fillForm(['registration_no' => 'mna211234', 'direction' => 'inbound', 'sauda_id' => $sauda->id, 'bag_count' => 400])
+        ->fillForm(['registration_no' => 'mna211234', 'direction' => 'inbound', 'sauda_id' => $sauda->id, 'bag_count' => 400, 'jack_type' => 'with_jack'])
         ->call('create')
         ->assertHasNoFormErrors();
     $entry = GateEntry::query()->sole();

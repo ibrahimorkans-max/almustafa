@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Masters;
 
 use App\Domain\Audit\Auditable;
+use App\Domain\Masters\MasterCodes;
 use App\Domain\Sync\FeedsSync;
 use App\Domain\Tenancy\BelongsToEntity;
 use App\Support\Eloquent\HasOptimisticLock;
@@ -52,6 +53,8 @@ abstract class MasterModel extends Model
     protected static function booted(): void
     {
         static::addGlobalScope('not_archived', fn (Builder $q) => $q->whereNull($q->getModel()->qualifyColumn('archived_at')));
+        // A party, product or vehicle added without a code gets a permanent one (PTY-ALI-0001 …).
+        static::creating(fn (MasterModel $m) => app(MasterCodes::class)->assign($m));
     }
 
     /** @param  Builder<static>  $query */

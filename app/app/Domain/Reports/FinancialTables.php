@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Reports;
 
 use App\Domain\Accounts\FinancialReports;
+use App\Domain\Saas\DataVisibility;
 use App\Support\Values\Money;
 use Carbon\CarbonImmutable;
 
@@ -29,7 +30,7 @@ final class FinancialTables
      */
     public function build(string $report, array $p): array
     {
-        $from = CarbonImmutable::parse($p['from'] ?? now('Asia/Karachi')->startOfMonth()->toDateString(), 'Asia/Karachi');
+        $from = DataVisibility::clampDate(CarbonImmutable::parse($p['from'] ?? now('Asia/Karachi')->startOfMonth()->toDateString(), 'Asia/Karachi'), 'accounts');
         $to = CarbonImmutable::parse($p['to'] ?? now('Asia/Karachi')->toDateString(), 'Asia/Karachi');
         $period = $from->format('d M Y').' to '.$to->format('d M Y');
 

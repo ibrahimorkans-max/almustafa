@@ -32,6 +32,24 @@ final class DeductionCalculator
                 continue;
             }
 
+            if ($rule->method === 'fixed_weight') {
+                // factor = grams per lot
+                $kg = Weight::kg(bcdiv((string) $rule->factor, '1000', 3));
+                $deduction = $deduction->plus($kg);
+                $lines[] = ['parameter' => 'fixed', 'method' => 'fixed_weight', 'rule' => $rule->code, 'deduction_kg' => $kg->kg];
+
+                continue;
+            }
+
+            if ($rule->method === 'percent_of_net') {
+                // factor = basis points of the net weight (250 = 2.5 %)
+                $kg = Weight::kg(bcdiv(bcmul($net->kg, (string) $rule->factor, 6), '10000', 3));
+                $deduction = $deduction->plus($kg);
+                $lines[] = ['parameter' => 'net', 'method' => 'percent_of_net', 'rule' => $rule->code, 'percent_bp' => $rule->factor, 'deduction_kg' => $kg->kg];
+
+                continue;
+            }
+
             if ($rule->method === 'per_bag') {
                 if ($bagCount === null || $bagCount <= 0) {
                     continue;

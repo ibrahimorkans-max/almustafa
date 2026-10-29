@@ -8,6 +8,7 @@ use App\Domain\Production\ProductionService;
 use App\Filament\Resources\Inventory\RequisitionResource;
 use App\Filament\Resources\Production\ProductionBatchResource;
 use App\Filament\Support\PrintButton;
+use App\Filament\Support\ProductSelect;
 use App\Filament\Support\RunsDomainActions;
 use App\Filament\Support\Units;
 use App\Models\Masters\Godown;
@@ -18,6 +19,7 @@ use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -74,6 +76,29 @@ class ViewProductionBatch extends ViewRecord
                     $b, Product::query()->findOrFail($data['product_id']), Godown::query()->findOrFail($data['godown_id']), (string) $data['quantity_kg'],
                     $at($data, 'period_start'), $at($data, 'period_end'), $data['note'] ?? null,
                 ), 'Output logged')),
+            Action::make('outputs')->label('Log several outputs')->icon('heroicon-o-squares-plus')->color('success')
+                ->visible(fn (ProductionBatch $b) => $open($b) && $can('production.log'))
+                ->modalDescription('Every product that came off this run (head rice, broken, bran, husk …). All are booked together, or none. What is left of the paddy is the processing loss.')
+                ->modalWidth('4xl')
+                ->form([
+                    Repeater::make('rows')->label('Outputs')->required()->minItems(1)->defaultItems(4)->columns(3)
+                        ->schema([
+                            Select::make('product_id')->label('Product')->required()->searchable()
+                                ->options(fn () => ProductSelect::options(ProductionService::OUTPUT_CATEGORIES)),
+                            Select::make('godown_id')->label('Into godown')->required()->options($godowns),
+                            TextInput::make('quantity_kg')->label('Quantity (kg)')->required()->regex(Units::DECIMAL_3),
+                        ]),
+                    ...$period,
+                    Textarea::make('note')->maxLength(1000),
+                ])
+                ->action(fn (ProductionBatch $b, array $data) => $this->runDomain(fn () => $service()->recordOutputs(
+                    $b,
+                    array_map(fn (array $r) => [
+                        'product' => Product::query()->findOrFail($r['product_id']), 'godown' => Godown::query()->findOrFail($r['godown_id']),
+                        'quantity_kg' => (string) $r['quantity_kg'],
+                    ], array_values((array) $data['rows'])),
+                    $at($data, 'period_start'), $at($data, 'period_end'), $data['note'] ?? null,
+                ), 'Outputs logged')),
             Action::make('correct')->label('Correct a log')->icon('heroicon-o-arrow-uturn-left')->color('warning')
                 ->visible(fn (ProductionBatch $b) => $open($b) && $can('production.log'))
                 ->modalDescription('Adds a reversing log and moves the stock back. The original stays on record.')

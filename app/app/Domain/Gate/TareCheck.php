@@ -22,6 +22,9 @@ final class TareCheck
             ->where('gate_entries.registration_no', $registrationNo)
             ->where('weighments.gate_entry_id', '!=', $excludeGateEntryId)
             ->where('weighments.kind', Weighment::TARE)
+            // Empty weights carrying rejected bags are not the vehicle's own weight.
+            ->where(fn ($q) => $q->where('gate_entries.rejected_off_vehicle', true)
+                ->orWhere(fn ($q) => $q->where(fn ($q) => $q->whereNull('gate_entries.rejected_bags')->orWhere('gate_entries.rejected_bags', 0))->whereNull('gate_entries.rejected_kg')))
             ->orderByDesc('weighments.captured_at')
             ->limit((int) config('ricemill.gate.tare_history'))
             ->pluck('weighments.weight_kg')

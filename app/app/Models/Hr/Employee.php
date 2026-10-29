@@ -7,6 +7,7 @@ namespace App\Models\Hr;
 use App\Domain\Audit\Auditable;
 use App\Domain\Tenancy\BelongsToEntity;
 use App\Models\LoginAccount;
+use App\Models\Masters\Party;
 use App\Models\Person;
 use App\Models\StoredFile;
 use App\Support\BlindIndex;
@@ -201,6 +202,12 @@ class Employee extends Model
     public function loginAccounts(): Collection
     {
         return LoginAccount::query()->with('role')->where('person_id', $this->person_id)->where('entity_id', $this->entity_id)->get();
+    }
+
+    /** @return BelongsTo<Party, $this> the labour contractor who supplies this worker, if any */
+    public function contractor(): BelongsTo
+    {
+        return $this->belongsTo(Party::class, 'contractor_party_id');
     }
 
     /** @return BelongsTo<Person, $this> */

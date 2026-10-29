@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Models\Gate;
 
 use App\Domain\Audit\Auditable;
+use App\Domain\Security\RecordsEntryLocation;
 use App\Domain\Sync\FeedsSync;
 use App\Domain\Tenancy\BelongsToEntity;
+use App\Models\Hr\ContractorBill;
 use App\Models\LoginAccount;
 use App\Models\Masters\Driver;
 use App\Models\Masters\Godown;
+use App\Models\Masters\PaddyVariety;
 use App\Models\Masters\Party;
 use App\Models\Masters\Product;
 use App\Models\Masters\Vehicle;
@@ -54,7 +57,18 @@ use Illuminate\Support\Carbon;
  * @property string|null $payable_kg
  * @property int|null $rate_cut_paise_per_maund
  * @property Carbon $arrived_at
- * @property int|null $token_no the day's token (first come, first served)
+ * @property int|null $token_no the day's place in the queue (first come, first served); the printed token before the series
+ * @property int|null $token_serial the token: the mill's one continuous number, shown as 000125
+ * @property string|null $jack_type with_jack | without_jack
+ * @property string|null $party_name the party as typed at the gate, when no registered party was chosen
+ * @property string|null $paddy_variety_id
+ * @property string|null $contractor_party_id the labour contractor who unloaded (or loaded) it
+ * @property string|null $contractor_work unloading | loading
+ * @property string|null $contractor_bill_id the contractor bill that paid for it (never billed twice)
+ * @property int|null $rejected_bags bags rejected while unloading, carried back on the vehicle
+ * @property string|null $rejection_reason
+ * @property string|null $rejected_kg paddy rejected at unloading, by weight
+ * @property bool $rejected_off_vehicle the rejected paddy was taken off before the empty weight (its kg are subtracted)
  * @property Carbon|null $token_date
  * @property Carbon|null $exited_at
  * @property int $version
@@ -66,6 +80,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $dispatch_order_id
  * @property-read Product|null $product
  * @property-read Godown|null $godown
+ * @property array{lat: float, lng: float, accuracy_m: int|null, at: string}|null $captured_location where it was entered (EntryLocation)
  */
 class GateEntry extends Model
 {
@@ -74,6 +89,7 @@ class GateEntry extends Model
     use FeedsSync;
     use HasOptimisticLock;
     use HasUuids;
+    use RecordsEntryLocation;
     use TracksCreator;
 
     public const SYNC_TYPE = 'gate_entry';
@@ -97,7 +113,52 @@ class GateEntry extends Model
     protected $fillable = [
         'direction', 'purpose', 'vehicle_id', 'registration_no', 'driver_id', 'driver_name', 'party_id',
         'sauda_id', 'product_id', 'bag_count', 'arrived_at', 'dispatch_order_id', 'vehicle_type', 'no_plate', 'vehicle_description', 'goods_description',
+        'jack_type', 'party_name', 'paddy_variety_id',
     ];
+
+    /** With Jack / Without Jack: printed on the token beside its number, never inside it. */
+    public const JACK_TYPES = ['with_jack' => 'With Jack', 'without_jack' => 'Without Jack'];
+
+    /**
+     * The token as printed: six digits of the mill's one continuous series (000125). A token issued
+     * before the series started keeps the day's number that was printed on it.
+     */
+    public function tokenLabel(): string
+    {
+        return match (true) {
+            $this->token_serial !== null => self::formatToken($this->token_serial),
+            $this->token_no !== null => (string) $this->token_no,
+            default => '—',
+        };
+    }
+
+    public static function formatToken(int $serial): string
+    {
+        return str_pad((string) $serial, 6, '0', STR_PAD_LEFT);
+    }
+
+    /** The registered party, or the name typed at the gate. */
+    public function partyLabel(): ?string
+    {
+        return $this->party->name ?? $this->party_name;
+    }
+
+    /** The bags actually unloaded: those brought, less those rejected at unloading. */
+    public function acceptedBags(): ?int
+    {
+        return $this->bag_count === null ? null : max(0, $this->bag_count - (int) $this->rejected_bags);
+    }
+
+    /** Rejected paddy still on the vehicle at the empty weight: that weight is not the vehicle's own. */
+    public function rejectionOnVehicle(): bool
+    {
+        return ($this->rejected_bags > 0 || $this->rejected_kg !== null) && ! $this->rejected_off_vehicle;
+    }
+
+    public function jackLabel(): ?string
+    {
+        return $this->jack_type === null ? null : (self::JACK_TYPES[$this->jack_type] ?? $this->jack_type);
+    }
 
     /** Prefix of the reference given to a vehicle with no number plate (never a valid plate: too many letters). */
     public const NO_PLATE_PREFIX = 'NOPLATE';
@@ -135,6 +196,10 @@ class GateEntry extends Model
             'rate_cut_paise_per_maund' => 'integer',
             'arrived_at' => 'datetime',
             'token_no' => 'integer',
+            'token_serial' => 'integer',
+            'rejected_bags' => 'integer',
+            'rejected_kg' => 'decimal:3',
+            'rejected_off_vehicle' => 'boolean',
             'token_date' => 'date',
             'exited_at' => 'datetime',
             'archived_at' => 'datetime',
@@ -194,6 +259,24 @@ class GateEntry extends Model
     public function driver(): BelongsTo
     {
         return $this->belongsTo(Driver::class);
+    }
+
+    /** @return BelongsTo<Party, $this> */
+    public function contractor(): BelongsTo
+    {
+        return $this->belongsTo(Party::class, 'contractor_party_id');
+    }
+
+    /** @return BelongsTo<ContractorBill, $this> */
+    public function contractorBill(): BelongsTo
+    {
+        return $this->belongsTo(ContractorBill::class);
+    }
+
+    /** @return BelongsTo<PaddyVariety, $this> */
+    public function paddyVariety(): BelongsTo
+    {
+        return $this->belongsTo(PaddyVariety::class);
     }
 
     /** @return BelongsTo<Party, $this> */

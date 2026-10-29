@@ -8,6 +8,7 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Documents\PdfRenderer;
 use App\Domain\Reports\FinancialTables;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Support\ExportGuard;
 use App\Models\Entity;
 use App\Models\LoginAccount;
 use App\Support\Export\XlsxWriter;
@@ -112,8 +113,8 @@ class FinancialReportsPage extends Page implements HasForms
             Action::make('ytd')->label('This tax year')->color('gray')->icon('heroicon-o-calendar')
                 ->visible(fn () => in_array($this->data['report'] ?? 'pl', ['pl', 'monthly', 'payroll', 'cashflow'], true))
                 ->action(fn () => $this->data = ['from' => self::taxYearStart($this->data['to'] ?? null)] + ($this->data ?? [])),
-            Action::make('pdf')->label('PDF')->icon('heroicon-o-arrow-down-tray')->action(fn () => $this->download('pdf')),
-            Action::make('excel')->label('Excel')->icon('heroicon-o-table-cells')->color('gray')->action(fn () => $this->download('xlsx')),
+            Action::make('pdf')->visible(fn () => ExportGuard::allowed())->label('PDF')->icon('heroicon-o-arrow-down-tray')->action(fn () => $this->download('pdf')),
+            Action::make('excel')->visible(fn () => ExportGuard::allowed())->label('Excel')->icon('heroicon-o-table-cells')->color('gray')->action(fn () => $this->download('xlsx')),
         ];
     }
 

@@ -57,7 +57,16 @@
                                         <input type="text" list="weigh-parties" wire:model.live.debounce.500ms="party.{{ $sid }}" placeholder="Supplier or buyer"
                                             class="{{ $input }}" autocomplete="off">
                                     </label>
-                                    <label class="block text-sm sm:col-span-2">
+                                    <label class="block text-sm">
+                                        <span class="mb-1 block text-xs font-medium text-gray-500">Type</span>
+                                        <select wire:model.live="jack.{{ $sid }}" class="{{ $input }}">
+                                            <option value="">—</option>
+                                            @foreach (\App\Models\Gate\GateEntry::JACK_TYPES as $jk => $jl)
+                                                <option value="{{ $jk }}">{{ $jl }}</option>
+                                            @endforeach
+                                        </select>
+                                    </label>
+                                    <label class="block text-sm">
                                         <span class="mb-1 block text-xs font-medium text-gray-500">Item / goods (what it carries)</span>
                                         <input type="text" list="weigh-items" wire:model.live.debounce.500ms="item.{{ $sid }}" placeholder="e.g. Paddy 1121, Rice, Husk 120 bags"
                                             class="{{ $input }}" autocomplete="off">
@@ -79,7 +88,7 @@
                                 @if ($st !== null)
                                     @php($e = $st['entry'])
                                     <div class="rounded-lg bg-gray-50 p-3 text-sm dark:bg-white/5">
-                                        <div class="font-medium">{{ $e->token_no !== null ? 'Token '.$e->token_no.' · ' : '' }}{{ $e->vehicleLabel() }} · {{ $e->party->name ?? '—' }} · {{ $e->itemLabel() }}</div>
+                                        <div class="font-medium">{{ $e->token_no !== null || $e->token_serial !== null ? 'Token '.$e->tokenLabel().' · ' : '' }}{{ $e->jack_type !== null ? $e->jackLabel().' · ' : '' }}{{ $e->vehicleLabel() }} · {{ $e->partyLabel() ?? '—' }} · {{ $e->itemLabel() }}</div>
                                         <div class="mt-1 grid grid-cols-3 gap-2 text-center">
                                             <div><div class="text-xs text-gray-500">Loaded (gross)</div><div class="font-mono">{{ $st['gross']['kg'] !== null ? number_format((float) $st['gross']['kg'], 0) : '—' }}</div></div>
                                             <div><div class="text-xs text-gray-500">Empty (tare)</div><div class="font-mono">{{ $st['tare']['kg'] !== null ? number_format((float) $st['tare']['kg'], 0) : '—' }}</div></div>

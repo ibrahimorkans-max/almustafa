@@ -8,6 +8,7 @@ use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\ChangePassword;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\DuressPin;
+use App\Filament\Pages\MyDevicesPage;
 use App\Filament\Pages\MyPasskeys;
 use App\Filament\Pages\SwitchContext;
 use App\Filament\Pages\TwoFactor;
@@ -19,16 +20,21 @@ use App\Filament\Widgets\OwnerOverview;
 use App\Filament\Widgets\ProcurementOverview;
 use App\Filament\Widgets\StockOverview;
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\BankEmailCallbackController;
 use App\Http\Controllers\BrandingPreviewController;
+use App\Http\Controllers\ClaimEvidenceController;
 use App\Http\Controllers\PaperSizeController;
 use App\Http\Controllers\PrintAnyRecordController;
+use App\Http\Controllers\PrintJobController;
 use App\Http\Controllers\PrintRecordController;
 use App\Http\Controllers\PushTokenController;
 use App\Http\Controllers\ReportPrintController;
+use App\Http\Controllers\RoznamchaScanController;
 use App\Http\Controllers\SaasInvoiceController;
 use App\Http\Controllers\SessionLocationController;
 use App\Http\Controllers\TokenSlipController;
 use App\Http\Controllers\VehicleRegisterPrintController;
+use App\Http\Middleware\ApplyDataVisibility;
 use App\Http\Middleware\EnsureWebAuthSession;
 use App\Http\Middleware\RequireWorkingEntityForCreate;
 use App\Livewire\PrintScreenHook;
@@ -89,6 +95,8 @@ class AdminPanelProvider extends PanelProvider
                     ->url(fn () => ChangePassword::getUrl()),
                 MenuItem::make()->label('Passkeys')->icon('heroicon-o-finger-print')
                     ->url(fn () => MyPasskeys::getUrl()),
+                MenuItem::make()->label('My devices')->icon('heroicon-o-computer-desktop')
+                    ->url(fn () => MyDevicesPage::getUrl()),
                 MenuItem::make()->label('Duress PIN')->icon('heroicon-o-exclamation-triangle')
                     ->url(fn () => DuressPin::getUrl())->visible(fn () => DuressPin::canAccess()),
             ])
@@ -96,12 +104,17 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(PanelsRenderHook::BODY_END, fn () => view('filament.hooks.security-scripts'))
             // "Print" on every list and record screen (answered by App\Livewire\PrintScreenHook).
             ->renderHook(PanelsRenderHook::PAGE_HEADER_ACTIONS_BEFORE, fn (array $scopes = []) => PrintScreenHook::supports((string) ($scopes[0] ?? ''))
-                ? view('filament.hooks.print-button') : '')
+                ? view('filament.hooks.print-button', ['pageClass' => (string) ($scopes[0] ?? '')]) : '')
             // Paper for printing on this device (A4, A6, Letter, small roll): every slip and report follows it.
+            // Top-bar search across all modules: Ctrl+K / Cmd+K, and every result on one page.
+            ->globalSearchKeyBindings(['ctrl+k', 'command+k'])
+            ->globalSearchDebounce('350ms')
+            ->renderHook(PanelsRenderHook::GLOBAL_SEARCH_AFTER, fn () => view('filament.hooks.search-all'))
             ->renderHook(PanelsRenderHook::USER_MENU_BEFORE, fn () => view('filament.hooks.paper-size'))
             ->renderHook(PanelsRenderHook::HEAD_END, fn () => view('filament.hooks.product-head'))
             // SaaS: read-only for an overdue payment, an invoice due, the trial ending.
             ->renderHook(PanelsRenderHook::CONTENT_START, fn () => view('filament.hooks.billing-banner'))
+            ->renderHook(PanelsRenderHook::CONTENT_START, fn () => view('filament.hooks.visibility-banner'))
             ->authenticatedRoutes(function (): void {
                 // SaaS: an invoice to the customer (PDF), and the receipt it uploaded.
                 Route::get('billing/invoices/{id}', [SaasInvoiceController::class, 'pdf'])->whereUuid('id')->middleware('throttle:30,1')->name('saas.invoice');
@@ -114,9 +127,15 @@ class AdminPanelProvider extends PanelProvider
                 Route::post('push-token', PushTokenController::class)->middleware('throttle:20,1')->name('push-token');
                 Route::post('print-paper', PaperSizeController::class)->middleware('throttle:30,1')->name('print-paper');
                 Route::post('session-location', SessionLocationController::class)->middleware('throttle:10,1')->name('session-location');
+                Route::get('print-job/{key}', PrintJobController::class)->where('key', '[A-Za-z0-9]{40}')->middleware('throttle:60,1')->name('print-job');
                 Route::get('print/{type}/{id}', PrintRecordController::class)->whereUuid('id')->middleware('throttle:60,1')->name('print');
                 Route::get('print-record/{resource}/{id}', PrintAnyRecordController::class)->whereUuid('id')->middleware('throttle:60,1')->name('print-record');
+                // The answer of Google / Microsoft after a mailbox was signed in (Accounts → Bank e-mail).
+                Route::get('bank-email/callback', BankEmailCallbackController::class)->middleware('throttle:20,1')->name('bank-email.callback');
+                Route::get('roznamcha/{id}/scan', RoznamchaScanController::class)->whereUuid('id')->middleware('throttle:60,1')->name('roznamcha.scan');
                 Route::get('attachments/{id}', AttachmentController::class)->whereUuid('id')->middleware('throttle:60,1')->name('attachment');
+                Route::get('claims/{id}/evidence/{sha256}', ClaimEvidenceController::class)->whereUuid('id')->where('sha256', '[0-9a-f]{64}')
+                    ->middleware('throttle:60,1')->name('claim-evidence');
                 Route::get('reports/print', ReportPrintController::class)->middleware('throttle:20,1')->name('reports.print');
                 Route::middleware('throttle:60,1')->prefix('vehicle-register')->name('vehicle-register.')->group(function (): void {
                     Route::get('vehicle/{id}', [VehicleRegisterPrintController::class, 'vehicle'])->whereUuid('id')->name('vehicle');
@@ -139,6 +158,8 @@ class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
                 EnsureWebAuthSession::class,
                 RequireWorkingEntityForCreate::class,
+                // SaaS: the customer sees only its visibility window (Platform → Data visibility).
+                ApplyDataVisibility::class,
             ], isPersistent: true);
     }
 }

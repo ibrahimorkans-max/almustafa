@@ -236,6 +236,38 @@ return [
         'api_url' => env('RICEMILL_ASSISTANT_API_URL', 'https://api.anthropic.com/v1/messages'),
     ],
 
+    // Bank notification e-mails (Accounts → Bank e-mail). The OAuth apps are the product owner's: their
+    // ids and secrets live only here (.env), never in the database or on a screen. Gmail's read-only
+    // scope needs Google's app verification before customers outside a test list can connect; IMAP with
+    // an app password works without it.
+    'bank_email' => [
+        'google' => [
+            'client_id' => env('BANK_EMAIL_GOOGLE_CLIENT_ID', ''),
+            'client_secret' => env('BANK_EMAIL_GOOGLE_CLIENT_SECRET', ''),
+        ],
+        'microsoft' => [
+            'client_id' => env('BANK_EMAIL_MICROSOFT_CLIENT_ID', ''),
+            'client_secret' => env('BANK_EMAIL_MICROSOFT_CLIENT_SECRET', ''),
+            'tenant' => env('BANK_EMAIL_MICROSOFT_TENANT', 'common'),
+        ],
+        'imap' => (bool) env('BANK_EMAIL_IMAP', true),
+        // Empty: /admin/bank-email/callback on this server. Set it when the server is behind another name.
+        'redirect_uri' => env('BANK_EMAIL_REDIRECT_URI', ''),
+        'min_sync_minutes' => (int) env('BANK_EMAIL_MIN_SYNC_MINUTES', 15),
+    ],
+
+    // Reading scanned roznamcha pages: tesseract (on this server, the default), claude (the AI reader:
+    // the page is sent to Anthropic; needs ANTHROPIC_API_KEY) or none (typed by hand).
+    // A network scanner (eSCL / AirScan) read by the server. On a mill server it is always possible; elsewhere only
+    // when this is on and the server can reach the scanner's network. Only private network addresses are accepted.
+    'scanner' => ['enabled' => (bool) env('RICEMILL_SCANNER', false)],
+
+    'ocr' => [
+        'engine' => env('RICEMILL_OCR_ENGINE', 'tesseract'),
+        'tesseract_path' => env('TESSERACT_PATH', 'tesseract'),
+        'lang' => env('RICEMILL_OCR_LANG', 'eng'),
+    ],
+
     'live_weight' => [
         'stale_after_seconds' => 5,
     ],

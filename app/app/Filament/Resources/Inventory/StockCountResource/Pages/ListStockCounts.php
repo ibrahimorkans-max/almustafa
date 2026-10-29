@@ -9,6 +9,7 @@ use App\Domain\Inventory\StockCountService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Inventory\RequisitionResource;
 use App\Filament\Resources\Inventory\StockCountResource;
+use App\Filament\Support\ProductSelect;
 use App\Filament\Support\Units;
 use App\Models\Masters\Godown;
 use App\Models\Masters\Product;
@@ -31,8 +32,7 @@ class ListStockCounts extends ListRecords
                 ->visible(fn () => Filament::auth()->user()?->can('stock.adjust') ?? false)
                 ->modalDescription('The books figure is taken at this moment. Any difference is sent to a second person for approval before it is booked.')
                 ->form([
-                    Select::make('product_id')->label('Product')->required()->searchable()
-                        ->options(fn () => Product::query()->where('is_stock_item', true)->orderBy('name')->pluck('name', 'id')),
+                    ProductSelect::make('product_id', stockItemsOnly: true)->required(),
                     Select::make('godown_id')->label('Godown')->required()->options(fn () => RequisitionResource::godownOptions()),
                     TextInput::make('counted_kg')->label('Counted (kg)')->required()->regex(Units::DECIMAL_3),
                     Textarea::make('note')->label('How it was counted')->maxLength(1000),

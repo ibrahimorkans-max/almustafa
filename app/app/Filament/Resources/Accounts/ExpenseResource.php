@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Accounts;
 
 use App\Domain\Accounts\Expenses;
+use App\Domain\Security\EntryLocation;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Accounts\ExpenseResource\Pages;
 use App\Filament\Support\PrintButton;
@@ -25,6 +26,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\Action;
@@ -33,11 +35,20 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\HtmlString;
 
 /** Expenses and other income against categories; drafts (typed in or from recurring templates) are posted by accounts. */
 class ExpenseResource extends Resource
 {
     protected static ?string $model = Expense::class;
+
+    protected static ?string $recordTitleAttribute = 'number';
+
+    /** Found by the search box in the top bar (partial match, this mill only, and only for people who may open the list). */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['number', 'description'];
+    }
 
     protected static ?string $navigationIcon = 'heroicon-o-receipt-refund';
 
@@ -60,10 +71,37 @@ class ExpenseResource extends Resource
         return $n > 0 ? (string) $n : null;
     }
 
-    /** @return array<string, string> */
-    public static function cashLedgers(): array
+    /** @return array<string, string> active cash and bank accounts, or only one kind */
+    public static function cashLedgers(?string $kind = null): array
     {
-        return LedgerAccount::query()->whereIn('kind', ['cash', 'bank'])->where('status', 'active')->orderBy('name')->pluck('name', 'id')->all();
+        return LedgerAccount::query()->whereIn('kind', $kind === null ? ['cash', 'bank'] : [$kind])->where('status', 'active')
+            ->orderBy('name')->pluck('name', 'id')->all();
+    }
+
+    /** How it was paid or received: cash, bank, on credit. */
+    public const VIA = ['cash' => 'Cash', 'bank' => 'Bank', 'party' => 'On credit (a party)'];
+
+    /** 'cash' or 'bank' for a ledger, to show a saved choice again. */
+    public static function viaFor(?string $ledgerId, ?string $partyId): string
+    {
+        return $partyId !== null ? 'party' : (LedgerAccount::query()->whereKey($ledgerId)->value('kind') === 'bank' ? 'bank' : 'cash');
+    }
+
+    /**
+     * The cash or bank account, listing only the kind chosen in 'via'. With no bank account yet,
+     * it says where to add one.
+     */
+    public static function ledgerSelect(string $name, string $label = 'Account'): Select
+    {
+        $isMoney = fn (Get $get) => in_array($get('via'), ['cash', 'bank'], true);
+
+        return Select::make($name)->label(fn (Get $get) => $get('via') === 'bank' ? 'Bank account' : ($get('via') === 'cash' ? 'Cash account' : $label))
+            ->options(fn (Get $get) => self::cashLedgers($get('via') === 'bank' ? 'bank' : 'cash'))
+            ->default(fn () => count($c = self::cashLedgers('cash')) === 1 ? array_key_first($c) : null)
+            ->helperText(fn (Get $get) => $get('via') === 'bank' && self::cashLedgers('bank') === []
+                ? new HtmlString('No bank account yet. <a class="text-primary-600 underline" href="'.e(LedgerAccountResource::getUrl('index')).'">Add one in the chart of accounts</a> (kind: Mill bank account).')
+                : null)
+            ->visible($isMoney)->required($isMoney);
     }
 
     /** @return array<string, string> */
@@ -83,10 +121,9 @@ class ExpenseResource extends Resource
             DatePicker::make('entry_date')->label('Date')->required()->default($today)->maxDate($today),
             TextInput::make('amount')->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2),
             TextInput::make('description')->required()->minLength(3)->maxLength(300),
-            Radio::make('via')->label(fn (Get $get) => self::isIncome($get('expense_category_id')) ? 'Received' : 'Paid')->inline()->required()->default('cash')->live()
-                ->options(['cash' => 'Cash or bank', 'party' => 'On credit (a party)']),
-            Select::make('cash_ledger_id')->label('Cash or bank account')->options(fn () => self::cashLedgers())
-                ->visible(fn (Get $get) => $get('via') === 'cash')->required(fn (Get $get) => $get('via') === 'cash'),
+            Radio::make('via')->label(fn (Get $get) => self::isIncome($get('expense_category_id')) ? 'Received in' : 'Paid from')->inline()->required()->default('cash')->live()
+                ->options(self::VIA)->afterStateUpdated(fn (Set $set) => $set('cash_ledger_id', null)),
+            self::ledgerSelect('cash_ledger_id'),
             Select::make('party_id')->label('Party')->searchable()->options(fn () => self::parties())
                 ->visible(fn (Get $get) => $get('via') === 'party')->required(fn (Get $get) => $get('via') === 'party'),
             Select::make('gate_entry_id')->label('For vehicle (optional)')->searchable()->live()
@@ -99,6 +136,7 @@ class ExpenseResource extends Resource
                 ->visible(fn (Get $get) => filled($get('gate_entry_id')) && ! self::isIncome($get('expense_category_id'))),
             FileUpload::make('receipt')->label('Receipt or bill')->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(5120),
             Toggle::make('post')->label('Post it to the books now')->default(true)->helperText('Off: keep it as a draft to post later.'),
+            ...EntryLocation::fields(),
         ]);
     }
 
@@ -133,6 +171,8 @@ class ExpenseResource extends Resource
                     ->state(fn (Expense $r) => $r->cashLedger->name ?? ($r->party !== null ? 'On credit: '.$r->party->name : '—')),
                 TextColumn::make('amount_paise')->label('Amount')->alignEnd()->formatStateUsing($rs),
                 TextColumn::make('voucher.number')->label('Voucher')->placeholder('—'),
+                TextColumn::make('captured_location')->label('Entered at')->toggleable(isToggledHiddenByDefault: true)->placeholder('—')
+                    ->state(fn (Expense $r) => EntryLocation::label($r->captured_location))->url(fn (Expense $r) => EntryLocation::mapUrl($r->captured_location), shouldOpenInNewTab: true),
                 TextColumn::make('status')->badge()->formatStateUsing(fn (string $state) => Expense::STATUSES[$state] ?? $state)
                     ->color(fn (string $state) => match ($state) {
                         Expense::DRAFT => 'warning', Expense::POSTED => 'success', default => 'gray',
@@ -157,18 +197,18 @@ class ExpenseResource extends Resource
                 Action::make('post')->icon('heroicon-o-check')->color('success')
                     ->visible(fn (Expense $r) => $r->status === Expense::DRAFT && $can())
                     ->modalDescription('Check the amount and how it was paid; posting makes the voucher.')
-                    ->fillForm(fn (Expense $record) => ['amount' => bcdiv((string) $record->amount_paise, '100', 2), 'via' => $record->party_id !== null ? 'party' : 'cash',
+                    ->fillForm(fn (Expense $record) => ['amount' => bcdiv((string) $record->amount_paise, '100', 2), 'via' => self::viaFor($record->cash_ledger_id, $record->party_id),
                         'cash_ledger_id' => $record->cash_ledger_id, 'party_id' => $record->party_id])
                     ->form([
                         TextInput::make('amount')->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2),
-                        Radio::make('via')->label('Paid / received')->inline()->required()->live()->options(['cash' => 'Cash or bank', 'party' => 'On credit (a party)']),
-                        Select::make('cash_ledger_id')->label('Cash or bank account')->options(fn () => self::cashLedgers())
-                            ->visible(fn (Get $get) => $get('via') === 'cash')->required(fn (Get $get) => $get('via') === 'cash'),
+                        Radio::make('via')->label('Paid / received')->inline()->required()->live()->options(self::VIA)
+                            ->afterStateUpdated(fn (Set $set) => $set('cash_ledger_id', null)),
+                        self::ledgerSelect('cash_ledger_id'),
                         Select::make('party_id')->label('Party')->searchable()->options(fn () => self::parties())
                             ->visible(fn (Get $get) => $get('via') === 'party')->required(fn (Get $get) => $get('via') === 'party'),
                     ])
                     ->action($run(fn (Expense $r, array $d) => $svc()->post($r, Units::rupeesToPaise((string) $d['amount']),
-                        $d['via'] === 'cash' ? LedgerAccount::query()->find($d['cash_ledger_id']) : null,
+                        $d['via'] !== 'party' ? LedgerAccount::query()->find($d['cash_ledger_id']) : null,
                         $d['via'] === 'party' ? Party::query()->find($d['party_id']) : null), 'Posted.')),
                 Action::make('cancel')->icon('heroicon-o-x-mark')->color('danger')
                     ->visible(fn (Expense $r) => $r->status === Expense::DRAFT && $can())

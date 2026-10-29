@@ -22,6 +22,9 @@ final class AuthenticationFailed extends RuntimeException
 
     public const DEVICE_PENDING_APPROVAL = 'device_pending_approval';
 
+    /** The account already has as many devices as the mill allows (Security → Sign-in rules). */
+    public const DEVICE_LIMIT = 'device_limit';
+
     public const NETWORK_NOT_ALLOWED = 'network_not_allowed';
 
     public const SESSION_INVALID = 'session_invalid';
@@ -58,6 +61,7 @@ final class AuthenticationFailed extends RuntimeException
             self::INVALID_MFA_CODE => 'The authentication code is not valid.',
             self::DEVICE_NOT_ALLOWED => 'This device is not allowed to sign in.',
             self::DEVICE_PENDING_APPROVAL => 'This device is new to your account. A request to approve it has been sent; sign in again once your mill\'s Super Admin (or, for an Owner, another Owner) has approved it.',
+            self::DEVICE_LIMIT => 'Your account already has the most devices your mill allows. Remove one under Security → My devices (or ask your Super Admin), then sign in here.',
             self::NETWORK_NOT_ALLOWED => 'Sign-in is not allowed from this network.',
             self::SESSION_INVALID => 'Your session has ended. Please sign in again.',
             self::ACCESS_DISABLED => 'Access disabled, contact your administrator.',

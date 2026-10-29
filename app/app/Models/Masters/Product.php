@@ -37,7 +37,7 @@ class Product extends MasterModel
 
     protected $fillable = [
         'code', 'name', 'category', 'variety', 'pct_code', 'tax_rate_id', 'brand_id',
-        'sale_unit', 'bag_weight_kg', 'is_stock_item', 'status', 'valuation_paise_per_kg',
+        'sale_unit', 'bag_weight_kg', 'is_stock_item', 'status', 'valuation_paise_per_kg', 'paddy_variety_id',
     ];
 
     /** @var array<string, mixed> */
@@ -66,12 +66,18 @@ class Product extends MasterModel
         return $this->belongsTo(Brand::class);
     }
 
+    /** @return BelongsTo<PaddyVariety, $this> the variety of a paddy product */
+    public function paddyVariety(): BelongsTo
+    {
+        return $this->belongsTo(PaddyVariety::class);
+    }
+
     public static function writeRules(?MasterModel $existing): array
     {
         $entity = app(TenantContext::class)->entityId();
 
         return [
-            'code' => ['required', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'code' => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
             'name' => ['required', 'string', 'max:160'],
             'category' => ['required', Rule::in(self::CATEGORIES)],
             'variety' => ['nullable', 'string', 'max:60'],

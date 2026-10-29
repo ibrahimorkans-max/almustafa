@@ -8,6 +8,7 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Documents\PdfRenderer;
 use App\Domain\Reports\BusinessReport;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Support\ExportGuard;
 use App\Models\Entity;
 use App\Models\LoginAccount;
 use App\Support\Export\XlsxWorkbook;
@@ -111,6 +112,7 @@ class BusinessReportPage extends Page
 
     private function download(string $format): ?StreamedResponse
     {
+        ExportGuard::assert();
         abort_unless(static::canAccess(), 403);
         $report = $this->report();
         if ($report === null) {

@@ -83,6 +83,8 @@ class Login extends BaseLogin
             Hidden::make('latitude'),
             Hidden::make('longitude'),
             Hidden::make('accuracy'),
+            // "standalone" when signing in from the installed app (PWA): the device is registered as such.
+            Hidden::make('display_mode'),
             ViewField::make('location_probe')->hiddenLabel()->view('filament.forms.location-probe')->dehydrated(false),
         ])->statePath('data');
     }
@@ -306,6 +308,8 @@ class Login extends BaseLogin
         }
         Cookie::queue(Cookie::make(self::DEVICE_COOKIE, $uid, 60 * 24 * 365 * 5, httpOnly: true, sameSite: 'strict'));
 
-        return new DeviceInfo($uid, 'web', Str::limit((string) request()->userAgent(), 110, ''));
+        $app = ($this->data['display_mode'] ?? null) === 'standalone';
+
+        return new DeviceInfo($uid, $app ? 'pwa' : 'web', Str::limit(($app ? 'Installed app · ' : '').request()->userAgent(), 110, ''));
     }
 }

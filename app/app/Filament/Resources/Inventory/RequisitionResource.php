@@ -33,6 +33,14 @@ class RequisitionResource extends Resource
 
     protected static ?string $model = Requisition::class;
 
+    protected static ?string $recordTitleAttribute = 'number';
+
+    /** Found by the search box in the top bar (partial match, this mill only, and only for people who may open the list). */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['number'];
+    }
+
     protected static ?string $navigationIcon = 'heroicon-o-arrow-up-on-square-stack';
 
     protected static ?string $navigationGroup = 'Stock & production';
@@ -60,7 +68,7 @@ class RequisitionResource extends Resource
                 ->options(fn () => ProductionBatch::query()->where('status', 'open')->with('paddy')->get()
                     ->mapWithKeys(fn (ProductionBatch $b) => [$b->id => "{$b->number} — {$b->paddy->name}"])),
             Select::make('product_id')->label('Product')->required()->searchable()
-                ->options(fn (Get $get) => Product::query()->where('is_stock_item', true)
+                ->options(fn (Get $get) => Product::query()->where('is_stock_item', true)->where('status', 'active')
                     ->when($get('destination') === 'batch' && $get('to_batch_id'), fn ($q) => $q->whereKey(ProductionBatch::query()->whereKey($get('to_batch_id'))->value('paddy_product_id')))
                     ->orderBy('name')->pluck('name', 'id')),
             Select::make('from_godown_id')->label('From godown')->required()->options(fn () => self::godownOptions()),

@@ -27,6 +27,6 @@ final class PrintAnyRecordController
         $pdf = $printer->sheet($record, $title, Screens::details($record));
         $audit->record('document.printed', $record, meta: ['screen' => $class]);
 
-        return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="'.Str::slug($title).'.pdf"']);
+        return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="'.Str::slug($title).'.pdf"', 'X-Print-Frame' => '1']);
     }
 }

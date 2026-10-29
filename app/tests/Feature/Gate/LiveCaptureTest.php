@@ -102,12 +102,12 @@ it('lets the operator record from the Live weight board, and only someone who ma
     lwcSignIn($this, $this->operator);
 
     $sid = $this->f->scale->id;
-    Livewire::test(LiveWeightBoard::class)->assertSee('Vehicle number')->assertSee('Token 1 · MNA211234')
+    Livewire::test(LiveWeightBoard::class)->assertSee('Vehicle number')->assertSee('Token 000001 · MNA211234')
         ->call('recordWeight', $sid)->assertNotified('Type the vehicle number, e.g. MNA-21-1234.')
         // Typing a vehicle that is already inside fills in its party and kind.
         ->set('plate.'.$sid, 'mna-21-1234')->assertSet('party.'.$sid, 'Muhammad Aslam')->assertSet('kind.'.$sid, 'paddy')
         ->assertSee('Record loaded weight (gross)')
-        ->call('recordWeight', $sid)->assertNotified('Loaded weight (gross) 25,480 kg recorded — token 1 · MNA-21-1234');
+        ->call('recordWeight', $sid)->assertNotified('Loaded weight (gross) 25,480 kg recorded — token 000001 · MNA-21-1234');
     expect(Weighment::query()->where('gate_entry_id', $this->entry->id)->count())->toBe(1);
 
     lwcSignIn($this, Make::account($this->f->entity, 'LAB_TECHNICIAN'));

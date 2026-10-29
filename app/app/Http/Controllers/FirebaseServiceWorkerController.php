@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Messaging\Integrations;
 use Illuminate\Http\Response;
 
 /**
@@ -16,7 +17,7 @@ final class FirebaseServiceWorkerController
 
     public function __invoke(): Response
     {
-        $config = json_encode((array) config('ricemill.messaging.firebase.web'), JSON_UNESCAPED_SLASHES);
+        $config = json_encode(Integrations::firebase()['web'], JSON_UNESCAPED_SLASHES);
         $js = "importScripts('".self::SDK."firebase-app-compat.js');\n"
             ."importScripts('".self::SDK."firebase-messaging-compat.js');\n"
             ."firebase.initializeApp({$config});\n"

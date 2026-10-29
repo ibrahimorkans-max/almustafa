@@ -20,8 +20,10 @@
                     <label class="text-sm"><span class="mb-1 block text-xs font-medium text-gray-500">To</span>
                         <input type="date" wire:model.live="to" class="rounded-lg border-gray-300 text-sm dark:border-white/10 dark:bg-white/5"></label>
                 @endif
+                @if (\App\Filament\Support\ExportGuard::allowed())
                 <x-filament::button wire:click="downloadPdf" icon="heroicon-o-document-arrow-down">Download PDF</x-filament::button>
                 <x-filament::button wire:click="downloadExcel" color="gray" icon="heroicon-o-table-cells">Download Excel</x-filament::button>
+                @endif
                 <x-filament::button tag="a" :href="\App\Filament\Pages\AllReportsPage::getUrl()" color="gray" icon="heroicon-o-printer">All reports</x-filament::button>
             </div>
             <p class="mt-2 text-xs text-gray-500">Everything for the period in one file: profit and loss, income, expenses, purchases, payments, cash flow, money owed, stock, vehicles in and out, weight checks, production, payroll and claims. The audit log is not included.</p>

@@ -7,7 +7,7 @@
     <title>{{ $p->titleEn($doc['title']) }} {{ $doc['number'] ?? '' }} — {{ $brand['name'] }}</title>
     <style>
         body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 12px; color: #1a1a1a; background: #f3f4f6; margin: 0; }
-        .sheet { background: #ffffff; max-width: {{ $paper === 'a4_landscape' ? '277mm' : (str_starts_with($paper, 'thermal') ? ($paper === 'thermal58' ? '58mm' : '80mm') : ($small ? '190mm' : '186mm')) }}; margin: 16px auto; padding: 12mm; box-shadow: 0 1px 4px rgba(0,0,0,.15); position: relative; }
+        .sheet { background: #ffffff; max-width: {{ str_starts_with($paper, 'thermal') ? ($paper === 'thermal58' ? '58mm' : '80mm') : ($small ? '190mm' : '186mm') }}; margin: 16px auto; padding: 12mm; box-shadow: 0 1px 4px rgba(0,0,0,.15); position: relative; }
         .ur { font-family: "Jameel Noori Nastaleeq", "Noto Nastaliq Urdu", Lateef, serif; font-size: 130%; }
         table { border-collapse: collapse; width: 100%; }
         img { max-width: 100%; }
@@ -16,7 +16,9 @@
         .letterhead td, .titlebar td { vertical-align: middle; }
         .titlebar { background: {{ $brand['green'] }}; color: #fff; }
         .rule { border-bottom: 2px solid {{ $brand['gold'] }}; margin: 2px 0 4px; }
-        @media print { body { background: #fff; } .sheet { box-shadow: none; margin: 0; max-width: none; } }
+        {{-- Printed portrait, at actual size: the page is the real paper, with no scaling to fit. --}}
+        @page { size: {{ match (true) { $paper === 'thermal58' => '58mm auto', str_starts_with($paper, 'thermal') => '80mm auto', $paper === 'a5' => 'A5 portrait', default => 'A4 portrait' } }}; margin: {{ str_starts_with($paper, 'thermal') ? '0' : '10mm' }}; }
+        @media print { body { background: #fff; zoom: 1; } .sheet { box-shadow: none; margin: 0; max-width: none; padding: 0; } }
         @media (max-width: 640px) { .sheet { padding: 4mm; margin: 0; } }
     </style>
 </head>

@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Procurement;
 use App\Domain\Procurement\RequirementService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Procurement\PaddyRequirementResource\Pages;
+use App\Filament\Support\ProductSelect;
 use App\Filament\Support\Units;
 use App\Models\Masters\Party;
 use App\Models\Procurement\PaddyRequirement;
@@ -21,7 +22,6 @@ use Filament\Resources\Resource;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 
 class PaddyRequirementResource extends Resource
 {
@@ -40,8 +40,7 @@ class PaddyRequirementResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            Select::make('product_id')->label('Paddy')->required()->preload()
-                ->relationship('product', 'name', fn (Builder $query) => $query->where('category', 'paddy')),
+            ProductSelect::make('product_id', ['paddy'])->label('Paddy')->required(),
             TextInput::make('quantity_maund')->label('Quantity (maund)')->required()->regex(Units::DECIMAL_3),
             TextInput::make('target_rate_rupees')->label('Target rate (Rs per maund)')->regex(Units::DECIMAL_2),
             TextInput::make('moisture_max_percent')->label('Max moisture (%)')->default('17')->regex(Units::DECIMAL_2),

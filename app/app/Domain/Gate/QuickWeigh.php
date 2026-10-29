@@ -4,17 +4,15 @@ declare(strict_types=1);
 
 namespace App\Domain\Gate;
 
-use App\Domain\Auth\ActorContext;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Gate\GateEntry;
-use App\Models\LoginAccount;
 use App\Models\Masters\Party;
 use App\Models\Masters\Product;
 use App\Support\Values\PakistanIds;
 
 /**
  * The simple weighing form: vehicle number, party name, the item it carries (a product of the list, or
- * the goods as typed) and what it is (inbound paddy, inbound other goods, outbound). It finds the vehicle's open visit — or registers it, with the day's token — so one
+ * the goods as typed) and what it is (inbound paddy, inbound other goods, outbound). It finds the vehicle's open visit — or registers it, with the next token — so one
  * "Record weight" button can take the weight it needs next (LiveCapture).
  *
  *  - inbound paddy keeps lab first: until the lab accepts the lot, the vehicle waits (no weight);
@@ -29,10 +27,7 @@ final class QuickWeigh
         'outbound' => 'Outbound',
     ];
 
-    public function __construct(
-        private readonly GateService $gate,
-        private readonly ActorContext $actor,
-    ) {}
+    public function __construct(private readonly GateService $gate) {}
 
     /** The vehicle's open visit, if it has one. */
     public static function openVisit(string $vehicleNumber, ?string $kind = null): ?GateEntry
@@ -53,7 +48,7 @@ final class QuickWeigh
      *
      * @return array{0: GateEntry, 1: bool} the visit, and whether it was registered now
      */
-    public function visit(string $partyName, string $vehicleNumber, string $kind, ?string $item = null): array
+    public function visit(string $partyName, string $vehicleNumber, string $kind, ?string $item = null, ?string $jackType = null): array
     {
         if (! isset(self::KINDS[$kind])) {
             throw new BusinessRuleViolation('Choose inbound (paddy or other goods) or outbound.');
@@ -73,15 +68,16 @@ final class QuickWeigh
             return [$open, false];
         }
 
-        $party = $this->party($partyName, $kind);
-        $entry = $this->gate->arrive([
+        // No party record is made here: an unregistered name is kept on the visit as typed.
+        $entry = $this->gate->arrive(array_filter([
             'registration_no' => $plate,
             'direction' => $kind === 'outbound' ? 'outbound' : 'inbound',
             'purpose' => $kind === 'paddy' ? 'paddy_purchase' : 'other',
-            'party_id' => $party->id,
+            'party_name' => self::partyName($partyName),
             'product_id' => $productId,
             'goods_description' => $goods,
-        ]);
+            'jack_type' => $jackType,
+        ], fn ($v) => $v !== null));
 
         return [$entry, true];
     }
@@ -103,31 +99,14 @@ final class QuickWeigh
         return $product !== null ? [(string) $product->id, null] : [null, mb_substr($item, 0, 160)];
     }
 
-    /** The party by its name; a new one is added for someone who may manage masters. */
-    private function party(string $name, string $kind): Party
+    /** The party as typed: a registered party when the name (or "Name (CODE)") matches one, else kept as typed. */
+    private static function partyName(string $name): string
     {
         $name = trim(preg_replace('/\s+/', ' ', $name) ?? '');
         if (mb_strlen($name) < 2) {
             throw new BusinessRuleViolation('Type the party name.');
         }
-        $party = Party::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
-        if ($party !== null) {
-            return $party;
-        }
-        $me = $this->actor->account();
-        if (! $me instanceof LoginAccount || ! $me->hasPermission('master.manage')) {
-            throw new BusinessRuleViolation("No party named \"{$name}\". Choose one from the list, or ask the office to add it.");
-        }
-        $base = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $name) ?: 'PARTY', 0, 8));
-        $code = $base;
-        for ($i = 2; Party::query()->where('code', $code)->exists(); $i++) {
-            $code = $base.'-'.$i;
-        }
 
-        return Party::query()->create([
-            'code' => $code, 'name' => $name,
-            'is_vendor' => $kind !== 'outbound', 'is_farmer' => $kind === 'paddy', 'is_customer' => $kind === 'outbound',
-            'notes' => 'Added at the weighbridge.',
-        ]);
+        return $name;
     }
 }

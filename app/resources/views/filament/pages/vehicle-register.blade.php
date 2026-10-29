@@ -21,7 +21,9 @@
                 </x-filament::tabs>
                 <x-filament::button tag="a" :href="$this->dayPrintUrl()" target="_blank" icon="heroicon-o-printer">Print day register (all vehicles)</x-filament::button>
                 <x-filament::button tag="a" :href="$this->allSlipsUrl()" target="_blank" color="gray" icon="heroicon-o-document-duplicate">Print all vehicle slips (full details)</x-filament::button>
-                <x-filament::button wire:click="downloadExcel" color="gray" icon="heroicon-o-table-cells">Excel</x-filament::button>
+                @if (\App\Filament\Support\ExportGuard::allowed())
+                    <x-filament::button wire:click="downloadExcel" color="gray" icon="heroicon-o-table-cells">Excel</x-filament::button>
+                @endif
             </div>
             <p class="mt-2 text-xs text-gray-500">Click a vehicle (or <b>Details</b>) to see everything about it — driver, licence, owner, every weighment, lab test, deductions, price working and timeline. <b>Print</b> on a row prints that one vehicle.</p>
 

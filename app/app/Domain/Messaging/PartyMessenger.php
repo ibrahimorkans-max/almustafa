@@ -76,9 +76,9 @@ final class PartyMessenger
             return $this->store($record + ['status' => PartyMessage::SKIPPED, 'error' => 'No mobile number for this party.']);
         }
 
-        if ($channel === 'whatsapp' && WhatsAppCloud::configured()) {
-            // The approved template carries the mill's name and the thank-you around {{1}}.
-            $sent = app(WhatsAppCloud::class)->send($to, MessageText::forTemplate($text));
+        if ($channel === 'whatsapp' && WhatsAppCloud::configured($entityId)) {
+            // The approved template carries the mill's name and the thank-you around {{1}}. From the mill's own number when it connected one.
+            $sent = (new WhatsAppCloud($entityId))->send($to, MessageText::forTemplate($text));
 
             return $this->store($record + ['status' => $sent['ok'] ? PartyMessage::SENT : PartyMessage::FAILED,
                 'error' => $sent['error'], 'sent_at' => $sent['ok'] ? now() : null]);
