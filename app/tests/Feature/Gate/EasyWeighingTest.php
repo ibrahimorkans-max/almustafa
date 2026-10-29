@@ -16,7 +16,6 @@ use App\Filament\Pages\NegotiationPage;
 use App\Filament\Resources\Gate\LabParameterResource\Pages\ManageLabParameters;
 use App\Filament\Widgets\LiveWeightBoard;
 use App\Http\Middleware\EnsureWebAuthSession;
-use App\Livewire\LiveWeightDial;
 use App\Models\Attachment;
 use App\Models\AuthSession;
 use App\Models\Gate\GateEntry;
@@ -328,9 +327,11 @@ it('shows one clock with the status and the exact weight on its face, switching 
     $html = $board->html();
     expect(substr_count($html, '<svg viewBox="0 0 240 240"'))->toBe(1)
         ->and($html)->toContain('25,480')->toContain('STABLE')->toContain('637.00 maund')->toContain('WB1 · TONNES')
-        // Only the clock refreshes itself; the form next to it is never redrawn while someone types.
-        ->and(substr_count($html, 'wire:poll'))->toBe(1);
-    Livewire::test(LiveWeightDial::class, ['scaleId' => $this->f->scale->id])->assertSeeHtml('wire:poll.1s')->assertSee('25,480');
+        // Nothing on the page polls Livewire (a reload or a redraw would interrupt weighing): the clock reads its
+        // weighbridge as plain JSON in the browser.
+        ->and($html)->not->toContain('wire:poll')->toContain('data-live-weight="'.route('filament.admin.gate.live-weight', ['scale' => $this->f->scale->id]).'"');
+    $this->getJson(route('filament.admin.gate.live-weight', ['scale' => $this->f->scale->id]))->assertOk()
+        ->assertJson(['kg' => 25480, 'live' => true, 'stable' => true])->assertHeader('Cache-Control', 'no-store, private');
 
     $html = $board->call('showScale', $second->id)->html();
     expect(substr_count($html, '<svg viewBox="0 0 240 240"'))->toBe(1)

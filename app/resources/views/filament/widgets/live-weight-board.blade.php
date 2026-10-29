@@ -1,5 +1,5 @@
 <x-filament-widgets::widget>
-    {{-- Not refreshed by itself: only the clock refreshes (every second), so typing is never interrupted. --}}
+    {{-- Not refreshed by itself: only the clock's reading changes (every second, in the browser), so typing is never interrupted. --}}
     <div>
         @php
             $scales = $this->getScales();
@@ -39,8 +39,12 @@
                 @endif
 
                 <div class="flex flex-col items-center gap-6 md:flex-row md:items-start">
-                    <div style="flex: 0 0 240px; width: 240px; max-width: 100%;">
-                        @livewire(\App\Livewire\LiveWeightDial::class, ['scaleId' => $sid], key('dial-'.$sid))
+                    {{-- The clock reads the weighbridge by itself in the browser (public/js/live-weight.js): no request
+                         redraws this widget, so the page never reloads while a vehicle is being weighed. --}}
+                    <div style="flex: 0 0 240px; width: 240px; max-width: 100%;" wire:ignore wire:key="dial-{{ $sid }}"
+                        data-live-weight="{{ route('filament.admin.gate.live-weight', ['scale' => $sid]) }}" data-capacity="{{ $s['capacity'] }}" data-name="{{ $s['name'] }}">
+                        @include('filament.widgets.partials.weight-dial', ['kg' => $s['kg'], 'capacity' => $s['capacity'], 'live' => $s['live'],
+                            'stable' => $s['stable'], 'code' => $s['code'], 'name' => $s['name'], 'age' => $s['age_seconds']])
                     </div>
                     <div class="w-full min-w-0 flex-1">
 
