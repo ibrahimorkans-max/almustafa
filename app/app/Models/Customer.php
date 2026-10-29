@@ -50,7 +50,7 @@ class Customer extends Model
 
     protected function casts(): array
     {
-        return ['trial_ends_at' => 'datetime', 'lifetime' => 'boolean', 'lifetime_since' => 'datetime'];
+        return ['trial_ends_at' => 'datetime', 'lifetime' => 'boolean', 'lifetime_since' => 'datetime', 'bank_email_enabled' => 'boolean'];
     }
 
     /** @return HasMany<Entity, $this> */

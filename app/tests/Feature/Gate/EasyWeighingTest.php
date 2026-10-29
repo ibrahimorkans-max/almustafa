@@ -25,6 +25,7 @@ use App\Models\Gate\Scale;
 use App\Models\Gate\Weighment;
 use App\Models\LoginAccount;
 use App\Models\Masters\Godown;
+use App\Models\Masters\Party;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
@@ -88,15 +89,15 @@ it('keeps tokens in sequence after numbers already given today, never twice the 
     expect($tokens)->toBe([8, 9, 10]);
 });
 
-it('prints a token slip with only the token number and the vehicle number, on the small roll', function () {
+it('prints the gate entry token: mill, token number, party, vehicle, type, date and time, on the small roll', function () {
     $e = ewgArrive($this);
     ewgSignIn($this, $this->f->owner);
 
     $pdf = $this->get(route('filament.admin.gate.token', ['id' => $e->id]))->assertOk()->assertHeader('Content-Type', 'application/pdf')->getContent();
     $html = PdfRenderer::$lastHtml;
     expect(PdfRenderer::$lastPaper)->toBe('roll')
-        ->and($html)->toContain('>1<')->toContain('MNA-21-1234')
-        ->and($html)->not->toContain('Muhammad Aslam')->not->toContain('Rs')
+        ->and($html)->toContain('GATE ENTRY TOKEN')->toContain('>000001<')->toContain('MNA-21-1234')->toContain('Party Name')->toContain('Time')
+        ->and($html)->not->toContain('Rs')
         ->and($pdf)->toContain('/MediaBox [0 0 226.77');   // 80 mm wide
 });
 
@@ -197,7 +198,7 @@ it('weighs a new vehicle from party, vehicle number and inbound or outbound, kee
     $board()->set('plate.'.$sid, 'LES 4455')->set('party.'.$sid, 'Bhatti Traders')->set('kind.'.$sid, 'outbound')
         ->call('recordWeight', $sid)->assertNotified();
     $out = GateEntry::query()->where('registration_no', 'LES4455')->sole();
-    expect($out->purpose)->toBe('other')->and($out->tare_kg)->toBe('9000.000')->and($out->party->name)->toBe('Bhatti Traders')
+    expect($out->purpose)->toBe('other')->and($out->tare_kg)->toBe('9000.000')->and($out->party_id)->toBeNull()->and($out->partyLabel())->toBe('Bhatti Traders') // typed, no party record made
         ->and($out->token_no)->toBe(1);
     ewgFeed($this, '24000');
     $board()->set('plate.'.$sid, 'LES 4455')->call('recordWeight', $sid)->assertNotified();
@@ -211,15 +212,18 @@ it('weighs a new vehicle from party, vehicle number and inbound or outbound, kee
 
     // Inbound paddy: registered with a token, but weighed only after the lab accepts it.
     $board()->set('plate.'.$sid, 'MNA 9090')->set('party.'.$sid, 'Muhammad Aslam')->set('kind.'.$sid, 'paddy')
-        ->call('recordWeight', $sid)->assertNotified('Token 3 · MNA-9090 registered.');
+        ->call('recordWeight', $sid)->assertNotified('Token 000003 · MNA-9090 registered.');
     $paddy = GateEntry::query()->where('registration_no', 'MNA9090')->sole();
     expect($paddy->gross_kg)->toBeNull()->and($paddy->status)->toBe('arrived');
 
-    // A gate operator cannot add parties from here.
+    // An unregistered name is kept on the visit as typed, for anyone: no party record is made from here.
+    $parties = Party::query()->count();
     ewgSignIn($this, $this->operator);
     $this->f->as($this->operator);
     Livewire::test(LiveWeightBoard::class)->set('plate.'.$sid, 'MNA 5151')->set('party.'.$sid, 'Someone New')->set('kind.'.$sid, 'outbound')
-        ->call('recordWeight', $sid)->assertNotified('No party named "Someone New". Choose one from the list, or ask the office to add it.');
+        ->call('recordWeight', $sid)->assertNotified();
+    expect(GateEntry::query()->where('registration_no', 'MNA5151')->sole()->party_name)->toBe('Someone New')
+        ->and(Party::query()->count())->toBe($parties);
 });
 
 // ------------------------------------------------------------------ lab
@@ -309,7 +313,7 @@ it('keeps every price and Caat proposal in the negotiation timeline, on its own 
     expect($what)->toContain('Price proposed (version 1)', 'Price rejected (version 1)', 'Price proposed (version 2)', 'Price accepted (version 2)', 'Caat proposed');
 
     ewgSignIn($this, $this->f->owner2);
-    Livewire::test(NegotiationPage::class)->assertSee('Token 1 · MNA-21-1234')->assertSee('Caat proposed — waiting for approval')
+    Livewire::test(NegotiationPage::class)->assertSee('Token 000001 · MNA-21-1234')->assertSee('Caat proposed — waiting for approval')
         ->call('choose', $e->id)->assertSee('Meet halfway')->assertSee('Waste Caat 50')
         ->callAction('approveSettlement', ['note' => 'OK'])->assertNotified('Settlement approved');
     expect(app(GateService::class)->settlementApproved($e->fresh()))->toBeTrue();

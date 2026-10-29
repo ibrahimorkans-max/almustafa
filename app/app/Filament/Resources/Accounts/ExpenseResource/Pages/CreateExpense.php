@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Accounts\ExpenseResource\Pages;
 
 use App\Domain\Accounts\ExpenseCategories;
 use App\Domain\Accounts\Expenses;
+use App\Domain\Security\EntryLocation;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Accounts\ExpenseResource;
 use App\Filament\Support\Units;
@@ -34,6 +35,7 @@ class CreateExpense extends CreateRecord
     /** @param  array<string, mixed>  $data */
     protected function handleRecordCreation(array $data): Model
     {
+        EntryLocation::hold($data);
         $receipt = $data['receipt'] ?? null;
         if (is_array($receipt)) {
             $receipt = reset($receipt) ?: null;
@@ -44,7 +46,7 @@ class CreateExpense extends CreateRecord
                 CarbonImmutable::parse($data['entry_date'], 'Asia/Karachi'),
                 Units::rupeesToPaise((string) $data['amount']),
                 (string) $data['description'],
-                $data['via'] === 'cash' ? LedgerAccount::query()->find($data['cash_ledger_id'] ?? null) : null,
+                $data['via'] !== 'party' ? LedgerAccount::query()->find($data['cash_ledger_id'] ?? null) : null,
                 $data['via'] === 'party' ? Party::query()->find($data['party_id'] ?? null) : null,
                 $receipt instanceof TemporaryUploadedFile ? (string) $receipt->get() : null,
                 (bool) ($data['post'] ?? false),

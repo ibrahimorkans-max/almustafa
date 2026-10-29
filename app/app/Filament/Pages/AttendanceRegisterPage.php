@@ -6,6 +6,7 @@ namespace App\Filament\Pages;
 
 use App\Domain\Hr\Attendance\AttendanceRegister;
 use App\Filament\Resources\Hr\HrScope;
+use App\Filament\Support\ExportGuard;
 use App\Http\Controllers\ReportPrintController;
 use App\Models\Hr\Department;
 use App\Models\LoginAccount;
@@ -61,10 +62,10 @@ class AttendanceRegisterPage extends Page
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('pdf')->label('PDF')->icon('heroicon-o-printer')
+            Action::make('pdf')->visible(fn () => ExportGuard::allowed('hr.employee.view'))->label('PDF')->icon('heroicon-o-printer')
                 ->url(fn () => ReportPrintController::url(['attendance'], $this->month.'-01', $this->month.'-01', $this->department ? ['department' => $this->department] : []), shouldOpenInNewTab: true),
             Action::make('allReports')->label('All reports')->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
-            Action::make('csv')->label('Export CSV')->icon('heroicon-o-arrow-down-tray')
+            Action::make('csv')->visible(fn () => ExportGuard::allowed('hr.employee.view'))->label('Export CSV')->icon('heroicon-o-arrow-down-tray')
                 ->action(fn () => response()->streamDownload(
                     fn () => print app(AttendanceRegister::class)->csv($this->month, $this->department ?: null),
                     "attendance-register-{$this->month}.csv", ['Content-Type' => 'text/csv'],

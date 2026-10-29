@@ -93,6 +93,7 @@ class EmployeeResource extends Resource
                 TextColumn::make('person.full_name')->label('Name')->searchable(),
                 TextColumn::make('department.name')->label('Department')->placeholder('—'),
                 TextColumn::make('designation.name')->label('Designation')->placeholder('—'),
+                TextColumn::make('contractor.name')->label('Contractor')->placeholder('Mill staff')->toggleable(),
                 TextColumn::make('employment_type')->label('Type')->formatStateUsing(fn (string $state) => Employee::TYPES[$state] ?? $state),
                 TextColumn::make('status')->badge()->color(fn (string $state) => match ($state) {
                     'active' => 'success', 'on_notice' => 'warning', default => 'gray',
@@ -104,6 +105,7 @@ class EmployeeResource extends Resource
                 SelectFilter::make('status')->options(['active' => 'Active', 'on_notice' => 'On notice', 'exited' => 'Exited']),
                 SelectFilter::make('department_id')->label('Department')->relationship('department', 'name'),
                 SelectFilter::make('employment_type')->label('Type')->options(Employee::TYPES),
+                SelectFilter::make('contractor_party_id')->label('Contractor')->relationship('contractor', 'name'),
             ])
             ->actions([ViewAction::make()]);
     }

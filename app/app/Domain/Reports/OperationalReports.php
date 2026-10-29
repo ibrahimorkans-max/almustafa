@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Reports;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Saas\DataVisibility;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Accounts\PurchaseBill;
 use App\Models\Gate\GateEntry;
@@ -33,6 +34,7 @@ final class OperationalReports
     /** @return array{0: list<string>, 1: list<list<string|int|float|null>>} */
     public function run(string $report, CarbonInterface $from, CarbonInterface $to): array
     {
+        $from = DataVisibility::clampDate($from);
         $f = $from->toDateString();
         $t = $to->toDateString();
         $rs = fn (int $p) => number_format($p / 100, 2, '.', '');

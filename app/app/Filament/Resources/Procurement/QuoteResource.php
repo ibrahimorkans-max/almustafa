@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Procurement;
 
 use App\Filament\Resources\Procurement\QuoteResource\Pages;
+use App\Filament\Support\ProductSelect;
 use App\Filament\Support\Units;
 use App\Models\Procurement\Quote;
 use Filament\Forms\Components\DateTimePicker;
@@ -47,8 +48,7 @@ class QuoteResource extends Resource
                 ->relationship('party', 'name', fn (Builder $query) => $query->whereRaw('(is_vendor OR is_farmer)')),
             Select::make('broker_party_id')->label('Broker / agent')->searchable()->preload()
                 ->relationship('broker', 'name', fn (Builder $query) => $query->where('is_broker', true)),
-            Select::make('product_id')->label('Product')->required()->preload()
-                ->relationship('product', 'name', fn (Builder $query) => $query->where('category', 'paddy')),
+            ProductSelect::make('product_id', ['paddy'])->required(),
             TextInput::make('quantity_maund')->label('Quantity (maund)')->required()->regex(Units::DECIMAL_3),
             TextInput::make('rate_rupees')->label('Rate (Rs per maund)')->required()->regex(Units::DECIMAL_2),
             DateTimePicker::make('valid_until'),

@@ -28,7 +28,7 @@ final class SecurityHeaders
         ."img-src 'self' data: blob:; "
         ."font-src 'self' data:; "
         ."connect-src 'self' https://*.googleapis.com https://www.gstatic.com; "
-        ."worker-src 'self' blob:; manifest-src 'self'; media-src 'self' blob:; frame-src 'none'; "
+        ."worker-src 'self' blob:; manifest-src 'self'; media-src 'self' blob:; frame-src 'self'; "
         ."frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'";
 
     public function handle(Request $request, Closure $next): Response
@@ -43,7 +43,10 @@ final class SecurityHeaders
         }
 
         $headers->set('X-Content-Type-Options', 'nosniff');
-        $headers->set('X-Frame-Options', 'DENY');
+        // A print job (a PDF opened in a hidden frame of this site for the print dialog) may be framed by this site only.
+        $printFrame = $response->headers->get('X-Print-Frame') === '1';
+        $headers->remove('X-Print-Frame');
+        $headers->set('X-Frame-Options', $printFrame ? 'SAMEORIGIN' : 'DENY');
         $headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self), payment=()');
         $headers->set('Cross-Origin-Opener-Policy', 'same-origin');
@@ -51,6 +54,8 @@ final class SecurityHeaders
         if ($request->is('api/*')) {
             $headers->set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
             $headers->set('Cache-Control', 'no-store');
+        } elseif ($printFrame) {
+            $headers->set('Content-Security-Policy', "frame-ancestors 'self'");
         } else {
             $headers->set('Content-Security-Policy', self::WEB_POLICY);
         }

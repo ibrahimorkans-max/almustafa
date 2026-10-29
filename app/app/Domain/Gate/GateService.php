@@ -6,8 +6,11 @@ namespace App\Domain\Gate;
 
 use App\Domain\Accounts\PurchaseBillService;
 use App\Domain\Approvals\SelfApproval;
+use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
+use App\Domain\Hr\ContractorVehicles;
+use App\Domain\Inventory\PaddyStockEntries;
 use App\Domain\Inventory\StockLedger;
 use App\Domain\Messaging\PartyEventMessages;
 use App\Domain\Procurement\SaudaService;
@@ -22,8 +25,10 @@ use App\Models\Gate\GatePriceVersion;
 use App\Models\Gate\LabTest;
 use App\Models\Gate\Scale;
 use App\Models\Gate\Weighment;
+use App\Models\Hr\ContractorRate;
 use App\Models\Inventory\StockEntry;
 use App\Models\Masters\Godown;
+use App\Models\Masters\Party;
 use App\Models\Masters\Vehicle;
 use App\Models\Procurement\Sauda;
 use App\Models\Sales\DispatchOrder;
@@ -58,7 +63,27 @@ final class GateService
         private readonly LabStandards $standards,
     ) {}
 
+    /** The never-resetting counter of printed gate tokens. */
+    public const TOKEN_SERIES = 'TOKEN-ALL';
+
     // ------------------------------------------------------------------ arrival
+
+    /**
+     * The registered party a typed name stands for: "Ali Traders (PTY-ALI-0001)" as offered by the
+     * gate's suggestions, or the exact name of one party. Anything else stays a typed name.
+     */
+    public static function registeredParty(string $typed): ?Party
+    {
+        if (preg_match('/\(([A-Za-z0-9._-]+)\)\s*$/', $typed, $m) === 1) {
+            $party = Party::query()->where('code', $m[1])->first();
+            if ($party !== null) {
+                return $party;
+            }
+        }
+        $matches = Party::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($typed)])->limit(2)->get();
+
+        return $matches->count() === 1 ? $matches->first() : null;
+    }
 
     /** @param  array<string, mixed>  $data */
     public function arrive(array $data, ?string $id = null, ?CarbonInterface $occurredAt = null): GateEntry
@@ -74,6 +99,15 @@ final class GateService
             $type = isset($data['vehicle_type']) && $data['vehicle_type'] !== '' ? (string) $data['vehicle_type'] : null;
             if ($type !== null && ! in_array($type, Vehicle::TYPES, true)) {
                 throw new BusinessRuleViolation('Unknown kind of vehicle.');
+            }
+            $jack = isset($data['jack_type']) && $data['jack_type'] !== '' ? (string) $data['jack_type'] : null;
+            if ($jack !== null && ! isset(GateEntry::JACK_TYPES[$jack])) {
+                throw new BusinessRuleViolation('Choose With Jack or Without Jack.');
+            }
+            // The party: a registered one, or only the name as typed (no party record is made for it).
+            $partyName = trim((string) preg_replace('/\s+/', ' ', (string) ($data['party_name'] ?? '')));
+            if (! isset($data['party_id']) && $partyName !== '') {
+                $data['party_id'] = self::registeredParty($partyName)?->id;
             }
             $description = trim((string) ($data['vehicle_description'] ?? ''));
             $flags = [];
@@ -111,6 +145,22 @@ final class GateService
                 }
             }
 
+            // A contractor token: the contractor's vehicle (one contractor per vehicle) and the work it does.
+            $contractor = isset($data['contractor_party_id']) ? Party::query()->find($data['contractor_party_id']) : null;
+            if (isset($data['contractor_party_id']) && $contractor === null) {
+                throw new BusinessRuleViolation('Contractor not found.');
+            }
+            $work = (string) ($data['contractor_work'] ?? 'unloading');
+            if ($contractor !== null) {
+                if (! isset(ContractorRate::WORK[$work])) {
+                    throw new BusinessRuleViolation('Unloading, loading or transport.');
+                }
+                if ($vehicle !== null && $vehicle->contractor_party_id !== null && $vehicle->contractor_party_id !== $contractor->id) {
+                    throw new BusinessRuleViolation("{$vehicle->registration_no} works for another contractor.");
+                }
+                app(ContractorVehicles::class)->markContractor($contractor);
+            }
+
             $sauda = isset($data['sauda_id']) ? Sauda::query()->find($data['sauda_id']) : null;
             if ($sauda !== null && ! $sauda->isOpenForDelivery()) {
                 $flags[] = 'sauda_not_open';
@@ -132,6 +182,9 @@ final class GateService
                 'product_id' => $data['product_id'] ?? $sauda?->product_id,
                 'bag_count' => $data['bag_count'] ?? null,
                 'arrived_at' => $occurredAt,
+                'jack_type' => $jack,
+                'party_name' => $partyName === '' || ($data['party_id'] ?? $sauda?->party_id) !== null ? null : mb_substr($partyName, 0, 160),
+                'paddy_variety_id' => $data['paddy_variety_id'] ?? $sauda?->paddy_variety_id,
             ]);
             if ($id !== null) {
                 $entry->id = $id;
@@ -142,6 +195,9 @@ final class GateService
             $entry->token_date = Carbon::parse($day, 'Asia/Karachi')->startOfDay();
             $entry->token_no = $this->numbers->nextDaily('TOKEN', $day,
                 fn () => (int) GateEntry::query()->whereDate('token_date', $day)->max('token_no'));
+            // The printed token: one continuous number for the mill (000001, 000002 …), never reset, never
+            // reused (a cancelled entry keeps its number), the same series With Jack or Without.
+            $entry->token_serial = $this->numbers->nextSerial(self::TOKEN_SERIES);
             if ($noPlate) {
                 $entry->registration_no = substr(GateEntry::NO_PLATE_PREFIX.preg_replace('/\D/', '', $entry->number), 0, 24);
             }
@@ -149,6 +205,10 @@ final class GateService
             $entry->flags = $flags;
             if ($order !== null && $order->status === DispatchOrder::OPEN) {
                 $entry->dispatch_order_id = $order->id;
+            }
+            if ($contractor !== null) {
+                $entry->contractor_party_id = $contractor->id;
+                $entry->contractor_work = $work;
             }
             $entry->save();
             if ($entry->dispatch_order_id !== null && $order !== null) {
@@ -232,7 +292,8 @@ final class GateService
                 $flags[] = 'reweighed';
             }
 
-            if ($kind === Weighment::TARE) {
+            // A partly rejected lot's empty weight carries the rejected bags: it is not compared with the usual tare.
+            if ($kind === Weighment::TARE && ! $entry->rejectionOnVehicle()) {
                 $deviation = $this->tareCheck->check($entry->registration_no, $weight, $entry->id);
                 if ($deviation !== null) {
                     $flags[] = 'tare_deviation';
@@ -387,9 +448,9 @@ final class GateService
     private function labDecisionData(GateEntry $entry, LabTest $test, ?string $note): array
     {
         $rules = $entry->product_id
-            ? DeductionRule::query()->where('product_id', $entry->product_id)->where('status', 'active')->get()
+            ? DeductionRule::query()->applicable($entry->product_id, $entry->paddy_variety_id, $entry->arrived_at)->get()
             : collect();
-        $preview = $this->deductions->calculate('0', $entry->bag_count, $test->measurements(), $rules);
+        $preview = $this->deductions->calculate('0', $entry->acceptedBags(), $test->measurements(), $rules);
 
         return [[
             'lab_test_id' => $test->id,
@@ -398,7 +459,7 @@ final class GateService
             'grade' => $test->grade,
             'above_reject_limit' => $preview['reject'],
             'note' => $note,
-            'rules' => $rules->map(fn (DeductionRule $r) => $r->only(['id', 'parameter', 'method', 'free_limit_bp', 'factor', 'reject_above_bp', 'status']))->values()->all(),
+            'rules' => $rules->map(fn (DeductionRule $r) => $r->only(['id', 'code', 'parameter', 'method', 'free_limit_bp', 'factor', 'reject_above_bp', 'status']))->values()->all(),
         ], $preview];
     }
 
@@ -688,25 +749,118 @@ final class GateService
         });
     }
 
-    // ------------------------------------------------------------------ yard & exit
+    // ------------------------------------------------------------------ corrections
 
-    /** The godown is where the slip will book the paddy receipt. */
-    public function markUnloaded(GateEntry $entry, ?CarbonInterface $at = null, bool $strict = true, ?Godown $godown = null): GateEvent
+    /**
+     * A vehicle number typed wrong at the gate, corrected after weighing: the weights stay, the visit
+     * moves to the right vehicle, the correction is in the timeline and the audit log, and the record is
+     * flagged. Once the slip is issued or the vehicle has left, only a main user (Owner, Super Admin)
+     * may correct it.
+     */
+    public function correctVehicle(GateEntry $entry, string $registrationNo, string $reason): GateEntry
     {
         $this->require('gate.entry');
+        $me = $this->actor->account();
+        $plate = PakistanIds::normalizeVehicleNumber($registrationNo);
+        if (! PakistanIds::isValidVehicleNumber($plate)) {
+            throw new BusinessRuleViolation('Not a valid registration number, e.g. MNA-21-1234.');
+        }
+        if (mb_strlen(trim($reason)) < 5) {
+            throw new BusinessRuleViolation('Say why the number is corrected (at least 5 characters).');
+        }
+
+        return DB::transaction(function () use ($entry, $plate, $reason, $me): GateEntry {
+            $entry = $this->lock($entry);
+            if ($entry->status === 'cancelled') {
+                throw new BusinessRuleViolation('This visit was cancelled.');
+            }
+            $finished = $entry->status === 'exited' || $this->hasEvent($entry, 'slip_issued');
+            if ($finished && ! SelfApproval::allowed($me)) {
+                throw new BusinessRuleViolation('After the slip is issued, only the Owner or the Super Admin can correct the vehicle number.');
+            }
+            $old = $entry->no_plate ? null : $entry->registration_no;
+            if ($old === $plate) {
+                throw new BusinessRuleViolation('That is already its number.');
+            }
+            $vehicle = Vehicle::query()->where('registration_no', $plate)->first();
+            if ($vehicle?->is_blocked) {
+                throw new BusinessRuleViolation('Vehicle '.PakistanIds::formatVehicleNumber($plate).' is blocked.');
+            }
+            $entry->forceFill([
+                'registration_no' => $plate, 'vehicle_id' => $vehicle?->id, 'no_plate' => false,
+                'vehicle_type' => $entry->vehicle_type ?? $vehicle?->vehicle_type,
+                'flags' => array_values(array_unique([...array_diff($entry->flags ?? [], ['unknown_vehicle', 'no_number_plate']),
+                    'vehicle_corrected', ...($vehicle === null ? ['unknown_vehicle'] : [])])),
+            ])->save();
+            $this->appendEvent($entry, 'vehicle_corrected', ['from' => $old, 'to' => $plate, 'reason' => trim($reason)], now(), false);
+            app(AuditLogger::class)->record('gate.vehicle_corrected', $entry, ['registration_no' => $old], ['registration_no' => $plate], ['reason' => trim($reason)]);
+
+            return $entry;
+        });
+    }
+
+    // ------------------------------------------------------------------ yard & exit
+
+    /**
+     * The godown is where the slip will book the paddy receipt. Paddy rejected while unloading is given in
+     * bags, in kg, or both, with the reason, and where it is at the empty weighing:
+     *  - still on the vehicle (the usual case): the empty weight carries it, so net = gross − empty weight is
+     *    already only the paddy unloaded;
+     *  - taken off and kept aside: its weight is subtracted, net = gross − empty weight − rejected kg.
+     * Either way net (and payable, stock, bill) is only the paddy accepted, and per-bag deductions count only
+     * the bags unloaded. The labour contractor who unloaded it may be given here.
+     */
+    public function markUnloaded(GateEntry $entry, ?CarbonInterface $at = null, bool $strict = true, ?Godown $godown = null,
+        ?int $rejectedBags = null, ?string $rejectionReason = null, ?Party $contractor = null, ?string $rejectedKg = null, bool $rejectedOffVehicle = false): GateEvent
+    {
+        $this->require('gate.entry');
+        $rejectedBags = $rejectedBags !== null && $rejectedBags > 0 ? $rejectedBags : null;
+        $rejectedKg = $rejectedKg !== null && trim($rejectedKg) !== '' ? Weight::kg(trim($rejectedKg))->kg : null;
+        if ($rejectedKg !== null && bccomp($rejectedKg, '0', 3) <= 0) {
+            $rejectedKg = null;
+        }
+        $rejecting = $rejectedBags !== null || $rejectedKg !== null;
+        if ($rejecting && mb_strlen(trim((string) $rejectionReason)) < 5) {
+            throw new BusinessRuleViolation('Say why the paddy was rejected (at least 5 characters).');
+        }
+        if ($rejectedOffVehicle && $rejectedKg === null) {
+            throw new BusinessRuleViolation('Paddy taken off the vehicle is subtracted by its weight: give the rejected weight in kg.');
+        }
+        $rejection = ! $rejecting ? [] : array_filter(['rejected_bags' => $rejectedBags, 'rejected_kg' => $rejectedKg,
+            'rejected_off_vehicle' => $rejectedOffVehicle, 'rejection_reason' => trim((string) $rejectionReason)], fn ($v) => $v !== null);
 
         $event = $this->simpleEvent($entry, 'unloaded', $at, $strict, function (GateEntry $e): void {
             if ($e->direction === 'inbound' && ! $this->hasEvent($e, 'lab_accepted')) {
                 throw new BusinessRuleViolation('Unload only after the lab has accepted the lot.');
             }
-        }, $godown ? ['godown_id' => $godown->id, 'godown' => $godown->code] : [], function (GateEntry $e) use ($godown): void {
-            if ($godown !== null && $godown->status !== 'active') {
-                throw new BusinessRuleViolation("Godown {$godown->name} is not active.");
-            }
-            if ($godown !== null) {
-                $e->godown_id = $godown->id;
-            }
-        });
+        }, ($godown ? ['godown_id' => $godown->id, 'godown' => $godown->code] : []) + $rejection + ($contractor ? ['contractor' => $contractor->name] : []),
+            function (GateEntry $e) use ($godown, $rejecting, $rejectedBags, $rejectedKg, $rejectedOffVehicle, $rejectionReason): void {
+                if ($rejecting) {
+                    if ($e->direction !== 'inbound' || $e->tare_kg !== null) {
+                        throw new BusinessRuleViolation('Paddy can be rejected only while unloading, before the empty weight.');
+                    }
+                    if ($rejectedBags !== null && $e->bag_count !== null && $rejectedBags >= $e->bag_count) {
+                        throw new BusinessRuleViolation('All the bags rejected: reject the lot instead.');
+                    }
+                    if ($rejectedKg !== null && $e->gross_kg !== null && bccomp($rejectedKg, (string) $e->gross_kg, 3) >= 0) {
+                        throw new BusinessRuleViolation('The rejected weight is more than the loaded vehicle weighs.');
+                    }
+                    $e->rejected_bags = $rejectedBags;
+                    $e->rejected_kg = $rejectedKg;
+                    $e->rejected_off_vehicle = $rejectedOffVehicle;
+                    $e->rejection_reason = mb_substr(trim((string) $rejectionReason), 0, 300);
+                    $e->flags = array_values(array_unique([...($e->flags ?? []), 'partly_rejected']));
+                }
+                if ($godown !== null && $godown->status !== 'active') {
+                    throw new BusinessRuleViolation("Godown {$godown->name} is not active.");
+                }
+                if ($godown !== null) {
+                    $e->godown_id = $godown->id;
+                }
+            });
+        if ($contractor !== null) {
+            app(ContractorVehicles::class)->assign([$entry], $contractor, 'unloading');
+        }
         if ($entry->direction === 'inbound') {
             // The party hears that its vehicle was unloaded (once this is saved).
             app(PartyEventMessages::class)->unloaded($entry->fresh() ?? $entry);
@@ -754,7 +908,9 @@ final class GateService
                 'deduction_kg' => $entry->deduction_kg, 'payable_kg' => $entry->payable_kg,
                 'rate_cut_paise_per_maund' => $entry->rate_cut_paise_per_maund, 'lab_accepted' => $accepted,
                 'flags' => $entry->flags ?? [],
-            ] + ($settlement !== null ? ['settlement' => $settlement->data] : []);
+            ] + ($settlement !== null ? ['settlement' => $settlement->data] : [])
+                + ($entry->rejected_bags > 0 || $entry->rejected_kg !== null ? ['rejected_bags' => $entry->rejected_bags, 'rejected_kg' => $entry->rejected_kg,
+                    'rejected_off_vehicle' => (bool) $entry->rejected_off_vehicle, 'rejection_reason' => $entry->rejection_reason] : []);
             $event = $this->appendEvent($entry, 'slip_issued', $snapshot, now(), $strict);
 
             if ($entry->direction === 'inbound' && $accepted && $entry->sauda_id !== null && $entry->payable_kg !== null) {
@@ -892,6 +1048,11 @@ final class GateService
         $entry->gross_kg = $gross?->weight_kg;
         $entry->tare_kg = $tare?->weight_kg;
         $entry->net_kg = $gross && $tare ? Weight::kg($gross->weight_kg)->minus(Weight::kg($tare->weight_kg))->kg : null;
+        // Rejected paddy taken off the vehicle before the empty weight: net is only the paddy accepted.
+        if ($entry->net_kg !== null && $entry->rejected_off_vehicle && $entry->rejected_kg !== null) {
+            $accepted = Weight::kg($entry->net_kg)->minus(Weight::kg((string) $entry->rejected_kg));
+            $entry->net_kg = $accepted->isNegative() ? Weight::zero()->kg : $accepted->kg;
+        }
 
         // Deductions from the latest lab decision, with the rules frozen in it.
         $decision = $events->whereIn('event', ['lab_accepted', 'lab_rejected'])->last();
@@ -902,7 +1063,8 @@ final class GateService
             /** @var list<array<string, mixed>> $frozen rules as they were when the decision was taken */
             $frozen = (array) ($decision->data['rules'] ?? []);
             $rules = array_map(fn (array $r) => (new DeductionRule)->forceFill($r), $frozen);
-            $result = $this->deductions->calculate($entry->net_kg, $entry->bag_count, $decision->data['measurements'] ?? [], $rules);
+            // Per-bag deductions count only the bags unloaded (rejected bags went back on the vehicle).
+            $result = $this->deductions->calculate($entry->net_kg, $entry->acceptedBags(), $decision->data['measurements'] ?? [], $rules);
             $entry->deduction_kg = $result['deduction_kg'];
             $entry->payable_kg = Weight::kg($entry->net_kg)->minus(Weight::kg($result['deduction_kg']))->kg;
             $entry->rate_cut_paise_per_maund = $result['rate_cut_paise_per_maund'];
@@ -1009,6 +1171,13 @@ final class GateService
 
     private function bookReceipt(GateEntry $entry): void
     {
+        // Already received through a paddy stock entry against this token: not counted twice.
+        if ($entry->direction === 'inbound' && PaddyStockEntries::heldByEntry($entry)) {
+            $entry->flags = array_values(array_unique([...($entry->flags ?? []), 'stock_by_entry']));
+            $entry->save();
+
+            return;
+        }
         $godown = $entry->godown_id ? Godown::query()->find($entry->godown_id) : null;
         $product = $entry->product;
         if ($godown === null || $product === null || ! $product->is_stock_item) {

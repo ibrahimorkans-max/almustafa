@@ -25,6 +25,14 @@ class PayrollRunResource extends Resource
 {
     protected static ?string $model = PayrollRun::class;
 
+    protected static ?string $recordTitleAttribute = 'number';
+
+    /** Found by the search box in the top bar (partial match, this mill only, and only for people who may open the list). */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['number'];
+    }
+
     protected static ?string $navigationIcon = 'heroicon-o-calculator';
 
     protected static ?string $navigationGroup = HrScope::GROUP;

@@ -34,3 +34,12 @@
   * `slips/weighment` and `gate/partials/slip-body` (slip note).
 * `DocumentRenderer` puts the logo inline for documents shown in the browser.
 * Tests: `tests/Feature/Documents/BrandingTest.php`.
+
+## Portrait, at actual size
+Every invoice, slip, voucher, letter and report prints **portrait**, at the **real size of the paper** chosen for the computer (A4, Letter, A6, A5, 80 mm or 50 mm roll):
+* **Reports that used to be landscape** (vehicle register, payroll register, business reports, wide screen prints) print upright on the same paper. Their tables shrink to fit the width instead of being cut off.
+* **"A4 landscape" is no longer offered** for generated documents. One saved with it before prints on A4 portrait.
+* **Every PDF tells the print dialog to print at 100 %** ("Actual size", not "Fit to page"; `/PrintScaling /None`). The printable HTML pages set `@page` to the same portrait paper.
+* **Half A4** slips still print two to an upright A4 sheet, with a cut line.
+
+Code: `App\Domain\Documents\PrintSetup`, used by `PdfRenderer`, `PaperSize` and the document engine (`DocumentRenderer`). Tests: `tests/Feature/Documents/PortraitPrintingTest.php`.

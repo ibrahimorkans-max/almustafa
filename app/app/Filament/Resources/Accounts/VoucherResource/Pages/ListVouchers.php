@@ -58,16 +58,10 @@ class ListVouchers extends ListRecords
                         Units::rupeesToPaise($data['amount']), CarbonImmutable::parse($data['date'], 'Asia/Karachi'), $data['narration'] ?? null,
                         self::allocate(Units::rupeesToPaise($data['amount']), (array) ($data['invoices'] ?? [])),
                     ))),
-                Action::make('contra')->label('Contra (cash ↔ bank)')->icon('heroicon-o-arrows-right-left')
-                    ->form([
-                        Select::make('from')->required()->options($moneyLedgers),
-                        Select::make('to')->required()->options($moneyLedgers),
-                        $amount(), $date(), Textarea::make('narration')->maxLength(500),
-                    ])
-                    ->action(fn (array $data) => $this->postVoucher(fn (ManualVouchers $m) => $m->contra(
-                        LedgerAccount::query()->findOrFail($data['from']), LedgerAccount::query()->findOrFail($data['to']),
-                        Units::rupeesToPaise($data['amount']), CarbonImmutable::parse($data['date'], 'Asia/Karachi'), $data['narration'] ?? null,
-                    ))),
+                self::contra('cash_to_bank', 'Cash → Bank (deposit)', 'cash', 'bank', 'heroicon-o-building-library'),
+                self::contra('bank_to_cash', 'Bank → Cash (withdrawal)', 'bank', 'cash', 'heroicon-o-banknotes'),
+                self::contra('bank_to_bank', 'Bank → Bank transfer', 'bank', 'bank', 'heroicon-o-arrows-right-left'),
+                self::contra('cash_to_cash', 'Cash → Cash (between cash books)', 'cash', 'cash', 'heroicon-o-arrows-right-left'),
                 Action::make('journal')->label('Journal')->icon('heroicon-o-pencil-square')
                     ->modalDescription('Adjustments between ledgers. Bank and cash cannot be used here.')
                     ->form([
@@ -90,6 +84,35 @@ class ListVouchers extends ListRecords
                     ))),
             ])->label('New entry')->icon('heroicon-o-plus')->button()->visible($can),
         ];
+    }
+
+    /**
+     * One contra entry (money moved between the mill's own cash and bank accounts). Each side lists
+     * only the kind it names, so "Cash → Bank" cannot be entered the wrong way round.
+     */
+    private function contra(string $name, string $label, string $fromKind, string $toKind, string $icon): Action
+    {
+        $ledgers = fn (string $kind) => LedgerAccount::query()->where('kind', $kind)->where('status', 'active')->orderBy('name')->get()
+            ->mapWithKeys(fn (LedgerAccount $l) => [$l->id => $l->displayName()])->all();
+        $none = fn (string $kind) => $ledgers($kind) === [] ? 'No active '.$kind.' account yet; add one in the chart of accounts.' : null;
+
+        return Action::make($name)->label($label)->icon($icon)
+            ->modalHeading($label)
+            ->form([
+                Select::make('from')->label($fromKind === 'bank' ? 'From bank account' : 'From cash account')->required()
+                    ->options(fn () => $ledgers($fromKind))->helperText(fn () => $none($fromKind))
+                    ->default(fn () => count($l = $ledgers($fromKind)) === 1 ? array_key_first($l) : null),
+                Select::make('to')->label($toKind === 'bank' ? 'To bank account' : 'To cash account')->required()->different('from')
+                    ->options(fn () => $ledgers($toKind))->helperText(fn () => $none($toKind))
+                    ->default(fn () => $fromKind !== $toKind && count($l = $ledgers($toKind)) === 1 ? array_key_first($l) : null),
+                TextInput::make('amount')->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2),
+                DatePicker::make('date')->default(now())->required(),
+                Textarea::make('narration')->label('Narration (cheque / slip number)')->maxLength(500),
+            ])
+            ->action(fn (array $data) => $this->postVoucher(fn (ManualVouchers $m) => $m->contra(
+                LedgerAccount::query()->findOrFail($data['from']), LedgerAccount::query()->findOrFail($data['to']),
+                Units::rupeesToPaise($data['amount']), CarbonImmutable::parse($data['date'], 'Asia/Karachi'), $data['narration'] ?? null,
+            )));
     }
 
     /** @return array<string, string> posted invoices of the party with something outstanding, oldest due first */

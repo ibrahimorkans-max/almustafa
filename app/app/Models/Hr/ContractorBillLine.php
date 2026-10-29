@@ -40,6 +40,12 @@ class ContractorBillLine extends Model
         return ['quantity' => 'decimal:3', 'rate_paise' => 'integer', 'amount_paise' => 'integer', 'source' => 'array', 'created_at' => 'datetime'];
     }
 
+    /** @return BelongsTo<ContractorBill, $this> */
+    public function bill(): BelongsTo
+    {
+        return $this->belongsTo(ContractorBill::class, 'contractor_bill_id');
+    }
+
     /** @return BelongsTo<Employee, $this> */
     public function employee(): BelongsTo
     {

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\LeaveController;
 use App\Http\Controllers\Api\V1\LiveWeightController;
 use App\Http\Controllers\Api\V1\SessionController;
 use App\Http\Controllers\Api\V1\SyncController;
+use App\Http\Middleware\ApplyDataVisibility;
 use App\Http\Middleware\EnforceRemoteWipe;
 use App\Http\Middleware\VerifyAgentSignature;
 use Illuminate\Support\Facades\Route;
@@ -25,7 +26,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('auth/refresh', [AuthController::class, 'refresh'])->name('auth.refresh');
     });
 
-    Route::middleware(['auth:api', VerifyAgentSignature::class, EnforceRemoteWipe::class, 'throttle:api'])->group(function (): void {
+    Route::middleware(['auth:api', VerifyAgentSignature::class, EnforceRemoteWipe::class, ApplyDataVisibility::class, 'throttle:api'])->group(function (): void {
         Route::get('sync/bootstrap', [SyncController::class, 'bootstrap'])->name('sync.bootstrap');
         Route::post('sync/push', [SyncController::class, 'push'])->name('sync.push');
         Route::get('sync/pull', [SyncController::class, 'pull'])->name('sync.pull');

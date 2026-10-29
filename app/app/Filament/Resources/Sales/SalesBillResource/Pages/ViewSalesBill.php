@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Sales\SalesBillResource\Pages;
 use App\Domain\Sales\SalesBillService;
 use App\Domain\Sales\SalesDocuments;
 use App\Filament\Resources\Sales\SalesBillResource;
+use App\Filament\Support\PrintButton;
 use App\Filament\Support\RequestsVoucherReversal;
 use App\Filament\Support\RunsDomainActions;
 use App\Models\Sales\SalesBill;
@@ -32,6 +33,8 @@ class ViewSalesBill extends ViewRecord
                 ->modalDescription('Assigns the invoice number and posts the sales voucher (buyer, sales, output sales tax). It cannot be edited afterwards.')
                 ->form([Textarea::make('note')->maxLength(1000)])
                 ->action(fn (SalesBill $b, array $data) => $this->runDomain(fn () => app(SalesBillService::class)->post($b, $data['note'] ?? null), 'Invoice posted')),
+            PrintButton::dialog('printInvoice', 'Print invoice', fn (SalesBill $b) => [app(SalesDocuments::class)->invoicePdf($b), str_replace('/', '-', (string) $b->number).'.pdf'])
+                ->visible(fn (SalesBill $b) => $b->status === SalesBill::POSTED),
             Action::make('pdf')->label('Download invoice (PDF)')->icon('heroicon-o-arrow-down-tray')->color('gray')
                 ->visible(fn (SalesBill $b) => $b->status === SalesBill::POSTED)
                 ->action(fn (SalesBill $b) => response()->streamDownload(

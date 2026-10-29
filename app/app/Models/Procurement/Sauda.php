@@ -8,6 +8,7 @@ use App\Domain\Audit\Auditable;
 use App\Domain\Sync\FeedsSync;
 use App\Domain\Tenancy\BelongsToEntity;
 use App\Models\LoginAccount;
+use App\Models\Masters\PaddyVariety;
 use App\Models\Masters\Party;
 use App\Models\Masters\Product;
 use App\Support\Eloquent\HasOptimisticLock;
@@ -91,7 +92,7 @@ class Sauda extends Model
     protected $fillable = [
         'number', 'direction', 'party_id', 'broker_party_id', 'product_id', 'quantity_kg', 'tolerance_bp',
         'rate_paise_per_maund', 'brokerage_paise_per_maund', 'quality_terms', 'delivery_from', 'delivery_to',
-        'payment_days', 'quote_id', 'requirement_id',
+        'payment_days', 'quote_id', 'requirement_id', 'paddy_variety_id',
     ];
 
     /** @var array<string, mixed> */
@@ -154,9 +155,10 @@ class Sauda extends Model
      *
      * @param  Builder<Sauda>  $query
      */
-    public function scopeVisibleTo(Builder $query, LoginAccount $viewer): void
+    public function scopeVisibleTo(Builder $query, LoginAccount $viewer, ?string $direction = null): void
     {
-        if ($viewer->hasPermission('deal.view')) {
+        // Sales deals belong to the sales desk: 'sales.view' sees them all, as 'deal.view' does.
+        if ($viewer->hasPermission('deal.view') || ($direction === 'sale' && $viewer->hasPermission('sales.view'))) {
             return;
         }
         if ($viewer->hasPermission('deal.view_own')) {
@@ -165,6 +167,12 @@ class Sauda extends Model
             return;
         }
         $query->whereRaw('1 = 0');
+    }
+
+    /** @return BelongsTo<PaddyVariety, $this> */
+    public function paddyVariety(): BelongsTo
+    {
+        return $this->belongsTo(PaddyVariety::class);
     }
 
     /** @return BelongsTo<Party, $this> */

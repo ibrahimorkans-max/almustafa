@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Messaging\Gateways;
 
+use App\Domain\Messaging\Integrations;
 use App\Models\PartyPushToken;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -17,20 +18,18 @@ use Throwable;
  */
 final class FirebasePush
 {
+    /** The product's Firebase project is connected (Platform → Integrations, or the server's .env). */
     public static function configured(): bool
     {
-        $path = (string) config('ricemill.messaging.firebase.credentials');
-
-        return $path !== '' && is_file(self::path($path));
+        return Integrations::firebase()['key'] !== null;
     }
 
     /** Web app settings and the push key are set, so a party can turn notifications on in the browser. */
     public static function webReady(): bool
     {
-        $web = (array) config('ricemill.messaging.firebase.web');
+        $fb = Integrations::firebase();
 
-        return self::configured() && ($web['apiKey'] ?? '') !== '' && ($web['messagingSenderId'] ?? '') !== ''
-            && (string) config('ricemill.messaging.firebase.vapid_key') !== '';
+        return $fb['key'] !== null && ($fb['web']['apiKey'] ?? '') !== '' && ($fb['web']['messagingSenderId'] ?? '') !== '' && $fb['vapid_key'] !== '';
     }
 
     /**
@@ -73,10 +72,22 @@ final class FirebasePush
         return $result;
     }
 
+    /** Whether Google accepts the service account now: null when it does, else the reason. */
+    public function check(): ?string
+    {
+        try {
+            $this->accessToken();
+
+            return null;
+        } catch (Throwable $e) {
+            return 'Firebase: '.mb_substr($e->getMessage(), 0, 200);
+        }
+    }
+
     /** @return array{0: string, 1: string} project id, access token */
     private function accessToken(): array
     {
-        $key = json_decode((string) file_get_contents(self::path((string) config('ricemill.messaging.firebase.credentials'))), true);
+        $key = Integrations::firebase()['key'];
         if (! is_array($key) || empty($key['client_email']) || empty($key['private_key']) || empty($key['project_id'])) {
             throw new RuntimeException('the service account key file is not a Firebase service account key.');
         }
@@ -110,11 +121,5 @@ final class FirebasePush
     private static function b64(string $raw): string
     {
         return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
-    }
-
-    /** A relative path is under storage/app/private. */
-    private static function path(string $path): string
-    {
-        return preg_match('#^([A-Za-z]:[\\\\/]|/)#', $path) ? $path : storage_path('app/private/'.ltrim($path, '/\\'));
     }
 }

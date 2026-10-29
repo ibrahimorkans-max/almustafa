@@ -6,6 +6,7 @@ use App\Domain\Approvals\Actions\TrustDevice;
 use App\Domain\Approvals\ApprovalService;
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Auth\DeviceService;
+use App\Domain\Auth\LoginService;
 use App\Domain\Auth\MfaService;
 use App\Models\ApiToken;
 use App\Models\ApprovalRequest;
@@ -178,7 +179,7 @@ describe('two-factor authentication', function () {
         }
 
         // Wrong codes lock out the address they came from, like wrong passwords.
-        expect(app(\App\Domain\Auth\LoginService::class)->addressLockedUntil($accountant, '127.0.0.1')?->isFuture())->toBeTrue();
+        expect(app(LoginService::class)->addressLockedUntil($accountant, '127.0.0.1')?->isFuture())->toBeTrue();
         $this->postJson('/api/v1/auth/login', loginBody($accountant, ['otp' => Make::totp($accountant)]))->assertStatus(401);
     });
 });

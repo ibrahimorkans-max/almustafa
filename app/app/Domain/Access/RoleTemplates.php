@@ -67,14 +67,15 @@ final class RoleTemplates
                 'global' => true,
                 'mfa_required' => true,
                 'session_max_minutes' => 720,
-                'permissions' => $except('deal.view_own', 'commission.view_own', 'portal.view_own'),
+                // The Office Desk (closed records past the retention period) is the Office Coordinator's alone.
+                'permissions' => $except('deal.view_own', 'commission.view_own', 'portal.view_own', 'office.view', 'office.restore'),
             ],
             self::SUPER_ADMIN => [
                 'name' => 'Owner',
                 'global' => false,
                 'mfa_required' => true,
                 'session_max_minutes' => 720,
-                'permissions' => $except('entity.manage', 'deal.view_own', 'commission.view_own', 'portal.view_own'),
+                'permissions' => $except('entity.manage', 'deal.view_own', 'commission.view_own', 'portal.view_own', 'office.view', 'office.restore'),
             ],
             self::EXECUTIVE => [
                 'name' => 'Executive',
@@ -88,7 +89,7 @@ final class RoleTemplates
                     'production.view', 'stock.view', 'requisition.create',
                     'sales.view', 'sales.order', 'dispatch.manage',
                     'claim.view', 'claim.manage',
-                    'pricing.view', 'dashboard.view', 'report.view',
+                    'pricing.view', 'dashboard.view', 'report.view', 'report.export',
                 ],
             ],
             self::ACCOUNTANT => [
@@ -101,7 +102,7 @@ final class RoleTemplates
                     'master.view', 'master.manage',
                     'deal.view', 'quote.view', 'stock.view', 'sales.view', 'claim.view',
                     'ledger.view', 'ledger.post', 'voucher.reverse', 'payment.create', 'payment.approve', 'approval.decide', 'bank.view', 'messages.manage',
-                    'pricing.view', 'dashboard.view', 'report.view', 'report.tax',
+                    'pricing.view', 'dashboard.view', 'report.view', 'report.export', 'report.tax',
                     'hr.employee.view', 'hr.salary.view', 'hr.payroll.approve', 'hr.documents.generate',
                     'wages.daily.manage', 'wages.daily.pay',
                 ],
@@ -118,7 +119,7 @@ final class RoleTemplates
                     'production.view', 'production.log', 'batch.manage',
                     'stock.view', 'requisition.create', 'requisition.approve',
                     'sales.view', 'dispatch.manage', 'gatepass.issue',
-                    'claim.view', 'claim.manage', 'dashboard.view', 'report.view', 'wages.daily.manage',
+                    'claim.view', 'claim.manage', 'dashboard.view', 'report.view', 'report.export', 'wages.daily.manage',
                     'hr.employee.view', 'hr.attendance.review', 'hr.leave.approve',
                 ],
             ],
@@ -130,7 +131,7 @@ final class RoleTemplates
                 'permissions' => [
                     'entity.view', 'master.view',
                     'production.view', 'stock.view', 'stock.adjust', 'requisition.create', 'requisition.approve',
-                    'sales.view', 'dispatch.manage', 'report.view',
+                    'sales.view', 'dispatch.manage', 'report.view', 'report.export',
                 ],
             ],
             self::LAB_TECHNICIAN => [
@@ -152,7 +153,7 @@ final class RoleTemplates
                 'global' => false,
                 'mfa_required' => false,
                 'session_max_minutes' => 720,
-                'permissions' => ['entity.view', 'master.view', 'deal.view', 'purchase.negotiate', 'pricing.view', 'report.view'],
+                'permissions' => ['entity.view', 'master.view', 'deal.view', 'purchase.negotiate', 'pricing.view', 'report.view', 'report.export'],
             ],
             self::PURCHASE_MANAGER => [
                 'name' => 'Purchase Manager',
@@ -160,7 +161,7 @@ final class RoleTemplates
                 'mfa_required' => true,
                 'session_max_minutes' => 720,
                 'permissions' => ['entity.view', 'master.view', 'deal.view', 'deal.create', 'deal.approve', 'approval.decide', 'purchase.negotiate', 'purchase.approve',
-                    'pricing.view', 'report.view', 'dashboard.view', 'approval.view'],
+                    'pricing.view', 'report.view', 'report.export', 'dashboard.view', 'approval.view'],
             ],
             self::FINANCE_MANAGER => [
                 'name' => 'Finance Manager',
@@ -171,7 +172,7 @@ final class RoleTemplates
                     'entity.view', 'approval.view', 'approval.decide', 'master.view',
                     'deal.view', 'stock.view', 'sales.view', 'claim.view', 'claim.approve', 'pricing.view',
                     'ledger.view', 'ledger.post', 'voucher.reverse', 'payment.create', 'payment.approve', 'bank.view', 'period.lock', 'messages.manage',
-                    'dashboard.view', 'report.view', 'report.tax', 'purchase.approve', 'wages.daily.pay',
+                    'dashboard.view', 'report.view', 'report.export', 'report.tax', 'purchase.approve', 'wages.daily.pay',
                 ],
             ],
             self::GATE_OPERATOR => [

@@ -139,6 +139,61 @@ final class ProductionService
         return $this->append($batch, ProductionLog::OUTPUT, $product, $godown, $quantityKg, $periodStart, $periodEnd, $note, null, $id);
     }
 
+    /**
+     * Several outputs of one run at once (head rice, broken, bran, husk …): all are booked, or none.
+     * Rows with the same product and godown are added together.
+     *
+     * @param  list<array{product: Product, godown: Godown, quantity_kg: string}>  $rows
+     * @return list<ProductionLog>
+     */
+    public function recordOutputs(ProductionBatch $batch, array $rows, CarbonInterface $periodStart, CarbonInterface $periodEnd, ?string $note = null): array
+    {
+        $this->require('production.log');
+        if ($rows === []) {
+            throw new BusinessRuleViolation('Add at least one output.');
+        }
+        $merged = [];
+        foreach ($rows as $row) {
+            if (! preg_match('/^\d{1,12}(\.\d{1,3})?$/', $row['quantity_kg'])) {
+                throw new BusinessRuleViolation('Quantity must be a positive weight in kg.');
+            }
+            $key = $row['product']->id.'|'.$row['godown']->id;
+            $merged[$key] = isset($merged[$key])
+                ? ['quantity_kg' => Weight::kg($merged[$key]['quantity_kg'])->plus(Weight::kg($row['quantity_kg']))->kg] + $merged[$key]
+                : $row;
+        }
+
+        return DB::transaction(fn (): array => array_values(array_map(
+            fn (array $row) => $this->recordOutput($batch, $row['product'], $row['godown'], $row['quantity_kg'], $periodStart, $periodEnd, $note),
+            $merged,
+        )));
+    }
+
+    /**
+     * Input against all outputs and the processing loss: input = Σ outputs + loss. Each output's recovery
+     * is its weight ÷ the paddy fed × 100.
+     *
+     * @return array{input_kg: string, output_kg: string, loss_kg: string, loss_percent: string, rows: list<array{product: string, kg: string, percent: string, expected: string|null}>}
+     */
+    public function reconciliation(ProductionBatch $batch): array
+    {
+        $y = $this->yieldOf($batch);
+        $pct = fn (int $bp) => number_format($bp / 100, 2).' %';
+        $rows = [];
+        foreach ((array) ($y['outturn'] ?? []) as $row) {
+            $rows[] = ['product' => (string) ($row['product'] ?? ''), 'kg' => (string) $row['kg'], 'percent' => $pct((int) $row['bp']),
+                'expected' => $row['expected_bp'] === null ? null : $pct((int) $row['expected_bp'])];
+        }
+
+        return [
+            'input_kg' => (string) ($y['input_kg'] ?? $batch->input_kg),
+            'output_kg' => (string) ($y['output_kg'] ?? $batch->output_kg),
+            'loss_kg' => (string) ($y['unaccounted_kg'] ?? '0'),
+            'loss_percent' => $pct((int) ($y['unaccounted_bp'] ?? 0)),
+            'rows' => $rows,
+        ];
+    }
+
     /** Correction of a wrong log: a reversing log with a reason, and the stock moved back. */
     public function reverse(ProductionLog $log, string $reason): ProductionLog
     {

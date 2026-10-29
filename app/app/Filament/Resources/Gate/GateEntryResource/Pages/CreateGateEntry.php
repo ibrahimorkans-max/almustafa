@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Gate\GateEntryResource\Pages;
 
 use App\Domain\Gate\GateService;
+use App\Domain\Security\EntryLocation;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Gate\GateEntryResource;
 use App\Models\Gate\GateEntry;
@@ -24,6 +25,7 @@ class CreateGateEntry extends CreateRecord
     /** @param  array<string, mixed>  $data */
     protected function handleRecordCreation(array $data): Model
     {
+        EntryLocation::hold($data);
         $noPlate = (bool) ($data['no_plate'] ?? false);
         if (! $noPlate && ! PakistanIds::isValidVehicleNumber(PakistanIds::normalizeVehicleNumber((string) ($data['registration_no'] ?? '')))) {
             throw ValidationException::withMessages(['data.registration_no' => 'Not a valid registration number. No number plate? Tick "No number plate".']);
@@ -44,7 +46,7 @@ class CreateGateEntry extends CreateRecord
         $entry = $this->record;
 
         return Notification::make()->success()->persistent()
-            ->title('Token '.$entry->token_no.' — '.$entry->vehicleLabel())
+            ->title('Token '.$entry->tokenLabel().' — '.$entry->vehicleLabel().($entry->jack_type !== null ? ' · '.$entry->jackLabel() : ''))
             ->body('Give the driver the token slip; vehicles are served in token order.')
             ->actions([
                 NotificationAction::make('print80')->label('Print token (80 mm)')->button()

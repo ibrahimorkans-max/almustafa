@@ -22,6 +22,14 @@ class DriverResource extends Resource
 
     protected static ?string $model = Driver::class;
 
+    protected static ?string $recordTitleAttribute = 'name';
+
+    /** Found by the search box in the top bar (partial match, this mill only, and only for people who may open the list). */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name', 'phone'];
+    }
+
     protected static ?string $navigationIcon = 'heroicon-o-identification';
 
     protected static ?int $navigationSort = 30;

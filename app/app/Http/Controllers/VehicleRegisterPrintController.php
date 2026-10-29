@@ -81,6 +81,6 @@ final class VehicleRegisterPrintController
 
     private function pdf(string $pdf, string $name): Response
     {
-        return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="'.$name.'.pdf"']);
+        return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="'.$name.'.pdf"', 'X-Print-Frame' => '1']);
     }
 }

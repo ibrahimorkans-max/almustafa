@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Accounts\RecurringExpenseResource\Pages;
 
+use App\Filament\Resources\Accounts\ExpenseResource;
 use App\Filament\Resources\Accounts\RecurringExpenseResource;
 use App\Models\Accounts\RecurringExpense;
 use Filament\Resources\Pages\EditRecord;
@@ -19,7 +20,7 @@ class EditRecurringExpense extends EditRecord
      */
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        return $data + ['amount' => bcdiv((string) $data['amount_paise'], '100', 2), 'via' => filled($data['party_id'] ?? null) ? 'party' : 'cash'];
+        return $data + ['amount' => bcdiv((string) $data['amount_paise'], '100', 2), 'via' => ExpenseResource::viaFor($data['pay_from_ledger_id'] ?? null, $data['party_id'] ?? null)];
     }
 
     /** @param  array<string, mixed>  $data */

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Documents\Engine;
 
 use App\Domain\Documents\PdfRenderer;
+use App\Domain\Documents\PrintSetup;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Entity;
 use App\Models\StoredFile;
@@ -25,9 +26,18 @@ use Symfony\Component\Process\Process;
 final class DocumentRenderer
 {
     public const PAPERS = [
-        'a4' => 'A4', 'a4_landscape' => 'A4 landscape', 'a5' => 'A5', 'half_a4' => 'Half A4 (two slips per sheet)',
+        'a4' => 'A4', 'a5' => 'A5', 'half_a4' => 'Half A4 (two slips per sheet)',
         'thermal80' => 'Thermal receipt 80 mm', 'thermal58' => 'Thermal receipt 58 mm',
     ];
+
+    /**
+     * Every document prints portrait (PrintSetup): a document saved earlier on "A4 landscape" prints on
+     * A4 portrait, its tables shrunk to fit.
+     */
+    public static function paper(string $paper): string
+    {
+        return $paper === 'a4_landscape' ? 'a4' : $paper;
+    }
 
     public const FORMATS = ['pdf' => 'PDF', 'html' => 'Printable HTML', 'png' => 'Image (PNG)', 'escpos' => 'Receipt printer text (ESC/POS)'];
 
@@ -41,7 +51,7 @@ final class DocumentRenderer
      */
     public function pdf(array $v, ?string $password = null, bool $impose = true): string
     {
-        $paper = $v['paper'];
+        $paper = $v['paper'] = self::paper($v['paper']);
         $thermal = str_starts_with($paper, 'thermal');
         $small = in_array($paper, ['a5', 'half_a4'], true);
         $data = $this->viewData($v, web: false);
@@ -56,7 +66,7 @@ final class DocumentRenderer
         $mpdf = new Mpdf([
             'mode' => 'utf-8',
             'format' => match ($paper) {
-                'a4_landscape' => 'A4-L', 'a5' => 'A5', 'half_a4' => 'A5-L',
+                'a5' => 'A5', 'half_a4' => 'A5-L', // half A4: two to a portrait A4 sheet (impose)
                 'thermal80', 'thermal58' => [$width, $this->thermalHeight($v['payload'], $v['toggles'])],
                 default => 'A4',
             },
@@ -68,8 +78,10 @@ final class DocumentRenderer
             'default_font' => 'dejavusans',
             'default_font_size' => $thermal ? ($width === 58 ? 6.5 : 7.5) : ($small ? 8 : 9),
             'tempDir' => $tmp,
-            'shrink_tables_to_fit' => 1,
+            // Wide tables (a register) shrink to fit the portrait page instead of being cut off.
+            'shrink_tables_to_fit' => PrintSetup::WIDE_SHRINK,
         ]);
+        PrintSetup::actualSize($mpdf);
         if ($v['language'] === 'ur') {
             $mpdf->SetDirectionality('rtl');
         }
@@ -97,6 +109,7 @@ final class DocumentRenderer
     /** @param  array<string, mixed>  $v */
     public function html(array $v): string
     {
+        $v['paper'] = self::paper((string) $v['paper']);
         $html = view('documents.web', $this->viewData($v, web: true))->render();
         self::$lastHtml = $html;
 
@@ -170,7 +183,7 @@ final class DocumentRenderer
             }
         }
 
-        return $out->Output('', Destination::STRING_RETURN);
+        return PrintSetup::actualSize($out)->Output('', Destination::STRING_RETURN);
     }
 
     /** A copy of a PDF that opens only with the password (page content unchanged). */
@@ -186,7 +199,7 @@ final class DocumentRenderer
         }
         $out->SetProtection(['print', 'print-highres'], $password, bin2hex(random_bytes(16)));
 
-        return $out->Output('', Destination::STRING_RETURN);
+        return PrintSetup::actualSize($out)->Output('', Destination::STRING_RETURN);
     }
 
     /**
@@ -207,7 +220,7 @@ final class DocumentRenderer
             }
         }
 
-        return $out->Output('', Destination::STRING_RETURN);
+        return PrintSetup::actualSize($out)->Output('', Destination::STRING_RETURN);
     }
 
     /**

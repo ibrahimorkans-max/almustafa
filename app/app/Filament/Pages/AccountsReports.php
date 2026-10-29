@@ -10,6 +10,7 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Documents\PdfRenderer;
 use App\Domain\Reports\CashBankBooks;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Support\ExportGuard;
 use App\Http\Controllers\ReportPrintController;
 use App\Models\Accounts\LedgerAccount;
 use App\Models\Entity;
@@ -151,7 +152,7 @@ class AccountsReports extends Page implements HasForms
                     in_array($this->data['report'] ?? null, self::RANGED, true) ? ($this->data['from'] ?? null) : ($this->data['to'] ?? null), $this->data['to'] ?? null), shouldOpenInNewTab: true),
             Action::make('allReports')->label('All reports')->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
             Action::make('pdf')->label('Ledger statement PDF')->icon('heroicon-o-arrow-down-tray')
-                ->visible(fn () => ($this->data['report'] ?? null) === 'ledger' && filled($this->data['ledger'] ?? null))
+                ->visible(fn () => ExportGuard::allowed() && ($this->data['report'] ?? null) === 'ledger' && filled($this->data['ledger'] ?? null))
                 ->action(fn () => $this->statementPdf()),
         ];
     }

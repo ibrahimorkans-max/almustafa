@@ -6,6 +6,7 @@ namespace App\Filament\Pages;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Tax\SalesTaxReturns;
+use App\Filament\Support\ExportGuard;
 use App\Http\Controllers\ReportPrintController;
 use App\Models\LoginAccount;
 use App\Support\Values\PakistanIds;
@@ -60,14 +61,14 @@ class SalesTaxReturnsPage extends Page
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('salesPdf')->label('Annex-C PDF')->icon('heroicon-o-printer')
+            Action::make('salesPdf')->visible(fn () => ExportGuard::allowed())->label('Annex-C PDF')->icon('heroicon-o-printer')
                 ->url(fn () => ReportPrintController::url(['annex_c'], $this->period.'-01', $this->period.'-01'), shouldOpenInNewTab: true),
-            Action::make('whtPdf')->label('Withholding PDF')->icon('heroicon-o-printer')->color('gray')
+            Action::make('whtPdf')->visible(fn () => ExportGuard::allowed())->label('Withholding PDF')->icon('heroicon-o-printer')->color('gray')
                 ->url(fn () => ReportPrintController::url(['wht153'], $this->period.'-01', $this->period.'-01'), shouldOpenInNewTab: true),
-            Action::make('allReports')->label('All reports')->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
-            Action::make('salesCsv')->label('Annex-C (sales) CSV')->icon('heroicon-o-arrow-down-tray')
+            Action::make('allReports')->visible(fn () => ExportGuard::allowed())->label('All reports')->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
+            Action::make('salesCsv')->visible(fn () => ExportGuard::allowed())->label('Annex-C (sales) CSV')->icon('heroicon-o-arrow-down-tray')
                 ->action(fn () => $this->download('annex-c-'.$this->period.'.csv', $this->salesCsv())),
-            Action::make('whtCsv')->label('Withholding u/s 153 CSV')->icon('heroicon-o-table-cells')->color('gray')
+            Action::make('whtCsv')->visible(fn () => ExportGuard::allowed())->label('Withholding u/s 153 CSV')->icon('heroicon-o-table-cells')->color('gray')
                 ->action(fn () => $this->download('wht-153-'.$this->period.'.csv', $this->whtCsv())),
         ];
     }

@@ -267,7 +267,8 @@ describe('screens', function () {
 
         Livewire::test(ViewReimbursement::class, ['record' => $claim->id])->assertSee('Bearing 6205')->assertSee('2,500.50');
         ccSignIn($this, $this->f->hr);
-        Livewire::test(ListReimbursements::class)->callTableAction('voucher', $claim->id)->assertFileDownloaded();
+        Livewire::test(ListReimbursements::class)->callTableAction('voucher', $claim->id)->assertDispatched('rm-print')
+            ->callTableAction('voucher', $claim->id, ['deliver' => 'download'])->assertFileDownloaded();
     });
 
     it('shows a claim the rules refuse as a form error, not a crash', function () {
@@ -301,7 +302,8 @@ describe('screens', function () {
 
         ccSignIn($this, $this->f->accountant);
         Livewire::test(ListContractorBills::class)->callTableAction('approve', $bill->id)->assertNotified('Bill approved and posted.')
-            ->callTableAction('print', $bill->id)->assertFileDownloaded();
+            ->callTableAction('print', $bill->id)->assertDispatched('rm-print')
+            ->callTableAction('print', $bill->id, ['deliver' => 'download'])->assertFileDownloaded();
         Livewire::test(ViewContractorBill::class, ['record' => $bill->id])->assertSee('man-day')->assertSee('2,700.00');
 
         // Taking the worker off the list returns them to the mill's own staff.

@@ -35,7 +35,7 @@
                     async connect() {
                         await this.load(@js(\App\Http\Controllers\FirebaseServiceWorkerController::SDK.'firebase-app-compat.js'));
                         await this.load(@js(\App\Http\Controllers\FirebaseServiceWorkerController::SDK.'firebase-messaging-compat.js'));
-                        if (!firebase.apps.length) firebase.initializeApp(@js((array) config('ricemill.messaging.firebase.web')));
+                        if (!firebase.apps.length) firebase.initializeApp(@js(\App\Domain\Messaging\Integrations::firebase()['web']));
                         if (!this.registration) {
                             this.registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
                             firebase.messaging().onMessage((payload) => {
@@ -51,7 +51,7 @@
                             if (!('serviceWorker' in navigator) || !('Notification' in window)) { this.state = 'unsupported'; return; }
                             if (await Notification.requestPermission() !== 'granted') { this.state = 'denied'; return; }
                             const registration = await this.connect();
-                            const token = await firebase.messaging().getToken({ vapidKey: @js((string) config('ricemill.messaging.firebase.vapid_key')), serviceWorkerRegistration: registration });
+                            const token = await firebase.messaging().getToken({ vapidKey: @js(\App\Domain\Messaging\Integrations::firebase()['vapid_key']), serviceWorkerRegistration: registration });
                             const r = await fetch(@js(route('filament.admin.push-token')), { method: 'POST', credentials: 'same-origin',
                                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content },
                                 body: JSON.stringify({ token, device: navigator.userAgent.slice(0, 160) }) });

@@ -41,6 +41,9 @@ function adminUrls(LoginAccount $sa, ?string $workingEntity): array
     foreach (array_filter(Filament::getPanel('admin')->getResources(), fn (string $r) => ! str_contains($r, '\\Platform\\')) as $resource) {
         $record = $resource::getEloquentQuery()->first();
         foreach (array_keys($resource::getPages()) as $page) {
+            if ($page === 'create' && ! $resource::canCreate()) {
+                continue; // nobody makes these here (a new mill is added by the product owner): its 403 is tested on its own
+            }
             if (in_array($page, ['index', 'create'], true)) {
                 $urls[$resource::getUrl($page)] = $page;
             } elseif ($record !== null) {

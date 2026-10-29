@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Documents;
 
 use App\Domain\Auth\ActorContext;
+use App\Domain\Settings\SettingsService;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Customer;
 use App\Models\Entity;
@@ -27,11 +28,13 @@ final class PdfRenderer
 
     /**
      * @param  array<string, mixed>  $data
-     * @param  'A4'|'A4-L'|'A5'  $format  A4-L is A4 landscape, for wide reports
+     * @param  'A4'|'A4-L'|'A5'  $format  A4-L marks a wide report: it prints portrait too, its tables shrunk to fit (PrintSetup)
      */
     public function render(string $view, array $data, ?Entity $entity, string $format = 'A4', ?string $verifyDoc = null, ?string $verifyCode = null, ?string $paper = null): string
     {
-        $paper ??= PaperSize::current();
+        $paper ??= PaperSize::resolve($view, $entity?->id);
+        $wide = PrintSetup::isWide($format);
+        $format = PrintSetup::portrait($format);
         $roll = PaperSize::isRoll($paper);
         $rollWidth = PaperSize::ROLL_WIDTHS[$paper] ?? 80;
         $small = PaperSize::isSmall($paper, $format);
@@ -56,7 +59,8 @@ final class PdfRenderer
             $footer = '';   // e.g. a token slip: nothing but its own content
         }
         if (! $roll) {
-            return $this->write($html, $footer, (string) PaperSize::mpdfFormat($paper, $format), $small, false, $data, $brand);
+            return $this->write($html, $footer, PaperSize::mpdfFormat($paper, $format, $entity?->id) ?? PrintSetup::portrait($format), $small, false, $data, $brand, wide: $wide,
+                watermark: $this->reportWatermark($view, $entity));
         }
         // A roll has no page length: lay the document out on a very long strip, measure where it ends,
         // then print it once more on a strip cut just below the content. The footer goes at the end.
@@ -69,6 +73,20 @@ final class PdfRenderer
         return $this->write($html, $footer, [$rollWidth, max(40, $height)], true, true, $data, $brand, $rollWidth);
     }
 
+    /**
+     * Reports (lists of the mill's data, not single documents) carry a faint diagonal watermark with who
+     * printed them and when, while the mill's screen protection is on: a leaked page shows its source.
+     */
+    private function reportWatermark(string $view, ?Entity $entity): ?string
+    {
+        $me = $this->actor->account();
+        if (! str_starts_with($view, 'reports.') || $me === null || ! app(SettingsService::class)->screenGuard($entity->id ?? $me->entity_id)['on']) {
+            return null;
+        }
+
+        return $me->username.' · '.now('Asia/Karachi')->format('d M Y H:i');
+    }
+
     /** The paper of the last document rendered in this process (tests check it). */
     public static ?string $lastPaper = null;
 
@@ -77,9 +95,13 @@ final class PdfRenderer
      * @param  array<string, mixed>  $data
      * @param  array<string, mixed>  $brand
      */
-    private function write(string $html, string $footer, string|array $format, bool $small, bool $roll, array $data, array $brand, int $rollWidth = 80): string
+    private function write(string $html, string $footer, string|array $format, bool $small, bool $roll, array $data, array $brand, int $rollWidth = 80, bool $wide = false, ?string $watermark = null): string
     {
-        $mpdf = $this->mpdf($format, $small, $roll, $rollWidth);
+        $mpdf = PrintSetup::actualSize($this->mpdf($format, $small, $roll, $rollWidth, $wide));
+        if ($watermark !== null) {
+            $mpdf->SetWatermarkText($watermark, 0.06);
+            $mpdf->showWatermarkText = true;
+        }
         $mpdf->SetTitle(strip_tags((string) ($data['title'] ?? 'Document')).' — '.$brand['name']);
         $mpdf->SetAuthor($brand['name']);
         $mpdf->SetCreator($brand['name']);
@@ -92,7 +114,7 @@ final class PdfRenderer
     }
 
     /** @param  string|array{0: int, 1: int}  $format */
-    private function mpdf(string|array $format, bool $small, bool $roll, int $rollWidth = 80): Mpdf
+    private function mpdf(string|array $format, bool $small, bool $roll, int $rollWidth = 80, bool $wide = false): Mpdf
     {
         $tmp = storage_path('framework/cache/mpdf');
         if (! is_dir($tmp)) {
@@ -111,8 +133,8 @@ final class PdfRenderer
             'default_font_size' => $roll ? ($rollWidth < 60 ? 6.5 : 7.5) : ($small ? 8 : 9),
             // Urdu is always marked up explicitly (class "ur", the Lateef font), so no script guessing.
             'tempDir' => $tmp,
-            // Designed for A4: on small paper, wide tables may shrink to fit the width.
-            'shrink_tables_to_fit' => $small ? 4 : 1,
+            // Designed for A4 portrait: on small paper, and for reports wider than the page, tables shrink to fit the width.
+            'shrink_tables_to_fit' => $small || $wide ? PrintSetup::WIDE_SHRINK : 1,
         ]);
     }
 

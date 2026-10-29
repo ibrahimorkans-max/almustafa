@@ -2,6 +2,10 @@
     $session = auth('web')->check() ? app(\App\Domain\Auth\ActorContext::class)->session() : null;
 @endphp
 <script src="{{ asset('js/passkeys.js') }}?v=1" defer></script>
+@auth('web')
+    <script src="{{ asset('js/sidebar-keep-open.js') }}?v=1"></script>
+    <script src="{{ asset('js/print-frame.js') }}?v=1"></script>
+@endauth
 <script src="{{ asset('js/page-expiry.js') }}?v=2" data-token-url="{{ auth('web')->check() ? route('filament.admin.csrf-token') : '' }}"></script>
 @if (auth('web')->check() && app(\App\Domain\Settings\SettingsService::class)->screenGuard(app(\App\Domain\Tenancy\TenantContext::class)->entityId())['on'])
     <script src="{{ asset('js/screen-guard.js') }}?v=1" data-label="{{ auth('web')->user()->username }} · {{ request()->ip() }}"></script>

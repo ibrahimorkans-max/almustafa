@@ -20,12 +20,32 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class VehicleResource extends Resource
 {
     use MasterResourceHelpers;
 
     protected static ?string $model = Vehicle::class;
+
+    protected static ?string $recordTitleAttribute = 'registration_no';
+
+    /** Found by the search box in the top bar (partial match, this mill only, and only for people who may open the list). */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['registration_no', 'code'];
+    }
+
+    /**
+     * "MNA-21-1234" finds MNA211234: vehicle numbers are kept without dashes or spaces.
+     *
+     * @param  Builder<Vehicle>  $query
+     */
+    protected static function applyGlobalSearchAttributeConstraints(Builder $query, string $search): void
+    {
+        $plate = strtoupper((string) preg_replace('/[^A-Za-z0-9]/', '', $search));
+        $query->where(fn (Builder $q) => $q->where('registration_no', 'ilike', '%'.$plate.'%')->orWhere('code', 'ilike', '%'.addcslashes(trim($search), '%_\\').'%'));
+    }
 
     protected static ?string $navigationIcon = 'heroicon-o-truck';
 
@@ -65,6 +85,7 @@ class VehicleResource extends Resource
     {
         return $table
             ->columns([
+                TextColumn::make('code')->label('Code')->searchable()->sortable()->fontFamily('mono')->placeholder('—'),
                 TextColumn::make('registration_no')->label('Reg. no.')->searchable()->sortable()->fontFamily('mono'),
                 TextColumn::make('vehicle_type')->badge()->formatStateUsing(fn (?string $state) => Vehicle::typeLabel($state)),
                 TextColumn::make('owner.name')->placeholder('—'),

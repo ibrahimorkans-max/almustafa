@@ -98,6 +98,7 @@ final class PermissionCatalog
         // Reports
         'dashboard.view' => ['reports', 'View dashboards'],
         'report.view' => ['reports', 'View operational reports'],
+        'report.export' => ['reports', 'Download reports and lists (Excel, PDF); without it, reports are seen on screen only'],
         'report.tax' => ['reports', 'View and export sales-tax and withholding registers'],
         // Office Desk (closed records kept past the retention period; neutral wording on screens)
         'office.view' => ['office', 'Open the Office Desk and read its records'],

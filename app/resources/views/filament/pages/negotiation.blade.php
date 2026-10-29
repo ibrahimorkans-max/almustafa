@@ -35,7 +35,7 @@
             @else
                 @php($lab = $this->labReport())
                 <x-filament::section>
-                    <x-slot name="heading">{{ $entry->token_no !== null ? 'Token '.$entry->token_no.' · ' : '' }}{{ $entry->vehicleLabel() }}</x-slot>
+                    <x-slot name="heading">{{ $entry->token_no !== null || $entry->token_serial !== null ? 'Token '.$entry->tokenLabel().' · ' : '' }}{{ $entry->vehicleLabel() }}</x-slot>
                     <x-slot name="description">{{ $entry->number }} · {{ $entry->party->name ?? '—' }} · {{ $entry->product->name ?? '—' }} · sauda {{ $entry->sauda->number ?? '—' }}</x-slot>
                     <dl class="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                         <div><dt class="text-xs text-gray-500">Loaded (gross)</dt><dd class="font-mono">{{ $entry->gross_kg !== null ? number_format((float) $entry->gross_kg, 0).' kg' : '—' }}</dd></div>

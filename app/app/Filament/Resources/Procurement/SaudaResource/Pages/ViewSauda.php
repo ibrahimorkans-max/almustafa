@@ -27,7 +27,7 @@ class ViewSauda extends ViewRecord
         return [
             PrintButton::header('sauda'),
             Action::make('submit')->label('Send for approval')->icon('heroicon-o-paper-airplane')
-                ->visible(fn (Sauda $record) => $record->status === Sauda::STATUS_DRAFT && $can('deal.create'))
+                ->visible(fn (Sauda $record) => $record->status === Sauda::STATUS_DRAFT && $can($record->direction === 'sale' ? 'sales.order' : 'deal.create'))
                 ->requiresConfirmation()
                 ->action(fn (Sauda $record) => $this->run(fn (SaudaService $s) => $s->submit($record), 'Sent for approval')),
             Action::make('approve')->color('success')->icon('heroicon-o-check')

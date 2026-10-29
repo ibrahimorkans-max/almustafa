@@ -17,6 +17,7 @@ ledgers and audit, offline-capable gate/weighbridge/lab, security by design, eve
 | [mobile/](mobile/) | Flutter offline app — phase 10 |
 | [infra/](infra/) | Docker Compose (php-fpm, nginx, PostgreSQL, Redis), DB bootstrap |
 | [docs/](docs/) | Plan, ADRs, threat model, phase summaries |
+| [docs/user-manual.md](docs/user-manual.md) | **User manual**: every screen, day to day, by module |
 | [.github/workflows/](.github/workflows/) | CI: Pint, Larastan, composer audit, Pest on PostgreSQL **and** MariaDB |
 
 ## Quick start

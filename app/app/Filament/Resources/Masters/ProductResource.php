@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Masters;
 use App\Filament\Resources\Masters\Concerns\MasterResourceHelpers;
 use App\Filament\Resources\Masters\ProductResource\Pages;
 use App\Filament\Support\Units;
+use App\Models\Masters\PaddyVariety;
 use App\Models\Masters\Product;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -25,6 +26,14 @@ class ProductResource extends Resource
 
     protected static ?string $model = Product::class;
 
+    protected static ?string $recordTitleAttribute = 'name';
+
+    /** Found by the search box in the top bar (partial match, this mill only, and only for people who may open the list). */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name', 'code'];
+    }
+
     protected static ?string $navigationIcon = 'heroicon-o-cube';
 
     protected static ?int $navigationSort = 40;
@@ -38,10 +47,15 @@ class ProductResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            static::codeInput('products', 30),
+            static::codeInput('products', 30, automatic: true),
             TextInput::make('name')->required()->maxLength(160),
             Select::make('category')->options(static::categoryOptions())->required()->live(),
-            TextInput::make('variety')->maxLength(60)->placeholder('1121, PR-126, Sharbati …'),
+            Select::make('paddy_variety_id')->label('Paddy variety')->options(fn () => PaddyVariety::options())->searchable()
+                ->visible(fn (Get $get) => $get('category') === 'paddy')
+                ->createOptionForm(PaddyVarietyResource::fields())
+                ->createOptionUsing(fn (array $data) => PaddyVarietyResource::store($data)->id),
+            TextInput::make('variety')->label(fn (Get $get) => $get('category') === 'paddy' ? 'Variety (free text, older records)' : 'Variety')
+                ->maxLength(60)->placeholder('1121, PR-126, Sharbati …'),
             TextInput::make('pct_code')->label('PCT / HS code')->regex('/^\d{4}(\.\d{2,4})?$/')->placeholder('1006.3090')
                 ->helperText('Pakistan Customs Tariff heading, printed on the invoice and the sales-tax return.'),
             Select::make('tax_rate_id')->label('Sales tax rate')->relationship('taxRate', 'name')->preload(),

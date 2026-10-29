@@ -110,20 +110,23 @@ class PartyMessagesPage extends Page implements HasTable
     /** Whether a gateway sends the chosen channel by itself. */
     public function gatewayReady(): bool
     {
-        return ($this->channel === 'whatsapp' && WhatsAppCloud::configured()) || (string) config('ricemill.messaging.'.$this->channel.'_url') !== '';
+        return ($this->channel === 'whatsapp' && WhatsAppCloud::configured($this->entityId())) || (string) config('ricemill.messaging.'.$this->channel.'_url') !== '';
     }
 
     /** @return array<string, bool> what is connected */
     public function connections(): array
     {
-        return ['whatsapp' => WhatsAppCloud::configured(), 'firebase' => FirebasePush::configured(), 'firebase_web' => FirebasePush::webReady()];
+        return ['whatsapp' => WhatsAppCloud::configured($this->entityId()), 'firebase' => FirebasePush::configured(), 'firebase_web' => FirebasePush::webReady()];
     }
 
     protected function getHeaderActions(): array
     {
         return [
+            // Connect (or change) the mill's own WhatsApp number from here.
+            HeaderAction::make('connectWhatsApp')->label(fn () => WhatsAppCloud::configured($this->entityId()) ? 'WhatsApp settings' : 'Connect WhatsApp')
+                ->icon('heroicon-o-link')->url(fn () => IntegrationsPage::getUrl())->visible(fn () => IntegrationsPage::canAccess()),
             HeaderAction::make('testWhatsApp')->label('Send a test WhatsApp')->icon('heroicon-o-paper-airplane')->color('gray')
-                ->visible(fn () => WhatsAppCloud::configured())
+                ->visible(fn () => WhatsAppCloud::configured($this->entityId()))
                 ->form([TextInput::make('mobile')->label('Mobile number')->placeholder('0300-1234567')->required()])
                 ->action(function (array $data): void {
                     $to = PakistanIds::normalizeMobile((string) $data['mobile']);
@@ -132,7 +135,7 @@ class PartyMessagesPage extends Page implements HasTable
 
                         return;
                     }
-                    $r = app(WhatsAppCloud::class)->send($to, MessageText::forTemplate(MessageText::make(app(PartyMessenger::class)->millName($this->entityId()),
+                    $r = (new WhatsAppCloud($this->entityId()))->send($to, MessageText::forTemplate(MessageText::make(app(PartyMessenger::class)->millName($this->entityId()),
                         'Test message', ['Messages to parties are connected.'])));
                     $r['ok'] ? Notification::make()->success()->title('Test sent to '.$to)->send()
                         : Notification::make()->danger()->title('Not sent')->body($r['error'])->send();

@@ -105,7 +105,7 @@ it('shows the Platform menu to the product owner only, and the product owner no 
         expect(menuOf($this, $account))->not->toHaveKey('Platform');
     }
     $menu = menuOf($this, $platform);
-    expect($menu['Platform'] ?? [])->toBe(['Overview', 'Customers', 'Invoices', 'Payment methods', 'Plans'])
+    expect($menu['Platform'] ?? [])->toBe(['Overview', 'Customers', 'Invoices', 'Payment methods', 'Plans', 'Integrations', 'Email integration', 'Bank e-mail templates', 'Data visibility'])
         ->and(array_keys($menu))->not->toContain('Procurement')->not->toContain('Gate & weighbridge')
         ->not->toContain('Stock & production')->not->toContain('Accounts')->not->toContain('Masters')
         ->and($platform->hasPermission('gate.entry'))->toBeFalse()

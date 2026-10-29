@@ -10,6 +10,7 @@ use App\Domain\Gate\LiveWeight;
 use App\Domain\Gate\ManualWeight;
 use App\Domain\Gate\QuickWeigh;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Filament\Resources\Gate\GateEntryResource;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\Scale;
 use App\Models\Gate\Weighment;
@@ -68,6 +69,9 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
     /** @var array<string, string|null> scale id => paddy | other_in | outbound */
     public array $kind = [];
 
+    /** @var array<string, string|null> scale id => with_jack | without_jack, for a vehicle registered here */
+    public array $jack = [];
+
     /** @var array<string, string|null> scale id => godown a paddy lot is unloaded into */
     public array $godown = [];
 
@@ -119,7 +123,7 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
         return $user instanceof LoginAccount && $user->hasPermission($permission);
     }
 
-    /** @return list<array{id: string, label: string, kind: string|null, token: int|null, plate: string}> vehicles waiting, in token order */
+    /** @return list<array{id: string, label: string, kind: string|null, token: string|null, plate: string}> vehicles waiting, in token order */
     public function getWaiting(): array
     {
         return $this->canRecord() || $this->canType() ? app(LiveCapture::class)->waiting()->all() : [];
@@ -128,7 +132,8 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
     /** @return list<string> party names for the form's suggestions */
     public function getPartyNames(): array
     {
-        return Party::query()->where('status', 'active')->orderBy('name')->limit(500)->pluck('name')->all();
+        // "Name (CODE)": typing part of a name or a code finds it; any other name is kept as typed.
+        return GateEntryResource::partySuggestions();
     }
 
     /** @return list<string> product names for the item suggestions */
@@ -194,10 +199,10 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
         }
         try {
             [$entry, $new] = app(QuickWeigh::class)->visit((string) ($this->party[$scaleId] ?? ''), (string) ($this->plate[$scaleId] ?? ''),
-                (string) ($this->kind[$scaleId] ?? 'paddy'), $this->item[$scaleId] ?? null);
+                (string) ($this->kind[$scaleId] ?? 'paddy'), $this->item[$scaleId] ?? null, $this->jack[$scaleId] ?? null);
             $kind = LiveCapture::nextKind($entry);
             if ($kind === null) {
-                $token = $entry->token_no !== null ? 'Token '.$entry->token_no.' · ' : '';
+                $token = $entry->token_no !== null || $entry->token_serial !== null ? 'Token '.$entry->tokenLabel().' · ' : '';
                 Notification::make()->title($token.$entry->vehicleLabel().($new ? ' registered.' : '.'))
                     ->body($this->waitingReason($entry))->warning()->actions($new ? self::tokenActions($entry) : [])->duration($new ? 'persistent' : 6000)->send();
 
@@ -213,7 +218,7 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
         $entry->refresh();
         Notification::make()->success()->actions($new ? self::tokenActions($entry) : [])->duration($new ? 'persistent' : 6000)
             ->title(ucfirst(ManualWeight::label($entry, $weighment->kind)).' '.number_format((float) $weighment->weight_kg, 0).' kg recorded'
-                .($entry->token_no !== null ? ' — token '.$entry->token_no : '').' · '.$entry->vehicleLabel())
+                .($entry->token_no !== null || $entry->token_serial !== null ? ' — token '.$entry->tokenLabel() : '').' · '.$entry->vehicleLabel())
             ->body($entry->net_kg !== null ? 'Net weight '.number_format((float) $entry->net_kg, 0).' kg.' : 'Next: the '.$this->nextLabel($entry).'.')->send();
         $this->godown[$scaleId] = null;
         if ($entry->net_kg !== null) {
@@ -282,7 +287,7 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
                     // Registering the visit, unloading (paddy, before the empty weight) and the typed weight succeed or fail together.
                     [$entry, $w] = DB::transaction(function () use ($scaleId, $data, $godown, $file): array {
                         [$entry] = app(QuickWeigh::class)->visit((string) ($this->party[$scaleId] ?? ''), (string) ($this->plate[$scaleId] ?? ''),
-                            (string) ($this->kind[$scaleId] ?? 'paddy'), $this->item[$scaleId] ?? null);
+                            (string) ($this->kind[$scaleId] ?? 'paddy'), $this->item[$scaleId] ?? null, $this->jack[$scaleId] ?? null);
                         if ($data['kind'] === Weighment::TARE && LiveCapture::steps($entry)['unload']) {
                             if ($godown === null) {
                                 throw new BusinessRuleViolation('Choose the godown it was unloaded into, then enter the empty weight.');

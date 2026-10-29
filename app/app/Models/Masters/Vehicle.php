@@ -16,12 +16,14 @@ use Illuminate\Validation\Rule;
  * @property string $registration_no
  * @property string $vehicle_type
  * @property string|null $owner_party_id
+ * @property string|null $contractor_party_id the labour contractor the vehicle works for (one at a time)
  * @property string|null $default_driver_id
  * @property string|null $capacity_kg
  * @property bool $is_blocked
  * @property string|null $blocked_reason
  * @property string $status
  * @property-read Party|null $owner
+ * @property-read Party|null $contractor
  * @property-read Driver|null $defaultDriver
  */
 class Vehicle extends MasterModel
@@ -73,6 +75,12 @@ class Vehicle extends MasterModel
         static::saving(function (Vehicle $vehicle): void {
             $vehicle->registration_no = PakistanIds::normalizeVehicleNumber($vehicle->registration_no);
         });
+    }
+
+    /** @return BelongsTo<Party, $this> */
+    public function contractor(): BelongsTo
+    {
+        return $this->belongsTo(Party::class, 'contractor_party_id');
     }
 
     /** @return BelongsTo<Party, $this> */

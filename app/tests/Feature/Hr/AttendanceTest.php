@@ -25,6 +25,8 @@ const MILL_LNG = 76.9921;
 const PHONE = 'phone-ramesh-000000001';
 
 beforeEach(function () {
+    // The site works 05:00–23:00: the tests run at 11:00 Pakistan time, whenever they are started.
+    $this->travelTo(now('Asia/Karachi')->setTime(11, 0));
     $this->f = new HrFixtures(Make::entity('ATT'));
     $this->login = Make::account($this->f->entity, 'EMPLOYEE');
     $this->employee = $this->f->employee(['person_id' => $this->login->person_id, 'full_name' => null]);

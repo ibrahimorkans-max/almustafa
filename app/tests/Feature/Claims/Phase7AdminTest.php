@@ -38,7 +38,7 @@ dataset('phase 7 screens', [
     'claims' => ['/admin/claims', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT', 'SUPERVISOR']],
     'price lists' => ['/admin/price-lists', ['OWNER', 'SUPER_ADMIN', 'EXECUTIVE', 'ACCOUNTANT']],
     'markups' => ['/admin/markups', ['OWNER', 'SUPER_ADMIN']],
-    'archive' => ['/admin/office-desk', ['OWNER', 'SUPER_ADMIN']],
+    'archive' => ['/admin/office-desk', []],   // the Office Coordinator's alone
 ]);
 
 it('opens claims, pricing and archive screens only for the right roles', function (string $path, array $allowed) {
@@ -119,7 +119,7 @@ it('finds archived records and restores one with a reason', function () {
     Make::reset();
     $this->artisan('archive:run')->assertSuccessful();
 
-    signInP7($this, $this->f->acc->owner);
+    signInP7($this, Make::account($this->f->entity, 'OFFICE_COORDINATOR'));
     Livewire::test(ArchiveSearch::class)->set('term', 'MNA2')->call('search')->assertSee($old->number)
         ->callAction('restore', ['reason' => 'Needed for a weight dispute in court'], ['type' => 'gate_entry', 'id' => $old->id])
         ->assertNotified('Restored');

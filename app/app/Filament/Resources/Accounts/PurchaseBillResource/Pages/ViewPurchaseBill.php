@@ -8,6 +8,7 @@ use App\Domain\Accounts\AccountsDocuments;
 use App\Domain\Accounts\PurchaseBillService;
 use App\Filament\Resources\Accounts\PurchaseBillResource;
 use App\Filament\Support\AttachmentsPanel;
+use App\Filament\Support\PrintButton;
 use App\Filament\Support\RequestsVoucherReversal;
 use App\Filament\Support\RunsDomainActions;
 use App\Models\Accounts\PurchaseBill;
@@ -34,7 +35,9 @@ class ViewPurchaseBill extends ViewRecord
                 ->modalDescription('Posts the purchase voucher (party, rate cut, round-off, brokerage). It cannot be edited afterwards, only reversed.')
                 ->form([Textarea::make('note')->maxLength(1000)])
                 ->action(fn (PurchaseBill $b, array $data) => $this->runDomain(fn () => app(PurchaseBillService::class)->post($b, $data['note'] ?? null), 'Bill posted')),
-            Action::make('pdf')->label('Print purchase bill (PDF)')->icon('heroicon-o-printer')->color('gray')
+            PrintButton::dialog('printBill', 'Print purchase bill', fn (PurchaseBill $b) => [app(AccountsDocuments::class)->purchaseBillPdf($b), str_replace('/', '-', (string) $b->number).'.pdf'])
+                ->visible(fn (PurchaseBill $b) => $b->status === PurchaseBill::POSTED),
+            Action::make('pdf')->label('Download bill (PDF)')->icon('heroicon-o-arrow-down-tray')->color('gray')
                 ->visible(fn (PurchaseBill $b) => $b->status === PurchaseBill::POSTED)
                 ->action(fn (PurchaseBill $b) => response()->streamDownload(
                     fn () => print app(AccountsDocuments::class)->purchaseBillPdf($b),

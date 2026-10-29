@@ -33,7 +33,7 @@ final class LiveCapture
     /**
      * Vehicles inside the mill that wait for a weight, in token order.
      *
-     * @return Collection<int, array{id: string, label: string, kind: string|null, token: int|null, plate: string}>
+     * @return Collection<int, array{id: string, label: string, kind: string|null, token: string|null, plate: string}>
      */
     public function waiting(): Collection
     {
@@ -52,10 +52,10 @@ final class LiveCapture
 
                 return [
                     'id' => $e->id,
-                    'label' => trim(($e->token_no !== null ? 'Token '.$e->token_no.' · ' : '').($e->no_plate ? 'No plate ('.$e->vehicle_description.')' : $e->registration_no)
-                        .($e->party !== null ? ' · '.$e->party->name : '')),
+                    'label' => trim(($e->token_no !== null || $e->token_serial !== null ? 'Token '.$e->tokenLabel().' · ' : '').($e->jack_type !== null ? $e->jackLabel().' · ' : '').($e->no_plate ? 'No plate ('.$e->vehicle_description.')' : $e->registration_no)
+                        .($e->partyLabel() !== null ? ' · '.$e->partyLabel() : '')),
                     'kind' => self::nextKind($e),
-                    'token' => $e->token_no,
+                    'token' => $e->token_serial !== null || $e->token_no !== null ? $e->tokenLabel() : null,
                     'plate' => $e->no_plate ? '' : $e->registration_no,
                 ];
             })

@@ -28,12 +28,28 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class PartyResource extends Resource
 {
     use MasterResourceHelpers;
 
     protected static ?string $model = Party::class;
+
+    protected static ?string $recordTitleAttribute = 'name';
+
+    /** Found by the search box in the top bar (partial match, this mill only, and only for people who may open the list). */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name', 'code', 'contractor_code', 'phone', 'city'];
+    }
+
+    /** @return array<string, string> */
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        /** @var Party $record */
+        return array_filter(['Code' => $record->code.($record->contractor_code ? ' · '.$record->contractor_code : ''), 'Acts as' => implode(', ', $record->roleLabels()), 'City' => (string) $record->city]);
+    }
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
 
@@ -44,17 +60,17 @@ class PartyResource extends Resource
     /** @var array<string, string> */
     public const ROLE_OPTIONS = [
         'is_customer' => 'Customer', 'is_vendor' => 'Vendor', 'is_broker' => 'Broker / agent',
-        'is_farmer' => 'Farmer', 'is_transporter' => 'Transporter',
+        'is_farmer' => 'Farmer', 'is_transporter' => 'Transporter', 'is_contractor' => 'Labour contractor',
     ];
 
     public static function form(Form $form): Form
     {
         return $form->schema([
             Section::make('Party')->columns(3)->schema([
-                static::codeInput('parties', 30),
+                static::codeInput('parties', 30, automatic: true),
                 TextInput::make('name')->required()->maxLength(160),
                 TextInput::make('legal_name')->maxLength(200),
-                CheckboxList::make('roles')->label('Acts as')->options(self::ROLE_OPTIONS)->columns(5)->columnSpanFull()
+                CheckboxList::make('roles')->label('Acts as')->options(self::ROLE_OPTIONS)->columns(6)->columnSpanFull()
                     ->required()
                     ->afterStateHydrated(fn (CheckboxList $component, ?Party $record) => $component->state(
                         $record ? array_values(array_filter(Party::ROLES, fn (string $r) => (bool) $record->getAttribute($r))) : [],

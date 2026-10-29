@@ -57,7 +57,7 @@ final class PartyStatement
         $vehicles = GateEntry::query()->with('product')->where('party_id', $party->id)
             ->orderByDesc('arrived_at')->limit($limit)->get()
             ->map(fn (GateEntry $e) => [
-                'date' => $e->arrived_at, 'token' => $e->token_no, 'number' => $e->number, 'vehicle' => $e->vehicleLabel(),
+                'date' => $e->arrived_at, 'token' => $e->token_serial !== null || $e->token_no !== null ? $e->tokenLabel() : null, 'number' => $e->number, 'vehicle' => $e->vehicleLabel(),
                 'item' => $e->itemLabel(), 'direction' => $e->direction, 'status' => str_replace('_', ' ', $e->status),
                 'gross' => $e->gross_kg, 'tare' => $e->tare_kg, 'net' => $e->net_kg, 'payable' => $e->payable_kg,
                 'lab' => $e->direction === 'inbound' && $e->purpose !== 'other' ? LabReport::decisionLabel(LabReport::for($e)) : null,

@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Hr\Payroll\StatutoryReports;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Filament\Support\ExportGuard;
 use App\Http\Controllers\ReportPrintController;
 use App\Models\LoginAccount;
 use App\Support\Export\XlsxWriter;
@@ -70,11 +71,11 @@ class StatutoryReportsPage extends Page
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('pdf')->label('PDF')->icon('heroicon-o-printer')
+            Action::make('pdf')->visible(fn () => ExportGuard::allowed())->label('PDF')->icon('heroicon-o-printer')
                 ->url(fn () => ReportPrintController::url([$this->report], $this->month.'-01', $this->month.'-01'), shouldOpenInNewTab: true),
             Action::make('allReports')->label('All reports')->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
             Action::make('xlsx')->label('Excel')->icon('heroicon-o-table-cells')->action(fn () => $this->download('xlsx')),
-            Action::make('csv')->label('CSV')->icon('heroicon-o-arrow-down-tray')->color('gray')->action(fn () => $this->download('csv')),
+            Action::make('csv')->visible(fn () => ExportGuard::allowed())->label('CSV')->icon('heroicon-o-arrow-down-tray')->color('gray')->action(fn () => $this->download('csv')),
         ];
     }
 

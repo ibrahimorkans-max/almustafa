@@ -46,6 +46,13 @@
 <table class="grid">
     <tr><td class="label">Gross</td><td class="num">{{ $kg($slip['gross_kg']) }} kg</td><td class="label">Tare</td><td class="num">{{ $kg($slip['tare_kg']) }} kg</td></tr>
     <tr class="total"><td>Net weight</td><td class="num">{{ $kg($slip['net_kg']) }} kg</td><td colspan="2" class="r">{{ PdfRenderer::maundKg((string) $slip['net_kg']) }}</td></tr>
+    @if (($slip['rejected_bags'] ?? 0) > 0 || ($slip['rejected_kg'] ?? null) !== null)
+        <tr><td class="label">Rejected at unloading</td><td colspan="3">
+            {{ implode(', ', array_filter([($slip['rejected_bags'] ?? 0) > 0 ? $slip['rejected_bags'].' bags' : null, ($slip['rejected_kg'] ?? null) !== null ? $kg($slip['rejected_kg']).' kg' : null])) }}
+            ({{ $slip['rejection_reason'] ?? '' }}).
+            {{ ($slip['rejected_off_vehicle'] ?? false) ? 'Taken off the vehicle; its weight is subtracted.' : 'Returned on the vehicle.' }} The net weight is the paddy accepted only.
+        </td></tr>
+    @endif
     @if ($inbound)
         <tr><td class="label">Quality deduction</td><td class="num">{{ $kg($slip['deduction_kg'] ?? '0') }} kg</td><td class="label">Lab</td><td>{{ ($slip['lab_accepted'] ?? false) ? 'Accepted' : 'Not accepted' }}</td></tr>
         <tr class="grand"><td>Payable weight</td><td class="num">{{ $kg($slip['payable_kg']) }} kg</td><td colspan="2" class="r">{{ $slip['payable_kg'] !== null ? PdfRenderer::maundKg((string) $slip['payable_kg']) : '—' }}</td></tr>

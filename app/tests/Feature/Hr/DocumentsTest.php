@@ -317,6 +317,8 @@ describe('who sees what', function () {
         $item = docItem($run, $this->a);
         Livewire::test(ItemsRelationManager::class, ['ownerRecord' => $run, 'pageClass' => ViewPayrollRun::class])
             ->callTableAction('payslip', $item->id, ['language' => 'bilingual', 'paper' => 'half_a4', 'format' => 'pdf', 'digits' => 'western'])
+            ->assertDispatched('rm-print')
+            ->callTableAction('payslip', $item->id, ['language' => 'bilingual', 'paper' => 'half_a4', 'format' => 'pdf', 'digits' => 'western', 'deliver' => 'download'])
             ->assertFileDownloaded();
         expect(GeneratedDocument::query()->where('source_id', $item->id)->count())->toBe(1);
         Livewire::test(ViewPayrollRun::class, ['record' => $run->id])
@@ -325,7 +327,7 @@ describe('who sees what', function () {
             ->callAction('registerXlsx')->assertFileDownloaded('payroll-register-2026-09.xlsx');
         expect(GeneratedDocument::query()->where('doc_type', 'payslip')->count())->toBe(2);
         Livewire::test(ListGeneratedDocuments::class)->assertCanSeeTableRecords(GeneratedDocument::query()->get())
-            ->callTableAction('reprint', GeneratedDocument::query()->first()->id, ['language' => 'ur', 'paper' => 'a4', 'format' => 'pdf', 'digits' => 'urdu', 'password' => 'none'])
+            ->callTableAction('reprint', GeneratedDocument::query()->first()->id, ['language' => 'ur', 'paper' => 'a4', 'format' => 'pdf', 'digits' => 'urdu', 'password' => 'none', 'deliver' => 'download'])
             ->assertFileDownloaded();
         Livewire::test(ManageDocumentTemplates::class)->filterTable('doc_type', 'payslip')->assertCanSeeTableRecords(DocumentTemplate::query()->where('doc_type', 'payslip')->get());
     });

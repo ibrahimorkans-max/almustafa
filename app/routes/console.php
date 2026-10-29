@@ -35,3 +35,5 @@ Schedule::command('expenses:recurring')->dailyAt('06:30')->timezone('Asia/Karach
 Schedule::command('geoip:update')->monthlyOn(5, '04:30')->timezone('Asia/Karachi')->withoutOverlapping();
 // 1 January (PKT): close the year that just ended for leave balances.
 Schedule::command('hr:leave-year-end '.(now('Asia/Karachi')->year - 1))->yearlyOn(1, 1, '00:30')->timezone('Asia/Karachi')->withoutOverlapping();
+// Bank notification e-mails: each mailbox is read when its own interval has passed (background, not on screen).
+Schedule::command('bank-email:sync')->everyFiveMinutes()->withoutOverlapping()->runInBackground();

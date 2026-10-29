@@ -23,6 +23,14 @@ class GodownResource extends Resource
 
     protected static ?string $model = Godown::class;
 
+    protected static ?string $recordTitleAttribute = 'name';
+
+    /** Found by the search box in the top bar (partial match, this mill only, and only for people who may open the list). */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name', 'code'];
+    }
+
     protected static ?string $navigationIcon = 'heroicon-o-building-storefront';
 
     protected static ?string $navigationLabel = 'Godowns / silos';

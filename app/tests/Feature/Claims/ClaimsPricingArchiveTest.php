@@ -195,7 +195,7 @@ describe('archive', function () {
     it('archives only closed records past retention, never deletes, and restores with a reason', function () {
         $archive = app(ArchiveService::class);
         $cutoff = now()->subMonths(24);
-        $this->f->as($this->f->acc->owner);
+        $this->f->as(Make::account($this->f->entity, 'OFFICE_COORDINATOR'));
 
         expect($archive->run($cutoff, dryRun: true)['gate_entry'])->toBe(1)
             ->and(GateEntry::query()->whereNotNull('archived_at')->count())->toBe(0);
@@ -220,7 +220,7 @@ describe('archive', function () {
     it('lets only the right roles search and restore', function () {
         $this->f->as($this->f->dispatcher);
         expect(fn () => app(ArchiveService::class)->search('MNA2'))->toThrow(BusinessRuleViolation::class, 'office.view');
-        $this->f->as($this->f->acc->accountant); // the archive is for the Owner and the Super Admin only
+        $this->f->as($this->f->acc->accountant); // the archive is for the Office Coordinator only
         expect(fn () => app(ArchiveService::class)->search('MNA2'))->toThrow(BusinessRuleViolation::class, 'office.view')
             ->and(fn () => app(ArchiveService::class)->restore('gate_entry', $this->old->id, 'A good long reason here'))->toThrow(BusinessRuleViolation::class, 'office.restore');
     });

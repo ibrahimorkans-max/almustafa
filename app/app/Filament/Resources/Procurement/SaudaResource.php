@@ -7,8 +7,11 @@ namespace App\Filament\Resources\Procurement;
 use App\Filament\Resources\Procurement\SaudaResource\Pages;
 use App\Filament\Support\HidesArchived;
 use App\Filament\Support\PrintButton;
+use App\Filament\Support\ProductSelect;
 use App\Filament\Support\Units;
+use App\Filament\Support\VarietySelect;
 use App\Models\LoginAccount;
+use App\Models\Masters\Product;
 use App\Models\Procurement\Sauda;
 use App\Models\Procurement\SaudaEvent;
 use Filament\Facades\Filament;
@@ -17,6 +20,7 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Set;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\Section as InfoSection;
 use Filament\Infolists\Components\TextEntry;
@@ -24,6 +28,7 @@ use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -33,6 +38,14 @@ class SaudaResource extends Resource
     use HidesArchived;
 
     protected static ?string $model = Sauda::class;
+
+    protected static ?string $recordTitleAttribute = 'number';
+
+    /** Found by the search box in the top bar (partial match, this mill only, and only for people who may open the list). */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['number'];
+    }
 
     protected static ?string $navigationIcon = 'heroicon-o-document-check';
 
@@ -53,9 +66,9 @@ class SaudaResource extends Resource
         /** @var LoginAccount $me */
         $me = Filament::auth()->user();
         /** @var Builder<Sauda> $query */
-        $query = parent::getEloquentQuery()->with(['party', 'broker', 'product'])->where('direction', static::DIRECTION);
+        $query = parent::getEloquentQuery()->with(['party', 'broker', 'product', 'paddyVariety'])->where('direction', static::DIRECTION);
 
-        return $query->tap(fn (Builder $q) => (new Sauda)->scopeVisibleTo($q, $me));
+        return $query->tap(fn (Builder $q) => (new Sauda)->scopeVisibleTo($q, $me, static::DIRECTION));
     }
 
     public static function statusColor(string $status): string
@@ -81,8 +94,16 @@ class SaudaResource extends Resource
                     ->relationship('party', 'name', fn (Builder $query) => $query->whereRaw('(is_vendor OR is_farmer)')),
                 Select::make('broker_party_id')->label('Broker / agent')->searchable()->preload()
                     ->relationship('broker', 'name', fn (Builder $query) => $query->where('is_broker', true)),
-                Select::make('product_id')->label('Product')->required()->preload()
-                    ->relationship('product', 'name', fn (Builder $query) => $query->where('category', 'paddy')),
+                VarietySelect::make()->live()
+                    ->afterStateUpdated(function (?string $state, Set $set): void {
+                        // The paddy product of this variety, when there is exactly one.
+                        $ids = $state === null ? [] : Product::query()->where('category', 'paddy')->where('status', 'active')
+                            ->where('paddy_variety_id', $state)->limit(2)->pluck('id')->all();
+                        if (count($ids) === 1) {
+                            $set('product_id', $ids[0]);
+                        }
+                    }),
+                ProductSelect::make('product_id', ['paddy'])->required(),
             ]),
             Section::make('Terms')->columns(3)->schema([
                 TextInput::make('quantity_maund')->label('Quantity (maund)')->required()->regex(Units::DECIMAL_3),
@@ -107,6 +128,7 @@ class SaudaResource extends Resource
             'party_id' => $data['party_id'],
             'broker_party_id' => $data['broker_party_id'] ?? null,
             'product_id' => $data['product_id'],
+            'paddy_variety_id' => $data['paddy_variety_id'] ?? null,
             'quantity_kg' => Units::maundToKg((string) $data['quantity_maund']),
             'rate_paise_per_maund' => Units::rupeesToPaise((string) $data['rate_rupees']),
             'tolerance_bp' => Units::percentToBp((string) ($data['tolerance_percent'] ?? '5')) ?? 500,
@@ -125,7 +147,8 @@ class SaudaResource extends Resource
                 TextColumn::make('number')->searchable()->sortable(),
                 TextColumn::make('party.name')->label('Seller')->searchable(),
                 TextColumn::make('broker.name')->label('Broker')->placeholder('—'),
-                TextColumn::make('product.name')->label('Product'),
+                TextColumn::make('product.name')->label('Product')
+                    ->description(fn (Sauda $r) => $r->paddyVariety?->name),
                 TextColumn::make('quantity_kg')->label('Qty (maund)')->formatStateUsing(fn (string $state) => Units::kgToMaund($state))->alignEnd(),
                 TextColumn::make('rate_paise_per_maund')->label('Rate / maund')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state))->alignEnd(),
                 TextColumn::make('delivered_kg')->label('Delivered (maund)')->formatStateUsing(fn (string $state) => Units::kgToMaund($state))->alignEnd(),
@@ -133,10 +156,18 @@ class SaudaResource extends Resource
                 TextColumn::make('delivery_to')->label('Deliver by')->date()->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
-            ->filters([SelectFilter::make('status')->options(array_combine(
-                ['draft', 'pending_approval', 'confirmed', 'in_delivery', 'completed', 'cancelled', 'expired'],
-                ['Draft', 'Pending approval', 'Confirmed', 'In delivery', 'Completed', 'Cancelled', 'Expired'],
-            ))])
+            ->filters([
+                SelectFilter::make('status')->options(array_combine(
+                    ['draft', 'pending_approval', 'confirmed', 'in_delivery', 'completed', 'cancelled', 'expired'],
+                    ['Draft', 'Pending approval', 'Confirmed', 'In delivery', 'Completed', 'Cancelled', 'Expired'],
+                )),
+                SelectFilter::make('party_id')->label('Party')->relationship('party', 'name')->searchable(),
+                SelectFilter::make('product_id')->label('Product')->relationship('product', 'name')->searchable(),
+                Filter::make('dates')->form([DatePicker::make('from')->label('Made from'), DatePicker::make('until')->label('Made until')])
+                    ->query(fn (Builder $q, array $data) => $q
+                        ->when($data['from'] ?? null, fn (Builder $q, $d) => $q->whereDate('created_at', '>=', $d))
+                        ->when($data['until'] ?? null, fn (Builder $q, $d) => $q->whereDate('created_at', '<=', $d))),
+            ])
             ->actions([ViewAction::make(), PrintButton::row('sauda')]);
     }
 
@@ -149,6 +180,7 @@ class SaudaResource extends Resource
                 TextEntry::make('party.name')->label('Seller'),
                 TextEntry::make('broker.name')->label('Broker')->placeholder('—'),
                 TextEntry::make('product.name')->label('Product'),
+                TextEntry::make('paddyVariety.name')->label('Paddy variety')->placeholder('—')->visible(fn (Sauda $r) => $r->paddy_variety_id !== null),
                 TextEntry::make('quantity_kg')->label('Quantity')->formatStateUsing(fn (string $state) => Units::kgToMaund($state).' maund'),
                 TextEntry::make('rate_paise_per_maund')->label('Rate')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state).' / maund'),
                 TextEntry::make('tolerance_bp')->label('Tolerance')->formatStateUsing(fn (int $state) => '± '.Units::bpToPercent($state)),

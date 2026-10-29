@@ -8,6 +8,7 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Gate\VehicleRegister;
 use App\Domain\Tenancy\TenantContext;
 use App\Filament\Resources\Gate\GateEntryResource;
+use App\Filament\Support\ExportGuard;
 use App\Models\Gate\GateEntry;
 use App\Models\LoginAccount;
 use App\Support\Values\Money;
@@ -126,6 +127,7 @@ class VehicleRegisterPage extends Page implements HasTable
     public function downloadExcel(): ?StreamedResponse
     {
         abort_unless(static::canAccess(), 403);
+        ExportGuard::assert();
         if (! $this->millChosen()) {
             Notification::make()->title('Choose the mill first.')->warning()->send();
 

@@ -47,6 +47,7 @@ final class DeviceService
 
                 throw new AuthenticationFailed(AuthenticationFailed::DEVICE_NOT_ALLOWED, 'agent_not_registered', 403);
             }
+            $this->assertBelowLimit($account);
             $device = Device::query()->create([
                 'entity_id' => $account->entity_id,
                 'login_account_id' => $account->id,
@@ -67,6 +68,10 @@ final class DeviceService
             $this->handleUntrustedDevice($account, $device);
         }
 
+        // A phone's browser and its installed app share the device cookie: once signed in from the app, it is the app.
+        if ($info->platform === 'pwa' && $device->platform === 'web') {
+            $device->forceFill(['platform' => 'pwa', 'name' => $info->name ?? $device->name]);
+        }
         $device->forceFill(['last_seen_at' => now(), 'last_ip' => $ip])->save();
 
         return $device;
@@ -198,6 +203,25 @@ final class DeviceService
             'selected' => $account->require_trusted_device,
             default => false,
         };
+    }
+
+    /** The devices a person has in use (not revoked or wiped); gate agents are not counted. */
+    public static function devicesInUse(LoginAccount $account): int
+    {
+        return Device::query()->where('login_account_id', $account->id)->where('platform', '!=', 'agent')
+            ->where('status', Device::STATUS_ACTIVE)->count();
+    }
+
+    /** A new device is refused once the person has as many as the mill allows (0: no limit; the product owner is never limited). */
+    private function assertBelowLimit(LoginAccount $account): void
+    {
+        $limit = (int) app(SettingsService::class)->get(SettingsService::MAX_DEVICES, $account->entity_id);
+        if ($limit <= 0 || $account->isPlatformAdmin() || self::devicesInUse($account) < $limit) {
+            return;
+        }
+        $this->audit->record('auth.login.blocked', $account, meta: ['reason' => 'device_limit', 'limit' => $limit]);
+
+        throw new AuthenticationFailed(AuthenticationFailed::DEVICE_LIMIT, 'device_limit', 403);
     }
 
     private function handleUntrustedDevice(LoginAccount $account, Device $device): void

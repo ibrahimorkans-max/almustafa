@@ -4,7 +4,7 @@
     and on the roll (80 mm) the logo and the name are stacked.
 --}}
 @php
-    $small = ($small ?? false) || in_array($paper ?? null, ['a6', 'roll', 'roll50'], true);
+    $small = ($small ?? false) || in_array($paper ?? null, ['a5', 'a6', 'roll', 'roll58', 'roll50'], true);
     $roll = ($roll ?? false);
     $nameSize = $small ? '13pt' : '18pt';
     $urSize = $small ? '14pt' : '19pt';

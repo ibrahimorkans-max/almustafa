@@ -72,7 +72,9 @@ final class StockCountService
                 sprintf('Stock adjustment %s kg: %s in %s', $difference->kg, $product->name, $godown->name),
                 $note,
             );
-            $count->forceFill(['approval_request_id' => $request->id])->save();
+            // A self-approved request is applied inside submit(), which saves the count (and
+            // bumps its version); reload so this write is not refused as a stale copy.
+            $count->refresh()->forceFill(['approval_request_id' => $request->id])->save();
 
             $this->checkShrinkage($count, $system, $difference, $product, $godown);
 

@@ -56,7 +56,7 @@ class NegotiationPage extends Page
     /**
      * Inbound vehicles inside the mill whose price or Caat is open, in token order.
      *
-     * @return list<array{id: string, token: int|null, vehicle: string, party: string, stage: string, price: string}>
+     * @return list<array{id: string, token: string|null, vehicle: string, party: string, stage: string, price: string}>
      */
     public function vehicles(): array
     {
@@ -82,7 +82,7 @@ class NegotiationPage extends Page
                 $price = $gate->acceptedPrice($e)->price_paise_per_maund ?? $gate->offeredPricePaise($e);
 
                 return [
-                    'id' => $e->id, 'token' => $e->token_no, 'vehicle' => $e->vehicleLabel(), 'party' => $e->party->name ?? '—',
+                    'id' => $e->id, 'token' => $e->token_serial !== null || $e->token_no !== null ? $e->tokenLabel() : null, 'vehicle' => $e->vehicleLabel(), 'party' => $e->partyLabel() ?? '—',
                     'stage' => $stage, 'price' => $price !== null ? Units::paiseToRupees($price).' / maund' : '—',
                 ];
             })->all();
