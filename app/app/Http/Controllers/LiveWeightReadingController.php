@@ -11,7 +11,7 @@ use Illuminate\Http\JsonResponse;
 
 /**
  * GET /admin/gate/live-weight/{scale}: the weighbridge's current reading, for the dial on the Live weight
- * screen (public/js/live-weight.js asks every second). A plain read with no Livewire round trip, so the
+ * screen (public/js/live-weight.js asks twice a second). A plain read with no Livewire round trip, so the
  * page and the weighing form next to the dial are never redrawn or reloaded while the weight changes.
  */
 final class LiveWeightReadingController

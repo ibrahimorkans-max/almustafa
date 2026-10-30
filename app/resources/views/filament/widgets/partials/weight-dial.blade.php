@@ -1,6 +1,6 @@
 {{--
     The weighbridge as one analog clock: everything is on its face.
-     - the needle sweeps 240° from 0 to the capacity (main marks in tonnes) and glides to each new reading;
+     - the needle sweeps 240° from 0 to the capacity (main marks in tonnes) and moves quickly to each new reading;
      - the ring and the lamp are green when stable, amber while moving, grey without a signal (with how long ago);
      - the exact weight is in the digital window under the needle, the maund below it.
     Params: $kg (float|null), $capacity (float), $live (bool), $stable (bool), $code, $name (string), $age (int|null seconds)
@@ -58,7 +58,8 @@
     <text data-lw="maund" x="{{ $c }}" y="194" text-anchor="middle" style="font: 600 10px sans-serif; fill: #4b5563;">{{ $kg !== null ? number_format((float) $kg / 40, 2).' maund' : 'no reading yet' }}</text>
 
     {{-- Needle: glides to the reading --}}
-    <g data-lw="needle" style="transform: rotate({{ $needle }}deg); transform-origin: {{ $c }}px {{ $c }}px; transition: transform .9s cubic-bezier(.2,.8,.2,1);">
+    {{-- The SVG rotate attribute (every browser turns it; some ignore a CSS transform on an SVG group). --}}
+    <g data-lw="needle" data-angle="{{ $needle }}" transform="rotate({{ $needle }} {{ $c }} {{ $c }})">
         <polygon points="{{ $c }},26 {{ $c + 4 }},{{ $c + 4 }} {{ $c - 4 }},{{ $c + 4 }}" style="fill: #dc2626;"/>
         <polygon points="{{ $c - 3.5 }},{{ $c + 4 }} {{ $c + 3.5 }},{{ $c + 4 }} {{ $c + 2 }},{{ $c + 18 }} {{ $c - 2 }},{{ $c + 18 }}" style="fill: #1f2937;"/>
     </g>

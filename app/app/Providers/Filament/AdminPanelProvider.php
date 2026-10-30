@@ -125,7 +125,7 @@ class AdminPanelProvider extends PanelProvider
                 Route::get('billing/invoices/{id}', [SaasInvoiceController::class, 'pdf'])->whereUuid('id')->middleware('throttle:30,1')->name('saas.invoice');
                 Route::get('billing/invoices/{id}/receipt', [SaasInvoiceController::class, 'receipt'])->whereUuid('id')->middleware('throttle:30,1')->name('saas.receipt');
                 Route::get('branding/preview', BrandingPreviewController::class)->middleware('throttle:20,1')->name('branding.preview');
-                Route::get('gate/live-weight/{scale}', LiveWeightReadingController::class)->whereUuid('scale')->middleware('throttle:150,1')->name('gate.live-weight');
+                Route::get('gate/live-weight/{scale}', LiveWeightReadingController::class)->whereUuid('scale')->middleware('throttle:300,1')->name('gate.live-weight');
                 Route::get('gate/token/{id}', TokenSlipController::class)->whereUuid('id')->middleware('throttle:60,1')->name('gate.token');
                 // The current security token, for a page whose token went stale (signed in again in another tab).
                 Route::get('csrf-token', fn () => response()->json(['token' => csrf_token()])->header('Cache-Control', 'no-store'))
