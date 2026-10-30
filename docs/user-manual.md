@@ -100,7 +100,11 @@ Gate → **Gate entries** → *New entry*.
 **Weighing.**
 
 - The **Live weight** page (Gate → Live weight) takes the loaded and empty weights from the weighbridge
-  (stable reading, with evidence).
+  (stable reading, with evidence). The same board is on top of Vehicles at gate.
+- The dial updates every second by itself; the page never reloads, so what is typed in the form stays.
+- **Waiting (token order)** lists every vehicle still waiting for a weight, by token number, including
+  paddy lots still at the lab (marked *at the lab*). It refreshes every 10 seconds and after each weight,
+  so a vehicle registered at the gate appears on its own. Tap one to fill in the form.
 - A Supervisor or above can type one weight by hand, with a reason; this is recorded.
 
 **Lab.** For paddy, the lab test comes first. Within the limits it is accepted; outside them it goes to

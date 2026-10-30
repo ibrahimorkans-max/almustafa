@@ -3,7 +3,7 @@
     <div>
         @php
             $scales = $this->getScales();
-            $waiting = $this->getWaiting();
+
             $input = 'block w-full rounded-lg border-gray-300 text-sm dark:border-white/10 dark:bg-white/5';
         @endphp
         @if ($scales === [])
@@ -14,9 +14,6 @@
             </datalist>
             <datalist id="weigh-parties">
                 @foreach ($this->getPartyNames() as $name)<option value="{{ $name }}">@endforeach
-            </datalist>
-            <datalist id="weigh-vehicles">
-                @foreach ($waiting as $w)@if ($w['plate'] !== '')<option value="{{ $w['plate'] }}">{{ $w['label'] }}</option>@endif @endforeach
             </datalist>
 
             @php
@@ -130,17 +127,8 @@
                                     <p class="text-xs text-gray-500">Press when the clock shows STABLE.</p>
                                 @endif
 
-                                @if ($waiting !== [])
-                                    <div>
-                                        <div class="mb-1 text-xs font-medium text-gray-500">Waiting (token order) — tap to fill in</div>
-                                        <div class="flex flex-wrap gap-1">
-                                            @foreach (array_slice($waiting, 0, 12) as $w)
-                                                <button type="button" wire:click="pick('{{ $sid }}', '{{ $w['id'] }}')"
-                                                    class="rounded-full px-2.5 py-1 text-xs ring-1 ring-gray-300 hover:bg-gray-50 dark:ring-white/20 dark:hover:bg-white/5">{{ $w['label'] }}</button>
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                @endif
+                                {{-- Refreshes itself (new arrivals at the gate) without redrawing this form. --}}
+                                @livewire(\App\Livewire\WeighQueue::class, ['scaleId' => $sid], key('queue-'.$sid))
                             </div>
                         @endif
                     </div>

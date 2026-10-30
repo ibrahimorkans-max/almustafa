@@ -37,23 +37,30 @@ final class LiveCapture
      */
     public function waiting(): Collection
     {
+        // Every open token, in token order (the continuous serial; older tokens by their day's number). The newest
+        // 150 are taken, so old unfinished tokens can never push today's vehicles off the list.
         return GateEntry::query()->with('party')
             ->whereIn('status', self::WAITING)
-            ->orderBy('token_date')->orderBy('token_no')->orderBy('arrived_at')->limit(80)->get()
+            ->orderByDesc('arrived_at')->limit(150)->get()
+            ->sortBy([
+                fn (GateEntry $a, GateEntry $b) => ($a->token_serial === null) <=> ($b->token_serial === null),
+                fn (GateEntry $a, GateEntry $b) => (int) $a->token_serial <=> (int) $b->token_serial,
+                fn (GateEntry $a, GateEntry $b) => (string) $a->token_date?->format('Y-m-d') <=> (string) $b->token_date?->format('Y-m-d'),
+                fn (GateEntry $a, GateEntry $b) => (int) $a->token_no <=> (int) $b->token_no,
+                fn (GateEntry $a, GateEntry $b) => (string) $a->arrived_at?->format('Y-m-d H:i:s') <=> (string) $b->arrived_at?->format('Y-m-d H:i:s'),
+            ])
             ->map(function (GateEntry $e): ?array {
                 $steps = self::steps($e);
                 if (! $steps['gross']['allowed'] && ! $steps['tare']['allowed'] && $steps['gross']['done'] && $steps['tare']['done']) {
                     return null;
                 }
-                // Inbound lots before the lab's acceptance are listed only once the lab has accepted them.
-                if ($e->direction === 'inbound' && $e->purpose !== 'other' && $e->status === 'arrived') {
-                    return null;
-                }
+                // A paddy lot still at the lab is listed too (it keeps its place in the queue), marked as such.
+                $atLab = $e->direction === 'inbound' && $e->purpose !== 'other' && $e->status === 'arrived';
 
                 return [
                     'id' => $e->id,
                     'label' => trim(($e->token_no !== null || $e->token_serial !== null ? 'Token '.$e->tokenLabel().' · ' : '').($e->jack_type !== null ? $e->jackLabel().' · ' : '').($e->no_plate ? 'No plate ('.$e->vehicle_description.')' : $e->registration_no)
-                        .($e->partyLabel() !== null ? ' · '.$e->partyLabel() : '')),
+                        .($e->partyLabel() !== null ? ' · '.$e->partyLabel() : '').($atLab ? ' · at the lab' : '')),
                     'kind' => self::nextKind($e),
                     'token' => $e->token_serial !== null || $e->token_no !== null ? $e->tokenLabel() : null,
                     'plate' => $e->no_plate ? '' : $e->registration_no,

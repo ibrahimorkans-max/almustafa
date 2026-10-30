@@ -14,6 +14,7 @@ use App\Filament\Pages\SwitchContext;
 use App\Filament\Pages\TwoFactor;
 use App\Filament\Resources\Hr\HrScope;
 use App\Filament\Widgets\HrOverview;
+use App\Filament\Widgets\LiveWeightBoard;
 use App\Filament\Widgets\MoneyOverview;
 use App\Filament\Widgets\OperationsOverview;
 use App\Filament\Widgets\OwnerOverview;
@@ -86,6 +87,9 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([Dashboard::class])
             ->widgets([AccountWidget::class, OperationsOverview::class, ProcurementOverview::class, MoneyOverview::class, OwnerOverview::class, HrOverview::class, StockOverview::class])
+            // Shown on Live weight and Vehicles at gate, not on the dashboard: registered by name so its clicks and typing
+            // reach it (an unknown component is refused as "page expired" and the page reloads).
+            ->livewireComponents([LiveWeightBoard::class])
             ->navigationGroups(['Platform', 'Procurement', 'Gate & weighbridge', 'Stock & production', 'Sales & dispatch', 'Claims & pricing', 'Accounts', HrScope::GROUP, 'Daily wages', 'Reports', 'Masters', 'Administration', 'Security'])
             ->userMenuItems([
                 MenuItem::make()->label('Switch entity / account')->icon('heroicon-o-arrows-right-left')

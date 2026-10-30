@@ -13,12 +13,15 @@ use App\Filament\Resources\Gate\WeighmentCheckResource;
 use App\Filament\Resources\Gate\WeighmentCheckResource\Pages\ListWeighmentChecks;
 use App\Filament\Widgets\LiveWeightBoard;
 use App\Http\Middleware\EnsureWebAuthSession;
+use App\Livewire\WeighQueue;
 use App\Models\AuthSession;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\Weighment;
 use App\Models\Gate\WeighmentCheck;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\Support\GateFixtures;
 use Tests\Support\Make;
@@ -62,6 +65,38 @@ it('lists vehicles waiting for a weight with the weight they need next', functio
     expect($waiting)->toHaveCount(1)
         ->and($waiting[0])->toMatchArray(['id' => $this->entry->id, 'kind' => 'gross'])
         ->and($waiting[0]['label'])->toContain('MNA211234');
+});
+
+it('lists every waiting vehicle in token order, a lot at the lab too, however many old tokens are still open', function () {
+    // Many old tokens never finished (the vehicle left without its weights): they must not hide today's vehicles.
+    $gate = app(GateService::class);
+    $old = $gate->arrive(['registration_no' => 'LHR 1001', 'purpose' => 'other', 'goods_description' => 'Bran']);
+    Make::system(fn () => GateEntry::query()->whereKey($old->id)->update(['arrived_at' => now()->subDays(20)]));
+    for ($i = 0; $i < 160; $i++) {
+        Make::system(fn () => DB::table('gate_entries')->insert(array_merge((array) DB::table('gate_entries')->where('id', $old->id)->first(), [
+            'id' => (string) Str::uuid7(), 'token_serial' => null, 'token_no' => null, 'registration_no' => 'OLD'.$i, 'arrived_at' => now()->subDays(30),
+        ])));
+    }
+    $atLab = $gate->arrive(['registration_no' => 'MNA 21 5555', 'sauda_id' => $this->sauda->id, 'bag_count' => 100]);
+    $other = $gate->arrive(['registration_no' => 'LES 7001', 'purpose' => 'other', 'goods_description' => 'Rice']);
+
+    $waiting = app(LiveCapture::class)->waiting();
+    $mine = $waiting->whereIn('id', [$this->entry->id, $atLab->id, $other->id])->values();
+    expect($mine->pluck('id')->all())->toBe([$this->entry->id, $atLab->id, $other->id])   // token order
+        ->and($mine[1]['label'])->toContain('at the lab')->and($mine[1]['kind'])->toBeNull()
+        ->and($mine[2]['kind'])->toBe('gross');
+});
+
+it('refreshes the waiting list by itself and after a weight, without redrawing the weighing form', function () {
+    lwcSignIn($this, $this->operator);
+    $queue = Livewire::test(WeighQueue::class, ['scaleId' => $this->f->scale->id]);
+    $queue->assertSeeHtml('wire:poll.10s')->assertSee('MNA211234')->assertDontSee('LES7001');
+
+    app(GateService::class)->arrive(['registration_no' => 'LES 7001', 'purpose' => 'other', 'goods_description' => 'Rice']);
+    $queue->dispatch('weigh-queue-refresh')->assertSee('LES7001');
+    // The board itself does not poll; only the list beside it does.
+    $html = Livewire::test(LiveWeightBoard::class)->html();
+    expect(substr_count($html, 'wire:poll'))->toBe(1)->and($html)->toContain('<div wire:poll.10s>');
 });
 
 it('records the gross weight from a stable live reading with the readings as evidence', function () {
