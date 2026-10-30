@@ -1,17 +1,41 @@
 /*
  * The weighbridge dial on the Live weight screen, kept current without reloading anything.
  *
- * Every second the reading is fetched as plain JSON (GET /admin/gate/live-weight/{scale}) and the dial's
- * needle, figure, maund and status are changed in place. No Livewire request is made, so typing in the
+ * Twice a second the reading is fetched as plain JSON (GET /admin/gate/live-weight/{scale}) and the dial's
+ * needle, figure, maund and status are changed in place. The next read starts half a second after the last
+ * one started (never two at once), so a new weight shows within about half a second of reaching the server. No Livewire request is made, so typing in the
  * weighing form and "Record weight" are never interrupted, and a refused or failed read only shows
  * "NO SIGNAL" until the next one succeeds: it never reloads the page.
  */
 (function () {
-    const EVERY = 1000;
+    const EVERY = 500;
     const TONES = { none: '--gray-400', stable: '--success-500', moving: '--warning-500' };
 
     function fmt(n, digits) {
         return Number(n).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    }
+
+    // The needle moves to its new angle in about a third of a second, through the SVG rotate attribute
+    // (which every browser turns; some ignore a CSS transform on an SVG group).
+    function turn(needle, to) {
+        const from = parseFloat(needle.getAttribute('data-angle'));
+        needle.setAttribute('data-angle', to);
+        if (needle.lwFrame) cancelAnimationFrame(needle.lwFrame);
+        const start = isNaN(from) ? to : (needle.lwAt !== undefined ? needle.lwAt : from);
+        const t0 = performance.now();
+        const step = (now) => {
+            const k = Math.min(1, (now - t0) / 350);
+            const at = start + (to - start) * (1 - Math.pow(1 - k, 3));
+            needle.lwAt = at;
+            needle.setAttribute('transform', 'rotate(' + at.toFixed(2) + ' 120 120)');
+            needle.lwFrame = k < 1 ? requestAnimationFrame(step) : null;
+        };
+        if (document.hidden || typeof requestAnimationFrame !== 'function') {
+            needle.lwAt = to;
+            needle.setAttribute('transform', 'rotate(' + to + ' 120 120)');
+        } else {
+            needle.lwFrame = requestAnimationFrame(step);
+        }
     }
 
     function paint(dial, r) {
@@ -37,14 +61,14 @@
         figure.textContent = kg === null ? '— — — —' : fmt(kg, 0);
         figure.style.fill = live ? '#4ade80' : '#6b7280';
         q('maund').textContent = kg !== null ? fmt(kg / 40, 2) + ' maund' : 'no reading yet';
-        q('needle').style.transform = 'rotate(' + angle + 'deg)';
+        turn(q('needle'), angle);
         const svg = dial.querySelector('svg');
         if (svg) svg.setAttribute('aria-label', (dial.dataset.name || '') + ': ' + (kg === null ? 'no reading' : fmt(kg, 0) + ' kg') + ', ' + status.toLowerCase());
     }
 
     function read(dial) {
         const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 4000);
+        const timer = setTimeout(() => ctrl.abort(), 8000);
         return fetch(dial.dataset.liveWeight, {
             credentials: 'same-origin', cache: 'no-store', redirect: 'manual', signal: ctrl.signal,
             headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
@@ -66,8 +90,9 @@
     }
 
     function tick() {
+        const started = Date.now();
         const dials = document.hidden ? [] : Array.from(document.querySelectorAll('[data-live-weight]'));
-        Promise.all(dials.map(read)).finally(() => setTimeout(tick, EVERY));
+        Promise.all(dials.map(read)).finally(() => setTimeout(tick, Math.max(0, EVERY - (Date.now() - started))));
     }
 
     tick();
