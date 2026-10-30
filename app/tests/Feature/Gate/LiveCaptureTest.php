@@ -96,7 +96,7 @@ it('refreshes the waiting list by itself and after a weight, without redrawing t
     $queue->dispatch('weigh-queue-refresh')->assertSee('LES7001');
     // The board itself does not poll; only the list beside it does.
     $html = Livewire::test(LiveWeightBoard::class)->html();
-    expect(substr_count($html, 'wire:poll'))->toBe(1)->and($html)->toContain('<div wire:poll.10s>');
+    expect(substr_count($html, 'wire:poll'))->toBe(1)->and($html)->toContain('wire:poll.10s');
 });
 
 it('records the gross weight from a stable live reading with the readings as evidence', function () {

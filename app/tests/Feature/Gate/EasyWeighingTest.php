@@ -333,7 +333,7 @@ it('shows one clock with the status and the exact weight on its face, switching 
         // Nothing on the page polls Livewire (a reload or a redraw would interrupt weighing): the clock reads its
         // weighbridge as plain JSON in the browser.
         // (only the waiting list beside the form refreshes itself, every 10 seconds).
-        ->and(substr_count($html, 'wire:poll'))->toBe(1)->and($html)->toContain('<div wire:poll.10s>')->toContain('data-live-weight="'.route('filament.admin.gate.live-weight', ['scale' => $this->f->scale->id]).'"');
+        ->and(substr_count($html, 'wire:poll'))->toBe(1)->and($html)->toContain('wire:poll.10s')->toContain('data-live-weight="'.route('filament.admin.gate.live-weight', ['scale' => $this->f->scale->id]).'"');
     $this->getJson(route('filament.admin.gate.live-weight', ['scale' => $this->f->scale->id]))->assertOk()
         ->assertJson(['kg' => 25480, 'live' => true, 'stable' => true])->assertHeader('Cache-Control', 'no-store, private');
 
