@@ -110,6 +110,16 @@ Gate → **Gate entries** → *New entry*.
 **Lab.** For paddy, the lab test comes first. Within the limits it is accepted; outside them it goes to
 negotiation (section 4) or is rejected.
 
+- **Lab test button** (top of Vehicles at gate and Live weight), for anyone with the lab right:
+  1. choose the vehicle (only paddy lots waiting for the lab are listed, by token);
+  2. type each result (each box shows its "OK up to" and "grace up to" limits);
+  3. *Result by the rules* shows at once ✓ within standard, ⚠ within grace, ✗ above grace
+     (= rejected automatically);
+  4. the Lab Supervisor can choose *Accept*, *Reject* (with the reason) or leave it; a Lab Technician
+     only saves the result and the Lab Supervisor decides;
+  5. *Save lab result*. An accepted lot appears in the waiting list ready for its loaded weight.
+- The same can still be done on the vehicle page (*Record lab test*, *Lab: accept / reject*).
+
 **Unloading** (*Mark unloaded* on the vehicle page):
 
 - **Godown and contractor.** Choose the godown and, if a labour contractor unloaded it, the contractor.

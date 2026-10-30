@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
+use App\Filament\Support\QuickLabTest;
 use App\Filament\Widgets\LiveWeightBoard;
 use Filament\Pages\Page;
 
@@ -27,6 +28,11 @@ class LiveWeightPage extends Page
     public static function canAccess(): bool
     {
         return LiveWeightBoard::canView();
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [QuickLabTest::make()];
     }
 
     protected function getHeaderWidgets(): array
