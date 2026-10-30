@@ -27,7 +27,10 @@ use App\Models\Masters\Godown;
 use App\Models\Masters\Party;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\DB;
+use Livewire\Component;
+use Livewire\Exceptions\ComponentNotFoundException;
 use Livewire\Livewire;
+use Livewire\Mechanisms\ComponentRegistry;
 use Tests\Support\GateFixtures;
 use Tests\Support\Make;
 
@@ -329,13 +332,32 @@ it('shows one clock with the status and the exact weight on its face, switching 
         ->and($html)->toContain('25,480')->toContain('STABLE')->toContain('637.00 maund')->toContain('WB1 · TONNES')
         // Nothing on the page polls Livewire (a reload or a redraw would interrupt weighing): the clock reads its
         // weighbridge as plain JSON in the browser.
-        ->and($html)->not->toContain('wire:poll')->toContain('data-live-weight="'.route('filament.admin.gate.live-weight', ['scale' => $this->f->scale->id]).'"');
+        // (only the waiting list beside the form refreshes itself, every 10 seconds).
+        ->and(substr_count($html, 'wire:poll'))->toBe(1)->and($html)->toContain('<div wire:poll.10s>')->toContain('data-live-weight="'.route('filament.admin.gate.live-weight', ['scale' => $this->f->scale->id]).'"');
     $this->getJson(route('filament.admin.gate.live-weight', ['scale' => $this->f->scale->id]))->assertOk()
         ->assertJson(['kg' => 25480, 'live' => true, 'stable' => true])->assertHeader('Cache-Control', 'no-store, private');
 
     $html = $board->call('showScale', $second->id)->html();
     expect(substr_count($html, '<svg viewBox="0 0 240 240"'))->toBe(1)
         ->and($html)->toContain('WB2 · KG')->toContain('NO SIGNAL');
+});
+
+it('lets every widget be found by name, so typing and buttons on it are never refused as "page expired"', function () {
+    // A component the server cannot find by name answers each click with 419; the page then reloads itself.
+    $registry = app(ComponentRegistry::class);
+    $missing = [];
+    foreach (glob(app_path('Filament/Widgets/*.php')) as $file) {
+        $class = 'App\\Filament\\Widgets\\'.basename($file, '.php');
+        if (! is_subclass_of($class, Component::class) || (new ReflectionClass($class))->isAbstract()) {
+            continue;
+        }
+        try {
+            $registry->getClass($registry->getName($class));
+        } catch (ComponentNotFoundException) {
+            $missing[] = $class;
+        }
+    }
+    expect($missing)->toBe([]);
 });
 
 it('records what the vehicle carries: a product of the list, or the goods as typed', function () {

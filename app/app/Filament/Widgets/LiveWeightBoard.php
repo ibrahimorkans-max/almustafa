@@ -123,12 +123,6 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
         return $user instanceof LoginAccount && $user->hasPermission($permission);
     }
 
-    /** @return list<array{id: string, label: string, kind: string|null, token: string|null, plate: string}> vehicles waiting, in token order */
-    public function getWaiting(): array
-    {
-        return $this->canRecord() || $this->canType() ? app(LiveCapture::class)->waiting()->all() : [];
-    }
-
     /** @return list<string> party names for the form's suggestions */
     public function getPartyNames(): array
     {
@@ -205,6 +199,7 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
                 $token = $entry->token_no !== null || $entry->token_serial !== null ? 'Token '.$entry->tokenLabel().' · ' : '';
                 Notification::make()->title($token.$entry->vehicleLabel().($new ? ' registered.' : '.'))
                     ->body($this->waitingReason($entry))->warning()->actions($new ? self::tokenActions($entry) : [])->duration($new ? 'persistent' : 6000)->send();
+                $this->dispatch('weigh-queue-refresh');
 
                 return;
             }
@@ -221,6 +216,7 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
                 .($entry->token_no !== null || $entry->token_serial !== null ? ' — token '.$entry->tokenLabel() : '').' · '.$entry->vehicleLabel())
             ->body($entry->net_kg !== null ? 'Net weight '.number_format((float) $entry->net_kg, 0).' kg.' : 'Next: the '.$this->nextLabel($entry).'.')->send();
         $this->godown[$scaleId] = null;
+        $this->dispatch('weigh-queue-refresh');
         if ($entry->net_kg !== null) {
             $this->plate[$scaleId] = $this->party[$scaleId] = $this->item[$scaleId] = null;
         }
@@ -311,6 +307,7 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
                 Notification::make()->success()
                     ->title(ucfirst(ManualWeight::label($entry, $w->kind)).' '.number_format((float) $w->weight_kg, 0).' kg entered · '.$entry->vehicleLabel())
                     ->body(($entry->net_kg !== null ? 'Net weight '.number_format((float) $entry->net_kg, 0).' kg. ' : '').'Marked "typed by hand" for the weight checks.')->send();
+                $this->dispatch('weigh-queue-refresh');
             });
     }
 }
