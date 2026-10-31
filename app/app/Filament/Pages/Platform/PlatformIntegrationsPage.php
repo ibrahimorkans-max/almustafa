@@ -78,6 +78,8 @@ class PlatformIntegrationsPage extends Page
                         ->placeholder(fn () => $saved() ? 'Saved: leave empty to keep it' : '')->required(fn () => $saved() === null),
                     TextInput::make('template')->label('Message template name')->required()->maxLength(100),
                     TextInput::make('language')->label('Template language code')->required()->maxLength(10),
+                    TextInput::make('doc_template')->label('Template for files (optional)')->maxLength(100)->placeholder('mill_document')
+                        ->helperText('An approved template whose header is a Document and whose body has one variable {{1}}. With it, files reach anyone; without it, only people who wrote in the last 24 hours.'),
                 ])
                 ->action(function (array $data): void {
                     try {

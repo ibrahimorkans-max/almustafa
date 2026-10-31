@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Assistant;
 
+use App\Domain\Messaging\Integrations;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
 use App\Models\LoginAccount;
@@ -23,7 +24,17 @@ final class ClaudeEngine
 
     public function configured(): bool
     {
-        return (bool) config('ricemill.assistant.enabled') && filled(config('ricemill.assistant.api_key'));
+        return (bool) config('ricemill.assistant.enabled') && filled(self::settings()['api_key']);
+    }
+
+    /**
+     * The key and model: the mill's own, the product owner's, or the server's (Administration → AI assistant).
+     *
+     * @return array{api_key: string, model: string, api_url: string, source: string|null}
+     */
+    public static function settings(): array
+    {
+        return Integrations::ai(app(TenantContext::class)->entityId());
     }
 
     /**
@@ -92,11 +103,12 @@ final class ClaudeEngine
      */
     private function call(string $system, array $messages, array $tools): array
     {
+        $ai = self::settings();
         $response = Http::withHeaders([
-            'x-api-key' => (string) config('ricemill.assistant.api_key'),
+            'x-api-key' => $ai['api_key'],
             'anthropic-version' => '2023-06-01',
-        ])->timeout(45)->post((string) config('ricemill.assistant.api_url'), [
-            'model' => (string) config('ricemill.assistant.model'),
+        ])->timeout(45)->post($ai['api_url'], [
+            'model' => $ai['model'],
             'max_tokens' => 1024,
             'system' => $system,
             'tools' => $tools,

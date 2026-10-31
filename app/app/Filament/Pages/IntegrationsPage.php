@@ -8,12 +8,14 @@ use App\Domain\Accounts\NetworkScanner;
 use App\Domain\Messaging\Gateways\FirebasePush;
 use App\Domain\Messaging\Gateways\WhatsAppCloud;
 use App\Domain\Messaging\Integrations;
+use App\Domain\Messaging\WhatsAppFiles;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\LoginAccount;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -86,6 +88,8 @@ class IntegrationsPage extends Page
                         ->placeholder(fn () => $own() ? 'Saved: leave empty to keep it' : '')->required(fn () => $own() === null),
                     TextInput::make('template')->label('Message template name')->required()->maxLength(100),
                     TextInput::make('language')->label('Template language code')->required()->maxLength(10)->placeholder('en, ur'),
+                    TextInput::make('doc_template')->label('Template for files (optional)')->maxLength(100)->placeholder('mill_document')
+                        ->helperText('An approved template whose header is a Document and whose body has one variable {{1}}. With it, files reach anyone; without it, only people who wrote in the last 24 hours.'),
                 ])
                 ->action(function (array $data): void {
                     try {
@@ -94,6 +98,27 @@ class IntegrationsPage extends Page
                     } catch (BusinessRuleViolation $e) {
                         Notification::make()->danger()->title($e->getMessage())->persistent()->send();
                     }
+                }),
+            Action::make('fileMessage')->label('WhatsApp file message')->icon('heroicon-o-paper-clip')->color('gray')
+                ->visible(fn () => $this->entityId() !== null)
+                ->modalHeading('The message sent with a file on WhatsApp')
+                ->modalDescription(fn () => 'Used by "Send on WhatsApp" on slips, invoices, bills, vouchers, gate passes and statements; it can still be changed before each sending. Words in braces are filled in: '
+                    .implode(', ', array_map(fn ($k, $v) => $k.' = '.$v, array_keys(WhatsAppFiles::PLACEHOLDERS), WhatsAppFiles::PLACEHOLDERS)).'.')
+                ->fillForm(fn () => ['text' => app(WhatsAppFiles::class)->template($this->entityId())])
+                ->form([
+                    Textarea::make('text')->label('Message')->required()->rows(3)->maxLength(700)
+                        ->helperText('Example: Dear {party}, please find your {document} {number} attached. {mill}'),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        app(WhatsAppFiles::class)->saveTemplate((string) $this->entityId(), (string) $data['text']);
+                    } catch (BusinessRuleViolation $e) {
+                        Notification::make()->danger()->title($e->getMessage())->send();
+
+                        return;
+                    }
+                    Notification::make()->success()->title('Saved. Files sent on WhatsApp now carry this message.')
+                        ->body(app(WhatsAppFiles::class)->message($this->entityId(), 'Muhammad Aslam', 'weighment slip', 'AMR/G/2026-27/0001'))->send();
                 }),
             Action::make('testWhatsapp')->label('Send a test message')->icon('heroicon-o-paper-airplane')->color('gray')
                 ->visible(fn () => WhatsAppCloud::configured($this->entityId()))

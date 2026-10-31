@@ -85,7 +85,7 @@ trait PaysSubscription
                     DatePicker::make('paid_on')->label('Paid on')->required()->maxDate(now('Asia/Karachi')),
                 ]),
                 FileUpload::make('receipt')->label('Receipt or screenshot (photo or PDF, optional)')->storeFiles(false)
-                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(5120),
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480),
                 Textarea::make('note')->maxLength(500)->rows(2),
             ])
             ->action(function (array $data, array $arguments, Action $action): void {

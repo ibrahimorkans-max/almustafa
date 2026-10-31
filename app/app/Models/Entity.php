@@ -36,6 +36,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $website
  * @property string|null $logo_path private file (local disk)
  * @property string|null $emblem_path private file (local disk)
+ * @property string|null $sales_logo_path private file: the logo on selling documents (empty: the logo)
  * @property string|null $color_primary #rrggbb
  * @property string|null $color_accent #rrggbb
  * @property string|null $invoice_terms
@@ -60,7 +61,7 @@ class Entity extends Model
 
     protected $fillable = ['customer_id', 'code', 'name', 'legal_name', 'ntn', 'strn', 'province', 'phone', 'address', 'city', 'postal_code', 'status',
         // How it prints (Print & branding).
-        'name_ur', 'tagline', 'email', 'website', 'logo_path', 'emblem_path', 'color_primary', 'color_accent',
+        'name_ur', 'tagline', 'email', 'website', 'logo_path', 'emblem_path', 'sales_logo_path', 'color_primary', 'color_accent',
         'invoice_terms', 'slip_note', 'footer_note', 'bank_title', 'bank_name', 'bank_account', 'bank_iban',
     ];
 

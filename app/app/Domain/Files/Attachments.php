@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Storage;
  * Supporting documents on records: lab result sheets and weighbridge slips on a vehicle, supplier
  * invoices on a purchase bill, payment vouchers and bank proofs on a payment, papers on an approval.
  * Whoever may see the record may attach to it and open its files; files are photos (JPEG, PNG) or PDF,
- * at most 5 MB, stored by their SHA-256 (provably unchanged). Nothing attached is edited or removed;
+ * at most 10 MB, stored by their SHA-256 (provably unchanged). Nothing attached is edited or removed;
  * every attachment and every opening is in the audit log.
  */
 final class Attachments

@@ -180,7 +180,7 @@ final class RoleTemplates
                 'global' => false,
                 'mfa_required' => false,
                 'session_max_minutes' => 720,
-                'permissions' => ['entity.view', 'master.view', 'gate.entry', 'weighment.capture'],
+                'permissions' => ['entity.view', 'master.view', 'gate.entry', 'weighment.capture', 'lab.test'],   // lab.test: records lab results; the Lab Supervisor decides
             ],
             self::BROKER => [
                 'name' => 'Broker / Agent',

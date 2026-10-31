@@ -205,8 +205,9 @@ it('lets the Lab Supervisor set the lab limits, and the gate staff only see them
 
     $signIn($this->tech);
     Livewire::test(ManageLabParameters::class)->assertCanSeeTableRecords([$moisture])->assertTableActionHidden('edit', $moisture);
+    // The gate operator records lab results too, so it sees the limits, but cannot change them.
     $signIn($this->operator);
-    $this->get('/admin/lab-tests')->assertForbidden();
+    Livewire::test(ManageLabParameters::class)->assertCanSeeTableRecords([$moisture])->assertTableActionHidden('edit', $moisture);
 });
 
 /** A lot rejected for moisture, negotiated to Rs 950, accepted, weighed, settled (Waste 100 kg, 1 kg per maund) and slipped. */

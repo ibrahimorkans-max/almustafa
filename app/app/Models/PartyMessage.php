@@ -28,6 +28,9 @@ use Illuminate\Support\Carbon;
  * @property string|null $subject_id
  * @property string|null $created_by
  * @property Carbon|null $sent_at
+ * @property string|null $provider_message_id WhatsApp's id of the message (its receipts come to the webhook)
+ * @property string|null $delivery_status delivered | read | failed, as WhatsApp reported it
+ * @property Carbon|null $delivery_at
  * @property Carbon $created_at
  * @property-read Party $party
  */
@@ -45,11 +48,11 @@ class PartyMessage extends Model
 
     public const SKIPPED = 'skipped';
 
-    protected $fillable = ['party_id', 'event', 'channel', 'recipient', 'body', 'redacted', 'status', 'error', 'subject_type', 'subject_id', 'created_by', 'sent_at'];
+    protected $fillable = ['party_id', 'event', 'channel', 'recipient', 'body', 'redacted', 'status', 'error', 'subject_type', 'subject_id', 'created_by', 'sent_at', 'provider_message_id', 'delivery_status', 'delivery_at'];
 
     protected function casts(): array
     {
-        return ['redacted' => 'boolean', 'sent_at' => 'datetime'];
+        return ['redacted' => 'boolean', 'sent_at' => 'datetime', 'delivery_at' => 'datetime'];
     }
 
     /** @return BelongsTo<Party, $this> */

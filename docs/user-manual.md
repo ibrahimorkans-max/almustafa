@@ -115,8 +115,8 @@ negotiation (section 4) or is rejected.
   2. type each result (each box shows its "OK up to" and "grace up to" limits);
   3. *Result by the rules* shows at once ✓ within standard, ⚠ within grace, ✗ above grace
      (= rejected automatically);
-  4. the Lab Supervisor can choose *Accept*, *Reject* (with the reason) or leave it; a Lab Technician
-     only saves the result and the Lab Supervisor decides;
+  4. the Lab Supervisor can choose *Accept*, *Reject* (with the reason) or leave it; a Lab Technician or
+     the **Weighbridge / Gate Operator** only saves the result and the Lab Supervisor decides;
   5. *Save lab result*. An accepted lot appears in the waiting list ready for its loaded weight.
 - The same can still be done on the vehicle page (*Record lab test*, *Lab: accept / reject*).
 
@@ -133,7 +133,18 @@ negotiation (section 4) or is rejected.
 
 - *Issue weighment slip* freezes the weights and drafts the purchase bill.
 - **Print slip** opens the print dialog; *Download slip (PDF)* saves the file.
-- For dispatches, the gate pass works the same way.
+- For dispatches, the gate pass works the same way (it also shows the weight per bag).
+
+**Gate passes** (Gate & weighbridge → Gate passes): for anything that leaves on a vehicle.
+
+- *New gate pass*: choose **Sale** or **Other**, optionally a vehicle at the gate (fills in the details), the
+  **party** (registered, or type the name), **vehicle number**, **number of bags** and **weight per bag**. The
+  total weight is worked out as you type.
+- *Issue and print* gives it the next **serial number** (e.g. AMR/GP/2026-27/0001) and a **verification code**
+  with a QR code. Scanning it (or entering the serial and code at /verify) shows the party, vehicle, bags and
+  weight, and whether the pass was cancelled.
+- A pass is never changed. A supervisor can *Cancel* it with the reason; then issue a new one.
+- A *Sale* pass prints with the **logo for selling**, any other with the mill's logo (section 12).
 
 Details: `printing-weighing-tokens.md`, `lab-first-procurement.md`, `contractor-vehicles-and-unloading.md`.
 
@@ -197,6 +208,22 @@ Sales → **Sales saudas** → **Dispatch orders** → the vehicle at the gate �
 
 The text is read (OCR) and the lines are matched to parties. Check each line before posting.
 
+- **Reading the whole photo.** With an AI key saved (Administration → AI assistant), the page is read by the
+  AI: the complete page, both the *jama* (received) and *banam* (paid) sides, handwriting and Urdu, up to 200
+  entries, each with what it was for and any bill or slip number. Headings, totals and balances are left out.
+  Without a key, the server's reader handles printed English only.
+- Every entry is saved on the page. Each name is matched to its **party** (by name or code, or the only party
+  whose name contains it) or to an **account** such as Diesel or Bijli. The message after saving says how many
+  entries were read and how many still need their party or account (*Correct entries*).
+
+**Daily budget** (Roznamcha → *Daily budget*; Owner, Super Admin or whoever approves payments): how much cash
+may be paid out (banam) in a day.
+
+- Set the **usual amount** for every day, and a day's **own amount** when needed (e.g. a payments day).
+- The roznamcha list shows today's budget, what is paid out and what is left (red when over). Each page shows
+  its day the same way, and the list has a *Day's budget* column.
+- A page that takes its day **over the budget** is posted only with the **reason**, which stays on the page.
+
 **Bank e-mail.** Accounts → *Bank e-mail* connects the mill's mailbox. Bank alerts are read every 5 minutes
 into *Bank e-mail transactions*, matched to parties and confirmed by you.
 
@@ -232,8 +259,8 @@ Reports → **Party statement**. It also opens from *Statement* on a contractor 
 - **Secure link** makes a link to copy and send yourself.
 
 **Sharing history** (at the bottom) lists every print, download, e-mail, WhatsApp message and link with what
-really happened. The system never claims a message was delivered or read; WhatsApp and the mail server do
-not tell it that.
+really happened. A WhatsApp message shows *Delivered* or *Read* once WhatsApp reports it through the webhook
+(section 13); until then, and for e-mail, the system never claims it was delivered or read.
 
 People with the ledger right see every party; payroll staff see labour contractors only.
 
@@ -337,6 +364,9 @@ portrait, at actual size; wide reports shrink to fit.
 **Branding** (Owner / Super Admin) sets the mill's name on documents, Urdu name, logo and emblem, colours,
 invoice terms, slip note, footer and the bank account printed on sales invoices.
 
+- **Logo for selling**: a second logo for sales invoices, gate passes for sales, dispatch orders and sale
+  saudas. Every other document uses the mill's logo. Left empty, the mill's logo is used everywhere.
+
 Details: `print-branding.md`, `reports-printing.md`.
 
 ---
@@ -348,7 +378,35 @@ Details: `print-branding.md`, `reports-printing.md`.
 - **Which messages.** Each kind of message can be switched on or off: login details, money entries with the
   balance, vehicle unloaded, weights final.
 - **Without a gateway.** Messages wait in *Party messages* for sending by hand.
+- **WhatsApp webhook** (Administration → WhatsApp webhook; Platform → WhatsApp webhook for the product's number).
+  It shows the **Callback URL** and **Verify token** to copy into Meta → WhatsApp → Configuration → *Configure
+  Webhooks*, with the steps:
+  1. paste both and press *Verify and save* (the address must be the system's public **https** address);
+  2. under *Webhook fields* subscribe to **messages**;
+  3. press **Save app secret** and paste the app secret (App settings → Basic). Until it is saved, everything
+     WhatsApp sends is refused, because it is how the system knows a call really comes from Meta;
+  4. publish the Meta app.
+  Then *Party messages* shows **Delivered / Read / Not delivered** for each WhatsApp message, and the page lists
+  the receipts and the **messages parties send** to the business number (matched to the party by its mobile).
+  *New verify token* makes a new one (type it in Meta again).
 - **Party accounts.** A party can sign in to see only its own vehicles, entries, bills and balance.
+- **Send on WhatsApp (files).** While WhatsApp is connected, weighment slips, gate passes, sales invoices,
+  purchase bills, payment vouchers and party statements have *Send on WhatsApp*: the PDF goes as a file from
+  the mill's number with a short message, which can be changed before sending.
+  - The message comes from the mill's template: Integrations → **WhatsApp file message**. Words in braces are
+    filled in: {party}, {document}, {number}, {date}, {mill}.
+  - To reach anyone, approve a WhatsApp template whose **header is a Document** and whose body has one
+    variable, and give its name as *Template for files* when connecting WhatsApp. Without it, WhatsApp
+    delivers a file only to someone who wrote to the mill in the last 24 hours (the system says so).
+  - Each file sent to a party shows in Chats with its delivery.
+- **Chats** (Masters → Chats): every message sent to each party (WhatsApp or SMS, with Sent / Delivered /
+  Read / To send by hand / Failed) and every WhatsApp message the party sent back, as one conversation per
+  party, newest first. Search by party, code or number. Login details are never shown again.
+- **AI assistant** (Administration → AI assistant; Platform → AI assistant for every mill): add the Anthropic
+  **API key** (console.anthropic.com → API keys → Create key, starts with `sk-ant-`) and choose the model. The
+  key is checked with Anthropic before it is saved, kept encrypted, and only its last four characters show.
+  A mill's own key is used before the product's. *Test the connection* asks Anthropic once; *Remove the key*
+  takes it away. The Assistant (and the AI reader of roznamcha pages, when chosen) uses it.
 
 Details: `party-accounts-and-messages.md`, `integrations-and-roznamcha-inputs.md`.
 

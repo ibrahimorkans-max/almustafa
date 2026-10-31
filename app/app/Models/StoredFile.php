@@ -31,7 +31,8 @@ class StoredFile extends Model
     // CSV / text: biometric attendance files kept as evidence of an import.
     public const ALLOWED_MIME = ['image/jpeg', 'image/png', 'application/pdf', 'text/csv', 'text/plain'];
 
-    public const MAX_BYTES = 5 * 1024 * 1024;
+    // 10 MB: a phone photo is made smaller in the browser before it is sent; a scanned PDF may still be large.
+    public const MAX_BYTES = 10 * 1024 * 1024;
 
     protected $fillable = ['sha256', 'mime', 'size_bytes', 'path', 'device_id'];
 

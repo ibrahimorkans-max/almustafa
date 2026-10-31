@@ -27,6 +27,9 @@
         <td class="label">Bags</td><td class="num">{{ $pass['bag_count'] ?? '—' }}</td>
         <td class="label">Invoice</td><td class="mono">{{ $pass['invoice_number'] ?? '—' }}</td>
     </tr>
+    @if ((int) ($pass['bag_count'] ?? 0) > 0)
+        <tr><td class="label">Weight per bag</td><td class="num" colspan="3">{{ number_format((float) $net / (int) $pass['bag_count'], 2) }} kg (net weight ÷ bags)</td></tr>
+    @endif
     <tr class="grand">
         <td>Net weight</td><td class="num">{{ number_format((float) $net, 3) }} kg</td>
         <td colspan="2" class="r">{{ PdfRenderer::maundKg($net) }}</td>

@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Domain\Accounts\PartyStatementReport;
 use App\Domain\Accounts\PartyStatementSharing;
 use App\Domain\Documents\PrintDelivery;
+use App\Domain\Messaging\WhatsAppFiles;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Accounts\StatementShare;
 use App\Models\LoginAccount;
@@ -199,6 +200,36 @@ class PartyStatementPage extends Page implements HasForms
                     }
                     Notification::make()->title($r['status'] === 'failed' ? 'Not sent' : ($r['status'] === 'accepted' ? 'Handed to WhatsApp' : 'WhatsApp opened'))
                         ->body($r['detail'])->{$r['status'] === 'failed' ? 'danger' : 'success'}()->send();
+                }),
+            Action::make('whatsappFile')->label('Send PDF on WhatsApp')->icon('heroicon-o-paper-airplane')->color('success')
+                ->visible(fn () => $ready() && WhatsAppFiles::ready($this->selectedParty()?->entity_id))
+                ->modalDescription('The statement PDF goes as a file from the mill\'s WhatsApp number, with this message (from the mill\'s template).')
+                ->modalSubmitActionLabel('Send')
+                ->fillForm(function (): array {
+                    $party = $this->selectedParty();
+                    [, $to] = $this->period();
+
+                    return ['phone' => $party?->phone,
+                        'message' => app(WhatsAppFiles::class)->message($party?->entity_id, $party?->name, 'account statement', 'to '.$to->format('d M Y'))];
+                })
+                ->form([
+                    TextInput::make('phone')->label('WhatsApp number')->required()->maxLength(20),
+                    Textarea::make('message')->required()->rows(3)->maxLength(900),
+                ])
+                ->action(function (array $data): void {
+                    [$party, $from, $to, $pdf] = $this->pdf();
+                    try {
+                        $r = app(WhatsAppFiles::class)->send($party, (string) $data['phone'], $pdf, PartyStatementSharing::fileName($party, $to), (string) $data['message'], 'account statement');
+                    } catch (BusinessRuleViolation $e) {
+                        Notification::make()->danger()->title($e->getMessage())->send();
+
+                        return;
+                    }
+                    app(PartyStatementSharing::class)->log($party, 'whatsapp', (string) $data['phone'], $from, $to, $this->filters(), null,
+                        $r['ok'] ? 'accepted' : 'failed', $r['ok'] ? 'PDF sent as a file on WhatsApp. Delivery shows in Chats once WhatsApp reports it.' : (string) $r['error']);
+                    $r['ok']
+                        ? Notification::make()->success()->title('Statement sent on WhatsApp.')->send()
+                        : Notification::make()->danger()->title((string) $r['error'])->persistent()->send();
                 }),
             Action::make('email')->label('E-mail')->icon('heroicon-o-envelope')->color('gray')->visible($ready)
                 ->fillForm(fn () => ['email' => $this->selectedParty()?->email, 'subject' => $this->defaultSubject(), 'message' => $this->defaultMessage()])

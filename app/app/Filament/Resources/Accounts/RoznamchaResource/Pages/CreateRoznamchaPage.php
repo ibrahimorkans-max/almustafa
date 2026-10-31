@@ -13,6 +13,7 @@ use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Filament\Resources\Accounts\RoznamchaResource;
 use App\Models\Accounts\LedgerAccount;
+use App\Models\Accounts\RoznamchaPage;
 use App\Models\StoredFile;
 use Carbon\CarbonImmutable;
 use Filament\Facades\Filament;
@@ -108,6 +109,22 @@ class CreateRoznamchaPage extends CreateRecord
         } catch (BusinessRuleViolation $e) {
             throw ValidationException::withMessages([$source === 'manual' ? 'data.lines' : 'data.scan' => $e->getMessage()]);
         }
+    }
+
+    /** How much was read from the picture, and what still needs a person. */
+    protected function getCreatedNotificationTitle(): ?string
+    {
+        /** @var RoznamchaPage $page */
+        $page = $this->record;
+        if ($page->source === 'manual') {
+            return 'Page saved.';
+        }
+        $lines = $page->lines()->count();
+        $open = $page->lines()->whereNull('party_id')->whereNull('ledger_account_id')->count();
+
+        return $lines === 0
+            ? 'Page saved, but no entries could be read from the picture: add them with "Correct entries".'
+            : 'Page saved: '.$lines.' entries read from the picture'.($open > 0 ? ', '.$open.' still need their party or account (Correct entries).' : ', each matched to its party or account.');
     }
 
     protected function getRedirectUrl(): string

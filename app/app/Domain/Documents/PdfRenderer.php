@@ -39,7 +39,8 @@ final class PdfRenderer
         $rollWidth = PaperSize::ROLL_WIDTHS[$paper] ?? 80;
         $small = PaperSize::isSmall($paper, $format);
         self::$lastPaper = $paper ?? $format;
-        $brand = self::brand($entity);
+        // Selling documents carry the mill's sales logo when it chose one (Print & branding).
+        $brand = self::brand($entity, str_starts_with($view, 'sales.') || ($data['brand_use'] ?? null) === 'sales' ? 'sales' : null);
         $html = view($view, $data + [
             'brand' => $brand,
             'printedBy' => $this->actor->account()?->username,
@@ -150,7 +151,7 @@ final class PdfRenderer
      *               ntn: string|null, strn: string|null, logo: string|null, emblem: string|null, green: string, gold: string,
      *               invoice_terms: string, slip_note: string, footer_note: string, bank: array<string, string>}
      */
-    public static function brand(?Entity $entity): array
+    public static function brand(?Entity $entity, ?string $use = null): array
     {
         $b = config('ricemill.brand');
         $own = self::usesConfigBrand($entity);
@@ -160,6 +161,8 @@ final class PdfRenderer
             : ($own ? (string) $b['address'] : trim((string) $entity?->city));
         $file = fn (?string $path) => $path !== null && $path !== '' && Storage::disk('local')->exists($path) ? Storage::disk('local')->path($path) : null;
         $logo = $file($entity?->logo_path) ?? ($own ? public_path('images/brand/logo-wide-print.png') : null);
+        // The logo for selling ($use 'sales': sales invoices, gate passes for sales, dispatch orders, sale saudas); empty: the logo.
+        $logo = $use === 'sales' ? ($file($entity?->sales_logo_path) ?? $logo) : $logo;
 
         return [
             'name' => (string) ($entity?->legal_name ?: ($own ? $b['name'] : $entity->name)),

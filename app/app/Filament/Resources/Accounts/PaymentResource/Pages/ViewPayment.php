@@ -12,6 +12,7 @@ use App\Filament\Support\AttachmentsPanel;
 use App\Filament\Support\PrintButton;
 use App\Filament\Support\RequestsVoucherReversal;
 use App\Filament\Support\RunsDomainActions;
+use App\Filament\Support\WhatsAppFileButton;
 use App\Models\Accounts\Payment;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -42,6 +43,9 @@ class ViewPayment extends ViewRecord
                     str_replace('/', '-', $p->number).'.pdf',
                     ['Content-Type' => 'application/pdf'],
                 )),
+            WhatsAppFileButton::header('whatsappVoucher', fn (Payment $p) => ['party' => $p->party, 'document' => 'payment voucher',
+                'number' => $p->number, 'file' => str_replace('/', '-', $p->number).'.pdf', 'pdf' => fn () => app(AccountsDocuments::class)->paymentVoucherPdf($p)],
+                fn (Payment $p) => $p->status === Payment::APPROVED && $p->party_id !== null),
             Action::make('reference')->label('Record transaction ID / cheque no.')->icon('heroicon-o-hashtag')
                 ->visible(fn (Payment $p) => $p->status === Payment::APPROVED && $can('payment.create'))
                 ->form([TextInput::make('reference')->required()->maxLength(60)])

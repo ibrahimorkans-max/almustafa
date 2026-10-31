@@ -59,7 +59,7 @@ class ViewClaim extends ViewRecord
                     ->action(fn (Claim $c, array $data) => $this->runDomain(fn () => $service()->note($c, $data['text']), 'Note added')),
                 Action::make('evidence')->label('Add evidence')->icon('heroicon-o-paper-clip')
                     ->visible(fn (Claim $c) => $c->status === Claim::OPEN && $can('claim.manage'))
-                    ->form([FileUpload::make('files')->multiple()->required()->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(5120)])
+                    ->form([FileUpload::make('files')->multiple()->required()->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480)])
                     ->action(fn (Claim $c, array $data) => $this->runDomain(fn () => $service()->addEvidence($c, CreateClaim::store((array) $data['files'])), 'Evidence added')),
                 Action::make('withdraw')->color('gray')
                     ->visible(fn (Claim $c) => in_array($c->status, [Claim::OPEN, Claim::APPROVED], true) && $can('claim.manage'))

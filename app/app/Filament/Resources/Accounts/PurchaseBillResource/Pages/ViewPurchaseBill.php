@@ -11,6 +11,7 @@ use App\Filament\Support\AttachmentsPanel;
 use App\Filament\Support\PrintButton;
 use App\Filament\Support\RequestsVoucherReversal;
 use App\Filament\Support\RunsDomainActions;
+use App\Filament\Support\WhatsAppFileButton;
 use App\Models\Accounts\PurchaseBill;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -44,6 +45,9 @@ class ViewPurchaseBill extends ViewRecord
                     str_replace('/', '-', (string) $b->number).'.pdf',
                     ['Content-Type' => 'application/pdf'],
                 )),
+            WhatsAppFileButton::header('whatsappBill', fn (PurchaseBill $b) => ['party' => $b->party, 'document' => 'purchase bill',
+                'number' => (string) $b->number, 'file' => str_replace('/', '-', (string) $b->number).'.pdf', 'pdf' => fn () => app(AccountsDocuments::class)->purchaseBillPdf($b)],
+                fn (PurchaseBill $b) => $b->status === PurchaseBill::POSTED),
             Action::make('cancelDraft')->label('Cancel draft')->color('gray')
                 ->visible(fn (PurchaseBill $b) => $b->status === PurchaseBill::DRAFT && $can('ledger.post'))
                 ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(1000)])

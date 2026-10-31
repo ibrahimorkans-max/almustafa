@@ -134,7 +134,7 @@ class ExpenseResource extends Resource
             Toggle::make('capitalize_to_stock')->label('Add to this lot\'s stock cost (landed cost)')
                 ->helperText('For costs of bringing the paddy in (freight, unloading). Its stock value includes it.')
                 ->visible(fn (Get $get) => filled($get('gate_entry_id')) && ! self::isIncome($get('expense_category_id'))),
-            FileUpload::make('receipt')->label('Receipt or bill')->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(5120),
+            FileUpload::make('receipt')->label('Receipt or bill')->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480),
             Toggle::make('post')->label('Post it to the books now')->default(true)->helperText('Off: keep it as a draft to post later.'),
             ...EntryLocation::fields(),
         ]);

@@ -65,6 +65,11 @@ final class SettingsService
     /** sms | whatsapp: how messages to parties are sent. */
     public const MESSAGE_CHANNEL = 'messages.channel';
 
+    public const WHATSAPP_FILE_MESSAGE = 'messages.whatsapp_file';
+
+    /** The usual daily roznamcha budget, in paise ('' = none; App\Domain\Accounts\RoznamchaBudgets). */
+    public const ROZNAMCHA_BUDGET = 'roznamcha.daily_budget';
+
     /** @var array<string, array{default: mixed, allowed?: list<mixed>, scope: 'global'|'entity'}> */
     public const DEFINITIONS = [
         'messages.login' => ['default' => 'on', 'allowed' => ['on', 'off'], 'scope' => 'entity'],
@@ -74,6 +79,9 @@ final class SettingsService
         self::MESSAGE_CHANNEL => ['default' => 'whatsapp', 'allowed' => ['whatsapp', 'sms'], 'scope' => 'entity'],
         // Also a notification on the phones and browsers the party turned notifications on for (Firebase).
         'messages.push' => ['default' => 'on', 'allowed' => ['on', 'off'], 'scope' => 'entity'],
+        // The short message sent with a file on WhatsApp ('' = the standard one; App\Domain\Messaging\WhatsAppFiles).
+        self::WHATSAPP_FILE_MESSAGE => ['default' => '', 'scope' => 'entity'],
+        self::ROZNAMCHA_BUDGET => ['default' => '', 'scope' => 'entity'],
         // The default comes from RICEMILL_ARCHIVE_RETENTION_MONTHS; see archiveRetentionMonths().
         // Each customer sets its own (stored on each of its mills); the all-mills row is the platform's default.
         self::ARCHIVE_RETENTION => [

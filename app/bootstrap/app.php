@@ -32,6 +32,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // API: plain 401, never a redirect. Web: the back-office sign-in page.
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : '/admin/login');
         $middleware->append(SecurityHeaders::class);
+        // The phone's camera page for a roznamcha photo: its 40-character, 30-minute link is the secret, and a phone
+        // that opened it from a QR code (often in another app's browser) may not keep the session's form token.
+        $middleware->validateCsrfTokens(except: ['roznamcha/capture/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->dontReport([AuthenticationFailed::class, ApprovalDenied::class]);

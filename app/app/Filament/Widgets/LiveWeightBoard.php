@@ -269,7 +269,7 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
                 Textarea::make('reason')->label('Reason')->required()->minLength(5)->maxLength(500)
                     ->placeholder('e.g. empty weight from Kanta 2, slip no. 4512'),
                 FileUpload::make('slip')->label('Slip or evidence (photo or PDF, optional)')->storeFiles(false)
-                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(5120),
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480),
             ])
             ->action(function (array $data, array $arguments): void {
                 $scaleId = (string) ($arguments['scale'] ?? '');

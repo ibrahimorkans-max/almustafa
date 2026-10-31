@@ -21,6 +21,7 @@ use App\Filament\Support\AttachmentsPanel;
 use App\Filament\Support\NegotiationActions;
 use App\Filament\Support\PrintButton;
 use App\Filament\Support\Units;
+use App\Filament\Support\WhatsAppFileButton;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
 use App\Models\Gate\LabParameter;
@@ -204,6 +205,9 @@ class ViewGateEntry extends ViewRecord
                     fn (GateService $g) => $g->markLoaded($e, filled($data['bag_count'] ?? null) ? (int) $data['bag_count'] : null),
                     'Marked loaded',
                 )),
+            WhatsAppFileButton::header('whatsappSlip', fn (GateEntry $e) => ['party' => $e->party, 'name' => $e->partyLabel(), 'document' => 'weighment slip',
+                'number' => (string) $e->number, 'file' => str_replace('/', '-', (string) $e->number).'.pdf', 'pdf' => fn () => app(SlipRenderer::class)->pdf($e)],
+                fn (GateEntry $e) => $has($e, 'slip_issued')),
             Action::make('gatePass')->label('Issue gate pass')->icon('heroicon-o-ticket')->color('primary')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $e->direction === 'outbound' && $e->dispatch_order_id !== null
                     && $can('gatepass.issue') && $has($e, 'slip_issued') && ! $has($e, 'gate_pass_issued'))
@@ -219,6 +223,9 @@ class ViewGateEntry extends ViewRecord
                     'gate-pass-'.str_replace('/', '-', (string) $e->number).'.pdf',
                     ['Content-Type' => 'application/pdf'],
                 )),
+            WhatsAppFileButton::header('whatsappGatePass', fn (GateEntry $e) => ['party' => $e->party, 'name' => $e->partyLabel(), 'document' => 'gate pass',
+                'number' => (string) $e->number, 'file' => 'gate-pass-'.str_replace('/', '-', (string) $e->number).'.pdf', 'pdf' => fn () => app(SalesDocuments::class)->gatePassPdf($e)],
+                fn (GateEntry $e) => $has($e, 'gate_pass_issued'))->label('Send gate pass on WhatsApp'),
             Action::make('exit')->label('Vehicle left')->icon('heroicon-o-arrow-right-start-on-rectangle')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $can('gate.entry'))
                 ->requiresConfirmation()

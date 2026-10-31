@@ -154,7 +154,8 @@
                     @forelse ($this->getShares() as $sh)
                         <tr class="{{ $row }}"><td class="{{ $td }}">{{ $sh->created_at->timezone('Asia/Karachi')->format('d M Y H:i') }}</td><td class="{{ $td }}">{{ StatementShare::CHANNELS[$sh->channel] ?? $sh->channel }}</td>
                             <td class="{{ $td }}">{{ $sh->recipient ?? '—' }}</td><td class="{{ $td }}">{{ $sh->period_from->format('d M') }} – {{ $sh->period_to->format('d M Y') }}</td>
-                            <td class="{{ $td }}" title="{{ $sh->detail }}">{{ StatementShare::STATUSES[$sh->status] ?? $sh->status }}</td></tr>
+                            @php($progress = \App\Models\WhatsAppEvent::progressOf($sh->provider_message_id))
+                            <td class="{{ $td }}" title="{{ $sh->detail }}">{{ $progress !== null ? 'WhatsApp: '.\App\Models\WhatsAppEvent::PROGRESS[$progress] : (StatementShare::STATUSES[$sh->status] ?? $sh->status) }}</td></tr>
                     @empty
                         <tr><td class="{{ $td }} text-gray-500" colspan="5">Not shared yet.</td></tr>
                     @endforelse
