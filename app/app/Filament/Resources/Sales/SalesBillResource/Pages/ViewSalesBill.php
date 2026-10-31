@@ -10,6 +10,7 @@ use App\Filament\Resources\Sales\SalesBillResource;
 use App\Filament\Support\PrintButton;
 use App\Filament\Support\RequestsVoucherReversal;
 use App\Filament\Support\RunsDomainActions;
+use App\Filament\Support\WhatsAppFileButton;
 use App\Models\Sales\SalesBill;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -42,6 +43,9 @@ class ViewSalesBill extends ViewRecord
                     str_replace('/', '-', (string) $b->number).'.pdf',
                     ['Content-Type' => 'application/pdf'],
                 )),
+            WhatsAppFileButton::header('whatsappInvoice', fn (SalesBill $b) => ['party' => $b->party, 'document' => $b->isSalesTaxInvoice() ? 'sales tax invoice' : 'invoice',
+                'number' => (string) $b->number, 'file' => str_replace('/', '-', (string) $b->number).'.pdf', 'pdf' => fn () => app(SalesDocuments::class)->invoicePdf($b)],
+                fn (SalesBill $b) => $b->status === SalesBill::POSTED),
             Action::make('cancelDraft')->label('Cancel draft')->color('gray')
                 ->visible(fn (SalesBill $b) => $b->status === SalesBill::DRAFT && $can('ledger.post'))
                 ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(1000)])

@@ -77,10 +77,10 @@ final class Roznamcha
                 if (($debit > 0) === ($credit > 0)) {
                     continue;
                 }
-                $party = $l['account'] === '' ? null : Party::query()->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($l['account']))])->limit(2)->get();
+                [$partyId, $accountId] = $this->match($l['account']);
                 RoznamchaLine::query()->create([
                     'roznamcha_page_id' => $page->id, 'position' => ++$position,
-                    'party_id' => $party !== null && $party->count() === 1 ? $party->first()->id : null,
+                    'party_id' => $partyId, 'ledger_account_id' => $accountId,
                     'account_text' => $l['account'] ?: null, 'debit_paise' => $debit, 'credit_paise' => $credit,
                     'narration' => $l['narration'] ?: null, 'reference' => $l['reference'] ?: null,
                 ]);
@@ -158,15 +158,27 @@ final class Roznamcha
         });
     }
 
-    /** Each line as a cash receipt (cash received) or payment (cash paid) voucher, once. */
-    public function post(RoznamchaPage $page): RoznamchaPage
+    /**
+     * Each line as a cash receipt (cash received) or payment (cash paid) voucher, once. When the day's cash paid out
+     * is over its budget (RoznamchaBudgets), the page is posted only with the reason, which is kept on it.
+     */
+    public function post(RoznamchaPage $page, ?string $overBudgetReason = null): RoznamchaPage
     {
         $this->require();
 
-        return DB::transaction(function () use ($page): RoznamchaPage {
+        return DB::transaction(function () use ($page, $overBudgetReason): RoznamchaPage {
             $page = RoznamchaPage::query()->lockForUpdate()->findOrFail($page->id);
             if ($page->status !== 'verified') {
                 throw new BusinessRuleViolation($page->status === 'posted' ? 'This page is already posted.' : 'Check the page before posting.');
+            }
+            $day = app(RoznamchaBudgets::class)->day(CarbonImmutable::parse($page->entry_date->toDateString(), 'Asia/Karachi'));
+            $reason = trim((string) $overBudgetReason);
+            if ($day['over'] && $page->lines()->sum('debit_paise') > 0) {
+                if (mb_strlen($reason) < 5) {
+                    throw new BusinessRuleViolation('Cash paid out on '.$page->entry_date->format('d M Y').' is Rs '.number_format($day['paid'] / 100)
+                        .', over its budget of Rs '.number_format((int) $day['budget'] / 100).' by Rs '.number_format(($day['paid'] - (int) $day['budget']) / 100).'. Give the reason to post it.');
+                }
+                $page->forceFill(['over_budget_reason' => mb_substr($reason, 0, 300)]);
             }
             $cash = $page->cashLedger ?? $this->chart->system('cash');
             $date = CarbonImmutable::parse($page->entry_date->toDateString(), 'Asia/Karachi');
@@ -190,6 +202,46 @@ final class Roznamcha
 
             return $page;
         });
+    }
+
+    /**
+     * The party or account a name written on the page means: the party of that exact name or code, else the
+     * only party whose name contains it (or is contained in it); else the only expense or income account
+     * of that name, or containing it (diesel, bijli, mazdoori…). Anything unsure is left for the person to choose.
+     *
+     * @return array{0: string|null, 1: string|null} party id, ledger account id
+     */
+    private function match(string $written): array
+    {
+        $name = mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $written)));
+        if (mb_strlen($name) < 2) {
+            return [null, null];
+        }
+        $one = fn ($rows) => $rows->count() === 1 ? $rows->first()->id : null;
+        $parties = Party::query()->where('status', 'active');
+        $party = $one((clone $parties)->where(fn ($q) => $q->whereRaw('LOWER(name) = ?', [$name])->orWhereRaw('LOWER(code) = ?', [$name]))->limit(2)->get(['id']))
+            ?? (mb_strlen($name) >= 4 ? $one((clone $parties)->where(fn ($q) => $q->whereRaw('LOWER(name) LIKE ?', ['%'.$name.'%'])
+                ->orWhereRaw(self::castText('?').' LIKE '.self::concatLike('LOWER(name)'), [$name]))->limit(2)->get(['id'])) : null);
+        if ($party !== null) {
+            return [$party, null];
+        }
+        $accounts = LedgerAccount::query()->where('status', 'active')->whereIn('kind', ['general', 'system'])->whereNull('party_id');
+        $account = $one((clone $accounts)->whereRaw('LOWER(name) = ?', [$name])->limit(2)->get(['id']))
+            ?? (mb_strlen($name) >= 4 ? $one((clone $accounts)->whereRaw('LOWER(name) LIKE ?', ['%'.$name.'%'])->limit(2)->get(['id'])) : null);
+
+        return [null, $account];
+    }
+
+    /** A value as text, so the database knows its type in a LIKE. */
+    private static function castText(string $value): string
+    {
+        return DB::getDriverName() === 'pgsql' ? "CAST({$value} AS TEXT)" : "CAST({$value} AS CHAR)";
+    }
+
+    /** "'%' || column || '%'" in this database's words. */
+    private static function concatLike(string $column): string
+    {
+        return DB::getDriverName() === 'pgsql' ? "'%' || {$column} || '%'" : "CONCAT('%', {$column}, '%')";
     }
 
     /** "1,25,000.50" → 12500050; empty → 0. */

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\LeaveController;
 use App\Http\Controllers\Api\V1\LiveWeightController;
 use App\Http\Controllers\Api\V1\SessionController;
 use App\Http\Controllers\Api\V1\SyncController;
+use App\Http\Controllers\WhatsAppWebhookController;
 use App\Http\Middleware\ApplyDataVisibility;
 use App\Http\Middleware\EnforceRemoteWipe;
 use App\Http\Middleware\VerifyAgentSignature;
@@ -19,6 +20,12 @@ use Illuminate\Support\Facades\Route;
 | Versioned JSON API used by the PWA, the Flutter app and the gate agent.
 | Authenticated routes need `Authorization: Bearer <access token>` and `X-Device-Id`.
 */
+
+// WhatsApp (Meta) webhook: no sign-in; the verify token (GET) and the app secret's signature (POST) protect it.
+Route::middleware('throttle:600,1')->group(function (): void {
+    Route::get('webhooks/whatsapp/{scope}', [WhatsAppWebhookController::class, 'verify'])->name('whatsapp.webhook');
+    Route::post('webhooks/whatsapp/{scope}', [WhatsAppWebhookController::class, 'receive'])->name('whatsapp.webhook.receive');
+});
 
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::middleware('throttle:api-login')->group(function (): void {

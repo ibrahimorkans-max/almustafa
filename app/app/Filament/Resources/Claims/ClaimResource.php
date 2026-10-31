@@ -86,7 +86,7 @@ class ClaimResource extends Resource
                 ->options(fn () => Party::query()->where('is_transporter', true)->orderBy('name')->pluck('name', 'id')),
             Textarea::make('description')->required()->minLength(10)->maxLength(2000)->columnSpanFull(),
             FileUpload::make('evidence')->label('Photos / documents')->multiple()->storeFiles(false)
-                ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(5120)->columnSpanFull(),
+                ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480)->columnSpanFull(),
         ]);
     }
 

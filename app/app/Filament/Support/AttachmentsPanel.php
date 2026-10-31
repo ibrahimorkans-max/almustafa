@@ -25,10 +25,10 @@ final class AttachmentsPanel
     public static function action(): Action
     {
         return Action::make('attach')->label('Attach file')->icon('heroicon-o-paper-clip')->color('gray')
-            ->modalDescription('A photo (JPEG, PNG) or a PDF, up to 5 MB. Attached files cannot be changed or removed.')
+            ->modalDescription('A photo (JPEG, PNG) or a PDF (up to 10 MB). A phone photo is made smaller before it is sent. Attached files cannot be changed or removed.')
             ->form(fn (Model $record) => [
                 Select::make('kind')->label('Document')->required()->options(Attachments::kindsFor($record)),
-                FileUpload::make('file')->required()->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(5120),
+                FileUpload::make('file')->required()->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480),
                 TextInput::make('note')->maxLength(300),
             ])
             ->action(function (Model $record, array $data): void {

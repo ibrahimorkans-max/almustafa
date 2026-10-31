@@ -88,14 +88,16 @@ final class PartyStatementSharing
         if (WhatsAppCloud::configured($entityId)) {
             $sent = (new WhatsAppCloud($entityId))->send($to164, $text);
             $status = $sent['ok'] ? 'accepted' : 'failed';
-            $detail = $sent['ok'] ? 'Handed to WhatsApp. Delivery is not confirmed here.' : (string) $sent['error'];
+            $detail = $sent['ok'] ? 'Handed to WhatsApp. Delivery shows here once WhatsApp reports it.' : (string) $sent['error'];
             $url = null;
+            $providerId = $sent['ok'] ? $sent['id'] : null;
         } else {
             $status = 'prepared';
             $detail = 'WhatsApp opened with the message; it is sent only when the person presses send in WhatsApp.';
             $url = 'https://wa.me/'.ltrim($to164, '+').'?text='.rawurlencode($text);
+            $providerId = null;
         }
-        $this->log($party, 'whatsapp', $to164, $from, $to, $filters, null, $status, $detail, $link['expires']);
+        $this->log($party, 'whatsapp', $to164, $from, $to, $filters, null, $status, $detail, $link['expires'], $providerId);
 
         return ['status' => $status, 'url' => $url, 'detail' => $detail];
     }
@@ -126,12 +128,12 @@ final class PartyStatementSharing
 
     /** @param  array<string, mixed>  $filters */
     public function log(Party $party, string $channel, ?string $recipient, CarbonImmutable $from, CarbonImmutable $to, array $filters, ?string $subject,
-        string $status, ?string $detail, ?CarbonImmutable $expires = null): StatementShare
+        string $status, ?string $detail, ?CarbonImmutable $expires = null, ?string $providerMessageId = null): StatementShare
     {
         $share = StatementShare::query()->create([
             'party_id' => $party->id, 'channel' => $channel, 'recipient' => $recipient, 'period_from' => $from->toDateString(), 'period_to' => $to->toDateString(),
             'filters' => self::cleanFilters($filters), 'subject' => $subject, 'status' => $status, 'detail' => $detail !== null ? mb_substr($detail, 0, 300) : null,
-            'link_expires_at' => $expires, 'created_by' => $this->actor->accountId(), 'created_at' => now(),
+            'link_expires_at' => $expires, 'created_by' => $this->actor->accountId(), 'created_at' => now(), 'provider_message_id' => $providerMessageId,
         ]);
         $this->audit->record('party.statement_'.$channel, $party, null, null, ['status' => $status, 'from' => $from->toDateString(), 'to' => $to->toDateString()]);
 

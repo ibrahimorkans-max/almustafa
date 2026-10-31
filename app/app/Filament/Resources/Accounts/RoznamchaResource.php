@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Accounts;
 
+use App\Domain\Accounts\RoznamchaBudgets;
 use App\Domain\Security\EntryLocation;
 use App\Filament\Resources\Accounts\RoznamchaResource\Pages;
 use App\Filament\Support\Units;
@@ -12,6 +13,7 @@ use App\Models\Accounts\RoznamchaLine;
 use App\Models\Accounts\RoznamchaPage;
 use App\Models\LoginAccount;
 use App\Models\Masters\Party;
+use Carbon\CarbonImmutable;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Component;
 use Filament\Forms\Components\DatePicker;
@@ -97,7 +99,7 @@ class RoznamchaResource extends Resource
             Hidden::make('scanned_file_id'),
             ViewField::make('scanner_panel')->hiddenLabel()->view('filament.forms.roznamcha-scanner')->dehydrated(false)->columnSpanFull()
                 ->visible(fn (Get $get) => $get('source') === 'scanner'),
-            FileUpload::make('scan')->storeFiles(false)->maxSize(5120)->columnSpanFull()
+            FileUpload::make('scan')->storeFiles(false)->maxSize(20480)->columnSpanFull()
                 ->label(fn (Get $get) => match ($get('source')) {
                     'camera' => 'Or take the photo on this device', 'scanner' => 'Or choose the file your scanner saved', 'pdf' => 'PDF of the page', default => 'Picture of the page',
                 })
@@ -158,6 +160,15 @@ class RoznamchaResource extends Resource
                 TextColumn::make('lines_count')->label('Entries')->alignEnd(),
                 TextColumn::make('received_paise')->label('Received')->alignEnd()->fontFamily('mono')->formatStateUsing(fn ($state) => Units::paiseToRupees((int) $state)),
                 TextColumn::make('paid_paise')->label('Paid')->alignEnd()->fontFamily('mono')->formatStateUsing(fn ($state) => Units::paiseToRupees((int) $state)),
+                // The page's day against the daily budget (Daily budget on the list): left, or over.
+                TextColumn::make('day_budget')->label('Day\'s budget')->badge()->placeholder('—')
+                    ->state(function (RoznamchaPage $r): ?string {
+                        $d = app(RoznamchaBudgets::class)->day(CarbonImmutable::parse($r->entry_date->toDateString(), 'Asia/Karachi'));
+
+                        return $d['budget'] === null ? null : ($d['over'] ? 'Over by '.Units::paiseToRupees(-(int) $d['left']) : 'Left '.Units::paiseToRupees((int) $d['left']));
+                    })
+                    ->color(fn (?string $state) => $state !== null && str_starts_with($state, 'Over') ? 'danger' : 'success')
+                    ->description(fn (RoznamchaPage $r) => $r->over_budget_reason !== null ? 'Reason: '.$r->over_budget_reason : null),
                 TextColumn::make('status')->badge()->formatStateUsing(fn (string $state) => RoznamchaPage::STATUS_LABELS[$state] ?? $state)
                     ->color(fn (string $state) => match ($state) {
                         'posted' => 'success', 'verified' => 'info', default => 'warning',

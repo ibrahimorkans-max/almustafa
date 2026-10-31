@@ -92,7 +92,7 @@ class ReimbursementResource extends Resource
                         ->minDate(fn () => now('Asia/Karachi')->subDays(90)),
                     TextInput::make('description')->required()->minLength(3)->maxLength(200),
                     TextInput::make('amount')->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2),
-                    FileUpload::make('receipt')->label('Receipt')->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(5120)
+                    FileUpload::make('receipt')->label('Receipt')->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480)
                         ->helperText('Needed above '.Money::paise(Reimbursements::RECEIPT_REQUIRED_ABOVE_PAISE)->format()),
                 ]),
         ]);

@@ -129,7 +129,7 @@ class ItemsRelationManager extends RelationManager
                         ->visible(fn (PayrollItem $r) => $finalized() && PayrollRunResource::allows('hr.payroll.run') && $this->unacknowledged($r) !== null)
                         ->form([
                             Radio::make('method')->options(['signature' => 'Signature', 'thumb' => 'Thumb impression'])->default('thumb')->required()->inline(),
-                            FileUpload::make('photo')->required()->storeFiles(false)->image()->acceptedFileTypes(['image/jpeg', 'image/png'])->maxSize(5120),
+                            FileUpload::make('photo')->required()->storeFiles(false)->image()->acceptedFileTypes(['image/jpeg', 'image/png'])->maxSize(20480),
                         ])
                         ->action($try(function (PayrollItem $r, array $d) use ($pay): void {
                             $file = $d['photo'];

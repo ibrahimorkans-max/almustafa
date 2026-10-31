@@ -52,7 +52,7 @@ class ListAttendanceLogs extends ListRecords
                 ->visible($canOverride)
                 ->steps([
                     Step::make('File')->description('CSV: employee code, date-time (PKT), in / out (optional)')->schema([
-                        FileUpload::make('file')->required()->storeFiles(false)->acceptedFileTypes(['text/csv', 'text/plain', 'application/vnd.ms-excel'])->maxSize(5120),
+                        FileUpload::make('file')->required()->storeFiles(false)->acceptedFileTypes(['text/csv', 'text/plain', 'application/vnd.ms-excel'])->maxSize(10240),
                     ])->afterValidation(function (Get $get, Set $set) use ($read): void {
                         $p = app(AttendanceImport::class)->preview($read($get('file')));
                         $new = count(array_filter($p['rows'], fn ($r) => ! $r['duplicate']));

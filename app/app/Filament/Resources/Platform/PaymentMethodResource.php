@@ -98,7 +98,7 @@ class PaymentMethodResource extends Resource
                         ? new HtmlString('<img src="'.$record->qrDataUri().'" style="width: 140px; height: 140px; object-fit: contain;" alt="">')
                         : new HtmlString('<span class="text-sm text-gray-500">None</span>')),
                 FileUpload::make('qr_upload')->label('QR picture from the bank or wallet')->storeFiles(false)->image()
-                    ->acceptedFileTypes(self::IMAGE_TYPES)->maxSize(2048)->helperText('PNG or JPG. Used before the text below.'),
+                    ->acceptedFileTypes(self::IMAGE_TYPES)->maxSize(20480)->helperText('PNG or JPG. Used before the text below.'),
                 TextInput::make('qr_text')->label('Or make a QR from this text')->maxLength(500)
                     ->helperText('A Raast ID, a payment link or the account details: customers scan it with their banking app.'),
                 Toggle::make('remove_qr')->label('Remove the QR picture')->visibleOn('edit'),

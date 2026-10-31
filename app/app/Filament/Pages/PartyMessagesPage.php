@@ -12,6 +12,7 @@ use App\Domain\Settings\SettingsService;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\LoginAccount;
 use App\Models\PartyMessage;
+use App\Models\WhatsAppEvent;
 use App\Support\Values\PakistanIds;
 use Filament\Actions\Action as HeaderAction;
 use Filament\Facades\Filament;
@@ -167,6 +168,13 @@ class PartyMessagesPage extends Page implements HasTable
                 })->formatStateUsing(fn (string $state, PartyMessage $r) => match ($state) {
                     PartyMessage::MANUAL => 'to send by hand', default => $state,
                 }.($r->error ? ' — '.$r->error : '')),
+                // What WhatsApp reported through the webhook (Administration → WhatsApp webhook).
+                TextColumn::make('delivery_status')->label('WhatsApp')->badge()->placeholder('—')
+                    ->color(fn (?string $state) => match ($state) {
+                        'read' => 'success', 'delivered' => 'info', 'failed' => 'danger', default => 'gray'
+                    })
+                    ->formatStateUsing(fn (?string $state, PartyMessage $r) => (WhatsAppEvent::PROGRESS[(string) $state] ?? (string) $state)
+                        .($r->delivery_at ? ' '.$r->delivery_at->timezone('Asia/Karachi')->format('d M H:i') : '')),
             ])
             ->filters([
                 SelectFilter::make('status')->options([

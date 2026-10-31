@@ -121,11 +121,15 @@ class BrandingPage extends Page implements HasForms
                 Placeholder::make('logo_now')->label('Logo now')->content(fn () => $this->preview($this->mill()?->logo_path, '64px')),
                 Placeholder::make('emblem_now')->label('Small emblem now')->content(fn () => $this->preview($this->mill()?->emblem_path, '48px')),
                 FileUpload::make('logo')->label('New logo (wide, for A4 letterheads)')->storeFiles(false)
-                    ->acceptedFileTypes(self::IMAGE_TYPES)->maxSize(2048)->helperText('PNG or JPG, up to 2 MB. A clear background prints best.'),
+                    ->acceptedFileTypes(self::IMAGE_TYPES)->maxSize(20480)->helperText('PNG or JPG (a photo from a phone is made smaller first). A clear background prints best.'),
                 FileUpload::make('emblem')->label('New small emblem (square, for slips and receipts)')->storeFiles(false)
-                    ->acceptedFileTypes(self::IMAGE_TYPES)->maxSize(1024)->helperText('Empty: the logo is used.'),
+                    ->acceptedFileTypes(self::IMAGE_TYPES)->maxSize(20480)->helperText('Empty: the logo is used.'),
                 Toggle::make('remove_logo')->label('Remove the logo'),
                 Toggle::make('remove_emblem')->label('Remove the emblem'),
+                Placeholder::make('sales_logo_now')->label('Logo for selling now')->content(fn () => $this->preview($this->mill()?->sales_logo_path, '64px')),
+                FileUpload::make('sales_logo')->label('New logo for selling (sales invoices, gate passes for sales, dispatch orders, sale saudas)')->storeFiles(false)
+                    ->acceptedFileTypes(self::IMAGE_TYPES)->maxSize(20480)->helperText('Empty: the logo above is used on selling documents too. Every other document uses the logo above.'),
+                Toggle::make('remove_sales_logo')->label('Remove the logo for selling'),
                 ColorPicker::make('color_primary')->label('Main colour')->rules($hex)->helperText('Title bars, names and totals'),
                 ColorPicker::make('color_accent')->label('Second colour')->rules($hex)->helperText('Lines and highlights'),
             ]),
@@ -163,7 +167,7 @@ class BrandingPage extends Page implements HasForms
 
         try {
             $files = [];
-            foreach (['logo' => 'logo_path', 'emblem' => 'emblem_path'] as $field => $column) {
+            foreach (['logo' => 'logo_path', 'emblem' => 'emblem_path', 'sales_logo' => 'sales_logo_path'] as $field => $column) {
                 if ($data['remove_'.$field] ?? false) {
                     $files[$column] = null;
                 }
@@ -182,7 +186,7 @@ class BrandingPage extends Page implements HasForms
         // Blank text is stored as empty (the default applies).
         $fields = array_map(fn ($v) => is_string($v) ? (trim($v) === '' ? null : trim($v)) : $v,
             array_intersect_key($data, array_flip(self::FIELDS)));
-        $old = $mill->only(['logo_path', 'emblem_path']);
+        $old = $mill->only(['logo_path', 'emblem_path', 'sales_logo_path']);
         $mill->fill($fields + $files)->save();
         $settings = app(SettingsService::class);
         foreach (array_keys(PaperSize::KINDS) as $kind) {

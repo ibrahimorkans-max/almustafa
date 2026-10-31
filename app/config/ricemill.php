@@ -80,6 +80,9 @@ return [
             'template' => env('WHATSAPP_TEMPLATE', 'mill_update'),
             'language' => env('WHATSAPP_TEMPLATE_LANGUAGE', 'en'),
             'api_version' => env('WHATSAPP_API_VERSION', 'v21.0'),
+            // An approved template with a DOCUMENT header and one body variable, for sending files to anyone
+            // (empty: a file goes only within 24 hours after the person last wrote).
+            'doc_template' => env('WHATSAPP_DOC_TEMPLATE', ''),
         ],
 
         // Firebase Cloud Messaging: notifications on the phones and browsers parties turned them on for.
@@ -263,7 +266,8 @@ return [
     'scanner' => ['enabled' => (bool) env('RICEMILL_SCANNER', false)],
 
     'ocr' => [
-        'engine' => env('RICEMILL_OCR_ENGINE', 'tesseract'),
+        // auto: the AI reader when an AI key is saved (Administration → AI assistant), else tesseract.
+        'engine' => env('RICEMILL_OCR_ENGINE', 'auto'),
         'tesseract_path' => env('TESSERACT_PATH', 'tesseract'),
         'lang' => env('RICEMILL_OCR_LANG', 'eng'),
     ],

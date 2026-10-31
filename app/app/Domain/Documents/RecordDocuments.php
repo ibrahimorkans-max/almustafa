@@ -62,7 +62,10 @@ final class RecordDocuments
         };
         $entity = $this->tenant->runAsSystem(fn () => Entity::query()->find($record->getAttribute('entity_id')));
 
-        return $this->pdf->render('documents.record', ['doc' => $doc, 'title' => $doc['title']], $entity, ($doc['small'] ?? false) ? 'A5' : 'A4');
+        // A dispatch order and a sale sauda are selling documents: the sales logo.
+        $sales = $type === 'dispatch' || ($type === 'sauda' && $record->getAttribute('direction') === 'sale');
+
+        return $this->pdf->render('documents.record', ['doc' => $doc, 'title' => $doc['title']] + ($sales ? ['brand_use' => 'sales'] : []), $entity, ($doc['small'] ?? false) ? 'A5' : 'A4');
     }
 
     /** @return array<string, mixed> */

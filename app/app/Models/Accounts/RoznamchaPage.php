@@ -32,6 +32,7 @@ use Illuminate\Support\Carbon;
  * @property string $status draft | verified | posted
  * @property string|null $cash_ledger_id
  * @property string|null $note
+ * @property string|null $over_budget_reason why it was posted although its day was over the roznamcha budget
  * @property string|null $created_by
  * @property string|null $verified_by
  * @property Carbon|null $verified_at

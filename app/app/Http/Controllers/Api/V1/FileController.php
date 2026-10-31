@@ -26,7 +26,7 @@ final class FileController extends Controller
         // Two forms: multipart field "file" (browsers), or the raw bytes as the request body
         // (gate agent: PHP does not keep a multipart body, so only a raw body can be signed).
         if ($request->hasFile('file')) {
-            $request->validate(['file' => ['file', 'max:5120']]);
+            $request->validate(['file' => ['file', 'max:10240']]);
             $bytes = (string) file_get_contents($request->file('file')->getRealPath());
         } else {
             $bytes = $request->getContent();

@@ -47,7 +47,7 @@ class DocumentTemplateResource extends Resource
     public static function settingsForm(): array
     {
         $image = fn (string $name, string $label) => FileUpload::make($name)->label($label)->storeFiles(false)->image()
-            ->acceptedFileTypes(['image/png', 'image/jpeg'])->maxSize(1024)->helperText('PNG with a transparent background prints best. Leave empty to keep the current one.');
+            ->acceptedFileTypes(['image/png', 'image/jpeg'])->maxSize(20480)->helperText('PNG with a transparent background prints best. Leave empty to keep the current one.');
 
         return [
             TextInput::make('header_text')->label('Line under the title')->maxLength(200),

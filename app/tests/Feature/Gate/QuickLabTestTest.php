@@ -94,6 +94,7 @@ it('shows the button on the gate list and on Live weight only to someone with th
     qltSignIn($this, Make::account($this->f->entity, 'SUPERVISOR'));
     Livewire::test(LiveWeightPage::class)->assertActionVisible('quickLabTest');
 
-    qltSignIn($this, Make::account($this->f->entity, 'GATE_OPERATOR'));
+    // The Purchase Officer sees the vehicles at the gate but has no lab right.
+    qltSignIn($this, Make::account($this->f->entity, 'PURCHASE_OFFICER'));
     Livewire::test(ListGateEntries::class)->assertActionHidden('quickLabTest');
 });

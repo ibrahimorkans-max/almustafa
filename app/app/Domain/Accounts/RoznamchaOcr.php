@@ -14,23 +14,27 @@ use Throwable;
  *
  *  tesseract  (default) on the mill's own server; English and figures. Urdu needs the "urd" language
  *             data installed (RICEMILL_OCR_LANG=eng+urd).
- *  claude     the AI reader, for handwriting and Urdu. The page image is sent to Anthropic's API, so it is
- *             only used when switched on (RICEMILL_OCR_ENGINE=claude) and an API key is set.
+ *  claude     the AI reader, for handwriting and Urdu: it reads the whole page, both columns. The page image is
+ *             sent to Anthropic's API with the mill's AI key (Administration → AI assistant).
+ *  auto       (default) the AI reader when an AI key is saved, else tesseract.
  *  none       no reading: the lines are typed.
  *
  * A failure never stops the page from being saved: it is then typed by hand.
  */
 final class RoznamchaOcr
 {
-    /** @return array{engine: string, text: string, lines: list<array{account: string, debit: string, credit: string, narration: string, reference: string}>, error: string|null} */
+    /** Entries kept from one page. */
+    public const MAX_LINES = 200;
+
+    /** @return array{engine: string, text: string, lines: list<array{account: string, debit: string, credit: string, narration: string, reference: string}>, error: string|null, date?: string|null} */
     public function read(string $bytes, string $mime): array
     {
-        $engine = (string) config('ricemill.ocr.engine', 'tesseract');
+        $engine = (string) config('ricemill.ocr.engine', 'auto');
         try {
-            if ($engine === 'claude' && app(ClaudeEngine::class)->configured()) {
+            if (in_array($engine, ['claude', 'auto'], true) && filled(ClaudeEngine::settings()['api_key'])) {
                 return $this->claude($bytes, $mime);
             }
-            if (in_array($engine, ['tesseract', 'claude'], true) && in_array($mime, ['image/png', 'image/jpeg'], true)) {
+            if (in_array($engine, ['tesseract', 'claude', 'auto'], true) && in_array($mime, ['image/png', 'image/jpeg'], true)) {
                 return $this->tesseract($bytes, $mime);
             }
         } catch (Throwable $e) {
@@ -83,25 +87,34 @@ final class RoznamchaOcr
             $lines[] = ['account' => mb_substr($account, 0, 160), 'debit' => $out ? $amount : '', 'credit' => $out ? '' : $amount, 'narration' => '', 'reference' => ''];
         }
 
-        return array_slice($lines, 0, 60);
+        return array_slice($lines, 0, self::MAX_LINES);
     }
 
-    /** @return array{engine: string, text: string, lines: list<array{account: string, debit: string, credit: string, narration: string, reference: string}>, error: string|null} */
+    /** @return array{engine: string, text: string, lines: list<array{account: string, debit: string, credit: string, narration: string, reference: string}>, error: string|null, date?: string|null} */
     private function claude(string $bytes, string $mime): array
     {
         $block = $mime === 'application/pdf'
             ? ['type' => 'document', 'source' => ['type' => 'base64', 'media_type' => 'application/pdf', 'data' => base64_encode($bytes)]]
             : ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $mime, 'data' => base64_encode($bytes)]];
-        $prompt = 'This is one page of a Pakistani rice mill\'s daily cash book (roznamcha), in Urdu and/or English. '
-            .'Read every entry. Return only JSON: {"text": "the page as plain text", "lines": [{"account": "party or account name as written", '
-            .'"credit": "cash received (jama), digits only, or empty", "debit": "cash paid (banam), digits only, or empty", "narration": "", "reference": ""}]}. '
-            .'Do not invent entries; leave a figure empty when it cannot be read.';
+        $prompt = 'This is a photo or scan of one page of a Pakistani rice mill\'s daily cash book (roznamcha), handwritten or printed, '
+            .'in Urdu and/or English (Roman Urdu too). The photo may be tilted or taken from a phone: read the COMPLETE page, top to bottom, '
+            .'every row in every column. A roznamcha usually has two sides: "jama" (cash received, credit) and "banam" (cash paid, debit); '
+            .'some pages have one list with an amount and a word saying which. Skip only headings, dates, page totals, "baqaya" / balance '
+            .'brought or carried forward and grand totals: they are not entries. For each entry give the party or account name exactly as '
+            .'written (a person, firm, or an expense such as diesel, bijli, mazdoori, kharcha), what it was for, and any bill, slip or cheque '
+            .'number. Amounts in digits only (Urdu digits turned into 0-9; "15,000/-" is 15000). Return only JSON, no other words: '
+            .'{"date": "the date written on the page, YYYY-MM-DD, or empty", "text": "the whole page as plain text, line by line", '
+            .'"lines": [{"account": "name as written", "credit": "cash received (jama) or empty", "debit": "cash paid (banam) or empty", '
+            .'"narration": "what it was for, or empty", "reference": "bill / slip / cheque number, or empty"}]}. '
+            .'Each line has either credit or debit, never both. Do not invent entries; if a figure cannot be read, leave that entry out of '
+            .'"lines" but keep it in "text".';
+        $ai = ClaudeEngine::settings();
         $response = Http::withHeaders([
-            'x-api-key' => (string) config('ricemill.assistant.api_key'),
+            'x-api-key' => $ai['api_key'],
             'anthropic-version' => '2023-06-01',
-        ])->timeout(90)->post((string) config('ricemill.assistant.api_url'), [
-            'model' => (string) config('ricemill.assistant.model'),
-            'max_tokens' => 4000,
+        ])->timeout(150)->post($ai['api_url'], [
+            'model' => $ai['model'],
+            'max_tokens' => 8000,
             'messages' => [['role' => 'user', 'content' => [$block, ['type' => 'text', 'text' => $prompt]]]],
         ]);
         if (! $response->successful()) {
@@ -119,6 +132,7 @@ final class RoznamchaOcr
             'narration' => mb_substr((string) ($l['narration'] ?? ''), 0, 300), 'reference' => mb_substr((string) ($l['reference'] ?? ''), 0, 80),
         ], array_filter((array) ($json['lines'] ?? []), 'is_array')));
 
-        return ['engine' => 'claude', 'text' => (string) ($json['text'] ?? ''), 'lines' => array_slice($lines, 0, 60), 'error' => null];
+        return ['engine' => 'claude', 'text' => (string) ($json['text'] ?? ''), 'lines' => array_slice($lines, 0, self::MAX_LINES), 'error' => null,
+            'date' => is_string($json['date'] ?? null) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $json['date']) === 1 ? $json['date'] : null];
     }
 }

@@ -51,6 +51,7 @@ use App\Models\Production;
 use App\Models\Sales\DispatchOrder;
 use App\Models\Sales\SalesBill;
 use App\Policies;
+use Filament\Forms\Components\FileUpload;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Actions\Action as NotificationAction;
 use Filament\Notifications\Notification;
@@ -103,6 +104,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Every upload: a photo is made smaller on the device before it is sent (at most 2000 pixels a side), so a
+        // phone camera's 5–12 MB picture goes up as a few hundred KB, quickly and within the limits, even on mobile
+        // data. Small pictures and PDFs are sent as they are.
+        FileUpload::configureUsing(fn (FileUpload $upload) => $upload
+            ->imageResizeMode('contain')->imageResizeTargetWidth('2000')->imageResizeTargetHeight('2000')->imageResizeUpscale(false));
+
         // Only the configured proxy may say who the visitor is (TRUSTED_PROXIES); nobody else's
         // X-Forwarded-For is believed, so a visitor cannot pretend to be on the mill's network.
         $proxies = (array) config('ricemill.security.trusted_proxies', []);

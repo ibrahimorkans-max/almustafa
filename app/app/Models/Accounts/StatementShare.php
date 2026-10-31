@@ -46,7 +46,7 @@ class StatementShare extends Model
         'accepted' => 'Handed over (delivery not confirmed)', 'prepared' => 'Link prepared, to send by hand', 'failed' => 'Failed', 'done' => 'Done',
     ];
 
-    protected $fillable = ['party_id', 'channel', 'recipient', 'period_from', 'period_to', 'filters', 'subject', 'status', 'detail', 'link_expires_at', 'created_by', 'created_at'];
+    protected $fillable = ['party_id', 'channel', 'recipient', 'period_from', 'period_to', 'filters', 'subject', 'status', 'detail', 'link_expires_at', 'created_by', 'created_at', 'provider_message_id'];
 
     protected function casts(): array
     {

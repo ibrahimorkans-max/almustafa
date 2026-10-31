@@ -81,7 +81,7 @@ final class PartyMessenger
             $sent = (new WhatsAppCloud($entityId))->send($to, MessageText::forTemplate($text));
 
             return $this->store($record + ['status' => $sent['ok'] ? PartyMessage::SENT : PartyMessage::FAILED,
-                'error' => $sent['error'], 'sent_at' => $sent['ok'] ? now() : null]);
+                'error' => $sent['error'], 'sent_at' => $sent['ok'] ? now() : null, 'provider_message_id' => $sent['id']]);
         }
         $url = (string) config("ricemill.messaging.{$channel}_url");
         if ($url === '') {

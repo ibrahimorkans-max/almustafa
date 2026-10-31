@@ -6,6 +6,7 @@ namespace App\Domain\Documents;
 
 use App\Domain\Accounts\AccountsDocuments;
 use App\Domain\Documents\Engine\DocumentTypes;
+use App\Domain\Gate\GatePasses;
 use App\Domain\Gate\SlipRenderer;
 use App\Domain\Saas\CustomerAccess;
 use App\Domain\Sales\SalesDocuments;
@@ -15,6 +16,7 @@ use App\Models\Accounts\PurchaseBill;
 use App\Models\Documents\GeneratedDocument;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
+use App\Models\Gate\GatePass;
 use App\Models\Sales\SalesBill;
 use App\Support\Values\Money;
 
@@ -102,6 +104,18 @@ final class DocumentVerifier
                         'Gross / tare / net (kg)' => sprintf('%s / %s / %s', $slip->data['gross_kg'] ?? '', $slip->data['tare_kg'] ?? '', $slip->data['net_kg'] ?? ''),
                     ]];
                 }
+            }
+
+            // A gate pass from Gate passes: party, vehicle, bags and weight, and whether it was cancelled.
+            $simple = GatePass::query()->with('cancellation')->where('serial', $number)->first();
+            if ($simple !== null && hash_equals(GatePasses::code($simple), $code)) {
+                return ['type' => 'Gate pass', 'entity' => $simple->entity_id, 'facts' => [
+                    'Gate pass' => $simple->serial, 'Party' => $simple->party_name, 'Vehicle' => $simple->vehicle_no,
+                    'Bags' => number_format($simple->bag_count).' × '.rtrim(rtrim((string) $simple->kg_per_bag, '0'), '.').' kg',
+                    'Total weight (kg)' => (string) $simple->total_kg,
+                    'Issued' => $simple->created_at->timezone('Asia/Karachi')->format('d M Y H:i'),
+                    'Status' => $simple->cancellation === null ? 'Valid' : 'CANCELLED: '.$simple->cancellation->reason,
+                ]];
             }
 
             $pass = GateEvent::query()->where('event', 'gate_pass_issued')->get()

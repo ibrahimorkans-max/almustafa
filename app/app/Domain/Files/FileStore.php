@@ -26,7 +26,7 @@ final class FileStore
     {
         $size = strlen($bytes);
         if ($size === 0 || $size > StoredFile::MAX_BYTES) {
-            throw new BusinessRuleViolation('File is empty or larger than 5 MB.');
+            throw new BusinessRuleViolation('File is empty or larger than 10 MB.');
         }
 
         // Trust the content, not the client's claimed type.

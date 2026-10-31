@@ -124,7 +124,7 @@ class ViewEmployee extends ViewRecord
                 ->form([
                     Select::make('kind')->options(EmployeeDocument::KINDS)->required(),
                     TextInput::make('title')->maxLength(160),
-                    FileUpload::make('file')->required()->storeFiles(false)->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])->maxSize(5120),
+                    FileUpload::make('file')->required()->storeFiles(false)->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])->maxSize(20480),
                     DatePicker::make('valid_until')->label('Valid until (if it expires)'),
                 ])
                 ->action(fn (Employee $record, array $data) => $this->attempt(function () use ($record, $data): void {
