@@ -402,9 +402,12 @@ Details: `print-branding.md`, `reports-printing.md`.
 - **Chats** (Masters → Chats): every message sent to each party (WhatsApp or SMS, with Sent / Delivered /
   Read / To send by hand / Failed) and every WhatsApp message the party sent back, as one conversation per
   party, newest first. Search by party, code or number. Login details are never shown again.
-- **AI assistant** (Administration → AI assistant; Platform → AI assistant for every mill): add the Anthropic
-  **API key** (console.anthropic.com → API keys → Create key, starts with `sk-ant-`) and choose the model. The
-  key is checked with Anthropic before it is saved, kept encrypted, and only its last four characters show.
+- **AI assistant** (Administration → AI assistant; Platform → AI assistant for every mill): choose the **provider**:
+  Anthropic (Claude), **OpenRouter** (one key for Claude, GPT, Gemini, Llama, DeepSeek and more), OpenAI, Google
+  Gemini, Groq, DeepSeek, Mistral, or **Other** (any OpenAI-compatible service, by its https address). Pick a
+  suggested model or type any model the provider offers, and paste its **API key**. The key is checked with the
+  provider before it is saved, kept encrypted, and only its last four characters show. For reading roznamcha
+  photos, choose a model that reads pictures.
   A mill's own key is used before the product's. *Test the connection* asks Anthropic once; *Remove the key*
   takes it away. The Assistant (and the AI reader of roznamcha pages, when chosen) uses it.
 

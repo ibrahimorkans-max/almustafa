@@ -9,7 +9,6 @@ use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
 use App\Models\LoginAccount;
 use Closure;
-use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
 /**
@@ -28,9 +27,9 @@ final class ClaudeEngine
     }
 
     /**
-     * The key and model: the mill's own, the product owner's, or the server's (Administration → AI assistant).
+     * The provider, key and model: the mill's own, the product owner's, or the server's (Administration → AI assistant).
      *
-     * @return array{api_key: string, model: string, api_url: string, source: string|null}
+     * @return array{provider: string, api_key: string, model: string, api_url: string, source: string|null}
      */
     public static function settings(): array
     {
@@ -103,21 +102,13 @@ final class ClaudeEngine
      */
     private function call(string $system, array $messages, array $tools): array
     {
+        // Any provider (AiGateway): the answer comes back in Anthropic's shape whichever it was.
         $ai = self::settings();
-        $response = Http::withHeaders([
-            'x-api-key' => $ai['api_key'],
-            'anthropic-version' => '2023-06-01',
-        ])->timeout(45)->post($ai['api_url'], [
-            'model' => $ai['model'],
-            'max_tokens' => 1024,
-            'system' => $system,
-            'tools' => $tools,
-            'messages' => $messages,
-        ]);
+        $response = app(AiGateway::class)->send($ai, $system, $messages, $tools, 1024, 45);
         if (! $response->successful()) {
-            throw new RuntimeException('Assistant AI request failed: HTTP '.$response->status());
+            throw new RuntimeException('Assistant AI request failed ('.$ai['provider'].'): HTTP '.$response->status().' '.AiGateway::error($response));
         }
 
-        return (array) $response->json();
+        return AiGateway::answer($ai, $response);
     }
 }

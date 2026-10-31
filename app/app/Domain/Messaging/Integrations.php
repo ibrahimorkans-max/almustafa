@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Messaging;
 
+use App\Domain\Assistant\AiGateway;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Shared\BusinessRuleViolation;
 use Illuminate\Support\Facades\Crypt;
@@ -129,91 +130,147 @@ final class Integrations
         app(AuditLogger::class)->record('integration.whatsapp.disconnected', null, null, null, ['scope' => $scope]);
     }
 
-    // ------------------------------------------------------------------ AI (Anthropic API key)
+    // ------------------------------------------------------------------ AI (any provider's API key)
 
-    /** The models offered (id => what it is good for). */
-    public const AI_MODELS = [
-        'claude-sonnet-5-5' => 'Claude Sonnet 5.5: good answers, fair price (recommended)',
-        'claude-opus-5-5' => 'Claude Opus 5.5: the most capable, the dearest',
-        'claude-haiku-5-5' => 'Claude Haiku 5.5: the fastest and cheapest',
+    /**
+     * The AI providers offered: name, address, a suggested model and other models to choose from. Every one but
+     * Anthropic speaks the OpenAI "chat completions" format (App\Domain\Assistant\AiGateway). "custom" is any
+     * other OpenAI-compatible service, at the address given.
+     */
+    public const AI_PROVIDERS = [
+        'anthropic' => ['name' => 'Anthropic (Claude)', 'url' => 'https://api.anthropic.com/v1/messages', 'model' => 'claude-sonnet-5-5',
+            'models' => ['claude-sonnet-5-5', 'claude-opus-5-5', 'claude-haiku-5-5'], 'keys' => 'console.anthropic.com → API keys (starts with sk-ant-)'],
+        'openrouter' => ['name' => 'OpenRouter (many models with one key)', 'url' => 'https://openrouter.ai/api/v1/chat/completions', 'model' => 'anthropic/claude-sonnet-5.5',
+            'models' => ['anthropic/claude-sonnet-5.5', 'openai/gpt-5', 'google/gemini-2.5-pro', 'google/gemini-2.5-flash', 'meta-llama/llama-4-maverick', 'deepseek/deepseek-chat', 'qwen/qwen3-235b-a22b'],
+            'keys' => 'openrouter.ai → Keys (starts with sk-or-)'],
+        'openai' => ['name' => 'OpenAI (ChatGPT)', 'url' => 'https://api.openai.com/v1/chat/completions', 'model' => 'gpt-5',
+            'models' => ['gpt-5', 'gpt-5-mini', 'gpt-4.1', 'gpt-4o'], 'keys' => 'platform.openai.com → API keys (starts with sk-)'],
+        'gemini' => ['name' => 'Google Gemini', 'url' => 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', 'model' => 'gemini-2.5-flash',
+            'models' => ['gemini-2.5-flash', 'gemini-2.5-pro'], 'keys' => 'aistudio.google.com → Get API key'],
+        'groq' => ['name' => 'Groq', 'url' => 'https://api.groq.com/openai/v1/chat/completions', 'model' => 'llama-3.3-70b-versatile',
+            'models' => ['llama-3.3-70b-versatile', 'meta-llama/llama-4-maverick-17b-128e-instruct'], 'keys' => 'console.groq.com → API keys (starts with gsk_)'],
+        'deepseek' => ['name' => 'DeepSeek', 'url' => 'https://api.deepseek.com/chat/completions', 'model' => 'deepseek-chat',
+            'models' => ['deepseek-chat', 'deepseek-reasoner'], 'keys' => 'platform.deepseek.com → API keys'],
+        'mistral' => ['name' => 'Mistral', 'url' => 'https://api.mistral.ai/v1/chat/completions', 'model' => 'mistral-large-latest',
+            'models' => ['mistral-large-latest', 'mistral-medium-latest', 'pixtral-large-latest'], 'keys' => 'console.mistral.ai → API keys'],
+        'custom' => ['name' => 'Other (OpenAI-compatible address)', 'url' => '', 'model' => '',
+            'models' => [], 'keys' => 'the service\'s own console'],
     ];
 
     /**
-     * The AI settings for a mill (the Assistant chatbot and the AI reader of roznamcha pages): its own key, the
-     * product owner's, or the server's (.env).
+     * The AI settings for a mill (the Assistant chatbot and the AI reader of roznamcha pages): its own, the product
+     * owner's, or the server's (.env, Anthropic).
      *
-     * @return array{api_key: string, model: string, api_url: string, source: string|null}
+     * @return array{provider: string, api_key: string, model: string, api_url: string, source: string|null}
      */
     public static function ai(?string $entityId): array
     {
         $env = (array) config('ricemill.assistant');
-        $url = (string) ($env['api_url'] ?? 'https://api.anthropic.com/v1/messages');
         foreach ([$entityId !== null ? 'ai-'.$entityId : null, 'ai-platform'] as $file) {
             $saved = $file === null ? null : self::read($file);
             if ($saved !== null && filled($saved['api_key'] ?? null)) {
-                return ['api_key' => (string) $saved['api_key'], 'model' => (string) ($saved['model'] ?? $env['model'] ?? 'claude-sonnet-5-5'),
-                    'api_url' => $url, 'source' => $file === 'ai-platform' ? 'product' : 'mill'];
+                $provider = isset(self::AI_PROVIDERS[$saved['provider'] ?? '']) ? (string) $saved['provider'] : 'anthropic';
+
+                return ['provider' => $provider, 'api_key' => (string) $saved['api_key'],
+                    'model' => (string) ($saved['model'] ?? self::AI_PROVIDERS[$provider]['model']),
+                    'api_url' => self::aiUrl($provider, (string) ($saved['base_url'] ?? ''), (string) ($env['api_url'] ?? '')),
+                    'source' => $file === 'ai-platform' ? 'product' : 'mill'];
             }
         }
 
-        return ['api_key' => (string) ($env['api_key'] ?? ''), 'model' => (string) ($env['model'] ?? 'claude-sonnet-5-5'), 'api_url' => $url,
-            'source' => filled($env['api_key'] ?? null) ? 'server' : null];
+        return ['provider' => 'anthropic', 'api_key' => (string) ($env['api_key'] ?? ''), 'model' => (string) ($env['model'] ?? 'claude-sonnet-5-5'),
+            'api_url' => (string) ($env['api_url'] ?? self::AI_PROVIDERS['anthropic']['url']), 'source' => filled($env['api_key'] ?? null) ? 'server' : null];
+    }
+
+    /** The address to call: the provider's, or the custom one (its /chat/completions). */
+    private static function aiUrl(string $provider, string $baseUrl, string $envAnthropicUrl): string
+    {
+        if ($provider === 'custom') {
+            $base = rtrim($baseUrl, '/');
+
+            return str_ends_with($base, '/chat/completions') ? $base : $base.'/chat/completions';
+        }
+        if ($provider === 'anthropic' && $envAnthropicUrl !== '') {
+            return $envAnthropicUrl;
+        }
+
+        return self::AI_PROVIDERS[$provider]['url'];
     }
 
     /**
-     * The saved key of a mill (its id) or of the product ('platform'): only its last four characters show.
+     * The saved settings of a mill (its id) or of the product ('platform'): only the key's last four characters show.
      *
-     * @return array{model: string, key_end: string, saved_at: string|null}|null
+     * @return array{provider: string, model: string, base_url: string, key_end: string, saved_at: string|null}|null
      */
     public static function aiSaved(string $scope): ?array
     {
         $saved = self::read('ai-'.$scope);
 
         return $saved === null || blank($saved['api_key'] ?? null) ? null
-            : ['model' => (string) ($saved['model'] ?? ''), 'key_end' => substr((string) $saved['api_key'], -4), 'saved_at' => $saved['saved_at'] ?? null];
+            : ['provider' => isset(self::AI_PROVIDERS[$saved['provider'] ?? '']) ? (string) $saved['provider'] : 'anthropic',
+                'model' => (string) ($saved['model'] ?? ''), 'base_url' => (string) ($saved['base_url'] ?? ''),
+                'key_end' => substr((string) $saved['api_key'], -4), 'saved_at' => $saved['saved_at'] ?? null];
     }
 
     /**
-     * Saves an Anthropic API key after a tiny test call with it (a wrong key or model is refused). An empty key
-     * keeps the saved one (to change only the model).
+     * Saves a provider's API key and model after a tiny test call with them (a wrong key, model or address is
+     * refused). An empty key keeps the saved one when the provider stays the same (to change only the model).
      *
      * @param  array<string, mixed>  $input
      */
     public static function saveAi(string $scope, array $input): void
     {
         $old = self::read('ai-'.$scope) ?? [];
-        $key = filled($input['api_key'] ?? null) ? trim((string) $input['api_key']) : (string) ($old['api_key'] ?? '');
-        $model = (string) ($input['model'] ?? '');
-        if (! isset(self::AI_MODELS[$model])) {
-            throw new BusinessRuleViolation('Choose one of the models.');
+        $provider = (string) ($input['provider'] ?? 'anthropic');
+        if (! isset(self::AI_PROVIDERS[$provider])) {
+            throw new BusinessRuleViolation('Choose the AI provider.');
         }
-        if (preg_match('/^sk-ant-[A-Za-z0-9_\-]{20,}$/', $key) !== 1) {
+        $sameProvider = ($old['provider'] ?? 'anthropic') === $provider;
+        $key = filled($input['api_key'] ?? null) ? trim((string) $input['api_key']) : ($sameProvider ? (string) ($old['api_key'] ?? '') : '');
+        $model = trim((string) ($input['model'] ?? '')) ?: self::AI_PROVIDERS[$provider]['model'];
+        $baseUrl = trim((string) ($input['base_url'] ?? ''));
+        if ($key === '' || preg_match('/^\S{16,400}$/', $key) !== 1) {
+            throw new BusinessRuleViolation('Paste the API key from '.self::AI_PROVIDERS[$provider]['keys'].'.');
+        }
+        if ($provider === 'anthropic' && ! str_starts_with($key, 'sk-ant-')) {
             throw new BusinessRuleViolation('That is not an Anthropic API key. It starts with "sk-ant-" (console.anthropic.com → API keys → Create key).');
         }
-        self::checkAi($key, $model);
-        self::write('ai-'.$scope, ['api_key' => $key, 'model' => $model, 'saved_at' => now()->toIso8601String()]);
-        app(AuditLogger::class)->record('integration.ai.connected', null, null, null, ['scope' => $scope, 'model' => $model]);
+        if (preg_match('/^[A-Za-z0-9._:\/@-]{2,120}$/', $model) !== 1) {
+            throw new BusinessRuleViolation('Give the model\'s name as the provider writes it, e.g. '.(self::AI_PROVIDERS[$provider]['model'] ?: 'gpt-4o').'.');
+        }
+        if ($provider === 'custom') {
+            $parts = parse_url($baseUrl);
+            if (! is_array($parts) || ($parts['scheme'] ?? '') !== 'https' || blank($parts['host'] ?? null)) {
+                throw new BusinessRuleViolation('Give the service\'s https address, e.g. https://api.example.com/v1.');
+            }
+        }
+        self::checkAi(['provider' => $provider, 'api_key' => $key, 'model' => $model, 'api_url' => self::aiUrl($provider, $baseUrl, '')]);
+        self::write('ai-'.$scope, ['provider' => $provider, 'api_key' => $key, 'model' => $model, 'base_url' => $provider === 'custom' ? $baseUrl : '',
+            'saved_at' => now()->toIso8601String()]);
+        app(AuditLogger::class)->record('integration.ai.connected', null, null, null, ['scope' => $scope, 'provider' => $provider, 'model' => $model]);
     }
 
-    /** A one-word question to the API: a refused key or model, or no connection, is said in words. */
-    public static function checkAi(string $key, string $model): void
+    /**
+     * A one-word question to the provider: a refused key or model, or no connection, is said in words.
+     *
+     * @param  array{provider: string, api_key: string, model: string, api_url: string}  $ai
+     */
+    public static function checkAi(array $ai): void
     {
         try {
-            $response = Http::timeout(30)->withHeaders(['x-api-key' => $key, 'anthropic-version' => '2023-06-01'])->acceptJson()
-                ->post((string) config('ricemill.assistant.api_url', 'https://api.anthropic.com/v1/messages'), [
-                    'model' => $model, 'max_tokens' => 5, 'messages' => [['role' => 'user', 'content' => 'Say OK.']],
-                ]);
+            $response = app(AiGateway::class)->send($ai, null, [['role' => 'user', 'content' => 'Say OK.']], [], 5, 30);
         } catch (Throwable $e) {
-            throw new BusinessRuleViolation('Anthropic could not be reached: '.mb_substr($e->getMessage(), 0, 150));
+            throw new BusinessRuleViolation('The AI provider could not be reached: '.mb_substr($e->getMessage(), 0, 150));
         }
         if (! $response->successful()) {
-            $why = (string) ($response->json('error.message') ?? 'HTTP '.$response->status());
+            $why = AiGateway::error($response);
             throw new BusinessRuleViolation(match ($response->status()) {
-                401 => 'Anthropic refused the key (wrong, or deleted). Copy it again from console.anthropic.com.',
-                403 => 'This key may not use that model, or the account has no credit: '.mb_substr($why, 0, 150),
-                404 => 'Anthropic does not know that model: '.mb_substr($why, 0, 150),
+                401 => 'The provider refused the key (wrong, or deleted). Copy it again from '.self::AI_PROVIDERS[$ai['provider']]['keys'].'.',
+                402 => 'The key works but the account has no credit: add credit with the provider.',
+                403 => 'This key may not use that model, or the account has no credit: '.$why,
+                404 => 'The provider does not know that model or address: '.$why,
                 429 => 'The key works but is over its limit right now; try again in a minute.',
-                default => 'Anthropic answered: '.mb_substr($why, 0, 200),
+                default => 'The provider answered: '.$why,
             });
         }
     }

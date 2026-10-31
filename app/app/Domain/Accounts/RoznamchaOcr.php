@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Accounts;
 
+use App\Domain\Assistant\AiGateway;
 use App\Domain\Assistant\ClaudeEngine;
-use Illuminate\Support\Facades\Http;
 use Symfony\Component\Process\Process;
 use Throwable;
 
@@ -108,22 +108,17 @@ final class RoznamchaOcr
             .'"narration": "what it was for, or empty", "reference": "bill / slip / cheque number, or empty"}]}. '
             .'Each line has either credit or debit, never both. Do not invent entries; if a figure cannot be read, leave that entry out of '
             .'"lines" but keep it in "text".';
+        // Any provider (AiGateway); the model chosen must read pictures (most do).
         $ai = ClaudeEngine::settings();
-        $response = Http::withHeaders([
-            'x-api-key' => $ai['api_key'],
-            'anthropic-version' => '2023-06-01',
-        ])->timeout(150)->post($ai['api_url'], [
-            'model' => $ai['model'],
-            'max_tokens' => 8000,
-            'messages' => [['role' => 'user', 'content' => [$block, ['type' => 'text', 'text' => $prompt]]]],
-        ]);
+        $engine = $ai['provider'] === 'anthropic' ? 'claude' : 'ai';
+        $response = app(AiGateway::class)->send($ai, null, [['role' => 'user', 'content' => [$block, ['type' => 'text', 'text' => $prompt]]]], [], 8000, 150);
         if (! $response->successful()) {
-            return ['engine' => 'none', 'text' => '', 'lines' => [], 'error' => 'The AI reader did not answer; type the lines.'];
+            return ['engine' => 'none', 'text' => '', 'lines' => [], 'error' => 'The AI reader did not answer ('.AiGateway::error($response).'); type the lines.'];
         }
-        $answer = (string) collect((array) $response->json('content', []))->where('type', 'text')->pluck('text')->implode('');
+        $answer = (string) collect(AiGateway::answer($ai, $response)['content'])->where('type', 'text')->pluck('text')->implode('');
         $json = json_decode((string) preg_replace('/^[^{]*|[^}]*$/s', '', $answer), true);
         if (! is_array($json)) {
-            return ['engine' => 'claude', 'text' => $answer, 'lines' => [], 'error' => 'The page was read but its lines could not be separated; type them.'];
+            return ['engine' => $engine, 'text' => $answer, 'lines' => [], 'error' => 'The page was read but its lines could not be separated; type them.'];
         }
         $digits = fn ($v) => (string) preg_replace('/[^\d.]/', '', (string) $v);
         $lines = array_values(array_map(fn ($l) => [
@@ -132,7 +127,7 @@ final class RoznamchaOcr
             'narration' => mb_substr((string) ($l['narration'] ?? ''), 0, 300), 'reference' => mb_substr((string) ($l['reference'] ?? ''), 0, 80),
         ], array_filter((array) ($json['lines'] ?? []), 'is_array')));
 
-        return ['engine' => 'claude', 'text' => (string) ($json['text'] ?? ''), 'lines' => array_slice($lines, 0, self::MAX_LINES), 'error' => null,
+        return ['engine' => $engine, 'text' => (string) ($json['text'] ?? ''), 'lines' => array_slice($lines, 0, self::MAX_LINES), 'error' => null,
             'date' => is_string($json['date'] ?? null) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $json['date']) === 1 ? $json['date'] : null];
     }
 }

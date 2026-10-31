@@ -8,6 +8,8 @@ use App\Domain\Assistant\Assistant;
 use App\Domain\Assistant\Tools\NewFormTool;
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Documents\PdfRenderer;
+use App\Domain\Messaging\Integrations;
+use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Pages\AssistantPage;
 use App\Filament\Resources\Masters\PartyResource\Pages\CreateParty;
 use App\Models\Accounts\Expense;
@@ -23,6 +25,7 @@ use Filament\Facades\Filament;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 use Tests\Support\Make;
@@ -111,6 +114,38 @@ describe('command mode (offline)', function () {
         expect($this->bot->ask($gate, 'profit this month')->table['rows'] ?? [])->not->toContain(fn ($r) => str_starts_with((string) ($r[0] ?? ''), 'Net '));
         // A change the role may not make is refused even when sent directly.
         expect($this->bot->confirm($gate, ['tool' => 'record_expense', 'input' => ['category' => 'meals', 'amount' => 5, 'description' => 'x']])->text)->toContain('not available');
+    });
+});
+
+describe('AI mode (any provider: OpenRouter)', function () {
+    it('saves an OpenRouter key and model, then calls tools through the OpenAI format and answers', function () {
+        Storage::fake('local');
+        botAs($this, $this->admin);
+        Http::fakeSequence('openrouter.ai/*')
+            ->push(['choices' => [['message' => ['role' => 'assistant', 'content' => 'OK'], 'finish_reason' => 'stop']]])   // the key check
+            ->push(['choices' => [['message' => ['role' => 'assistant', 'content' => null, 'tool_calls' => [
+                ['id' => 'call_1', 'type' => 'function', 'function' => ['name' => 'vehicles_inside', 'arguments' => '{}']],
+            ]], 'finish_reason' => 'tool_calls']]])
+            ->push(['choices' => [['message' => ['role' => 'assistant', 'content' => 'Teen gaariyan andar hain.'], 'finish_reason' => 'stop']]]);
+        Integrations::saveAi($this->entity->id, ['provider' => 'openrouter', 'api_key' => 'sk-or-v1-'.str_repeat('a', 40), 'model' => 'openai/gpt-5']);
+
+        $reply = $this->bot->ask($this->admin, 'kitni gaariyan andar hain?');
+
+        expect($reply->text)->toBe('Teen gaariyan andar hain.')->and($reply->table['rows'])->toHaveCount(3);
+        Http::assertSent(fn (Request $r) => $r->url() === 'https://openrouter.ai/api/v1/chat/completions' && $r->hasHeader('Authorization', 'Bearer sk-or-v1-'.str_repeat('a', 40))
+            && $r['model'] === 'openai/gpt-5' && ($r['tools'][0]['type'] ?? null) === 'function' && $r['messages'][0]['role'] === 'system');
+        // The tool's answer goes back as a "tool" message after the call.
+        Http::assertSent(fn (Request $r) => collect($r['messages'])->contains(fn ($m) => $m['role'] === 'tool' && $m['tool_call_id'] === 'call_1' && str_contains($m['content'], 'vehicle(s) inside'))
+            && collect($r['messages'])->contains(fn ($m) => $m['role'] === 'assistant' && ($m['tool_calls'][0]['function']['name'] ?? null) === 'vehicles_inside'));
+    });
+
+    it('refuses a custom service that is not https, and an Anthropic key that is not one', function () {
+        Storage::fake('local');
+        botAs($this, $this->admin);
+        expect(fn () => Integrations::saveAi($this->entity->id, ['provider' => 'custom', 'base_url' => 'http://10.0.0.5:11434/v1', 'api_key' => str_repeat('k', 20), 'model' => 'llama3']))
+            ->toThrow(BusinessRuleViolation::class, 'https')
+            ->and(fn () => Integrations::saveAi($this->entity->id, ['provider' => 'anthropic', 'api_key' => 'sk-or-v1-'.str_repeat('a', 40), 'model' => 'claude-sonnet-5-5']))
+            ->toThrow(BusinessRuleViolation::class, 'sk-ant-');
     });
 });
 
