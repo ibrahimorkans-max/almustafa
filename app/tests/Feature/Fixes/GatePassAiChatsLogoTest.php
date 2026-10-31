@@ -101,7 +101,7 @@ it('saves an AI key only after Anthropic accepts it, never shows it, and the Ass
         ->push(['content' => [['type' => 'text', 'text' => 'OK']]], 200)]);
 
     Livewire::test(AiIntegrationPage::class)->assertSee('No key')
-        ->callAction('saveKey', ['api_key' => $key, 'model' => 'claude-sonnet-5-5'])->assertNotified('Anthropic refused the key (wrong, or deleted). Copy it again from console.anthropic.com.');
+        ->callAction('saveKey', ['api_key' => $key, 'model' => 'claude-sonnet-5-5'])->assertNotified('The provider refused the key (wrong, or deleted). Copy it again from console.anthropic.com → API keys (starts with sk-ant-).');
     expect(Integrations::aiSaved($this->f->entity->id))->toBeNull();
 
     Livewire::test(AiIntegrationPage::class)

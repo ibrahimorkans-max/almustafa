@@ -6,6 +6,7 @@ use App\Domain\Accounts\ChartOfAccounts;
 use App\Domain\Accounts\Roznamcha;
 use App\Domain\Accounts\RoznamchaBudgets;
 use App\Domain\Auth\AuthContextBinder;
+use App\Domain\Messaging\Integrations;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\Accounts\RoznamchaResource\Pages\ListRoznamchaPages;
 use App\Models\Accounts\LedgerAccount;
@@ -74,6 +75,22 @@ it('reads the complete phone photo with the AI and saves every entry, matched to
         ->and($lines[2]->party_id)->toBeNull()->and($lines[2]->ledger_account_id)->toBeNull()->and($lines[2]->account_text)->toBe('Mazdoori');
     Http::assertSent(fn (Request $r) => str_contains(json_encode($r->data()), 'COMPLETE page') && $r['max_tokens'] === 8000
         && $r['messages'][0]['content'][0]['type'] === 'image');
+});
+
+it('reads the photo through any OpenAI-compatible provider too (Gemini here), as an image part', function () {
+    $this->f->as($this->f->owner);
+    Http::fakeSequence('generativelanguage.googleapis.com/*')
+        ->push(['choices' => [['message' => ['content' => 'OK'], 'finish_reason' => 'stop']]])
+        ->push(['choices' => [['message' => ['content' => '```json'."\n".json_encode(['text' => 'Banam Diesel 3,500', 'lines' => [
+            ['account' => 'Diesel', 'credit' => '', 'debit' => '3,500', 'narration' => '', 'reference' => ''],
+        ]])."\n```"], 'finish_reason' => 'stop']]]);
+    Integrations::saveAi($this->f->entity->id, ['provider' => 'gemini', 'api_key' => 'AIza'.str_repeat('x', 35), 'model' => 'gemini-2.5-flash']);
+
+    $page = app(Roznamcha::class)->record($this->today, 'camera', rzbPhoto());
+
+    expect($page->ocr_engine)->toBe('ai')->and($page->lines()->sole()->debit_paise)->toBe(350_000);
+    Http::assertSent(fn (Request $r) => str_ends_with($r->url(), '/v1beta/openai/chat/completions') && $r['model'] === 'gemini-2.5-flash'
+        && ($r['messages'][0]['content'][0]['type'] ?? null) === 'image_url' && str_starts_with($r['messages'][0]['content'][0]['image_url']['url'], 'data:image/jpeg;base64,'));
 });
 
 it('posts a page over the day\'s budget only with the reason, and shows what is left', function () {

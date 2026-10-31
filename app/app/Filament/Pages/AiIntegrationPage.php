@@ -12,6 +12,8 @@ use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 
@@ -63,16 +65,14 @@ class AiIntegrationPage extends Page
         $scope = $this->scope();
         $effective = Integrations::ai($scope === 'platform' ? null : $scope);
         $own = $scope === null ? null : Integrations::aiSaved($scope);
-        if ($scope === 'platform') {
-            $effective = $own !== null ? ['source' => 'product', 'model' => $own['model']] + $effective : $effective;
-        }
 
         return [
             'scope' => $scope, 'own' => $own,
             'source' => $effective['source'], 'model' => $effective['model'],
-            'model_label' => Integrations::AI_MODELS[$effective['model']] ?? $effective['model'],
+            'provider' => Integrations::AI_PROVIDERS[$effective['provider']]['name'] ?? $effective['provider'],
+            'model_label' => $effective['model'],
             'enabled' => (bool) config('ricemill.assistant.enabled'),
-            'ocr_ai' => config('ricemill.ocr.engine') === 'claude',
+            'ocr_ai' => in_array(config('ricemill.ocr.engine'), ['claude', 'auto'], true),
         ];
     }
 
@@ -83,14 +83,22 @@ class AiIntegrationPage extends Page
         return [
             Action::make('saveKey')->label(fn () => $own() ? 'Change key or model' : 'Add API key')->icon('heroicon-o-key')
                 ->visible(fn () => $this->scope() !== null)
-                ->modalHeading('Anthropic API key')
-                ->modalDescription('From console.anthropic.com → API keys → Create key (it starts with "sk-ant-"). It is checked with Anthropic before it is saved, kept encrypted, and never shown again.')
-                ->fillForm(fn () => ['model' => $own()['model'] ?? 'claude-sonnet-5-5'])
+                ->modalHeading('AI provider and API key')
+                ->modalDescription('Any provider: Anthropic, OpenRouter (many models with one key), OpenAI, Google Gemini, Groq, DeepSeek, Mistral, or another OpenAI-compatible service. The key is checked with the provider before it is saved, kept encrypted, and never shown again.')
+                ->fillForm(fn () => ['provider' => $own()['provider'] ?? 'anthropic', 'model' => $own()['model'] ?? 'claude-sonnet-5-5', 'base_url' => $own()['base_url'] ?? ''])
                 ->form([
+                    Select::make('provider')->label('Provider')->required()->native(false)->live()
+                        ->options(array_map(fn (array $p) => $p['name'], Integrations::AI_PROVIDERS))
+                        ->afterStateUpdated(fn (?string $state, Set $set) => $set('model', Integrations::AI_PROVIDERS[$state ?? 'anthropic']['model'] ?? '')),
+                    TextInput::make('base_url')->label('The service\'s address (OpenAI-compatible)')->placeholder('https://api.example.com/v1')
+                        ->visible(fn (Get $get) => $get('provider') === 'custom')->required(fn (Get $get) => $get('provider') === 'custom')->url()->maxLength(300),
+                    TextInput::make('model')->label('Model')->required()->maxLength(120)
+                        ->datalist(fn (Get $get) => Integrations::AI_PROVIDERS[$get('provider') ?? 'anthropic']['models'] ?? [])
+                        ->helperText('Pick a suggestion or type any model the provider offers. To read roznamcha photos, choose one that reads pictures.'),
                     TextInput::make('api_key')->label('API key')->password()->revealable(false)->autocomplete('off')
-                        ->placeholder(fn () => $own() ? 'Saved (…'.$own()['key_end'].'): leave empty to keep it' : 'sk-ant-…')
-                        ->required(fn () => $own() === null),
-                    Select::make('model')->label('Model')->options(Integrations::AI_MODELS)->required()->native(false),
+                        ->placeholder(fn (Get $get) => $own() && ($own()['provider'] ?? null) === $get('provider') ? 'Saved (…'.$own()['key_end'].'): leave empty to keep it' : 'Paste the key')
+                        ->helperText(fn (Get $get) => 'From '.(Integrations::AI_PROVIDERS[$get('provider') ?? 'anthropic']['keys'] ?? 'the provider').'.')
+                        ->required(fn (Get $get) => $own() === null || ($own()['provider'] ?? null) !== $get('provider')),
                 ])
                 ->action(function (array $data): void {
                     try {
@@ -108,13 +116,13 @@ class AiIntegrationPage extends Page
                     $scope = $this->scope();
                     $ai = Integrations::ai($scope === 'platform' ? null : $scope);
                     try {
-                        Integrations::checkAi($ai['api_key'], $ai['model']);
+                        Integrations::checkAi($ai);
                     } catch (BusinessRuleViolation $e) {
                         Notification::make()->danger()->title($e->getMessage())->persistent()->send();
 
                         return;
                     }
-                    Notification::make()->success()->title('Connected: Anthropic answered.')->send();
+                    Notification::make()->success()->title('Connected: '.(Integrations::AI_PROVIDERS[$ai['provider']]['name'] ?? $ai['provider']).' answered ('.$ai['model'].').')->send();
                 }),
             Action::make('removeKey')->label('Remove the key')->icon('heroicon-o-trash')->color('danger')
                 ->visible(fn () => $own() !== null)
