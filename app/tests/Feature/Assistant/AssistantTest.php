@@ -196,13 +196,15 @@ describe('AI mode (Claude)', function () {
 it('chats on the Assistant screen with Confirm and Cancel', function () {
     botAs($this, $this->admin);
 
-    Livewire::test(AssistantPage::class)->assertSee('Type a command')
+    Livewire::test(AssistantPage::class)->assertSee('How can I help you today?')
         ->set('message', 'vehicles inside')->call('send')->assertSee('3 vehicle(s) inside')
         ->set('message', 'arrived MNA-23-7777')->call('send')->assertSee('Register the arrival of MNA237777')
         ->call('cancel', 4)->assertSee('Cancelled. Nothing was changed.');
     expect(GateEntry::query()->where('registration_no', 'MNA237777')->exists())->toBeFalse();
 
-    Livewire::test(AssistantPage::class)->set('message', 'arrived MNA-23-7777')->call('send')->call('confirm', 2)->assertSee('Arrival registered');
+    // The conversation carries on from screen to screen; "New chat" starts again.
+    Livewire::test(AssistantPage::class)->assertSee('Cancelled. Nothing was changed.')->call('clearChat')
+        ->set('message', 'arrived MNA-23-7777')->call('send')->call('confirm', 2)->assertSee('Arrival registered');
     expect(GateEntry::query()->where('registration_no', 'MNA237777')->exists())->toBeTrue();
 });
 

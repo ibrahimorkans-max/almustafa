@@ -73,7 +73,7 @@ it('reads the complete phone photo with the AI and saves every entry, matched to
     expect($lines[0]->party_id)->toBe($seller->id)->and($lines[0]->credit_paise)->toBe(2_500_000)
         ->and($lines[1]->ledger_account_id)->toBe($diesel->id)->and($lines[1]->debit_paise)->toBe(350_000)->and($lines[1]->reference)->toBe('B-17')
         ->and($lines[2]->party_id)->toBeNull()->and($lines[2]->ledger_account_id)->toBeNull()->and($lines[2]->account_text)->toBe('Mazdoori');
-    Http::assertSent(fn (Request $r) => str_contains(json_encode($r->data()), 'COMPLETE page') && $r['max_tokens'] === 8000
+    Http::assertSent(fn (Request $r) => str_contains(json_encode($r->data()), 'COMPLETE page') && $r['max_tokens'] === 12000
         && $r['messages'][0]['content'][0]['type'] === 'image');
 });
 

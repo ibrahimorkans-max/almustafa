@@ -14,6 +14,8 @@ it('shows the sidebar in the order the business works, daily work before set-up'
     app(AuthContextBinder::class)->bind($admin);
 
     $html = $this->get('/admin')->assertOk()->getContent();
+    // The sidebar only: the floating chat's feature buttons (Live weight, Stock…) come after it.
+    $html = substr($html, 0, strpos($html, 'mnx-assistant') ?: strlen($html));
     $positions = function (array $labels) use ($html): array {
         return array_map(function (string $label) use ($html): int {
             $at = strpos($html, '>'.$label.'<') ?: strpos($html, $label);

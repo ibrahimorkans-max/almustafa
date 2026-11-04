@@ -14,6 +14,7 @@ use App\Models\Accounts\LedgerAccount;
 use App\Models\Accounts\RoznamchaLine;
 use App\Models\Accounts\RoznamchaPage;
 use App\Models\Masters\Party;
+use App\Support\Values\UrduDigits;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -77,11 +78,17 @@ final class Roznamcha
                 if (($debit > 0) === ($credit > 0)) {
                     continue;
                 }
-                [$partyId, $accountId] = $this->match($l['account']);
+                [$partyId, $accountId] = [null, null];
+                foreach (array_unique(array_filter([$l['match'] ?? '', $l['account_en'] ?? '', $l['account']])) as $name) {
+                    [$partyId, $accountId] = $this->match((string) $name);
+                    if ($partyId !== null || $accountId !== null) {
+                        break;
+                    }
+                }
                 RoznamchaLine::query()->create([
                     'roznamcha_page_id' => $page->id, 'position' => ++$position,
                     'party_id' => $partyId, 'ledger_account_id' => $accountId,
-                    'account_text' => $l['account'] ?: null, 'debit_paise' => $debit, 'credit_paise' => $credit,
+                    'account_text' => ($l['account'] ?: ($l['account_en'] ?? '')) ?: null, 'debit_paise' => $debit, 'credit_paise' => $credit,
                     'narration' => $l['narration'] ?: null, 'reference' => $l['reference'] ?: null,
                 ]);
             }
@@ -247,7 +254,7 @@ final class Roznamcha
     /** "1,25,000.50" → 12500050; empty → 0. */
     private static function paise(string $rupees): int
     {
-        $clean = str_replace([',', ' '], '', trim($rupees));
+        $clean = str_replace([',', ' '], '', trim(UrduDigits::toLatin($rupees)));
         if ($clean === '') {
             return 0;
         }
