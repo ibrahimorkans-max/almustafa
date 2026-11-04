@@ -52,6 +52,49 @@ then opens like an app.
 
 **Paper selector** (printer icon in the top bar). Chooses the paper this computer prints on. See section 12.
 
+**Chat button** (round button at the bottom right of every screen). Opens the Assistant in a small window, so
+you can ask or give an instruction without leaving the screen; *Full screen* opens the Assistant page. Both
+have three tabs:
+
+- **Chat.** Today's chat. It opens with "Hi there, how can I help you today?" and **every feature as a button**
+  under it: one that adds a record gives its blanks to fill (*Add new party*, *Lab test*…), one that asks
+  shows the answer at once (*Vehicles inside*, *Stock*…), and one that changes something puts an example in
+  the box to finish. It carries on from screen to screen; *New chat* starts another one.
+- **Lab test** (gate operator, lab technician, Lab Supervisor): the vehicles waiting for the lab are listed, then
+  a form with one line per lab test of the mill (*Moisture / نمی (%)*, *Broken / ٹوٹا ہوا دانہ (%)*…) and the
+  *Decision* (accept / reject / later). Before Confirm each result shows ✓ within standard, ⚠ within grace or
+  ✗ above grace, with the verdict. Above grace the lot is rejected automatically. Only someone who may decide
+  can accept or reject; otherwise it waits for the Lab Supervisor. Typed: `lab MNA-21-1234 moisture 14 broken 3`.
+- **Features.** Everything the Assistant can do for you, grouped (Add records quickly, Gate and weighing,
+  Business and stock, Approvals, Any screen…). Each feature says what it does, with examples: press one to put
+  it in the box. *Fill the blanks* starts its quick button; **Confirm** marks a feature that changes data. At
+  the end: every screen you may open.
+- **History.** Your chats day by day (Today, Yesterday, then the date) for the last 90 days, with the first
+  question, the time and the number of messages. Open one to read it and **carry on** with it; it stays under
+  its own day. Only you see your chats. A change shown on an earlier day cannot be confirmed later: ask again.
+
+- **Quick buttons** under the conversation: *Add new party*, *Vehicle arrived*, *New sauda*, *Add expense*,
+  *Pay a party*, *Daily wages* (only those your role allows).
+- Pressing one first shows **what is needed before you start**: ✓ ready (e.g. "12 sellers ready"),
+  ✗ missing, with a link to add it, and • what to have at hand. If anything is missing, add it first.
+- Then a short message with **blanks** (`____`) appears in the box, the first blank selected. Type over it,
+  press **Tab** for the next blank, and press **Send** (or Ctrl+Enter). Leave *(optional)* blanks empty if
+  not known; numbers may be typed in Urdu digits.
+- **Choices for each blank.** Above the box, the data that fits the line the cursor is on shows as buttons: the
+  vehicles waiting for the lab (by token), vehicle numbers, party names, with jack / without jack, paddy
+  varieties, open saudas (with the seller), sellers, paddy, expense names, payment modes, kinds of work, labour
+  groups, accept / reject / later. Press one and it is written in the blank, and the next blank is selected.
+  Typing part of a name narrows the list.
+- **Vehicle arrived** asks for the vehicle number, the party name, the type (with jack / without jack, printed
+  on the token), the item (paddy variety), and optionally the sauda and the bags. A party name that is not a
+  registered party is kept as typed, as on the gate's own form.
+- The Assistant shows what it will do. Nothing is saved until you press **Confirm**. It works without an AI
+  key too.
+
+**Before a new record.** The "new" form of a party, sauda, sales sauda, dispatch order, vehicle at the gate,
+payment, expense, daily wages, advance, requisition, production batch, employee and roznamcha page shows a box
+at the top: what must exist first (with a link to add it) and what to have at hand.
+
 ---
 
 ## 2. Masters and codes
@@ -211,7 +254,12 @@ The text is read (OCR) and the lines are matched to parties. Check each line bef
 - **Reading the whole photo.** With an AI key saved (Administration → AI assistant), the page is read by the
   AI: the complete page, both the *jama* (received) and *banam* (paid) sides, handwriting and Urdu, up to 200
   entries, each with what it was for and any bill or slip number. Headings, totals and balances are left out.
-  Without a key, the server's reader handles printed English only.
+  Without a key, the server's reader handles printed English (and printed Urdu when the server has the Urdu
+  language data installed).
+- **Urdu pages.** Names and notes stay in Urdu as written, and are shown right to left. Each Urdu name is
+  matched to the mill's own party or account (e.g. حاجی اسلم to "Haji Aslam"), as the AI is given the mill's
+  names. Urdu digits (۱۵,۰۰۰) and the words جمع (received) and بنام (paid) are understood. Amounts may also be
+  typed in Urdu digits when correcting a line. Very long pages keep every entry read in full.
 - Every entry is saved on the page. Each name is matched to its **party** (by name or code, or the only party
   whose name contains it) or to an **account** such as Diesel or Bijli. The message after saving says how many
   entries were read and how many still need their party or account (*Correct entries*).

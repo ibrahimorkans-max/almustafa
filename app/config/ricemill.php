@@ -269,7 +269,7 @@ return [
         // auto: the AI reader when an AI key is saved (Administration → AI assistant), else tesseract.
         'engine' => env('RICEMILL_OCR_ENGINE', 'auto'),
         'tesseract_path' => env('TESSERACT_PATH', 'tesseract'),
-        'lang' => env('RICEMILL_OCR_LANG', 'eng'),
+        'lang' => env('RICEMILL_OCR_LANG', 'auto'),
     ],
 
     'live_weight' => [

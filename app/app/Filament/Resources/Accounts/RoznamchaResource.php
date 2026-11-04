@@ -128,10 +128,11 @@ class RoznamchaResource extends Resource
                         ->options(fn () => Party::query()->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
                     Select::make('ledger_account_id')->label('or account')->searchable()->columnSpan(2)
                         ->options(fn () => LedgerAccount::query()->whereNotIn('kind', ['cash', 'bank', 'party'])->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
-                    TextInput::make('credit')->label('Received (jama)')->regex('/^[\d,]{1,16}(\.\d{1,2})?$/'),
-                    TextInput::make('debit')->label('Paid (banam)')->regex('/^[\d,]{1,16}(\.\d{1,2})?$/'),
-                    TextInput::make('account_text')->label('As written')->columnSpan(2)->maxLength(160),
-                    TextInput::make('narration')->columnSpan(3)->maxLength(300),
+                    // Urdu digits (۱۵,۰۰۰) are taken too.
+                    TextInput::make('credit')->label('Received (jama)')->regex('/^[\d۰-۹٠-٩,٬]{1,16}([.٫][\d۰-۹٠-٩]{1,2})?$/u'),
+                    TextInput::make('debit')->label('Paid (banam)')->regex('/^[\d۰-۹٠-٩,٬]{1,16}([.٫][\d۰-۹٠-٩]{1,2})?$/u'),
+                    TextInput::make('account_text')->label('As written')->columnSpan(2)->maxLength(160)->extraInputAttributes(['dir' => 'auto', 'style' => "font-family: 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Urdu Typesetting', 'Noto Sans Arabic', Tahoma, inherit;"]),
+                    TextInput::make('narration')->columnSpan(3)->maxLength(300)->extraInputAttributes(['dir' => 'auto', 'style' => "font-family: 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Urdu Typesetting', 'Noto Sans Arabic', Tahoma, inherit;"]),
                     TextInput::make('reference')->maxLength(80),
                 ]),
         ];
@@ -216,7 +217,7 @@ class RoznamchaResource extends Resource
                 ]),
             ]),
             Section::make('Text read from the scan')->collapsed()->schema([
-                TextEntry::make('ocr_text')->hiddenLabel()->placeholder('Nothing read.')->extraAttributes(['class' => 'whitespace-pre-line text-sm']),
+                TextEntry::make('ocr_text')->hiddenLabel()->placeholder('Nothing read.')->extraAttributes(['class' => 'whitespace-pre-line text-sm'] + ['dir' => 'auto', 'style' => "font-family: 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Urdu Typesetting', 'Noto Sans Arabic', Tahoma, inherit;"]),
             ]),
         ]);
     }

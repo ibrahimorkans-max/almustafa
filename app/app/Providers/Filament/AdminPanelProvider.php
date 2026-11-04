@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers\Filament;
 
+use App\Domain\Assistant\Prerequisites;
 use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\ChangePassword;
 use App\Filament\Pages\Dashboard;
@@ -107,6 +108,11 @@ class AdminPanelProvider extends PanelProvider
             ])
             // Passkeys on the sign-in page and "My passkeys"; the browser's position once after sign-in.
             ->renderHook(PanelsRenderHook::BODY_END, fn () => view('filament.hooks.security-scripts'))
+            // The floating chat button (assistant and quick buttons) on every screen.
+            ->renderHook(PanelsRenderHook::BODY_END, fn () => view('filament.hooks.assistant-chat'))
+            // What must exist before a new record, at the top of its "new" form.
+            ->renderHook(PanelsRenderHook::PAGE_START, fn (array $scopes = []) => isset(Prerequisites::PAGES[$scopes[0] ?? ''])
+                ? view('filament.hooks.prerequisites', ['record' => Prerequisites::PAGES[$scopes[0]]]) : '', scopes: array_keys(Prerequisites::PAGES))
             // "Print" on every list and record screen (answered by App\Livewire\PrintScreenHook).
             ->renderHook(PanelsRenderHook::PAGE_HEADER_ACTIONS_BEFORE, fn (array $scopes = []) => PrintScreenHook::supports((string) ($scopes[0] ?? ''))
                 ? view('filament.hooks.print-button', ['pageClass' => (string) ($scopes[0] ?? '')]) : '')
