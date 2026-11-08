@@ -13,11 +13,11 @@ use App\Models\LoginAccount;
 
 /**
  * One of a vehicle's two weights typed by hand — e.g. the empty weight known from another weighbridge's
- * slip — while the other comes from this weighbridge's computer. Only with `weighment.manual`
+ * slip — while the other comes from this weighbridge's computer (or both, when the Owner allows it: Gate →
+ * Manual weighing). Only for the people the Owner ticked there, else those with `weighment.manual`
  * (Supervisor, Super Admin, Owner), always with a reason; the other weighbridge's slip can be uploaded
  * as evidence (kept, fingerprinted, attached to the vehicle). No approval is needed: the weight counts at
- * once, is flagged "typed by hand" everywhere and goes to the weight checks. At most one of the two
- * weights may be typed.
+ * once, is flagged "typed by hand" everywhere and goes to the weight checks.
  */
 final class ManualWeight
 {
@@ -30,7 +30,10 @@ final class ManualWeight
     public function record(GateEntry $entry, string $kind, string $weightKg, string $reason, ?string $evidenceBytes = null): Weighment
     {
         $me = $this->actor->account();
-        if (! $me instanceof LoginAccount || ! $me->hasPermission('weighment.manual')) {
+        if (! ManualWeighing::enabled($entry->entity_id)) {
+            throw new BusinessRuleViolation('Weights cannot be typed by hand in this mill: they come from the weighbridge.');
+        }
+        if (! ManualWeighing::allowed($me instanceof LoginAccount ? $me : null)) {
             throw new BusinessRuleViolation('You may not type a weight by hand.');
         }
         if (! in_array($kind, [Weighment::GROSS, Weighment::TARE], true)) {
@@ -45,7 +48,7 @@ final class ManualWeight
         }
         $other = $kind === Weighment::GROSS ? Weighment::TARE : Weighment::GROSS;
         $otherWeight = self::current($entry, $other);
-        if ($otherWeight !== null && $otherWeight->source === Weighment::SOURCE_MANUAL) {
+        if ($otherWeight !== null && $otherWeight->source === Weighment::SOURCE_MANUAL && ! ManualWeighing::bothAllowed($entry->entity_id)) {
             throw new BusinessRuleViolation('The '.self::label($entry, $other).' was typed by hand, so this one must come from the weighbridge.');
         }
 

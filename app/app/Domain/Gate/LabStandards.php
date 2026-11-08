@@ -67,11 +67,13 @@ final class LabStandards
             $out[] = [
                 'code' => $code, 'name' => $p->name_en, 'name_ur' => $p->name_ur, 'unit' => $p->unit,
                 'value_bp' => $value, 'standard_bp' => $p->standard_bp, 'grace_bp' => $p->grace_bp,
+                // Above the grace or the maximum: rejected; below the minimum or above standard (beyond its tolerance): grace.
                 'verdict' => match (true) {
-                    $value > $p->grace_bp => self::OVER,
-                    $value > $p->standard_bp => self::GRACE,
+                    $value > $p->grace_bp, $p->max_bp !== null && $value > $p->max_bp => self::OVER,
+                    $value > $p->standard_bp + (int) $p->tolerance_bp, $p->min_bp !== null && $value < $p->min_bp => self::GRACE,
                     default => self::OK,
                 },
+                'needs_approval' => (bool) $p->needs_approval, 'affects_weight' => (bool) ($p->affects_weight ?? true),
             ];
         }
 

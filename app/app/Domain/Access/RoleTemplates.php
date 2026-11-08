@@ -53,6 +53,9 @@ final class RoleTemplates
     /** Only the Archive screen: view archived records by period and restore them. */
     public const OFFICE_COORDINATOR = 'OFFICE_COORDINATOR';
 
+    /** Sees the screens and reports, changes nothing. */
+    public const REPORT_VIEWER = 'REPORT_VIEWER';
+
     /**
      * @return array<string, array{name: string, global: bool, mfa_required: bool, session_max_minutes: int, permissions: list<string>}>
      */
@@ -221,6 +224,17 @@ final class RoleTemplates
                 'mfa_required' => true,
                 'session_max_minutes' => 240,
                 'permissions' => ['office.view', 'office.restore'],
+            ],
+            self::REPORT_VIEWER => [
+                'name' => 'Report Viewer',
+                'global' => false,
+                'mfa_required' => false,
+                'session_max_minutes' => 480,
+                // Every "view" right of the mill's records and its reports; none that changes anything, opens security screens
+                // or shows confidential figures (margins and every permission the catalog marks sensitive).
+                'permissions' => array_values(array_filter($all, fn (string $c) => (str_ends_with($c, '.view') || in_array($c, ['report.export', 'report.tax', 'usage.view'], true))
+                    && ! in_array($c, ['session.view_all', 'audit.view', 'user.view', 'role.view', 'device.view', 'office.view', 'entity.view', 'pricing.margin.view'], true)
+                    && ! in_array($c, array_column(array_filter(PermissionCatalog::rows(), fn (array $r) => $r['is_sensitive']), 'code'), true))),
             ],
         ];
 

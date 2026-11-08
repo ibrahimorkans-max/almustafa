@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Auth\AuthContextBinder;
+use App\Domain\Gate\GatePolicy;
 use App\Domain\Gate\GateService;
 use App\Domain\Gate\LiveCapture;
 use App\Domain\Gate\LiveWeight;
@@ -28,6 +29,8 @@ use Tests\Support\Make;
 
 beforeEach(function () {
     $this->f = new GateFixtures(Make::entity('LWC'));
+    // These tests cover the lab-first policy (the lab accepts a lot before it is weighed).
+    Make::system(fn () => GatePolicy::set(false, $this->f->entity->id));
     $this->sauda = $this->f->confirmedSauda('100000');
     $this->operator = Make::account($this->f->entity, 'GATE_OPERATOR');
     $this->f->as($this->operator);
@@ -217,8 +220,8 @@ it('shows the readings of an Owner working across all firms', function () {
 });
 
 it('counts the gross and tare an inbound and an outbound vehicle need', function () {
-    $in = (new GateEntry)->forceFill(['direction' => 'inbound']);
-    $out = (new GateEntry)->forceFill(['direction' => 'outbound']);
+    $in = (new GateEntry)->forceFill(['direction' => 'inbound', 'entity_id' => $this->f->entity->id]);
+    $out = (new GateEntry)->forceFill(['direction' => 'outbound', 'entity_id' => $this->f->entity->id]);
 
     expect(LiveCapture::nextKind(tap($in, fn ($e) => $e->status = 'arrived')))->toBeNull() // waits for the lab first
         ->and(LiveCapture::nextKind(tap(clone $in, fn ($e) => $e->status = 'lab_accepted')))->toBe('gross')

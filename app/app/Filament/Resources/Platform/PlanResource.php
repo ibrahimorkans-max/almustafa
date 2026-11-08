@@ -79,6 +79,8 @@ class PlanResource extends Resource
                 TextInput::make('name')->required()->maxLength(80),
                 TextInput::make('price')->label('Price a month (Rs)')->required()->regex(Units::DECIMAL_2)
                     ->afterStateHydrated(fn (TextInput $component, ?Plan $record) => $component->state($record ? number_format($record->price_paise_monthly / 100, 2, '.', '') : null)),
+                TextInput::make('lifetime_price')->label('Lifetime price, paid once (Rs)')->regex(Units::DECIMAL_2)->helperText('Empty: lifetime access is not offered on this plan.')
+                    ->afterStateHydrated(fn (TextInput $component, ?Plan $record) => $component->state($record?->price_paise_lifetime ? number_format($record->price_paise_lifetime / 100, 2, '.', '') : null)),
                 Textarea::make('description')->maxLength(500)->columnSpanFull(),
                 TextInput::make('sort')->label('Order')->integer()->default(100),
                 Toggle::make('active')->label('Offered to customers')->default(true),
@@ -104,7 +106,8 @@ class PlanResource extends Resource
     public static function prices(array $data): array
     {
         $data['price_paise_monthly'] = Units::rupeesToPaise((string) ($data['price'] ?? '0'));
-        unset($data['price']);
+        $data['price_paise_lifetime'] = filled($data['lifetime_price'] ?? null) ? Units::rupeesToPaise((string) $data['lifetime_price']) : null;
+        unset($data['price'], $data['lifetime_price']);
 
         return $data;
     }
@@ -116,6 +119,7 @@ class PlanResource extends Resource
             ->columns([
                 TextColumn::make('name')->description(fn (Plan $r) => $r->code)->searchable(),
                 TextColumn::make('price_paise_monthly')->label('Price / month')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
+                TextColumn::make('price_paise_lifetime')->label('Lifetime (once)')->placeholder('Not offered')->formatStateUsing(fn (?int $state) => $state ? Units::paiseToRupees($state) : null),
                 TextColumn::make('max_mills')->label('Mills')->placeholder('Unlimited'),
                 TextColumn::make('max_users')->label('Users')->placeholder('Unlimited'),
                 TextColumn::make('max_vehicles_month')->label('Vehicles / month')->placeholder('Unlimited'),

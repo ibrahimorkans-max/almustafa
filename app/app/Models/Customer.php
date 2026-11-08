@@ -29,6 +29,9 @@ use Illuminate\Support\Carbon;
  * @property string|null $email
  * @property string|null $address
  * @property string|null $notes
+ * @property string|null $alias the product owner's own name for the account (platform screens only)
+ * @property bool $payment_page sees "My subscription" when it is shown to selected customers only
+ * @property int|null $lifetime_paid_paise paid once for lifetime access
  * @property Carbon $created_at
  */
 class Customer extends Model
@@ -46,11 +49,11 @@ class Customer extends Model
 
     public const CANCELLED = 'cancelled';
 
-    protected $fillable = ['code', 'name', 'status', 'plan_id', 'trial_ends_at', 'lifetime', 'lifetime_since', 'source', 'contact_name', 'phone', 'email', 'address', 'notes'];
+    protected $fillable = ['code', 'name', 'status', 'plan_id', 'trial_ends_at', 'lifetime', 'lifetime_since', 'source', 'contact_name', 'phone', 'email', 'address', 'notes', 'alias', 'payment_page', 'lifetime_paid_paise'];
 
     protected function casts(): array
     {
-        return ['trial_ends_at' => 'datetime', 'lifetime' => 'boolean', 'lifetime_since' => 'datetime', 'bank_email_enabled' => 'boolean'];
+        return ['trial_ends_at' => 'datetime', 'lifetime' => 'boolean', 'lifetime_since' => 'datetime', 'bank_email_enabled' => 'boolean', 'payment_page' => 'boolean', 'lifetime_paid_paise' => 'integer'];
     }
 
     /** @return HasMany<Entity, $this> */

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Documents\PrintDelivery;
+use App\Support\Security\InputGuard;
 use Illuminate\Http\Response;
 
 /** GET /admin/print-job/{key}: a file waiting for the print dialog (PrintDelivery), shown inline in this site's own frame. */
@@ -16,7 +17,7 @@ final class PrintJobController
 
         return response($job['bytes'], 200, [
             'Content-Type' => $job['mime'],
-            'Content-Disposition' => 'inline; filename="'.str_replace('"', '', $job['name']).'"',
+            'Content-Disposition' => 'inline; filename="'.InputGuard::filename($job['name']).'"',
             'Cache-Control' => 'no-store, private',
             'X-Print-Frame' => '1',
         ]);

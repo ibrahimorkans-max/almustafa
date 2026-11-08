@@ -15,9 +15,12 @@
             <div class="text-right">
                 @if ($s['customer']->isLifetime())
                     <div class="text-xl font-semibold text-success-600 dark:text-success-400">Lifetime access</div>
-                    <div class="text-sm text-gray-500">No payments due, ever</div>
+                    <div class="text-sm text-gray-500">No payments due, ever{{ $s['customer']->lifetime_paid_paise ? ' · paid once: '.\App\Filament\Support\Units::paiseToRupees($s['customer']->lifetime_paid_paise) : '' }}</div>
                 @elseif ($plan)
                     <div class="text-xl font-semibold">{{ \App\Filament\Support\Units::paiseToRupees($plan->price_paise_monthly) }} <span class="text-sm font-normal text-gray-500">/ month</span></div>
+                    @if ($plan->price_paise_lifetime)
+                        <div class="text-sm text-gray-600 dark:text-gray-300">or <strong>{{ \App\Filament\Support\Units::paiseToRupees($plan->price_paise_lifetime) }}</strong> once, for lifetime access</div>
+                    @endif
                 @endif
                 <x-filament::badge :color="match ($s['customer']->status) { 'active' => 'success', 'trial' => 'info', 'past_due' => 'warning', default => 'danger' }">
                     {{ \App\Filament\Resources\Platform\CustomerResource::STATUSES[$s['customer']->status] ?? $s['customer']->status }}{{ $s['customer']->status === 'trial' && $s['customer']->trial_ends_at ? ' until '.$s['customer']->trial_ends_at->format('d M Y') : '' }}
@@ -70,6 +73,13 @@
             <x-slot name="heading">Invoices</x-slot>
             @include('filament.partials.invoice-table', ['invoices' => $this->invoices()])
         </x-filament::section>
+
+        @if ($plan?->price_paise_lifetime)
+            <x-filament::section>
+                <x-slot name="heading">Lifetime access</x-slot>
+                <p class="text-sm">Pay <strong>{{ \App\Filament\Support\Units::paiseToRupees($plan->price_paise_lifetime) }}</strong> once and use {{ $plan->name }} for good: no more monthly invoices. Pay with one of the ways below and tell us; your account is then given lifetime access.</p>
+            </x-filament::section>
+        @endif
 
         <x-filament::section>
             <x-slot name="heading">Ways to pay</x-slot>

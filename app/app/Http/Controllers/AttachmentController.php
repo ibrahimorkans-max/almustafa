@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Files\Attachments;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Attachment;
+use App\Support\Security\InputGuard;
 use Illuminate\Http\Response;
 
 /**
@@ -24,7 +25,7 @@ final class AttachmentController
             abort(403, $e->getMessage());
         }
 
-        return response($file['bytes'], 200, ['Content-Type' => $file['mime'], 'Content-Disposition' => 'inline; filename="'.$file['name'].'"',
+        return response($file['bytes'], 200, ['Content-Type' => $file['mime'], 'Content-Disposition' => 'inline; filename="'.InputGuard::filename($file['name']).'"',
             'X-Content-Type-Options' => 'nosniff']);
     }
 }

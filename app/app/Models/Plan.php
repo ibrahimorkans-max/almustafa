@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string|null $description
  * @property int $price_paise_monthly
+ * @property int|null $price_paise_lifetime one-time price for lifetime access (null: not offered)
  * @property int|null $max_mills
  * @property int|null $max_users
  * @property int|null $max_vehicles_month
@@ -30,7 +31,7 @@ class Plan extends Model
     use Auditable;
     use HasUuids;
 
-    protected $fillable = ['code', 'name', 'description', 'price_paise_monthly', 'max_mills', 'max_users', 'max_vehicles_month', 'modules', 'active', 'sort'];
+    protected $fillable = ['code', 'name', 'description', 'price_paise_monthly', 'price_paise_lifetime', 'max_mills', 'max_users', 'max_vehicles_month', 'modules', 'active', 'sort'];
 
     protected function casts(): array
     {

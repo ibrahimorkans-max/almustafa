@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Auth\AuthContextBinder;
+use App\Domain\Gate\GatePolicy;
 use App\Domain\Gate\GateService;
 use App\Filament\Pages\ConnectWeighbridge;
 use App\Filament\Resources\DeviceResource\Pages\ListDevices;
@@ -26,6 +27,8 @@ use Tests\Support\Make;
 
 beforeEach(function () {
     $this->f = new GateFixtures(Make::entity('ADM3'));
+    // These tests cover the lab-first policy (the lab accepts a lot before it is weighed).
+    Make::system(fn () => GatePolicy::set(false, $this->f->entity->id));
     Filament::setCurrentPanel(Filament::getPanel('admin'));
 });
 

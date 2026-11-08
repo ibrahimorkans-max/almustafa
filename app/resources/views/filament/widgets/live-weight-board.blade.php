@@ -35,27 +35,30 @@
                     </div>
                 @endif
 
-                <div class="flex flex-col items-center gap-6 md:flex-row md:items-start">
-                    {{-- The clock reads the weighbridge by itself in the browser (public/js/live-weight.js): no request
-                         redraws this widget, so the page never reloads while a vehicle is being weighed. --}}
-                    <div style="flex: 0 0 240px; width: 240px; max-width: 100%;" wire:ignore wire:key="dial-{{ $sid }}"
-                        data-live-weight="{{ route('filament.admin.gate.live-weight', ['scale' => $sid]) }}" data-capacity="{{ $s['capacity'] }}" data-name="{{ $s['name'] }}">
-                        @include('filament.widgets.partials.weight-dial', ['kg' => $s['kg'], 'capacity' => $s['capacity'], 'live' => $s['live'],
-                            'stable' => $s['stable'], 'code' => $s['code'], 'name' => $s['name'], 'age' => $s['age_seconds']])
+                <style>
+                    .mnx-wb3d-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 1rem; align-items: stretch; }
+                    .mnx-wb3d-stage { min-height: 600px; }
+                    @media (max-width: 1180px) { .mnx-wb3d-layout { grid-template-columns: 1fr; } .mnx-wb3d-stage { min-height: 460px; height: 460px; } }
+                </style>
+                <div class="mnx-wb3d-layout">
+                    {{-- The 3D weighbridge reads the weighbridge by itself in the browser: no request redraws it, so the page
+                         never reloads while a vehicle is being weighed, and typing in the form beside it is never interrupted. --}}
+                    <div class="mnx-wb3d-stage" wire:ignore wire:key="wb3d-{{ $sid }}">
+                        @include('filament.widgets.partials.weighbridge-3d', ['s' => $s])
                     </div>
-                    <div class="w-full min-w-0 flex-1">
+                    <div class="w-full min-w-0">
 
                         @if ($this->canRecord() || $this->canType())
                             <div class="space-y-3">
                                 <div class="grid gap-3 sm:grid-cols-2">
                                     <label class="block text-sm">
                                         <span class="mb-1 block text-xs font-medium text-gray-500">Vehicle number</span>
-                                        <input type="text" list="weigh-vehicles" wire:model.live.debounce.400ms="plate.{{ $sid }}" placeholder="MNA-21-1234"
+                                        <input type="text" list="weigh-vehicles" wire:model.blur="plate.{{ $sid }}" placeholder="MNA-21-1234"
                                             class="{{ $input }} font-mono uppercase" autocomplete="off">
                                     </label>
                                     <label class="block text-sm">
                                         <span class="mb-1 block text-xs font-medium text-gray-500">Party name</span>
-                                        <input type="text" list="weigh-parties" wire:model.live.debounce.500ms="party.{{ $sid }}" placeholder="Supplier or buyer"
+                                        <input type="text" list="weigh-parties" wire:model.blur="party.{{ $sid }}" placeholder="Supplier or buyer"
                                             class="{{ $input }}" autocomplete="off">
                                     </label>
                                     <label class="block text-sm">
@@ -69,7 +72,7 @@
                                     </label>
                                     <label class="block text-sm">
                                         <span class="mb-1 block text-xs font-medium text-gray-500">Item / goods (what it carries)</span>
-                                        <input type="text" list="weigh-items" wire:model.live.debounce.500ms="item.{{ $sid }}" placeholder="e.g. Paddy 1121, Rice, Husk 120 bags"
+                                        <input type="text" list="weigh-items" wire:model.blur="item.{{ $sid }}" placeholder="e.g. Paddy 1121, Rice, Husk 120 bags"
                                             class="{{ $input }}" autocomplete="off">
                                     </label>
                                 </div>
@@ -84,6 +87,16 @@
                                             ])>{{ $label }}</button>
                                     @endforeach
                                 </div>
+
+                                @php($modes = \App\Domain\Gate\WeighModes::options(app(\App\Domain\Tenancy\TenantContext::class)->entityId()))
+                                @if (($this->kind[$sid] ?? 'paddy') === 'paddy' && count($modes) > 1)
+                                    <label class="block text-sm"><span class="text-gray-600 dark:text-gray-300">Weighing mode</span>
+                                        <select wire:model.live="mode.{{ $sid }}" class="{{ $input }}">
+                                            <option value="">Mill default — {{ $modes[\App\Domain\Gate\WeighModes::defaultMode(app(\App\Domain\Tenancy\TenantContext::class)->entityId())] ?? '' }}</option>
+                                            @foreach ($modes as $m => $label)<option value="{{ $m }}">{{ $label }}</option>@endforeach
+                                        </select>
+                                    </label>
+                                @endif
 
                                 @php($st = $this->stepsFor($sid))
                                 @if ($st !== null)

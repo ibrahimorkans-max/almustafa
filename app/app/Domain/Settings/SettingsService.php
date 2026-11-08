@@ -82,6 +82,16 @@ final class SettingsService
         // The short message sent with a file on WhatsApp ('' = the standard one; App\Domain\Messaging\WhatsAppFiles).
         self::WHATSAPP_FILE_MESSAGE => ['default' => '', 'scope' => 'entity'],
         self::ROZNAMCHA_BUDGET => ['default' => '', 'scope' => 'entity'],
+        // Paddy is weighed before the lab (on) or after the lab accepted it (off): App\Domain\Gate\GatePolicy.
+        'gate.weigh_before_lab' => ['default' => 'on', 'allowed' => ['on', 'off'], 'scope' => 'entity'],
+        // The weighing mode new paddy vehicles start in, among those the SaaS owner switched on (App\Domain\Gate\WeighModes).
+        'gate.default_mode' => ['default' => '', 'allowed' => ['', 'lab_before_slip', 'no_lab', 'weigh_first_lab_later', 'lab_first'], 'scope' => 'entity'],
+        // Weights typed by hand (App\Domain\Gate\ManualWeighing): on/off, both weights or one, the people ticked (JSON list).
+        'gate.manual.enabled' => ['default' => 'on', 'allowed' => ['on', 'off'], 'scope' => 'entity'],
+        'gate.manual.both' => ['default' => 'off', 'allowed' => ['on', 'off'], 'scope' => 'entity'],
+        'gate.manual.users' => ['default' => '[]', 'scope' => 'entity'],
+        // Who sees "My subscription": all | none | selected customers (App\Domain\Saas\PaymentPage).
+        'saas.payment_page' => ['default' => 'all', 'allowed' => ['all', 'none', 'selected'], 'scope' => 'global'],
         // The default comes from RICEMILL_ARCHIVE_RETENTION_MONTHS; see archiveRetentionMonths().
         // Each customer sets its own (stored on each of its mills); the all-mills row is the platform's default.
         self::ARCHIVE_RETENTION => [

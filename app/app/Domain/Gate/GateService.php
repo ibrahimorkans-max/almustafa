@@ -22,6 +22,7 @@ use App\Models\Gate\DeductionRule;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
 use App\Models\Gate\GatePriceVersion;
+use App\Models\Gate\GateSlipVersion;
 use App\Models\Gate\LabTest;
 use App\Models\Gate\Scale;
 use App\Models\Gate\Weighment;
@@ -186,6 +187,9 @@ final class GateService
                 'party_name' => $partyName === '' || ($data['party_id'] ?? $sauda?->party_id) !== null ? null : mb_substr($partyName, 0, 160),
                 'paddy_variety_id' => $data['paddy_variety_id'] ?? $sauda?->paddy_variety_id,
             ]);
+            if ($entry->direction === 'inbound' && $entry->purpose !== 'other') {
+                [$entry->weigh_mode, $entry->mode_config_version] = WeighModes::forNewVehicle(app(TenantContext::class)->entityId(), $data['weigh_mode'] ?? null);
+            }
             if ($id !== null) {
                 $entry->id = $id;
             }
@@ -346,8 +350,18 @@ final class GateService
 
         return DB::transaction(function () use ($entry, $values, $testedAt, $id): LabTest {
             $entry = $this->lock($entry);
-            if ($entry->direction === 'inbound' && $this->hasEvent($entry, 'gross_weighed')) {
-                throw new BusinessRuleViolation('This lot has already been weighed; the lab result belongs before weighing.');
+            if ($entry->direction === 'inbound' && $entry->purpose !== 'other' && ! WeighModes::usesLab(WeighModes::of($entry))) {
+                throw new BusinessRuleViolation('This vehicle is weighed without a lab test (mode 2).');
+            }
+            if ($entry->direction === 'inbound' && ! GatePolicy::labOpen($entry)) {
+                throw new BusinessRuleViolation(GatePolicy::weighsFirst($entry)
+                    ? 'This lot has already been unloaded; the lab result belongs before unloading.'
+                    : 'This lot has already been weighed; the lab result belongs before weighing.');
+            }
+            $late = $entry->direction === 'inbound' ? LabSetup::checkLate($entry, 'lab_result', $values['late_reason'] ?? null, $this->actor->account()) : null;
+            if ($late !== null && ! in_array($late, $entry->flags ?? [], true)) {
+                $entry->flags = [...($entry->flags ?? []), $late];
+                $entry->save();
             }
             $previous = LabTest::query()->where('gate_entry_id', $entry->id)->latestFirst()->first();
             // A second result corrects the first; once the lab has decided, the correction needs its reason.
@@ -423,6 +437,18 @@ final class GateService
             $entry = $this->lock($entry);
             $test = LabTest::query()->where('gate_entry_id', $entry->id)->latestFirst()->first()
                 ?? throw new BusinessRuleViolation('Record a lab test before deciding.');
+            if ($accept && ($missing = LabSetup::missingMandatory($entry, $test)) !== []) {
+                throw new BusinessRuleViolation('Mandatory lab test without a result: '.implode(', ', $missing).'.');
+            }
+            if ($accept && collect($test->evaluation ?? [])->contains(fn (array $r) => $r['verdict'] === LabStandards::GRACE && ($r['needs_approval'] ?? false))
+                && ! ($this->actor->account()?->hasPermission('purchase.approve') ?? false)) {
+                throw new BusinessRuleViolation('A result is in its grace band for a test that needs a supervisor\'s approval to accept.');
+            }
+            $late = LabSetup::checkLate($entry, 'lab_decision', $note, $this->actor->account());
+            if ($late !== null && ! in_array($late, $entry->flags ?? [], true)) {
+                $entry->flags = [...($entry->flags ?? []), $late];
+                $entry->save();
+            }
             if ($accept && $this->standards->overGrace($entry) !== []) {
                 throw new BusinessRuleViolation('A result is above its grace limit, so the lot was rejected. It can come in only through negotiation, approved by the Purchase Manager.');
             }
@@ -447,9 +473,11 @@ final class GateService
      */
     private function labDecisionData(GateEntry $entry, LabTest $test, ?string $note): array
     {
-        $rules = $entry->product_id
+        $rules = $entry->product_id && LabSetup::allows($entry->entity_id, 'deductions')
             ? DeductionRule::query()->applicable($entry->product_id, $entry->paddy_variety_id, $entry->arrived_at)->get()
             : collect();
+        $noWeight = $this->standards->parametersFor($entry->product_id)->filter(fn ($p) => ! (bool) ($p->affects_weight ?? true))->keys()->all();
+        $rules = $rules->reject(fn (DeductionRule $r) => in_array($r->parameter, $noWeight, true))->values();
         $preview = $this->deductions->calculate('0', $entry->acceptedBags(), $test->measurements(), $rules);
 
         return [[
@@ -830,7 +858,8 @@ final class GateService
             'rejected_off_vehicle' => $rejectedOffVehicle, 'rejection_reason' => trim((string) $rejectionReason)], fn ($v) => $v !== null);
 
         $event = $this->simpleEvent($entry, 'unloaded', $at, $strict, function (GateEntry $e): void {
-            if ($e->direction === 'inbound' && ! $this->hasEvent($e, 'lab_accepted')) {
+            // Weighed without a lab (mode 2) and other goods: unloaded without a lab decision.
+            if ($e->direction === 'inbound' && $e->purpose !== 'other' && WeighModes::usesLab(WeighModes::of($e)) && ! $this->hasEvent($e, 'lab_accepted')) {
                 throw new BusinessRuleViolation('Unload only after the lab has accepted the lot.');
             }
         }, ($godown ? ['godown_id' => $godown->id, 'godown' => $godown->code] : []) + $rejection + ($contractor ? ['contractor' => $contractor->name] : []),
@@ -896,22 +925,25 @@ final class GateService
                 $entry->flags = array_values(array_unique([...($entry->flags ?? []), ...$this->dispatchFlags($entry, $order)]));
             }
 
-            $accepted = $this->hasEvent($entry, 'lab_accepted') && ! $this->latestLabDecisionIsReject($entry);
+            $mode = WeighModes::of($entry);
+            $noLab = $entry->direction === 'inbound' && $entry->purpose !== 'other' && ! WeighModes::usesLab($mode);
+            $accepted = $noLab || ($this->hasEvent($entry, 'lab_accepted') && ! $this->latestLabDecisionIsReject($entry));
             $settlement = $this->settlementApproved($entry)
                 ? GateEvent::query()->where('gate_entry_id', $entry->id)->where('event', 'settlement_approved')->newestFirst()->first()
                 : null;
-            if ($entry->direction === 'inbound' && $accepted && $settlement === null) {
+            if ($entry->direction === 'inbound' && $accepted && ! $noLab && $settlement === null) {
                 throw new BusinessRuleViolation('Approve the settlement (Caat and price) before issuing the slip.');
             }
             $snapshot = [
                 'gross_kg' => $entry->gross_kg, 'tare_kg' => $entry->tare_kg, 'net_kg' => $entry->net_kg,
                 'deduction_kg' => $entry->deduction_kg, 'payable_kg' => $entry->payable_kg,
-                'rate_cut_paise_per_maund' => $entry->rate_cut_paise_per_maund, 'lab_accepted' => $accepted,
-                'flags' => $entry->flags ?? [],
+                'rate_cut_paise_per_maund' => $entry->rate_cut_paise_per_maund, 'lab_accepted' => $noLab ? null : $accepted,
+                'flags' => $entry->flags ?? [], 'kind' => GateSlipVersion::FINAL, 'weigh_mode' => $mode,
             ] + ($settlement !== null ? ['settlement' => $settlement->data] : [])
                 + ($entry->rejected_bags > 0 || $entry->rejected_kg !== null ? ['rejected_bags' => $entry->rejected_bags, 'rejected_kg' => $entry->rejected_kg,
                     'rejected_off_vehicle' => (bool) $entry->rejected_off_vehicle, 'rejection_reason' => $entry->rejection_reason] : []);
             $event = $this->appendEvent($entry, 'slip_issued', $snapshot, now(), $strict);
+            $this->keepSlip($entry, GateSlipVersion::FINAL, $event);
 
             if ($entry->direction === 'inbound' && $accepted && $entry->sauda_id !== null && $entry->payable_kg !== null) {
                 $sauda = Sauda::query()->find($entry->sauda_id);
@@ -932,6 +964,127 @@ final class GateService
 
             return $event;
         });
+    }
+
+    /**
+     * Mode 3: the weight-only slip, given as soon as the loaded weight is taken (before the lab). Kept as slip
+     * version 1; the final slip after the lab is the next version, beside it.
+     */
+    public function issueInitialSlip(GateEntry $entry): GateSlipVersion
+    {
+        $this->require('weighment.capture');
+
+        return DB::transaction(function () use ($entry): GateSlipVersion {
+            $entry = $this->project($this->lock($entry));
+            if (WeighModes::of($entry) !== WeighModes::WEIGH_FIRST_LAB_LATER) {
+                throw new BusinessRuleViolation('A weight-only slip is given in mode 3 (weight first, lab test later).');
+            }
+            if ($entry->gross_kg === null) {
+                throw new BusinessRuleViolation('Take the loaded weight first.');
+            }
+            if (GateSlipVersion::query()->where('gate_entry_id', $entry->id)->exists()) {
+                throw new BusinessRuleViolation('A slip was already given for this vehicle.');
+            }
+            $event = $this->appendEvent($entry, 'initial_slip_issued', [
+                'gross_kg' => $entry->gross_kg, 'tare_kg' => $entry->tare_kg, 'net_kg' => $entry->net_kg,
+                'kind' => GateSlipVersion::INITIAL, 'weigh_mode' => WeighModes::WEIGH_FIRST_LAB_LATER, 'flags' => $entry->flags ?? [],
+            ], now(), false);
+
+            return $this->keepSlip($entry, GateSlipVersion::INITIAL, $event);
+        });
+    }
+
+    /** Lab first (or any lot with a lab result): the lab supervisor sends the lot to negotiation instead of deciding. */
+    public function openNegotiation(GateEntry $entry, string $note): GateEvent
+    {
+        $this->require('lab.decide');
+        if (mb_strlen(trim($note)) < 5) {
+            throw new BusinessRuleViolation('Say what is to be negotiated (at least 5 characters).');
+        }
+
+        return DB::transaction(function () use ($entry, $note): GateEvent {
+            $entry = $this->lock($entry);
+            $test = LabTest::query()->where('gate_entry_id', $entry->id)->latestFirst()->first()
+                ?? throw new BusinessRuleViolation('Record a lab test before negotiating.');
+            if (! GatePolicy::labOpen($entry)) {
+                throw new BusinessRuleViolation('The lab can no longer decide on this lot.');
+            }
+            if (! LabSetup::allows($entry->entity_id, 'negotiation')) {
+                throw new BusinessRuleViolation('Negotiation is not switched on for this mill.');
+            }
+            if (in_array($entry->labOutcome(), ['negotiation_pending', 'accepted', 'negotiation_approved'], true)) {
+                throw new BusinessRuleViolation('This lot is already accepted or in negotiation.');
+            }
+            $event = $this->appendEvent($entry, 'negotiation_opened', ['lab_test_id' => $test->id, 'note' => trim($note),
+                'evaluation' => $test->evaluation ?? []], now(), false);
+            $this->project($entry);
+
+            return $event;
+        });
+    }
+
+    /**
+     * The Owner or purchase approver closes a negotiation: approved (the lot is taken in on the terms agreed — the
+     * price proposed and accepted, if any — and goes to the weighbridge) or failed (rejected; the vehicle leaves).
+     */
+    public function closeNegotiation(GateEntry $entry, bool $approved, string $note): GateEvent
+    {
+        $this->require('purchase.approve');
+        if (mb_strlen(trim($note)) < 5) {
+            throw new BusinessRuleViolation('Give the terms agreed or why it failed (at least 5 characters).');
+        }
+
+        return DB::transaction(function () use ($entry, $approved, $note): GateEvent {
+            $entry = $this->lock($entry);
+            if ($entry->labOutcome() !== 'negotiation_pending') {
+                throw new BusinessRuleViolation('This lot is not in negotiation.');
+            }
+            $test = LabTest::query()->where('gate_entry_id', $entry->id)->latestFirst()->firstOrFail();
+            [$data] = $this->labDecisionData($entry, $test, trim($note));
+            $price = $this->acceptedPrice($entry);
+            $this->appendEvent($entry, $approved ? 'lab_accepted' : 'lab_rejected', $data + ['after_negotiation' => true]
+                + ($approved && $price !== null ? ['price_version_id' => $price->id, 'price_paise_per_maund' => $price->price_paise_per_maund] : []), now(), false);
+            $event = $this->appendEvent($entry, $approved ? 'negotiation_approved' : 'negotiation_failed', ['note' => trim($note),
+                'price_paise_per_maund' => $price?->price_paise_per_maund], now(), false);
+            $this->project($entry);
+
+            return $event;
+        });
+    }
+
+    /** Lab first: weighing a lot the lab has not accepted (rejected or in negotiation) — only with a reason, by someone allowed. */
+    public function overrideWeighing(GateEntry $entry, string $reason): GateEvent
+    {
+        $this->require('weighment.override');
+        if (mb_strlen(trim($reason)) < 10) {
+            throw new BusinessRuleViolation('Give the reason for weighing without the lab\'s acceptance (at least 10 characters).');
+        }
+
+        return DB::transaction(function () use ($entry, $reason): GateEvent {
+            $entry = $this->lock($entry);
+            if (WeighModes::of($entry) !== WeighModes::LAB_FIRST || $this->hasEvent($entry, 'gross_weighed')) {
+                throw new BusinessRuleViolation('An override is for a lab-first lot not yet weighed.');
+            }
+
+            return $this->appendEvent($entry, 'weigh_override', ['reason' => trim($reason), 'lab' => $entry->labOutcome()], now(), false);
+        });
+    }
+
+    /** Keeps the slip just given as the vehicle's next slip version (never changed afterwards). */
+    private function keepSlip(GateEntry $entry, string $kind, GateEvent $event): GateSlipVersion
+    {
+        $data = (array) $event->data;
+        $slip = new GateSlipVersion([
+            'gate_entry_id' => $entry->id,
+            'version' => (int) GateSlipVersion::query()->where('gate_entry_id', $entry->id)->max('version') + 1,
+            'kind' => $kind, 'weigh_mode' => WeighModes::of($entry), 'snapshot' => $data,
+            'verification_code' => SlipRenderer::verificationCode($entry->id, $data),
+            'gate_event_id' => $event->id, 'issued_by' => $this->actor->accountId(), 'issued_at' => $event->occurred_at,
+        ]);
+        $slip->entity_id = $entry->entity_id;
+        $slip->save();
+
+        return $slip;
     }
 
     /** Outbound: the vehicle has been loaded from the dispatch order's godown. */
@@ -1228,6 +1381,23 @@ final class GateService
             return "The vehicle has already {$this->lastEventName($entry)}.";
         }
         $flow = $entry->flow();
+        if ($flow === GatePolicy::WEIGH_FIRST_FLOW) {
+            // Weighed before the lab: the lab decides any time before unloading; unloading needs both the loaded weight
+            // and the lab's acceptance.
+            if (in_array($event, ['lab_accepted', 'lab_rejected'], true)) {
+                return $this->hasEvent($entry, 'unloaded') ? 'The lab decided after the lot was unloaded.' : null;
+            }
+            if ($event === 'unloaded' && ! $this->hasEvent($entry, 'gross_weighed')) {
+                return "'unloaded' recorded before 'gross_weighed'.";
+            }
+        }
+        if ($event === 'gross_weighed' && $flow === GateEntry::INBOUND_FLOW && $this->hasEvent($entry, 'weigh_override')
+            && ! $this->hasEvent($entry, 'lab_accepted')) {
+            return null;   // weighed by an authorised override, with its reason
+        }
+        if ($event === 'gross_weighed' && $flow === GateEntry::INBOUND_FLOW && $entry->labOutcome() === 'negotiation_pending') {
+            return 'The lot is in negotiation; it is weighed after the negotiation is approved.';
+        }
         $position = array_search($event === 'lab_rejected' ? 'lab_accepted' : $event, $flow, true);
         if ($position === false || $position === 0) {
             return null;

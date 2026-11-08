@@ -7,9 +7,11 @@ namespace App\Filament\Resources\Gate;
 use App\Domain\Gate\GateService;
 use App\Domain\Gate\LabReport;
 use App\Domain\Gate\LabStandards;
+use App\Domain\Gate\WeighModes;
 use App\Domain\Hr\ContractorVehicles;
 use App\Domain\Security\EntryLocation;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Domain\Tenancy\TenantContext;
 use App\Filament\Resources\Gate\GateEntryResource\Pages;
 use App\Filament\Resources\Hr\ContractorBillResource;
 use App\Filament\Resources\Hr\ContractorRateResource;
@@ -169,6 +171,11 @@ class GateEntryResource extends Resource
                 ->placeholder('e.g. Bail gari of Rasheed, Basti Malook, white bulls')
                 ->visible(fn (Get $get) => (bool) $get('no_plate'))->required(fn (Get $get) => (bool) $get('no_plate'))->columnSpanFull(),
             Select::make('direction')->options(['inbound' => 'Inbound (paddy in)', 'outbound' => 'Outbound (dispatch)'])->default('inbound')->required()->live(),
+            // The weighing modes the SaaS owner switched on for this mill; shown when there is a choice.
+            Select::make('weigh_mode')->label('Weighing mode')->options(fn () => WeighModes::options(app(TenantContext::class)->entityId()))
+                ->default(fn () => WeighModes::defaultMode(app(TenantContext::class)->entityId()))->selectablePlaceholder(false)
+                ->visible(fn (Get $get) => $get('direction') === 'inbound' && count(WeighModes::enabled(app(TenantContext::class)->entityId())) > 1)
+                ->helperText(fn (Get $get) => WeighModes::HELP[$get('weigh_mode')] ?? null)->live(),
             Select::make('dispatch_order_id')->label('Dispatch order')->searchable()
                 ->visible(fn (Get $get) => $get('direction') === 'outbound')
                 ->required(fn (Get $get) => $get('direction') === 'outbound')

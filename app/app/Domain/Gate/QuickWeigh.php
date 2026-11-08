@@ -15,14 +15,14 @@ use App\Support\Values\PakistanIds;
  * the goods as typed) and what it is (inbound paddy, inbound other goods, outbound). It finds the vehicle's open visit — or registers it, with the next token — so one
  * "Record weight" button can take the weight it needs next (LiveCapture).
  *
- *  - inbound paddy keeps lab first: until the lab accepts the lot, the vehicle waits (no weight);
+ *  - inbound paddy follows the mill's weighing policy (GatePolicy): weighed loaded at once, or only after the lab accepts it;
  *  - inbound other goods and outbound without a dispatch order are weighed at once (purpose "other");
  *  - an outbound vehicle already collecting a dispatch order continues that visit.
  */
 final class QuickWeigh
 {
     public const KINDS = [
-        'paddy' => 'Inbound — paddy (lab first)',
+        'paddy' => 'Inbound — paddy',
         'other_in' => 'Inbound — other goods',
         'outbound' => 'Outbound',
     ];
@@ -48,7 +48,7 @@ final class QuickWeigh
      *
      * @return array{0: GateEntry, 1: bool} the visit, and whether it was registered now
      */
-    public function visit(string $partyName, string $vehicleNumber, string $kind, ?string $item = null, ?string $jackType = null): array
+    public function visit(string $partyName, string $vehicleNumber, string $kind, ?string $item = null, ?string $jackType = null, ?string $mode = null): array
     {
         if (! isset(self::KINDS[$kind])) {
             throw new BusinessRuleViolation('Choose inbound (paddy or other goods) or outbound.');
@@ -77,6 +77,7 @@ final class QuickWeigh
             'product_id' => $productId,
             'goods_description' => $goods,
             'jack_type' => $jackType,
+            'weigh_mode' => $kind === 'paddy' ? $mode : null,
         ], fn ($v) => $v !== null));
 
         return [$entry, true];

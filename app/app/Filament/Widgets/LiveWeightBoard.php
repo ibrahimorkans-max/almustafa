@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Filament\Widgets;
 
+use App\Domain\Gate\GatePolicy;
 use App\Domain\Gate\GateService;
 use App\Domain\Gate\LiveCapture;
 use App\Domain\Gate\LiveWeight;
+use App\Domain\Gate\ManualWeighing;
 use App\Domain\Gate\ManualWeight;
 use App\Domain\Gate\QuickWeigh;
 use App\Domain\Shared\BusinessRuleViolation;
@@ -42,7 +44,7 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
  * outbound, and one "Record weight" button that takes the weight the vehicle needs next — loaded
  * (gross) or empty (tare) — from the stable reading (QuickWeigh finds or registers the visit,
  * LiveCapture records). "Enter one weight manually" types one of the two weights with a reason and the
- * other weighbridge's slip (ManualWeight). Paddy stays lab first.
+ * other weighbridge's slip (ManualWeight). Paddy is weighed before the lab or after it, as the mill chose (GatePolicy).
  */
 class LiveWeightBoard extends Widget implements HasActions, HasForms
 {
@@ -71,6 +73,9 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
 
     /** @var array<string, string|null> scale id => with_jack | without_jack, for a vehicle registered here */
     public array $jack = [];
+
+    /** @var array<string, string> the weighing mode of a new paddy vehicle, per weighbridge (among those switched on) */
+    public array $mode = [];
 
     /** @var array<string, string|null> scale id => godown a paddy lot is unloaded into */
     public array $godown = [];
@@ -111,9 +116,10 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
         return $this->can('weighment.capture');
     }
 
+    /** Typing a weight by hand: as the Owner chose (Gate → Manual weighing). */
     public function canType(): bool
     {
-        return $this->can('weighment.manual');
+        return ManualWeighing::allowed(Filament::auth()->user());
     }
 
     private function can(string $permission): bool
@@ -193,7 +199,7 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
         }
         try {
             [$entry, $new] = app(QuickWeigh::class)->visit((string) ($this->party[$scaleId] ?? ''), (string) ($this->plate[$scaleId] ?? ''),
-                (string) ($this->kind[$scaleId] ?? 'paddy'), $this->item[$scaleId] ?? null, $this->jack[$scaleId] ?? null);
+                (string) ($this->kind[$scaleId] ?? 'paddy'), $this->item[$scaleId] ?? null, $this->jack[$scaleId] ?? null, $this->mode[$scaleId] ?? null);
             $kind = LiveCapture::nextKind($entry);
             if ($kind === null) {
                 $token = $entry->token_no !== null || $entry->token_serial !== null ? 'Token '.$entry->tokenLabel().' · ' : '';
@@ -217,6 +223,9 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
             ->body($entry->net_kg !== null ? 'Net weight '.number_format((float) $entry->net_kg, 0).' kg.' : 'Next: the '.$this->nextLabel($entry).'.')->send();
         $this->godown[$scaleId] = null;
         $this->dispatch('weigh-queue-refresh');
+        // The 3D weighbridge beside the form shows it was saved.
+        $this->dispatch('wb3d-recorded', kind: $weighment->kind, kg: (float) $weighment->weight_kg, plate: $entry->vehicleLabel(),
+            net: $entry->net_kg === null ? null : (float) $entry->net_kg);
         if ($entry->net_kg !== null) {
             $this->plate[$scaleId] = $this->party[$scaleId] = $this->item[$scaleId] = null;
         }
@@ -241,6 +250,7 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
     public function waitingReason(GateEntry $entry): string
     {
         return match (true) {
+            $entry->direction === 'inbound' && $entry->purpose !== 'other' && $entry->status === 'gross_weighed' && GatePolicy::weighBeforeLab($entry->entity_id) => 'Loaded weight taken. Add its lab test (Gate → Lab tests); after the lab accepts it, unload it and record the empty weight.',
             $entry->direction === 'inbound' && $entry->purpose !== 'other' && in_array($entry->status, ['arrived', 'lab_rejected'], true) => $entry->status === 'lab_rejected' ? 'The lab rejected this lot (see Negotiation).' : 'Waiting for the lab: weigh it after the lab accepts the lot.',
             $entry->direction === 'outbound' && $entry->status === 'tare_weighed' && $entry->purpose !== 'other' => 'Mark it loaded on the vehicle page, then record the loaded weight.',
             $entry->net_kg !== null => 'Both weights are recorded (net '.number_format((float) $entry->net_kg, 0).' kg).',
@@ -258,10 +268,11 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
     /** "Enter one weight manually": one of the two weights typed, with a reason and the other weighbridge's slip. */
     public function typeWeightAction(): Action
     {
-        return Action::make('typeWeight')->label('Enter one weight manually')->icon('heroicon-o-pencil-square')->color('gray')
+        return Action::make('typeWeight')->label(fn () => ManualWeighing::bothAllowed() ? 'Enter a weight manually' : 'Enter one weight manually')->icon('heroicon-o-pencil-square')->color('gray')
             ->visible(fn () => $this->canType())
             ->modalHeading(fn (array $arguments) => 'Enter one weight manually'.(($p = $this->plate[$arguments['scale'] ?? ''] ?? null) ? ' — '.$p : ''))
-            ->modalDescription('Only one of the two weights may be typed; the other must come from this weighbridge. It counts at once, is marked "typed by hand" and goes to the weight checks.')
+            ->modalDescription(fn () => (ManualWeighing::bothAllowed() ? 'Both weights may be typed (the Owner allows it).' : 'Only one of the two weights may be typed; the other must come from this weighbridge.')
+                .' It counts at once, is marked "typed by hand" and goes to the weight checks.')
             ->form([
                 Radio::make('kind')->label('Which weight')->required()->default('gross')
                     ->options(['gross' => 'Loaded weight (gross)', 'tare' => 'Empty weight (tare)']),
@@ -283,7 +294,7 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
                     // Registering the visit, unloading (paddy, before the empty weight) and the typed weight succeed or fail together.
                     [$entry, $w] = DB::transaction(function () use ($scaleId, $data, $godown, $file): array {
                         [$entry] = app(QuickWeigh::class)->visit((string) ($this->party[$scaleId] ?? ''), (string) ($this->plate[$scaleId] ?? ''),
-                            (string) ($this->kind[$scaleId] ?? 'paddy'), $this->item[$scaleId] ?? null, $this->jack[$scaleId] ?? null);
+                            (string) ($this->kind[$scaleId] ?? 'paddy'), $this->item[$scaleId] ?? null, $this->jack[$scaleId] ?? null, $this->mode[$scaleId] ?? null);
                         if ($data['kind'] === Weighment::TARE && LiveCapture::steps($entry)['unload']) {
                             if ($godown === null) {
                                 throw new BusinessRuleViolation('Choose the godown it was unloaded into, then enter the empty weight.');

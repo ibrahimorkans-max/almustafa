@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Files\FileStore;
 use App\Models\Claims\Claim;
 use App\Models\StoredFile;
+use App\Support\Security\InputGuard;
 use Filament\Facades\Filament;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
@@ -33,7 +34,7 @@ final class ClaimEvidenceController
 
         return response((string) Storage::disk('local')->get($file->path), 200, [
             'Content-Type' => $file->mime,
-            'Content-Disposition' => 'inline; filename="'.$name.'"',
+            'Content-Disposition' => 'inline; filename="'.InputGuard::filename($name).'"',
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, no-store',
         ]);

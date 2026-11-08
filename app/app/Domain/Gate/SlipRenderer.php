@@ -11,6 +11,7 @@ use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
+use App\Models\Gate\GateSlipVersion;
 use App\Models\Gate\Weighment;
 
 /**
@@ -25,10 +26,16 @@ final class SlipRenderer
         private readonly PdfRenderer $pdf,
     ) {}
 
-    public function pdf(GateEntry $entry): string
+    /** The final slip, or one slip version (1 = the first slip given; a weight-only slip in mode 3). */
+    public function pdf(GateEntry $entry, ?int $version = null): string
     {
-        $slip = GateEvent::query()->where('gate_entry_id', $entry->id)->where('event', 'slip_issued')->first()
-            ?? throw new BusinessRuleViolation('No slip has been issued for this vehicle.');
+        $kept = $version === null ? null : GateSlipVersion::query()->where('gate_entry_id', $entry->id)->where('version', $version)->first();
+        if ($version !== null && $kept === null) {
+            throw new BusinessRuleViolation('No such slip for this vehicle.');
+        }
+        $slip = $kept !== null ? GateEvent::query()->find($kept->gate_event_id)
+            : GateEvent::query()->where('gate_entry_id', $entry->id)->where('event', 'slip_issued')->first();
+        $slip ?? throw new BusinessRuleViolation('No slip has been issued for this vehicle.');
 
         $weighments = Weighment::query()->where('gate_entry_id', $entry->id)->orderBy('captured_at')->get();
         $entity = $this->tenant->runAsSystem(fn () => Entity::query()->find($entry->entity_id));

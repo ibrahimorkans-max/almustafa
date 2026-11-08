@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Domain\Saas\Billing;
 use App\Domain\Saas\CustomerAccess;
 use App\Domain\Saas\Modules;
+use App\Domain\Saas\PaymentPage;
 use App\Domain\Saas\PlanLimits;
 use App\Filament\Pages\Concerns\PaysSubscription;
 use App\Filament\Support\Units;
@@ -44,7 +45,8 @@ class SubscriptionPage extends Page
     {
         $user = Filament::auth()->user();
 
-        return $user instanceof LoginAccount && $user->isOwner() && ! $user->isPlatformAdmin() && $user->customerId() !== null;
+        return $user instanceof LoginAccount && $user->isOwner() && ! $user->isPlatformAdmin() && $user->customerId() !== null
+            && PaymentPage::shownTo($user->customerId());   // the product owner may hide it (from all or some customers)
     }
 
     /**
@@ -99,7 +101,8 @@ class SubscriptionPage extends Page
             return null;
         }
         $owner = $user->isOwner();
-        $link = $owner ? static::getUrl() : null;
+        $shown = PaymentPage::shownTo($user->customerId());
+        $link = $owner && $shown ? static::getUrl() : null;
         if (app(CustomerAccess::class)->blocked($user)) {
             $contact = trim((string) config('ricemill.saas.contact'));
 
@@ -111,8 +114,8 @@ class SubscriptionPage extends Page
                 'body' => $owner ? 'You can see everything but not record or change anything until the overdue invoice is paid.'
                     : 'Records cannot be added or changed until the company\'s overdue invoice is paid. Please tell the owner.'];
         }
-        if (! $owner) {
-            return null;
+        if (! $owner || ! $shown) {
+            return null;   // invoices and the trial are spoken of only where the payment page is shown
         }
         $standing = app(Billing::class)->standing((string) $user->customerId());
         $first = $standing['overdue']->first() ?? $standing['open']->first(fn (SaasInvoice $i) => $i->due_at->lte(now()->addDays(3)));

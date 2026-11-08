@@ -11,6 +11,7 @@ use App\Domain\Shared\BusinessRuleViolation;
 use App\Http\Controllers\Controller;
 use App\Models\Documents\GeneratedDocument;
 use App\Models\LoginAccount;
+use App\Support\Security\InputGuard;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -46,7 +47,7 @@ final class DocumentController extends Controller
             abort(403, $e->getMessage());
         }
 
-        return response($out['bytes'], 200, ['Content-Type' => $out['mime'], 'Content-Disposition' => 'inline; filename="'.$out['name'].'"', 'Cache-Control' => 'no-store, private']);
+        return response($out['bytes'], 200, ['Content-Type' => $out['mime'], 'Content-Disposition' => 'inline; filename="'.InputGuard::filename($out['name']).'"', 'Cache-Control' => 'no-store, private']);
     }
 
     private function account(Request $request): LoginAccount
