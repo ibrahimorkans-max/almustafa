@@ -157,10 +157,11 @@ final class Billing
      * Lifetime access, given by the product owner: active for good, no trial end, no more invoices, never
      * read-only or paused for a bill. Its open invoices can be cancelled at the same time.
      */
-    public function grantLifetime(Customer $customer, LoginAccount $by, string $note, bool $cancelOpen): void
+    public function grantLifetime(Customer $customer, LoginAccount $by, string $note, bool $cancelOpen, ?int $paidPaise = null): void
     {
         $this->assertPlatform($by);
-        $customer->update(['lifetime' => true, 'lifetime_since' => now(), 'status' => Customer::ACTIVE, 'trial_ends_at' => null]);
+        $customer->update(['lifetime' => true, 'lifetime_since' => now(), 'status' => Customer::ACTIVE, 'trial_ends_at' => null,
+            'lifetime_paid_paise' => $paidPaise !== null && $paidPaise > 0 ? $paidPaise : null]);
         $cancelled = 0;
         if ($cancelOpen) {
             foreach (SaasInvoice::query()->where('customer_id', $customer->id)->where('status', SaasInvoice::OPEN)->get() as $invoice) {
@@ -168,7 +169,7 @@ final class Billing
                 $cancelled++;
             }
         }
-        $this->audit->record('saas.customer.lifetime_granted', $customer, null, null, ['note' => $note, 'invoices_cancelled' => $cancelled]);
+        $this->audit->record('saas.customer.lifetime_granted', $customer, null, null, ['note' => $note, 'invoices_cancelled' => $cancelled, 'paid_paise' => $paidPaise]);
         $this->tellOwners($customer, 'You have lifetime access', 'Thank you for working with us. No more payments are due for your subscription.', 'success');
         app(CustomerAccess::class)->forget();
     }
@@ -177,7 +178,7 @@ final class Billing
     public function revokeLifetime(Customer $customer, LoginAccount $by, string $note): void
     {
         $this->assertPlatform($by);
-        $customer->update(['lifetime' => false, 'lifetime_since' => null]);
+        $customer->update(['lifetime' => false, 'lifetime_since' => null, 'lifetime_paid_paise' => null]);
         $this->audit->record('saas.customer.lifetime_ended', $customer, null, null, ['note' => $note]);
         app(CustomerAccess::class)->forget();
     }

@@ -144,14 +144,52 @@ Gate → **Gate entries** → *New entry*.
 
 - The **Live weight** page (Gate → Live weight) takes the loaded and empty weights from the weighbridge
   (stable reading, with evidence). The same board is on top of Vehicles at gate.
-- The dial updates every second by itself; the page never reloads, so what is typed in the form stays.
+- The dial updates twice a second by itself; the page never reloads. The vehicle number, party and item
+  boxes are sent only when you leave each box, so nothing you type is interrupted.
+- **Live weight on every screen.** The weighbridge's weight shows in the top bar of every screen (code,
+  kg, and a lamp: green *stable*, amber *moving*, grey *no signal*), for whoever may see the Live weight page.
+  It updates by itself in the browser and never redraws the page or a form being filled in. Press it to
+  open the Live weight page.
+- **3D weighbridge** (below the weighing form on Live weight): a 3D view of the mill, its gates and the
+  weighbridge, with cameras (aerial, main gate, weighbridge side, top view, follow vehicle, operator display)
+  and night mode. It runs in the browser only, so the weighing form is never interrupted.
+  - **LIVE**: the platform's display shows this weighbridge's own reading (the same as the dial), STABLE /
+    MOVING / NO SIGNAL, and the vehicle number typed in the form; a vehicle stands on the deck while there is
+    weight on it. Gates, cameras and queues are not connected to the system, so they are not shown.
+  - **SIMULATION** (for training and demonstrations, marked as such everywhere): tractor trolleys, cargo trucks
+    and container trailers come to the main gate, are identified and let in, queue for the weighbridge (first
+    come, first served), are weighed only when stopped with every axle on the deck, unload paddy (or load
+    rice into the container), come back for the second weight (net = gross − tare) and leave through the exit
+    gate. A gate never closes on a vehicle. Buttons: Start, Pause, Reset, Demo tour, add a tractor trolley /
+    container / truck, open or close each gate (refused while a vehicle is in it), Auto / Manual, and Generate
+    weight slip. Its weights come from each model vehicle's empty weight and load; they are never recorded.
 - **Waiting (token order)** lists every vehicle still waiting for a weight, by token number, including
-  paddy lots still at the lab (marked *at the lab*). It refreshes every 10 seconds and after each weight,
-  so a vehicle registered at the gate appears on its own. Tap one to fill in the form.
-- A Supervisor or above can type one weight by hand, with a reason; this is recorded.
+  paddy lots whose lab test is still to add. It refreshes every 10 seconds and after each weight, so a
+  vehicle registered at the gate appears on its own. Tap one to fill in the form.
+- **Manual weighing** (Gate → Manual weighing; the **Owner** only) decides who may type a weight by hand,
+  with checkboxes:
+  - *Allow weights to be typed by hand* (off: every weight must come from the weighbridge);
+  - *Allow both weights of a vehicle to be typed* (for when the weighbridge is out of order; off: only one of
+    the two, the other from the weighbridge);
+  - *Who may type weights*: tick the people. Nobody ticked: those whose role allows it (Supervisor, Super
+    Admin, Owner).
+  A typed weight always needs its reason (and the other weighbridge's slip when there is one), counts at once,
+  is marked "typed by hand" everywhere and goes to the weight checks. The button on Live weight is *Enter one
+  weight manually* (or *Enter a weight manually* when both are allowed), shown only to the people allowed.
 
-**Lab.** For paddy, the lab test comes first. Within the limits it is accepted; outside them it goes to
-negotiation (section 4) or is rejected.
+**Weighing policy** (Gate → Lab tests to add → *Weighing policy*, Owner / Super Admin). The default is
+**weigh first**:
+
+1. a paddy vehicle is weighed loaded as soon as it arrives, with no lab restriction;
+2. it then waits on **Gate → Lab tests to add** (the number beside the menu shows how many), where each
+   vehicle opens **its own page** to add the lab test: its token, vehicle, party, item, bags and loaded
+   weight at the top, then the results, the verdict and the decision;
+3. it is unloaded, and weighed empty, only after the lab accepts it, so rejected paddy never goes into a
+   godown. A rejected lot that was weighed is weighed empty and leaves.
+
+A mill can choose **lab first** instead: the lab accepts each lot before it is weighed.
+
+**Lab.** Within the limits a lot is accepted; outside them it goes to negotiation (section 4) or is rejected.
 
 - **Lab test button** (top of Vehicles at gate and Live weight), for anyone with the lab right:
   1. choose the vehicle (only paddy lots waiting for the lab are listed, by token);
@@ -160,7 +198,7 @@ negotiation (section 4) or is rejected.
      (= rejected automatically);
   4. the Lab Supervisor can choose *Accept*, *Reject* (with the reason) or leave it; a Lab Technician or
      the **Weighbridge / Gate Operator** only saves the result and the Lab Supervisor decides;
-  5. *Save lab result*. An accepted lot appears in the waiting list ready for its loaded weight.
+  5. *Save lab result*. An accepted lot appears in the waiting list ready for its next weight.
 - The same can still be done on the vehicle page (*Record lab test*, *Lab: accept / reject*).
 
 **Unloading** (*Mark unloaded* on the vehicle page):
@@ -197,7 +235,8 @@ Details: `printing-weighing-tokens.md`, `lab-first-procurement.md`, `contractor-
 
 Procurement → **Saudas**: the purchase deal with a party (product, variety, quantity, rate per maund).
 
-The order of a paddy vehicle is: lab test → price → weights → slip.
+The order of a paddy vehicle is: loaded weight → lab test → price → unloading and empty weight → slip (with
+*lab first*: lab test → price → weights → slip).
 
 - **Lab result outside the grace limits.** The **Negotiation** page (Gate → Negotiation) shows the price
   versions and the Caat (weight cut).
@@ -504,6 +543,21 @@ Platform menu:
 
 - **Customers, plans and invoices.** Customers and their mills, plans (modules and limits), invoices and
   payment methods.
+- **Payment page** (Customers → *Payment page*): who sees *My subscription* (plan, price, invoices, ways to
+  pay): **every customer**, **none**, or **only the customers you tick**. Tick *Payment page* on a customer
+  in the list, or choose customers and use *Show / Hide the payment page* (this switches to "selected" by
+  itself). Where it is hidden, the customer gets no invoice or trial reminders; a blocked or read-only company
+  is still told so.
+- **Lifetime price.** Each plan can have a **lifetime price, paid once** (Plans → edit). The customer sees it
+  on *My subscription* ("or Rs … once, for lifetime access"). *Give lifetime access* asks the **amount paid
+  once** (the plan's lifetime price is filled in); the customer's page and the platform overview show it,
+  and the overview's **Lifetime customers** card shows how many there are and the total paid once.
+- **Several accounts at once** (Customers → *New customers (several)*): choose the plan and how they start
+  (free trial with its days, or active), then one row per account: alias, company, phone, Owner's name,
+  username and temporary password (filled in). Each gets its first mill and Owner sign-in; a row that fails
+  (e.g. a username taken) is listed and the others are still opened.
+- **Alias.** Your own name for an account (on *New customer*, the several-accounts form and *Edit*). It shows
+  only on the platform screens (list, search, the customer's page); the customer never sees it.
 - **Integrations and bank e-mail.** Integrations, the e-mail integration, and the bank e-mail templates
   used to read bank alerts.
 - **Data visibility.** How many months of data each plan sees.
@@ -511,3 +565,39 @@ Platform menu:
   records.
 
 Details: `saas.md`, `millnexa-branding.md`.
+
+## 17. Weighing modes, lab setup, users and service costs
+
+### The four weighing modes (switched on by the SaaS owner only)
+
+| Mode | Steps |
+|---|---|
+| 1 — Lab test before the final slip | Entry → loaded weight → lab test → approval → final slip. The final slip waits until the lab is done. |
+| 2 — Weight without a lab test | Entry → loaded weight → unloading → empty weight → slip. The slip shows only the vehicle and the weights. |
+| 3 — Weight first, lab test later | Entry → loaded weight → **Weight-only slip** at once → lab test → final slip. Both slips are kept (vehicle page → **All slips given**). |
+| 4 — Lab test first | Entry → sample → lab test → **accept**, **reject** or **negotiation** → weighbridge → final slip. |
+
+- **Platform → Weighment modes**: tick the modes for each company (its defaults) and, where needed, give one mill its own setting (**Mill setting**) or send it back to its company's. Every change is listed under **Change history** with who, when and why.
+- A mill sees the modes switched on for it under **Gate → Lab tests to add → Weighing modes**, and its Owner picks which one new paddy vehicles start in. It cannot switch modes on or off.
+- When more than one mode is on, **Live weight** and **New vehicle** show a **Weighing mode** choice for paddy. A vehicle keeps the mode it was registered in, even if the mode is switched off later.
+- Mode 4 negotiation: **Lab: negotiation** (lab supervisor) → **Negotiation approved** (the vehicle goes to the weighbridge) or **Negotiation failed** (rejected). A rejected or negotiating lot is weighed only through **Weigh without lab acceptance**, with a reason.
+
+### Lab setup
+
+- **Lab tests** (Gate → Lab tests): besides the standard and grace limits, each test has a minimum and maximum acceptable value, a tolerance, **Mandatory**, **needs a supervisor to accept in grace**, and **May change the payable weight**. The deduction % and how it is worked out stay under Deduction rules.
+- **Lab time rule** (Gate → Lab tests to add): the minutes the lab has, counted from arrival or the loaded weight, until the result or the decision; a late result is allowed and flagged, allowed only by a supervisor with a reason, or refused. An alert goes to the lab supervisors when the time runs out.
+- **Platform → Weighment modes → Lab features**: the SaaS owner allows each company or mill its own tests, quality deductions, time grace and negotiation.
+
+### Users
+
+- Each mill: **Administration → Users** (add, edit, change role, suspend, revoke, reset password, reset 2FA; last sign-in). Accounts are never deleted; revoking keeps their records. A Super Admin cannot change an Owner's account.
+- SaaS owner: **Platform → All users** — every user of every company and mill: add a user to any mill, change role, suspend / revoke / reinstate, reset the password, and see their sign-ins and activity.
+- New role: **Report Viewer** — sees screens and reports, changes nothing.
+
+### API, SMS, WhatsApp and e-mail costs
+
+- Every call to an outside service is recorded by itself: AI, WhatsApp, e-mail, push notifications, bank mailboxes, and any SMS, map or OCR service connected later. Each record has its usage ID, company, mill, person or automatic process, module, reason, time, quantity, cost and status. Records are never changed; a retry is not counted twice; delivery reports from WhatsApp are added beside them.
+- **Platform → API & message costs**: totals, successful and failed, estimated cost, the cost providers report, the amount charged to companies, and what is not yet reconciled. Broken down by company (click one), mill, provider, kind of service, module and day; Excel and PDF.
+- **Platform → Service prices & billing**: prices per provider and service from a date, for everyone or one company (free allowance, tiers, tax, monthly package fee, quota). Also: **Record a provider's bill**, the reconciliation of estimate against bill, and **Issue monthly statements** per company.
+- Each mill: **Administration → Service usage** (Owner and Super Admins, or anyone given "usage.view"): its own company's usage only, with Today … Last month and custom dates, and Excel / PDF.
+- No SMS gateway is connected yet; SMS usage appears once one is.

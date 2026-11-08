@@ -1,5 +1,6 @@
 /*
- * The weighbridge dial on the Live weight screen, kept current without reloading anything.
+ * The weighbridge dial on the Live weight screen, and the small reading in the top bar of every screen, kept current
+ * without reloading anything.
  *
  * Twice a second the reading is fetched as plain JSON (GET /admin/gate/live-weight/{scale}) and the dial's
  * needle, figure, maund and status are changed in place. The next read starts half a second after the last
@@ -66,10 +67,24 @@
         if (svg) svg.setAttribute('aria-label', (dial.dataset.name || '') + ': ' + (kg === null ? 'no reading' : fmt(kg, 0) + ' kg') + ', ' + status.toLowerCase());
     }
 
-    function read(dial) {
+    // The small reading in the top bar of every screen: the figure and a coloured lamp only.
+    function paintMini(el, r) {
+        const live = !!(r && r.live);
+        const kg = r && r.kg !== null && r.kg !== undefined ? Number(r.kg) : null;
+        const stable = live && !!r.stable;
+        const tone = !live ? TONES.none : (stable ? TONES.stable : TONES.moving);
+        const q = (name) => el.querySelector('[data-lw-mini="' + name + '"]');
+        q('lamp').style.background = 'rgb(var(' + tone + '))';
+        q('kg').textContent = kg === null ? '—' : fmt(kg, 0);
+        q('state').textContent = !live ? 'no signal' : (stable ? 'stable' : 'moving');
+        el.title = (el.dataset.name || '') + ': ' + (kg === null ? 'no reading' : fmt(kg, 0) + ' kg (' + fmt(kg / 40, 2) + ' maund)') + ', ' + q('state').textContent;
+    }
+
+    // One read per weighbridge, painted on every dial and top-bar reading of it.
+    function read(url, els) {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 8000);
-        return fetch(dial.dataset.liveWeight, {
+        return fetch(url, {
             credentials: 'same-origin', cache: 'no-store', redirect: 'manual', signal: ctrl.signal,
             headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         })
@@ -77,22 +92,32 @@
             .catch(() => null)
             .then((r) => {
                 clearTimeout(timer);
-                if (!dial.isConnected) return;
-                // One missed read (a network blip) keeps the last reading; three in a row show no signal.
-                dial.lwFails = r ? 0 : (dial.lwFails || 0) + 1;
-                if (r) {
-                    dial.lwLast = r;
-                    paint(dial, r);
-                } else if (dial.lwFails >= 3) {
-                    paint(dial, { kg: dial.lwLast ? dial.lwLast.kg : null, live: false, stable: false, age: null });
-                }
+                els.forEach((el) => {
+                    if (!el.isConnected) return;
+                    const draw = el.hasAttribute('data-live-weight-mini') ? paintMini : paint;
+                    // One missed read (a network blip) keeps the last reading; three in a row show no signal.
+                    el.lwFails = r ? 0 : (el.lwFails || 0) + 1;
+                    if (r) {
+                        el.lwLast = r;
+                        draw(el, r);
+                    } else if (el.lwFails >= 3) {
+                        draw(el, { kg: el.lwLast ? el.lwLast.kg : null, live: false, stable: false, age: null });
+                    }
+                });
             });
     }
 
     function tick() {
         const started = Date.now();
-        const dials = document.hidden ? [] : Array.from(document.querySelectorAll('[data-live-weight]'));
-        Promise.all(dials.map(read)).finally(() => setTimeout(tick, Math.max(0, EVERY - (Date.now() - started))));
+        const byUrl = new Map();
+        if (!document.hidden) {
+            document.querySelectorAll('[data-live-weight], [data-live-weight-mini]').forEach((el) => {
+                const url = el.dataset.liveWeight || el.dataset.liveWeightMini;
+                if (!byUrl.has(url)) byUrl.set(url, []);
+                byUrl.get(url).push(el);
+            });
+        }
+        Promise.all(Array.from(byUrl, ([url, els]) => read(url, els))).finally(() => setTimeout(tick, Math.max(0, EVERY - (Date.now() - started))));
     }
 
     tick();

@@ -100,6 +100,7 @@ class RoznamchaResource extends Resource
             ViewField::make('scanner_panel')->hiddenLabel()->view('filament.forms.roznamcha-scanner')->dehydrated(false)->columnSpanFull()
                 ->visible(fn (Get $get) => $get('source') === 'scanner'),
             FileUpload::make('scan')->storeFiles(false)->maxSize(20480)->columnSpanFull()
+                ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])
                 ->label(fn (Get $get) => match ($get('source')) {
                     'camera' => 'Or take the photo on this device', 'scanner' => 'Or choose the file your scanner saved', 'pdf' => 'PDF of the page', default => 'Picture of the page',
                 })

@@ -124,7 +124,7 @@ final class RecordLabTestTool extends Tool
         $who = self::label($entry);
         $text = match (true) {
             $over !== [] => "{$who}: rejected automatically. It can come in only through negotiation (Gate → Negotiation).",
-            $entry->status === 'lab_accepted' => "{$who}: lab result saved and accepted. It can go on the weighbridge now.",
+            $entry->status === 'lab_accepted' => "{$who}: lab result saved and accepted. ".($entry->gross_kg !== null ? 'It can be unloaded now, then weighed empty.' : 'It can go on the weighbridge now.'),
             $entry->status === 'lab_rejected' => "{$who}: lab result saved and rejected. It can come in only through negotiation.",
             default => "{$who}: lab result saved. Waiting for the Lab Supervisor to accept or reject it.",
         };

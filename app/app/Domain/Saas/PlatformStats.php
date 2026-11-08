@@ -29,7 +29,7 @@ final class PlatformStats
 
     /**
      * @return array{customers: array<string, int>, mrr_paise: int, invoiced_paise: int, collected_paise: int,
-     *               outstanding_paise: int, overdue_paise: int, reported: int, new_this_month: int}
+     *               outstanding_paise: int, overdue_paise: int, reported: int, new_this_month: int, lifetime_paid_paise: int}
      */
     public function summary(): array
     {
@@ -59,6 +59,7 @@ final class PlatformStats
                 'overdue_paise' => (int) (clone $open)->where('due_at', '<', now())->sum('amount_paise'),
                 'reported' => (clone $open)->whereNotNull('reported_at')->count(),
                 'new_this_month' => $customers->filter(fn (Customer $c) => $c->created_at->gte($monthStart))->count(),
+                'lifetime_paid_paise' => (int) $customers->where('lifetime', true)->sum(fn (Customer $c) => (int) $c->lifetime_paid_paise),
             ];
         });
     }

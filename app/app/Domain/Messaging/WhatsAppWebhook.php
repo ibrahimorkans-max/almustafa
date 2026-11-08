@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Messaging;
 
 use App\Domain\Tenancy\TenantContext;
+use App\Domain\Usage\UsageMeter;
 use App\Models\Accounts\StatementShare;
 use App\Models\Entity;
 use App\Models\Masters\Party;
@@ -109,6 +110,8 @@ final class WhatsAppWebhook
             ])) {
                 return 0;
             }
+            // The usage record of the message hears how it went (and Meta's pricing category).
+            UsageMeter::update($id, 'delivery', $state, null, null, isset($s['pricing']['category']) ? 'pricing: '.mb_substr((string) $s['pricing']['category'], 0, 40) : null);
             foreach (PartyMessage::query()->where('provider_message_id', $id)->get() as $sent) {
                 if (self::ORDER[$state] > (self::ORDER[(string) $sent->delivery_status] ?? 0)) {
                     $sent->forceFill(['delivery_status' => $state, 'delivery_at' => $at]

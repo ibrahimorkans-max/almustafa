@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire;
 
 use App\Domain\Gate\LiveCapture;
+use App\Domain\Gate\ManualWeighing;
 use App\Filament\Widgets\LiveWeightBoard;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
@@ -34,7 +35,7 @@ final class WeighQueue extends Component
     {
         abort_unless(LiveWeightBoard::canView(), 403);
         $user = Filament::auth()->user();
-        $may = $user instanceof LoginAccount && ($user->hasPermission('weighment.capture') || $user->hasPermission('weighment.manual'));
+        $may = $user instanceof LoginAccount && ($user->hasPermission('weighment.capture') || ManualWeighing::allowed($user));
 
         return view('livewire.weigh-queue', ['waiting' => $may ? app(LiveCapture::class)->waiting()->all() : []]);
     }

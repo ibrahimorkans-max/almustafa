@@ -35,11 +35,13 @@ class LabParameter extends Model
     use BelongsToEntity;
     use HasUuids;
 
-    protected $fillable = ['product_id', 'code', 'name_en', 'name_ur', 'unit', 'standard_bp', 'grace_bp', 'sort', 'status'];
+    protected $fillable = ['product_id', 'code', 'name_en', 'name_ur', 'unit', 'standard_bp', 'grace_bp', 'sort', 'status',
+        'min_bp', 'max_bp', 'tolerance_bp', 'mandatory', 'needs_approval', 'affects_weight'];
 
     protected function casts(): array
     {
-        return ['standard_bp' => 'integer', 'grace_bp' => 'integer', 'sort' => 'integer'];
+        return ['standard_bp' => 'integer', 'grace_bp' => 'integer', 'sort' => 'integer', 'min_bp' => 'integer', 'max_bp' => 'integer',
+            'tolerance_bp' => 'integer', 'mandatory' => 'boolean', 'needs_approval' => 'boolean', 'affects_weight' => 'boolean'];
     }
 
     /** @return BelongsTo<Product, $this> */

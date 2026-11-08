@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use Illuminate\Mail\Events\MessageSent;
+use Illuminate\Http\Client\Events\ResponseReceived;
+use Illuminate\Http\Client\Events\ConnectionFailed;
+use App\Domain\Usage\MeterOutsideCalls;
 use App\Domain\Access\PermissionCatalog;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Auth\ApiTokenGuard;
@@ -12,6 +16,7 @@ use App\Domain\Auth\SessionService;
 use App\Domain\Auth\TenantAwareUserProvider;
 use App\Domain\Banking\Mailbox;
 use App\Domain\Banking\ProviderMailbox;
+use App\Domain\Gate\GatePolicy;
 use App\Domain\Hr\Attendance\DeviceClock;
 use App\Domain\Hr\Attendance\IntegrityVerifier;
 use App\Domain\Hr\Attendance\UnconfiguredIntegrityVerifier;
@@ -23,6 +28,7 @@ use App\Domain\Sync\SyncRegistry;
 use App\Domain\Tenancy\Exceptions\MissingTenantContext;
 use App\Domain\Tenancy\TenantContext;
 use App\Filament\Pages\SwitchContext;
+use App\Filament\Support\FieldRules;
 use App\Http\Middleware\EnsureWebAuthSession;
 use App\Http\Middleware\RequireWorkingEntityForCreate;
 use App\Livewire\PrefillCreateFormHook;
@@ -92,6 +98,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Per request / per job state (flushed between Octane requests and queue jobs).
         $this->app->scoped(TenantContext::class);
+        $this->app->scoped(GatePolicy::class);
         $this->app->scoped(PlanLimits::class);
         $this->app->scoped(CustomerAccess::class);
         $this->app->scoped(ActorContext::class);
@@ -124,10 +131,13 @@ class AppServiceProvider extends ServiceProvider
         // Times are stored in UTC; every screen shows them in Pakistan time unless a column says otherwise.
         TextColumn::configureUsing(fn (TextColumn $column) => $column->timezone('Asia/Karachi'));
         TextEntry::configureUsing(fn (TextEntry $entry) => $entry->timezone('Asia/Karachi'));
+        // Every form field: plain text only, a sensible length, and e-mail / phone / CNIC formats by name.
+        FieldRules::register();
 
         $this->registerAuth();
         $this->registerRateLimits();
         $this->registerQueueContextReset();
+        $this->registerUsageMeter();
         $this->registerOpsAlerts();
         $this->registerFriendlyContextErrors();
 
@@ -259,6 +269,12 @@ class AppServiceProvider extends ServiceProvider
      * Long-running workers must never carry one job's entity into the next. A job on the
      * `sync` connection runs inline inside the current request, whose context must survive it.
      */
+    /** Every outside call (HTTP) and every e-mail sent is recorded as service usage (App\Domain\Usage). */
+    private function registerUsageMeter(): void
+    {
+        Event::listen([ResponseReceived::class, ConnectionFailed::class, MessageSent::class], MeterOutsideCalls::class);
+    }
+
     private function registerQueueContextReset(): void
     {
         $reset = function (JobProcessing|JobProcessed $event): void {

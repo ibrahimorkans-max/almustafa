@@ -16,6 +16,7 @@
         <x-filament::section>
             <x-slot name="heading">Company</x-slot>
             <dl class="space-y-1 text-sm">
+                @if ($customer->alias)<div><dt class="inline text-gray-500">Alias (only you):</dt> <dd class="inline font-semibold text-primary-600">{{ $customer->alias }}</dd></div>@endif
                 <div><dt class="inline text-gray-500">Contact:</dt> <dd class="inline">{{ $customer->contact_name ?? '—' }}</dd></div>
                 <div><dt class="inline text-gray-500">Phone:</dt> <dd class="inline">{{ $customer->phone ?? '—' }}</dd></div>
                 <div><dt class="inline text-gray-500">Email:</dt> <dd class="inline">{{ $customer->email ?? '—' }}</dd></div>
@@ -31,7 +32,7 @@
             <div class="text-xl font-bold">{{ $plan?->name ?? 'No plan: everything' }}</div>
             @if ($customer->isLifetime())
                 <div class="mt-1 inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
-                    <x-filament::icon icon="heroicon-o-sparkles" class="h-4 w-4" /> Lifetime access since {{ $pk($customer->lifetime_since) }}
+                    <x-filament::icon icon="heroicon-o-sparkles" class="h-4 w-4" /> Lifetime access since {{ $pk($customer->lifetime_since) }}{{ $customer->lifetime_paid_paise ? ' · paid once '.$rs($customer->lifetime_paid_paise) : '' }}
                 </div>
             @endif
             @if ($plan)<div class="text-sm text-gray-500">{{ $rs($plan->price_paise_monthly) }} a month</div>@endif

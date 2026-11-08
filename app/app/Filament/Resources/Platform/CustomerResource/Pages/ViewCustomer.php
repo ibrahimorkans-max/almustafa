@@ -39,7 +39,7 @@ class ViewCustomer extends ViewRecord
 
     public function getTitle(): string
     {
-        return $this->customer()->name.' ('.$this->customer()->code.')';
+        return $this->customer()->name.' ('.$this->customer()->code.')'.($this->customer()->alias ? ' · '.$this->customer()->alias : '');
     }
 
     public function customer(): Customer

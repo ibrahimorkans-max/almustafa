@@ -6,6 +6,7 @@ namespace App\Domain\Gate;
 
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Gate\GateEntry;
+use App\Models\Gate\GateEvent;
 use App\Models\Gate\Scale;
 use App\Models\Gate\Weighment;
 use App\Models\Masters\Godown;
@@ -55,12 +56,13 @@ final class LiveCapture
                     return null;
                 }
                 // A paddy lot still at the lab is listed too (it keeps its place in the queue), marked as such.
-                $atLab = $e->direction === 'inbound' && $e->purpose !== 'other' && $e->status === 'arrived';
+                $paddy = $e->direction === 'inbound' && $e->purpose !== 'other';
+                $atLab = $paddy && WeighModes::usesLab(WeighModes::of($e)) && ($e->status === 'arrived' || ($e->status === 'gross_weighed' && GatePolicy::weighsFirst($e)));
 
                 return [
                     'id' => $e->id,
                     'label' => trim(($e->token_no !== null || $e->token_serial !== null ? 'Token '.$e->tokenLabel().' · ' : '').($e->jack_type !== null ? $e->jackLabel().' · ' : '').($e->no_plate ? 'No plate ('.$e->vehicle_description.')' : $e->registration_no)
-                        .($e->partyLabel() !== null ? ' · '.$e->partyLabel() : '').($atLab ? ' · at the lab' : '')),
+                        .($e->partyLabel() !== null ? ' · '.$e->partyLabel() : '').($atLab ? (GatePolicy::weighsFirst($e) ? ' · lab test to add' : ' · at the lab') : '')),
                     'kind' => self::nextKind($e),
                     'token' => $e->token_serial !== null || $e->token_no !== null ? $e->tokenLabel() : null,
                     'plate' => $e->no_plate ? '' : $e->registration_no,
@@ -77,6 +79,29 @@ final class LiveCapture
             return match ([$entry->direction, $entry->status]) {
                 ['inbound', 'arrived'], ['outbound', 'tare_weighed'] => Weighment::GROSS,
                 ['inbound', 'gross_weighed'], ['outbound', 'arrived'] => Weighment::TARE,
+                default => null,
+            };
+        }
+
+        $mode = $entry->direction === 'inbound' ? WeighModes::of($entry) : null;
+        if ($mode === WeighModes::NO_LAB) {
+            // Without a lab (mode 2): loaded at once, empty after unloading.
+            return match ($entry->status) {
+                'arrived' => Weighment::GROSS,
+                'gross_weighed', 'unloaded' => Weighment::TARE,
+                default => null,
+            };
+        }
+        if ($mode === WeighModes::LAB_FIRST && $entry->gross_kg === null && in_array($entry->status, ['arrived', 'lab_rejected'], true)
+            && GateEvent::query()->where('gate_entry_id', $entry->id)->where('event', 'weigh_override')->exists()) {
+            return Weighment::GROSS;   // weighed by an authorised override
+        }
+        if (WeighModes::weighsFirst($mode)) {
+            // Weighed before the lab: loaded at once; empty after the lab accepted the lot and it was unloaded.
+            return match ($entry->status) {
+                'arrived' => Weighment::GROSS,
+                'lab_accepted' => $entry->gross_kg === null ? Weighment::GROSS : Weighment::TARE,
+                'unloaded' => Weighment::TARE,
                 default => null,
             };
         }
@@ -106,6 +131,8 @@ final class LiveCapture
             }
 
             return match (true) {
+                $inbound && $kind === Weighment::TARE && $entry->status === 'gross_weighed' && GatePolicy::weighsFirst($entry) => 'After the lab accepts the lot (add its lab test under Gate → Lab tests) and it is unloaded.',
+                $inbound && $kind === Weighment::TARE && $entry->status === 'lab_rejected' => 'The lab rejected the lot.',
                 $inbound && $kind === Weighment::GROSS && in_array($entry->status, ['arrived'], true) => 'After the lab accepts the lot.',
                 $inbound && $kind === Weighment::TARE && in_array($entry->status, ['arrived', 'lab_accepted'], true) => 'After the loaded weight and unloading.',
                 ! $inbound && $kind === Weighment::GROSS && in_array($entry->status, ['arrived', 'tare_weighed'], true) => 'After the empty weight and loading (mark it loaded on the vehicle page).',
@@ -119,7 +146,9 @@ final class LiveCapture
                 'kg' => $gross?->weight_kg, 'manual' => $gross?->source === Weighment::SOURCE_MANUAL],
             'tare' => ['done' => $tare !== null, 'allowed' => $next === Weighment::TARE, 'why' => $why(Weighment::TARE),
                 'kg' => $tare?->weight_kg, 'manual' => $tare?->source === Weighment::SOURCE_MANUAL],
-            'unload' => $inbound && $entry->purpose !== 'other' && $entry->status === 'gross_weighed',
+            // Paddy weighed loaded and accepted by the lab, not unloaded yet (the status follows the policy's order).
+            'unload' => $inbound && $entry->purpose !== 'other' && $entry->gross_kg !== null
+                && $entry->status === (GatePolicy::weighsFirst($entry) ? 'lab_accepted' : 'gross_weighed'),
             'net' => $entry->net_kg,
         ];
     }

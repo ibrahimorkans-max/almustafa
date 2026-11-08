@@ -14,6 +14,7 @@ use App\Filament\Pages\MyPasskeys;
 use App\Filament\Pages\SwitchContext;
 use App\Filament\Pages\TwoFactor;
 use App\Filament\Resources\Hr\HrScope;
+use App\Filament\Support\RoleAvatar;
 use App\Filament\Widgets\HrOverview;
 use App\Filament\Widgets\LiveWeightBoard;
 use App\Filament\Widgets\MoneyOverview;
@@ -121,7 +122,13 @@ class AdminPanelProvider extends PanelProvider
             ->globalSearchKeyBindings(['ctrl+k', 'command+k'])
             ->globalSearchDebounce('350ms')
             ->renderHook(PanelsRenderHook::GLOBAL_SEARCH_AFTER, fn () => view('filament.hooks.search-all'))
+            // The weighbridge's live weight in the top bar of every screen (read in the browser; never redraws the page).
+            ->renderHook(PanelsRenderHook::GLOBAL_SEARCH_BEFORE, fn () => view('filament.hooks.live-weight-mini'))
             ->renderHook(PanelsRenderHook::USER_MENU_BEFORE, fn () => view('filament.hooks.paper-size'))
+            // The role of the person signed in, with its animated icon; the menu icons come alive on hover.
+            ->renderHook(PanelsRenderHook::USER_MENU_BEFORE, fn () => view('filament.hooks.role-badge'))
+            // Pictures drawn here (initials on the role's colours): ui-avatars.com is outside the security policy.
+            ->defaultAvatarProvider(RoleAvatar::class)
             ->renderHook(PanelsRenderHook::HEAD_END, fn () => view('filament.hooks.product-head'))
             // SaaS: read-only for an overdue payment, an invoice due, the trial ending.
             ->renderHook(PanelsRenderHook::CONTENT_START, fn () => view('filament.hooks.billing-banner'))

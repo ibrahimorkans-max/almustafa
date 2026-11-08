@@ -4,16 +4,21 @@ declare(strict_types=1);
 
 namespace App\Filament\Support;
 
+use App\Filament\Pages\LabQueuePage;
+use App\Domain\Gate\GatePolicy;
 use App\Domain\Gate\GateService;
 use App\Domain\Gate\LabStandards;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Domain\Tenancy\TenantContext;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\LabParameter;
 use App\Models\Gate\LabTest;
 use App\Models\LoginAccount;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Component;
 use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
@@ -40,56 +45,86 @@ final class QuickLabTest
             ->modalHeading('Lab test')
             ->modalDescription('Choose the vehicle, type the results, and check the result below before saving.')
             ->modalSubmitActionLabel('Save lab result')
-            ->form([
-                Select::make('entry')->label('Vehicle (token)')->required()->searchable()->live()
-                    ->options(fn () => self::waiting())
-                    ->noSearchResultsMessage('No vehicle is waiting for the lab.')
-                    ->afterStateUpdated(fn (callable $set) => $set('decision', 'later')),
-                Grid::make(2)->visible(fn (Get $get) => self::entry($get('entry')) !== null)
-                    ->schema(fn (Get $get): array => self::resultFields(self::entry($get('entry')))),
-                Placeholder::make('outcome')->label('Result by the rules')
-                    ->visible(fn (Get $get) => self::entry($get('entry')) !== null)
-                    ->content(fn (Get $get) => self::outcome($get)),
-                Radio::make('decision')->label('Decision')->default('later')->live()
-                    ->visible(fn (Get $get) => self::can('lab.decide') && self::entry($get('entry')) !== null)
-                    ->options(fn (Get $get) => self::over($get) !== []
-                        ? ['later' => 'Rejected automatically (a result is above its grace limit)']
-                        : ['accept' => 'Accept the lot: it can be weighed', 'reject' => 'Reject the lot', 'later' => 'Leave the decision to the Lab Supervisor']),
-                Textarea::make('note')->label(fn (Get $get) => $get('decision') === 'reject' ? 'Why is it rejected?' : 'Remarks (optional)')
-                    ->visible(fn (Get $get) => self::entry($get('entry')) !== null)
-                    ->required(fn (Get $get) => $get('decision') === 'reject')->rows(2)->maxLength(1000),
-            ])
+            ->form(self::schema(true))
             ->action(function (array $data, Action $action): void {
-                $entry = self::entry($data['entry'] ?? null) ?? throw new BusinessRuleViolation('Choose the vehicle.');
-                $results = [];
-                foreach ($data as $key => $value) {
-                    if (str_starts_with((string) $key, 'r_') && filled($value)) {
-                        $results[substr((string) $key, 2)] = Units::percentToBp((string) $value);
-                    }
-                }
-                $gate = app(GateService::class);
                 try {
-                    $gate->recordLabTest($entry, ['results' => $results, 'remarks' => $data['note'] ?? null]);
-                    $decision = $data['decision'] ?? 'later';
-                    if ($decision !== 'later' && self::can('lab.decide') && app(LabStandards::class)->overGrace($entry->fresh()) === []) {
-                        $gate->decideLab($entry->fresh(), $decision === 'accept', $data['note'] ?? null);
-                    }
+                    $entry = self::save($data);
                 } catch (BusinessRuleViolation $e) {
                     Notification::make()->title($e->getMessage())->danger()->persistent()->send();
                     $action->halt();
 
                     return;
                 }
-                self::saved($entry->fresh());
+                self::saved($entry);
                 $action->getLivewire()->dispatch('weigh-queue-refresh');
             });
+    }
+
+    /**
+     * The lab test form: the vehicle (chosen from those waiting, or fixed on its own page), one box per lab test with
+     * its limits, the verdict by the rules as the results are typed, the decision and remarks.
+     *
+     * @return list<Component>
+     */
+    public static function schema(bool $chooseVehicle): array
+    {
+        return [
+            $chooseVehicle
+                ? Select::make('entry')->label('Vehicle (token)')->required()->searchable()->live()
+                    ->options(fn () => self::waiting())
+                    ->noSearchResultsMessage('No vehicle is waiting for the lab.')
+                    ->afterStateUpdated(fn (callable $set) => $set('decision', 'later'))
+                : Hidden::make('entry')->required(),
+            Grid::make(2)->visible(fn (Get $get) => self::entry($get('entry')) !== null)
+                ->schema(fn (Get $get): array => self::resultFields(self::entry($get('entry')))),
+            Placeholder::make('outcome')->label('Result by the rules')
+                ->visible(fn (Get $get) => self::entry($get('entry')) !== null)
+                ->content(fn (Get $get) => self::outcome($get)),
+            Radio::make('decision')->label('Decision')->default('later')->live()
+                ->visible(fn (Get $get) => self::can('lab.decide') && self::entry($get('entry')) !== null)
+                ->options(fn (Get $get) => self::over($get) !== []
+                    ? ['later' => 'Rejected automatically (a result is above its grace limit)']
+                    : ['accept' => 'Accept the lot: it can be weighed', 'reject' => 'Reject the lot', 'later' => 'Leave the decision to the Lab Supervisor']),
+            Textarea::make('note')->label(fn (Get $get) => $get('decision') === 'reject' ? 'Why is it rejected?' : 'Remarks (optional)')
+                ->visible(fn (Get $get) => self::entry($get('entry')) !== null)
+                ->required(fn (Get $get) => $get('decision') === 'reject')->rows(2)->maxLength(1000),
+        ];
+    }
+
+    /**
+     * Saves the lab result (and the decision, for someone who may decide and when no result is above its grace limit).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function save(array $data): GateEntry
+    {
+        $entry = self::entry($data['entry'] ?? null) ?? throw new BusinessRuleViolation('Choose the vehicle.');
+        $results = [];
+        foreach ($data as $key => $value) {
+            if (str_starts_with((string) $key, 'r_') && filled($value)) {
+                $results[substr((string) $key, 2)] = Units::percentToBp((string) $value);
+            }
+        }
+        if ($results === []) {
+            throw new BusinessRuleViolation('Type at least one result.');
+        }
+        $gate = app(GateService::class);
+        $gate->recordLabTest($entry, ['results' => $results, 'remarks' => $data['note'] ?? null]);
+        $decision = $data['decision'] ?? 'later';
+        if ($decision !== 'later' && self::can('lab.decide') && app(LabStandards::class)->overGrace($entry->fresh() ?? $entry) === []) {
+            $gate->decideLab($entry->fresh() ?? $entry, $decision === 'accept', $data['note'] ?? null);
+        }
+
+        return $entry->fresh() ?? $entry;
     }
 
     /** @return array<string, string> inbound lots waiting for the lab (no decision yet), in token order */
     public static function waiting(): array
     {
         return GateEntry::query()->with(['party', 'product'])
-            ->where('direction', 'inbound')->where('purpose', '!=', 'other')->where('status', 'arrived')
+            // Waiting for the lab: just arrived, or (weighed before the lab) weighed loaded without a lab decision yet.
+            ->where('direction', 'inbound')->where('purpose', '!=', 'other')
+            ->tap(fn ($q) => LabQueuePage::waitingFilter($q))
             ->orderByDesc('arrived_at')->limit(100)->get()
             ->sortBy([fn (GateEntry $a, GateEntry $b) => ($a->token_serial === null) <=> ($b->token_serial === null),
                 fn (GateEntry $a, GateEntry $b) => (int) $a->token_serial <=> (int) $b->token_serial,
@@ -160,21 +195,21 @@ final class QuickLabTest
     }
 
     /** What happened, in words: accepted and ready to weigh, rejected (and why), or waiting for the decision. */
-    private static function saved(GateEntry $entry): void
+    public static function saved(GateEntry $entry): void
     {
         $who = ($entry->token_serial !== null || $entry->token_no !== null ? 'Token '.$entry->tokenLabel().' · ' : '').$entry->vehicleLabel();
         $over = app(LabStandards::class)->overGrace($entry);
         $note = match (true) {
             $over !== [] => Notification::make()->danger()->title($who.': rejected automatically')
                 ->body(implode("\n", array_map(fn (array $r) => LabStandards::describe($r), $over))."\nIt can come in only through negotiation (Gate → Negotiation)."),
-            $entry->status === 'lab_accepted' => Notification::make()->success()->title($who.': accepted')->body('It can go on the weighbridge now.'),
+            $entry->status === 'lab_accepted' => Notification::make()->success()->title($who.': accepted')->body($entry->gross_kg !== null ? 'It can be unloaded now, then weighed empty.' : 'It can go on the weighbridge now.'),
             $entry->status === 'lab_rejected' => Notification::make()->danger()->title($who.': rejected')->body('It can come in only through negotiation (Gate → Negotiation).'),
             default => Notification::make()->info()->title($who.': lab result saved')->body('Waiting for the Lab Supervisor to accept or reject it.'),
         };
         $note->duration(10000)->send();
     }
 
-    private static function entry(mixed $id): ?GateEntry
+    public static function entry(mixed $id): ?GateEntry
     {
         return is_string($id) && $id !== '' ? GateEntry::query()->with(['party', 'product'])->find($id) : null;
     }

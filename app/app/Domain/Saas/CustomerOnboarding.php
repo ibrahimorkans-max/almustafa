@@ -35,7 +35,7 @@ final class CustomerOnboarding
      * @param  array{company: string, contact_name?: string|null, phone?: string|null, email?: string|null,
      *               address?: string|null, notes?: string|null, plan_id?: string|null, status?: string,
      *               trial_days?: int|null, mill_name?: string|null, mill_code?: string|null, city?: string|null,
-     *               province?: string|null, owner_name: string, username: string, password: string,
+     *               province?: string|null, owner_name: string, username: string, password: string, alias?: string|null,
      *               must_change_password?: bool}  $data
      * @return array{customer: Customer, mill: Entity, owner: LoginAccount}
      */
@@ -61,6 +61,7 @@ final class CustomerOnboarding
                 'email' => $data['email'] ?? null,
                 'address' => $data['address'] ?? null,
                 'notes' => $data['notes'] ?? null,
+                'alias' => filled($data['alias'] ?? null) ? mb_substr(trim((string) $data['alias']), 0, 120) : null,
             ]);
             $millName = trim((string) ($data['mill_name'] ?? '')) ?: $customer->name;
             $mill = $this->provisioner->create([

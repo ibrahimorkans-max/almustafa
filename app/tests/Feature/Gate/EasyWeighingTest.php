@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Documents\PdfRenderer;
+use App\Domain\Gate\GatePolicy;
 use App\Domain\Gate\GateService;
 use App\Domain\Gate\LabReport;
 use App\Domain\Gate\LiveCapture;
@@ -36,6 +37,8 @@ use Tests\Support\Make;
 
 beforeEach(function () {
     $this->f = new GateFixtures(Make::entity('EWG'));
+    // These tests cover the lab-first policy (the lab accepts a lot before it is weighed).
+    Make::system(fn () => GatePolicy::set(false, $this->f->entity->id));
     $this->sauda = $this->f->confirmedSauda('100000');
     $this->sup = Make::account($this->f->entity, 'SUPERVISOR');
     $this->operator = Make::account($this->f->entity, 'GATE_OPERATOR');
@@ -175,14 +178,14 @@ it('keeps typing weights to Supervisors and above, always with a reason', functi
     expect($w->flags)->toContain('no_slip_evidence');
 });
 
-it('shows the weight on a dial with one Record weight button and Enter one weight manually', function () {
+it('shows the weight on the 3D weighbridge with one Record weight button and Enter one weight manually', function () {
     $e = ewgArrive($this);
     GateFixtures::passLab($this->gate, $e);
     ewgSignIn($this, $this->sup);
     $sid = $this->f->scale->id;
 
     Livewire::test(LiveWeightBoard::class)
-        ->assertSee('TONNES')->assertSee('Record weight')->assertSee('Enter one weight manually')
+        ->assertSee('TONNES')->assertSee('data-wb3d-root', false)->assertSee('Record weight')->assertSee('Enter one weight manually')
         ->set('plate.'.$sid, 'MNA211234')->assertSee('Record loaded weight (gross)')
         ->callAction('typeWeight', ['kind' => 'gross', 'weight_kg' => '25480', 'reason' => 'Loaded weight from Kanta 2'], ['scale' => $sid])
         ->assertNotified();
@@ -321,25 +324,25 @@ it('keeps every price and Caat proposal in the negotiation timeline, on its own 
     expect(app(GateService::class)->settlementApproved($e->fresh()))->toBeTrue();
 });
 
-it('shows one clock with the status and the exact weight on its face, switching between weighbridges', function () {
+it('shows one 3D weighbridge with the status and the exact weight on its readout, switching between weighbridges', function () {
     $second = Scale::query()->create(['code' => 'WB2', 'name' => 'Small kanta', 'capacity_kg' => '300', 'resolution_kg' => '0.1']);
     ewgFeed($this, '25480');
     ewgSignIn($this, $this->f->owner);
 
     $board = Livewire::test(LiveWeightBoard::class);
     $html = $board->html();
-    expect(substr_count($html, '<svg viewBox="0 0 240 240"'))->toBe(1)
-        ->and($html)->toContain('25,480')->toContain('STABLE')->toContain('637.00 maund')->toContain('WB1 · TONNES')
+    expect(substr_count($html, 'data-wb3d-root'))->toBe(1)
+        ->and($html)->toContain('25,480')->toContain('STABLE')->toContain('637.00 maund')->toContain('WB1 · ')->toContain('· TONNES')
         // Nothing on the page polls Livewire (a reload or a redraw would interrupt weighing): the clock reads its
         // weighbridge as plain JSON in the browser.
         // (only the waiting list beside the form refreshes itself, every 10 seconds).
-        ->and(substr_count($html, 'wire:poll'))->toBe(1)->and($html)->toContain('wire:poll.10s')->toContain('data-live-weight="'.route('filament.admin.gate.live-weight', ['scale' => $this->f->scale->id]).'"');
+        ->and(substr_count($html, 'wire:poll'))->toBe(1)->and($html)->toContain('wire:poll.10s')->toContain('data-wb3d-live="'.route('filament.admin.gate.live-weight', ['scale' => $this->f->scale->id]).'"');
     $this->getJson(route('filament.admin.gate.live-weight', ['scale' => $this->f->scale->id]))->assertOk()
         ->assertJson(['kg' => 25480, 'live' => true, 'stable' => true])->assertHeader('Cache-Control', 'no-store, private');
 
     $html = $board->call('showScale', $second->id)->html();
-    expect(substr_count($html, '<svg viewBox="0 0 240 240"'))->toBe(1)
-        ->and($html)->toContain('WB2 · KG')->toContain('NO SIGNAL');
+    expect(substr_count($html, 'data-wb3d-root'))->toBe(1)
+        ->and($html)->toContain('WB2 · ')->toContain('· KG')->toContain('NO SIGNAL');
 });
 
 it('lets every widget be found by name, so typing and buttons on it are never refused as "page expired"', function () {

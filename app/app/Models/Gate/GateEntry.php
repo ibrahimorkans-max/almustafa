@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models\Gate;
 
 use App\Domain\Audit\Auditable;
+use App\Domain\Gate\GatePolicy;
+use App\Domain\Gate\WeighModes;
 use App\Domain\Security\RecordsEntryLocation;
 use App\Domain\Sync\FeedsSync;
 use App\Domain\Tenancy\BelongsToEntity;
@@ -106,6 +108,9 @@ class GateEntry extends Model
      * Simple weighing (purpose "other": goods that are not a paddy purchase or a dispatch order): weighed
      * straight away, no lab, no unloading or loading step; the slip books no stock and drafts no bill.
      */
+    /** Paddy weighed without a lab test (mode 2). */
+    public const NO_LAB_FLOW = ['arrived', 'gross_weighed', 'unloaded', 'tare_weighed', 'slip_issued', 'exited'];
+
     public const OTHER_INBOUND_FLOW = ['arrived', 'gross_weighed', 'tare_weighed', 'slip_issued', 'exited'];
 
     public const OTHER_OUTBOUND_FLOW = ['arrived', 'tare_weighed', 'gross_weighed', 'slip_issued', 'exited'];
@@ -113,7 +118,7 @@ class GateEntry extends Model
     protected $fillable = [
         'direction', 'purpose', 'vehicle_id', 'registration_no', 'driver_id', 'driver_name', 'party_id',
         'sauda_id', 'product_id', 'bag_count', 'arrived_at', 'dispatch_order_id', 'vehicle_type', 'no_plate', 'vehicle_description', 'goods_description',
-        'jack_type', 'party_name', 'paddy_variety_id',
+        'jack_type', 'party_name', 'paddy_variety_id', 'weigh_mode', 'mode_config_version',
     ];
 
     /** With Jack / Without Jack: printed on the token beside its number, never inside it. */
@@ -214,7 +219,39 @@ class GateEntry extends Model
             return $this->direction === 'outbound' ? self::OTHER_OUTBOUND_FLOW : self::OTHER_INBOUND_FLOW;
         }
 
-        return $this->direction === 'outbound' ? self::OUTBOUND_FLOW : self::INBOUND_FLOW;
+        if ($this->direction === 'outbound') {
+            return self::OUTBOUND_FLOW;
+        }
+
+        // Paddy: the weighing mode it was registered in (App\Domain\Gate\WeighModes).
+        $mode = WeighModes::of($this);
+
+        return match (true) {
+            $mode === WeighModes::NO_LAB => self::NO_LAB_FLOW,
+            WeighModes::weighsFirst($mode) => GatePolicy::WEIGH_FIRST_FLOW,
+            default => self::INBOUND_FLOW,
+        };
+    }
+
+    /**
+     * Where the lab stands for this lot: accepted, rejected, negotiation_pending, negotiation_approved,
+     * negotiation_failed, or null (no decision yet).
+     */
+    public function labOutcome(): ?string
+    {
+        $events = GateEvent::query()->where('gate_entry_id', $this->id)
+            ->whereIn('event', ['lab_accepted', 'lab_rejected', 'lab_corrected', 'negotiation_opened', 'negotiation_approved', 'negotiation_failed'])
+            ->chronological()->get();
+        $last = $events->last();
+
+        return match ($last?->event) {
+            'negotiation_opened' => 'negotiation_pending',
+            'negotiation_approved' => 'negotiation_approved',
+            'negotiation_failed' => 'negotiation_failed',
+            'lab_accepted' => ($last->data['after_negotiation'] ?? false) ? 'negotiation_approved' : 'accepted',
+            'lab_rejected' => $events->contains('event', 'negotiation_failed') ? 'negotiation_failed' : 'rejected',
+            default => null,
+        };
     }
 
     public function isOpen(): bool

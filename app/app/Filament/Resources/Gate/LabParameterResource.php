@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Gate;
 
+use App\Domain\Gate\LabSetup;
+use App\Domain\Tenancy\TenantContext;
 use App\Filament\Resources\Gate\LabParameterResource\Pages;
 use App\Filament\Support\Units;
 use App\Models\Gate\LabParameter;
 use App\Models\Masters\Product;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Resources\Resource;
@@ -40,6 +43,12 @@ class LabParameterResource extends Resource
 
     protected static ?int $navigationSort = 60;
 
+    /** A mill adds its own tests only where the SaaS owner allows it (Lab features); the limits stay its own to set. */
+    public static function canCreate(): bool
+    {
+        return parent::canCreate() && LabSetup::allows(app(TenantContext::class)->entityId(), 'custom_tests');
+    }
+
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
@@ -66,6 +75,16 @@ class LabParameterResource extends Resource
             TextInput::make('unit')->default('%')->required()->maxLength(10),
             TextInput::make('sort')->label('Order on the lab form')->integer()->minValue(0)->default(100),
             Select::make('status')->options(['active' => 'Active', 'inactive' => 'Not used'])->default('active')->required(),
+            TextInput::make('min')->label('Minimum acceptable (%) — below: grace')->regex('/^\d{1,3}(\.\d{1,2})?$/')
+                ->afterStateHydrated(fn (TextInput $component, ?LabParameter $record) => $component->state($record?->min_bp !== null ? rtrim(rtrim(number_format($record->min_bp / 100, 2, '.', ''), '0'), '.') : null)),
+            TextInput::make('max')->label('Maximum acceptable (%) — above: rejected')->regex('/^\d{1,3}(\.\d{1,2})?$/')
+                ->afterStateHydrated(fn (TextInput $component, ?LabParameter $record) => $component->state($record?->max_bp !== null ? rtrim(rtrim(number_format($record->max_bp / 100, 2, '.', ''), '0'), '.') : null)),
+            TextInput::make('tolerance')->label('Tolerance above standard (%)')->regex('/^\d{1,3}(\.\d{1,2})?$/')->default('0')
+                ->afterStateHydrated(fn (TextInput $component, ?LabParameter $record) => $component->state($record ? rtrim(rtrim(number_format((int) $record->tolerance_bp / 100, 2, '.', ''), '0'), '.') : '0')),
+            Toggle::make('mandatory')->label('Mandatory (a lot is accepted only with this result)'),
+            Toggle::make('needs_approval')->label('A result in its grace band needs a supervisor to accept'),
+            Toggle::make('affects_weight')->label('May change the payable weight (its deduction rules apply)')->default(true)
+                ->helperText('The deduction % and how it is worked out are the Deduction rules of this test.'),
         ]);
     }
 
@@ -79,7 +98,11 @@ class LabParameterResource extends Resource
     {
         $data['standard_bp'] = (int) Units::percentToBp((string) ($data['standard'] ?? '0'));
         $data['grace_bp'] = (int) Units::percentToBp((string) ($data['grace'] ?? '0'));
-        unset($data['standard'], $data['grace']);
+        foreach (['min' => 'min_bp', 'max' => 'max_bp'] as $in => $out) {
+            $data[$out] = isset($data[$in]) && $data[$in] !== '' ? (int) Units::percentToBp((string) $data[$in]) : null;
+        }
+        $data['tolerance_bp'] = (int) Units::percentToBp((string) ($data['tolerance'] ?? '0'));
+        unset($data['standard'], $data['grace'], $data['min'], $data['max'], $data['tolerance']);
 
         return $data;
     }

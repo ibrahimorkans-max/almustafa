@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Approvals\Actions\ManualWeighmentOverride;
 use App\Domain\Approvals\ApprovalService;
+use App\Domain\Gate\GatePolicy;
 use App\Domain\Gate\GateService;
 use App\Domain\Gate\SlipRenderer;
 use App\Domain\Shared\BusinessRuleViolation;
@@ -21,6 +22,8 @@ use Tests\Support\Make;
 
 beforeEach(function () {
     $this->f = new GateFixtures(Make::entity('GTE'));
+    // These tests cover the lab-first policy (the lab accepts a lot before it is weighed).
+    Make::system(fn () => GatePolicy::set(false, $this->f->entity->id));
     $this->sauda = $this->f->confirmedSauda('100000');
     // Gate staff: a supervisor can do every gate step (entry, weigh, lab test + decision).
     $this->sup = Make::account($this->f->entity, 'SUPERVISOR');

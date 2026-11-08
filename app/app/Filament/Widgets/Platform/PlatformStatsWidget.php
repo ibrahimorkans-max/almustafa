@@ -60,6 +60,9 @@ class PlatformStatsWidget extends StatsOverviewWidget
             Stat::make('Active customers', (string) ($c['active'] + $c['past_due']))
                 ->description("{$c['lifetime']} lifetime · {$c['past_due']} read-only")->descriptionIcon('heroicon-m-building-office-2')
                 ->color('success')->url(CustomerResource::getUrl()),
+            Stat::make('Lifetime customers', (string) $c['lifetime'])
+                ->description('Paid once in all: '.Units::paiseToRupees($s['lifetime_paid_paise']))->descriptionIcon('heroicon-m-sparkles')
+                ->color('primary')->url(CustomerResource::getUrl()),
             Stat::make('On free trial', (string) $c['trial'])
                 ->description("{$c['trial_ended']} ended, waiting to pay · {$s['new_this_month']} new this month")->descriptionIcon('heroicon-m-clock')
                 ->color('info')->url(CustomerResource::getUrl('index', ['tableFilters' => ['status' => ['value' => 'trial']]])),

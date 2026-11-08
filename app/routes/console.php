@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Schedule;
 | Scheduler (cron: `* * * * * php artisan schedule:run`). Times are Indian Standard Time.
 */
 
+// Lots whose lab time ran out without a result: an alert to the lab supervisors (App\Domain\Gate\LabSetup).
+Schedule::call(fn () => \App\Domain\Gate\LabSetup::alertExpired())->name('lab:time-alerts')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('procurement:expire')->dailyAt('00:15')->timezone('Asia/Karachi')->withoutOverlapping();
 Schedule::command('scales:certificate-reminders')->dailyAt('08:00')->timezone('Asia/Karachi')->withoutOverlapping();
 Schedule::command('audit:verify')->dailyAt('02:00')->timezone('Asia/Karachi')->withoutOverlapping();

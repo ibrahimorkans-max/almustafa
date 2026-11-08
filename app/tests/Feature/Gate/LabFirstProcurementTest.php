@@ -9,6 +9,7 @@ use App\Domain\Accounts\PurchaseBillService;
 use App\Domain\Accounts\StockValuation;
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Documents\PdfRenderer;
+use App\Domain\Gate\GatePolicy;
 use App\Domain\Gate\GateService;
 use App\Domain\Gate\VehicleRegister;
 use App\Domain\Reports\ReportCatalog;
@@ -31,6 +32,8 @@ use Tests\Support\Make;
 
 beforeEach(function () {
     $this->f = new GateFixtures(Make::entity('LFP'));
+    // These tests cover the lab-first policy (the lab accepts a lot before it is weighed).
+    Make::system(fn () => GatePolicy::set(false, $this->f->entity->id));
     $this->sauda = $this->f->confirmedSauda('100000', 100000); // Rs 1,000 per maund
     $this->tech = Make::account($this->f->entity, 'LAB_TECHNICIAN');
     $this->labsup = Make::account($this->f->entity, 'LAB_SUPERVISOR');

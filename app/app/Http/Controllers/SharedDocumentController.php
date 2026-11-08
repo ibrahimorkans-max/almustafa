@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Documents\Engine\DocumentSharing;
+use App\Support\Security\InputGuard;
 use Illuminate\Http\Response;
 
 /** Public: opens a shared document link (WhatsApp / SMS / e-mail). Expired, used-up or revoked links get a plain refusal. */
@@ -19,7 +20,7 @@ final class SharedDocumentController extends Controller
 
         return response($out['bytes'], 200, [
             'Content-Type' => $out['mime'],
-            'Content-Disposition' => 'inline; filename="'.$out['name'].'"',
+            'Content-Disposition' => 'inline; filename="'.InputGuard::filename($out['name']).'"',
             'Cache-Control' => 'no-store, private',
             'X-Robots-Tag' => 'noindex, nofollow',
             'Referrer-Policy' => 'no-referrer',

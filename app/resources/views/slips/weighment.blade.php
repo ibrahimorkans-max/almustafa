@@ -6,11 +6,14 @@
     $kg = fn (?string $v) => $v === null ? '—' : number_format((float) $v, 3);
     $pct = fn (?int $bp) => $bp === null ? '—' : rtrim(rtrim(number_format($bp / 100, 2), '0'), '.').' %';
     $inbound = $entry->direction === 'inbound';
+    // A weight-only slip (mode 3, before the lab) and a slip of a lot weighed without a lab (mode 2) show no lab and no deduction.
+    $initial = ($slip['kind'] ?? 'final') === 'initial';
+    $showLab = $inbound && ! $initial && ($slip['weigh_mode'] ?? null) !== 'no_lab';
 @endphp
 <html>
 <head><meta charset="utf-8">@include('pdf.styles')</head>
 <body>
-@include('pdf.letterhead', ['title' => 'WEIGHMENT SLIP', 'titleUr' => 'کانٹا پرچی', 'small' => $small])
+@include('pdf.letterhead', ['title' => $initial ? 'WEIGHMENT SLIP — WEIGHT ONLY (before lab)' : 'WEIGHMENT SLIP', 'titleUr' => 'کانٹا پرچی', 'small' => $small])
 
 <table class="grid">
     <tr>
@@ -53,13 +56,13 @@
             {{ ($slip['rejected_off_vehicle'] ?? false) ? 'Taken off the vehicle; its weight is subtracted.' : 'Returned on the vehicle.' }} The net weight is the paddy accepted only.
         </td></tr>
     @endif
-    @if ($inbound)
+    @if ($showLab)
         <tr><td class="label">Quality deduction</td><td class="num">{{ $kg($slip['deduction_kg'] ?? '0') }} kg</td><td class="label">Lab</td><td>{{ ($slip['lab_accepted'] ?? false) ? 'Accepted' : 'Not accepted' }}</td></tr>
         <tr class="grand"><td>Payable weight</td><td class="num">{{ $kg($slip['payable_kg']) }} kg</td><td colspan="2" class="r">{{ $slip['payable_kg'] !== null ? PdfRenderer::maundKg((string) $slip['payable_kg']) : '—' }}</td></tr>
     @endif
 </table>
 
-@if ($inbound && $labReport['test'] !== null)
+@if ($showLab && $labReport['test'] !== null)
     @php($t = $labReport['test'])
     <table class="grid">
         <tr><th colspan="5">Lab report <span class="ur">لیب رپورٹ</span> — sample {{ $t->sample_code ?? '—' }}, {{ $t->tested_at->timezone('Asia/Karachi')->format('d M H:i') }}{{ $labReport['corrections'] > 0 ? ' (corrected '.$labReport['corrections'].'×)' : '' }}</th></tr>

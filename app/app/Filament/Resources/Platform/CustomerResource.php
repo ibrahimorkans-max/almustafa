@@ -7,8 +7,10 @@ namespace App\Filament\Resources\Platform;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Saas\Billing;
 use App\Domain\Saas\CustomerAccess;
+use App\Domain\Saas\PaymentPage;
 use App\Domain\Saas\PlanLimits;
 use App\Filament\Resources\Platform\CustomerResource\Pages;
+use App\Filament\Support\Units;
 use App\Models\Customer;
 use App\Models\Entity;
 use App\Models\LoginAccount;
@@ -27,10 +29,13 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\ActionGroup;
+use Filament\Tables\Actions\BulkAction;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -104,6 +109,9 @@ class CustomerResource extends Resource
     public static function lifetimeForm(): array
     {
         return [
+            TextInput::make('paid')->label('Paid once (Rs)')->regex(Units::DECIMAL_2)
+                ->default(fn (?Customer $record) => ($p = $record?->plan?->price_paise_lifetime) ? number_format($p / 100, 2, '.', '') : null)
+                ->helperText('The one-time amount for lifetime access (the plan\'s lifetime price). Empty: given free.'),
             TextInput::make('note')->label('Why (kept in the history)')->required()->maxLength(300)->placeholder('Founding customer'),
             Toggle::make('cancel_open')->label('Cancel its open invoices')->default(true),
         ];
@@ -112,7 +120,8 @@ class CustomerResource extends Resource
     /** @param  array<string, mixed>  $data */
     public static function giveLifetime(Customer $customer, array $data): void
     {
-        SaasInvoiceResource::run(fn (LoginAccount $by) => app(Billing::class)->grantLifetime($customer, $by, (string) $data['note'], (bool) ($data['cancel_open'] ?? false)),
+        SaasInvoiceResource::run(fn (LoginAccount $by) => app(Billing::class)->grantLifetime($customer, $by, (string) $data['note'], (bool) ($data['cancel_open'] ?? false),
+            filled($data['paid'] ?? null) ? Units::rupeesToPaise((string) $data['paid']) : null),
             "{$customer->name} has lifetime access.");
     }
 
@@ -159,9 +168,11 @@ class CustomerResource extends Resource
         return $form->columns(2)->schema([
             Section::make('Company')->columns(2)->schema([
                 TextInput::make('name')->required()->maxLength(160),
+                TextInput::make('alias')->label('Alias (only you see it)')->maxLength(120)->helperText('Your own name for this account; the customer never sees it.'),
                 TextInput::make('contact_name')->label('Contact person')->maxLength(120),
                 TextInput::make('phone')->tel()->maxLength(20),
                 TextInput::make('email')->email()->maxLength(160),
+                Toggle::make('payment_page')->label('Shows the payment page')->helperText('Counts when the payment page is shown to selected customers only.'),
                 Textarea::make('address')->maxLength(500),
                 Textarea::make('notes')->maxLength(2000),
             ]),
@@ -175,6 +186,24 @@ class CustomerResource extends Resource
         ]);
     }
 
+    /**
+     * Ticks or unticks "Payment page" for the customers chosen; showing it to selected customers starts at once.
+     *
+     * @param  Collection<int, Customer>  $records
+     */
+    public static function paymentPage(Collection $records, bool $show): void
+    {
+        foreach ($records as $customer) {
+            $customer->update(['payment_page' => $show]);
+        }
+        if (PaymentPage::mode() !== 'selected') {
+            PaymentPage::setMode('selected');
+        }
+        app(AuditLogger::class)->record('saas.payment_page.'.($show ? 'shown' : 'hidden'), null, null, null, ['customers' => $records->pluck('code')->all()]);
+        Notification::make()->success()->title('Payment page '.($show ? 'shown to ' : 'hidden from ').$records->count().' customer(s).')
+            ->body('The payment page is now shown only to the customers ticked.')->send();
+    }
+
     public static function table(Table $table): Table
     {
         $usage = fn (Customer $r, string $key) => app(PlanLimits::class)->usage($r->id)[$key];
@@ -185,6 +214,9 @@ class CustomerResource extends Resource
             ->columns([
                 TextColumn::make('code')->searchable()->sortable(),
                 TextColumn::make('name')->description(fn (Customer $r) => trim(($r->contact_name ?? '').' '.($r->phone ?? '')))->searchable()->wrap(),
+                TextColumn::make('alias')->label('Alias')->placeholder('—')->searchable()->color('primary')->weight('medium'),
+                ToggleColumn::make('payment_page')->label('Payment page')->tooltip('Shown to this customer when the payment page is for selected customers only')
+                    ->visible(fn () => PaymentPage::mode() === 'selected'),
                 TextColumn::make('plan.name')->label('Plan')->placeholder('Everything'),
                 TextColumn::make('status')->badge()
                     ->formatStateUsing(fn (string $state, Customer $r) => match (true) {
@@ -207,6 +239,12 @@ class CustomerResource extends Resource
                 TextColumn::make('created_at')->label('Since')->date('d M Y')->sortable(),
             ])
             ->filters([SelectFilter::make('status')->options(self::STATUSES)])
+            ->bulkActions([
+                BulkAction::make('showPayment')->label('Show the payment page')->icon('heroicon-o-eye')
+                    ->action(fn (Collection $records) => self::paymentPage($records, true)),
+                BulkAction::make('hidePayment')->label('Hide the payment page')->icon('heroicon-o-eye-slash')
+                    ->action(fn (Collection $records) => self::paymentPage($records, false)),
+            ])
             ->actions([
                 // Block / Unblock right on the row: a blocked company sees only the payment page and nothing of its data.
                 Action::make('suspend')->label('Block')->icon('heroicon-o-no-symbol')->color('danger')->button()->size('sm')

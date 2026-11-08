@@ -8,9 +8,11 @@ use App\Domain\Approvals\Actions\ManualWeighmentOverride;
 use App\Domain\Approvals\ApprovalService;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
 use App\Domain\Approvals\SelfApproval;
+use App\Domain\Gate\GatePolicy;
 use App\Domain\Gate\GateService;
 use App\Domain\Gate\LabStandards;
 use App\Domain\Gate\SlipRenderer;
+use App\Domain\Gate\WeighModes;
 use App\Domain\Hr\ContractorVehicles;
 use App\Domain\Sales\SalesDocuments;
 use App\Domain\Shared\BusinessRuleViolation;
@@ -24,6 +26,7 @@ use App\Filament\Support\Units;
 use App\Filament\Support\WhatsAppFileButton;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
+use App\Models\Gate\GateSlipVersion;
 use App\Models\Gate\LabParameter;
 use App\Models\Gate\LabTest;
 use App\Models\Hr\ContractorRate;
@@ -72,8 +75,8 @@ class ViewGateEntry extends ViewRecord
 
         return [
             Action::make('labTest')->label(fn (GateEntry $e) => LabTest::query()->where('gate_entry_id', $e->id)->exists() ? 'Correct lab result' : 'Record lab test')->icon('heroicon-o-beaker')
-                ->visible(fn (GateEntry $e) => $e->isOpen() && $e->direction === 'inbound' && $can('lab.test') && ! $weighed($e))
-                ->modalDescription('Before the loaded weight. A result above its grace limit rejects the lot automatically. A correction replaces the result (the earlier one stays in the history) and the lab decides again.')
+                ->visible(fn (GateEntry $e) => $e->isOpen() && $e->direction === 'inbound' && $can('lab.test') && GatePolicy::labOpen($e))
+                ->modalDescription(fn (GateEntry $e) => (GatePolicy::weighBeforeLab($e->entity_id) ? 'Before unloading.' : 'Before the loaded weight.').' A result above its grace limit rejects the lot automatically. A correction replaces the result (the earlier one stays in the history) and the lab decides again.')
                 ->fillForm(function (GateEntry $e): array {
                     $last = LabTest::query()->where('gate_entry_id', $e->id)->latestFirst()->first();
                     if ($last === null) {
@@ -109,15 +112,36 @@ class ViewGateEntry extends ViewRecord
                     $this->run(fn (GateService $g) => $g->recordLabTest($e, $values), filled($data['correction_reason'] ?? null) ? 'Lab result corrected' : 'Lab test recorded');
                 }),
             Action::make('accept')->label('Lab: accept')->color('success')->icon('heroicon-o-check')
-                ->visible(fn (GateEntry $e) => $e->isOpen() && $can('lab.decide') && ! $weighed($e) && LabTest::query()->where('gate_entry_id', $e->id)->exists()
+                ->visible(fn (GateEntry $e) => $e->isOpen() && $can('lab.decide') && GatePolicy::labOpen($e) && LabTest::query()->where('gate_entry_id', $e->id)->exists()
                     && app(LabStandards::class)->overGrace($e) === [])
                 ->form([Textarea::make('note')->label('Note (required if above a reject limit)')->maxLength(1000)])
                 ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->decideLab($e, true, $data['note'] ?? null), 'Lot accepted')),
             Action::make('reject')->label('Lab: reject')->color('danger')->icon('heroicon-o-x-mark')
-                ->visible(fn (GateEntry $e) => $e->isOpen() && $can('lab.decide') && ! $weighed($e) && LabTest::query()->where('gate_entry_id', $e->id)->exists()
+                ->visible(fn (GateEntry $e) => $e->isOpen() && $can('lab.decide') && GatePolicy::labOpen($e) && LabTest::query()->where('gate_entry_id', $e->id)->exists()
                     && $latestDecision($e) !== 'lab_rejected')
                 ->form([Textarea::make('note')->required()->maxLength(1000)])
                 ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->decideLab($e, false, $data['note']), 'Lot rejected')),
+            // Negotiation: the lab sends the lot to the Owner / purchase approver, who approves (it goes to the weighbridge) or not.
+            Action::make('negotiate')->label('Lab: negotiation')->color('warning')->icon('heroicon-o-scale')
+                ->visible(fn (GateEntry $e) => $e->isOpen() && $can('lab.decide') && GatePolicy::labOpen($e) && LabTest::query()->where('gate_entry_id', $e->id)->exists()
+                    && ! in_array($e->labOutcome(), ['negotiation_pending', 'accepted', 'negotiation_approved'], true))
+                ->form([Textarea::make('note')->label('What is to be negotiated (results, proposed rate or deduction)')->required()->minLength(5)->maxLength(1000)])
+                ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->openNegotiation($e, $data['note']), 'Sent to negotiation')),
+            Action::make('negotiationApproved')->label('Negotiation approved')->color('success')->icon('heroicon-o-hand-thumb-up')
+                ->visible(fn (GateEntry $e) => $e->isOpen() && $can('purchase.approve') && $e->labOutcome() === 'negotiation_pending')
+                ->modalDescription('The lot is taken in on the terms agreed (propose and accept the price first if it changes) and goes to the weighbridge.')
+                ->form([Textarea::make('note')->label('Terms agreed (rate, deductions)')->required()->minLength(5)->maxLength(1000)])
+                ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->closeNegotiation($e, true, $data['note']), 'Negotiation approved')),
+            Action::make('negotiationFailed')->label('Negotiation failed')->color('danger')->icon('heroicon-o-hand-thumb-down')
+                ->visible(fn (GateEntry $e) => $e->isOpen() && $can('purchase.approve') && $e->labOutcome() === 'negotiation_pending')
+                ->form([Textarea::make('note')->label('Why it failed')->required()->minLength(5)->maxLength(1000)])
+                ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->closeNegotiation($e, false, $data['note']), 'Negotiation failed: lot rejected')),
+            Action::make('overrideWeigh')->label('Weigh without lab acceptance')->color('danger')->icon('heroicon-o-shield-exclamation')
+                ->visible(fn (GateEntry $e) => $e->isOpen() && $can('weighment.override') && WeighModes::of($e) === WeighModes::LAB_FIRST && $e->gross_kg === null
+                    && in_array($e->labOutcome(), ['rejected', 'negotiation_pending', 'negotiation_failed'], true) && ! $has($e, 'weigh_override'))
+                ->modalDescription('Recorded with your name and reason; the lot may then be weighed loaded. It is still not unloaded unless the lab accepts it.')
+                ->form([Textarea::make('reason')->required()->minLength(10)->maxLength(1000)])
+                ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->overrideWeighing($e, $data['reason']), 'Override recorded')),
             ...NegotiationActions::prices(fn (callable $step, string $ok) => $this->run($step, $ok)),
             Action::make('unloaded')->label('Mark unloaded')->icon('heroicon-o-arrow-down-tray')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $e->direction === 'inbound' && $can('gate.entry') && ! $has($e, 'unloaded'))
@@ -195,6 +219,23 @@ class ViewGateEntry extends ViewRecord
                 ->action(fn (GateEntry $e) => response()->streamDownload(
                     fn () => print app(SlipRenderer::class)->pdf($e),
                     str_replace('/', '-', (string) $e->number).'.pdf',
+                    ['Content-Type' => 'application/pdf'],
+                )),
+            // Mode 3: the weight-only slip at once, the final slip after the lab; every slip given stays downloadable.
+            Action::make('initialSlip')->label('Weight-only slip')->icon('heroicon-o-document')->color('primary')
+                ->visible(fn (GateEntry $e) => $e->isOpen() && $can('weighment.capture') && WeighModes::of($e) === WeighModes::WEIGH_FIRST_LAB_LATER
+                    && $e->gross_kg !== null && ! GateSlipVersion::query()->where('gate_entry_id', $e->id)->exists())
+                ->requiresConfirmation()->modalDescription('Gives the slip with the weight taken so far; the final slip with the lab result follows as a new version (both are kept).')
+                ->action(fn (GateEntry $e) => $this->run(fn (GateService $g) => $g->issueInitialSlip($e), 'Weight-only slip given')),
+            Action::make('slipVersions')->label('All slips given')->icon('heroicon-o-document-duplicate')->color('gray')
+                ->visible(fn (GateEntry $e) => GateSlipVersion::query()->where('gate_entry_id', $e->id)->count() > 1
+                    || GateSlipVersion::query()->where('gate_entry_id', $e->id)->where('kind', GateSlipVersion::INITIAL)->exists())
+                ->form([Select::make('version')->label('Slip')->required()->options(fn (GateEntry $e) => GateSlipVersion::query()->where('gate_entry_id', $e->id)->orderBy('version')->get()
+                    ->mapWithKeys(fn (GateSlipVersion $s) => [$s->version => 'Version '.$s->version.' — '.($s->kind === GateSlipVersion::INITIAL ? 'weight only' : 'final')
+                        .' — '.$s->issued_at->timezone('Asia/Karachi')->format('d M Y H:i')])->all())])
+                ->action(fn (GateEntry $e, array $data) => response()->streamDownload(
+                    fn () => print app(SlipRenderer::class)->pdf($e, (int) $data['version']),
+                    str_replace('/', '-', (string) $e->number).'-v'.(int) $data['version'].'.pdf',
                     ['Content-Type' => 'application/pdf'],
                 )),
             Action::make('loaded')->label('Mark loaded')->icon('heroicon-o-arrow-up-tray')
