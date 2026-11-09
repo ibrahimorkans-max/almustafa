@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Usage;
 
 use App\Domain\Auth\ActorContext;
+use App\Domain\Messaging\SenderIdentities;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Entity;
 use App\Models\Usage\ServiceUsage;
@@ -67,6 +68,8 @@ final class UsageMeter
                     'process' => $actor === null ? self::process() : null,
                     'recipient_masked' => isset($u['recipient']) ? self::mask((string) $u['recipient']) : null,
                     'template' => $u['template'] ?? null,
+                    // The sender the message went out under (the mill's own identity).
+                    'sender_identity' => in_array($u['channel'], ['whatsapp', 'sms', 'email'], true) ? SenderIdentities::label(SenderIdentities::for($u['channel'], $entityId)) : null,
                     'related_type' => $ctx['related_type'] ?? null, 'related_id' => $ctx['related_id'] ?? null,
                     'provider_ref' => isset($u['provider_ref']) ? mb_substr((string) $u['provider_ref'], 0, 120) : null,
                     'quantity' => $quantity, 'units' => $u['units'] ?? null,

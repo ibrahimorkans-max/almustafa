@@ -53,6 +53,7 @@ function gwyFirebaseKey(): string
 
 it('sends party messages by the WhatsApp Business Cloud API as the approved template', function () {
     config(['ricemill.messaging.whatsapp_cloud.phone_number_id' => '1234567890', 'ricemill.messaging.whatsapp_cloud.access_token' => 'meta-token']);
+    Make::whatsappSender($this->f->entity);
     Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.X']]])]);
     $this->entry = $this->f->receiveLot();
     $this->f->as($this->f->owner);
@@ -62,12 +63,13 @@ it('sends party messages by the WhatsApp Business Cloud API as the approved temp
     Http::assertSent(fn ($r) => $r->url() === 'https://graph.facebook.com/v21.0/1234567890/messages'
         && $r->hasHeader('Authorization', 'Bearer meta-token')
         && $r['to'] === '923001234567' && $r['type'] === 'template' && $r['template']['name'] === 'mill_update'
-        && $r['template']['components'][0]['parameters'][0]['text'] === '*Final weights of your vehicle* · Vehicle: *MNA-21-1234* · Slip: '.$this->entry->number
+        && $r['template']['components'][0]['parameters'][0]['text'] === '*'.$this->f->entity->name.'* · *Final weights of your vehicle* · Vehicle: *MNA-21-1234* · Slip: '.$this->entry->number
             .' · Item: Paddy 1121 · Loaded: 25,480 kg (637.00 maund) · Empty: 10,230 kg (255.75 maund) · Net weight: *15,250 kg (381.25 maund)* · Payable weight: *14,781 kg (369.53 maund)*');
 });
 
 it('keeps the WhatsApp error when Meta refuses, for sending by hand', function () {
     config(['ricemill.messaging.whatsapp_cloud.phone_number_id' => '1234567890', 'ricemill.messaging.whatsapp_cloud.access_token' => 'meta-token']);
+    Make::whatsappSender($this->f->entity);
     Http::fake(['graph.facebook.com/*' => Http::response(['error' => ['message' => 'Template name does not exist in the translation']], 404)]);
     $this->f->receiveLot();
     $this->f->as($this->f->owner);

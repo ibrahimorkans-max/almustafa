@@ -93,8 +93,10 @@ it('prints selling documents with the logo for selling and everything else with 
     expect(PdfRenderer::$lastHtml)->toContain(basename($mill->logo_path))->not->toContain(basename($mill->sales_logo_path));
 });
 
-it('saves an AI key only after Anthropic accepts it, never shows it, and the Assistant uses it', function () {
-    gpxSignIn($this, $this->f->owner);
+it('saves the one AI key (the SaaS owner\x27s) only after the provider accepts it, never shows it, and every mill uses it', function () {
+    expect(AiIntegrationPage::canAccess())->toBeFalse();   // no mill connects its own
+    $platform = Make::platformAdmin($this->f->entity);
+    gpxSignIn($this, $platform);
     $key = 'sk-ant-api03-'.str_repeat('x', 40).'ABCD';
     Http::fake(['api.anthropic.com/*' => Http::sequence()
         ->push(['error' => ['message' => 'invalid x-api-key']], 401)
@@ -102,16 +104,16 @@ it('saves an AI key only after Anthropic accepts it, never shows it, and the Ass
 
     Livewire::test(AiIntegrationPage::class)->assertSee('No key')
         ->callAction('saveKey', ['api_key' => $key, 'model' => 'claude-sonnet-5-5'])->assertNotified('The provider refused the key (wrong, or deleted). Copy it again from console.anthropic.com → API keys (starts with sk-ant-).');
-    expect(Integrations::aiSaved($this->f->entity->id))->toBeNull();
+    expect(Integrations::aiSaved('platform'))->toBeNull();
 
     Livewire::test(AiIntegrationPage::class)
         ->callAction('saveKey', ['api_key' => $key, 'model' => 'claude-haiku-5-5'])->assertNotified('Saved and checked: the AI assistant uses this key now.')
-        ->assertSee('Connected: the mill\'s own key', false)->assertSee('…ABCD')->assertDontSee($key);
-    expect(ClaudeEngine::settings())->toMatchArray(['api_key' => $key, 'model' => 'claude-haiku-5-5', 'source' => 'mill'])
+        ->assertSee('…ABCD')->assertDontSee($key);
+    expect(ClaudeEngine::settings())->toMatchArray(['api_key' => $key, 'model' => 'claude-haiku-5-5', 'source' => 'product'])
         ->and(app(ClaudeEngine::class)->configured())->toBeTrue();
     Http::assertSent(fn ($r) => $r->hasHeader('x-api-key', $key) && $r['model'] === 'claude-haiku-5-5');
 
-    expect(fn () => Integrations::saveAi($this->f->entity->id, ['api_key' => 'not-a-key', 'model' => 'claude-sonnet-5-5']))
+    expect(fn () => Integrations::saveAi('platform', ['api_key' => 'not-a-key', 'model' => 'claude-sonnet-5-5']))
         ->toThrow(BusinessRuleViolation::class, 'sk-ant-');
 });
 

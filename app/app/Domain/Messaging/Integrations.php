@@ -14,11 +14,12 @@ use Illuminate\Support\Str;
 use Throwable;
 
 /**
- * WhatsApp and Firebase connected from inside the system (Administration → Integrations for a mill,
- * Platform → Integrations for the product owner), instead of only in the server's .env file.
+ * The outside services, connected in one place only — the SaaS owner's Platform → Integrations — and used by every
+ * company and mill (no mill connects its own):
  *
- *  WhatsApp (Meta Cloud API): a mill may connect its own business number; otherwise the product owner's
- *  connection is used; otherwise the .env settings, as before.
+ *  WhatsApp (Meta Cloud API): one connection (the platform's business account and token); each mill's messages go
+ *  out under the number and approved business name assigned to it (SenderIdentities). A mill with none sends nothing.
+ *  AI: one provider (with an optional fallback), used by every mill; each call is recorded against its mill.
  *  Firebase (push notifications to party phones and browsers): the product's own project, set by the
  *  product owner; otherwise the .env settings.
  *
@@ -31,7 +32,10 @@ final class Integrations
     private const DIR = 'integrations';
 
     /** The settings a WhatsApp connection has (access_token is the secret). */
-    public const WHATSAPP_KEYS = ['phone_number_id', 'access_token', 'template', 'language', 'api_version', 'business_number', 'doc_template'];
+    public const WHATSAPP_KEYS = ['phone_number_id', 'access_token', 'template', 'language', 'api_version', 'business_number', 'doc_template', 'name_in'];
+
+    /** Where the company's name goes in each message sent from the one number: the template's header variable, or the start of its body. */
+    public const NAME_IN = ['body' => 'At the start of the message, in bold (any template with one body variable)', 'header' => 'In the template\'s header (a header with one variable {{1}})'];
 
     // ------------------------------------------------------------------ WhatsApp
 
@@ -43,7 +47,10 @@ final class Integrations
     public static function whatsapp(?string $entityId): array
     {
         $env = (array) config('ricemill.messaging.whatsapp_cloud');
-        foreach ([$entityId !== null ? 'whatsapp-'.$entityId : null, 'whatsapp-platform'] as $file) {
+        if ($entityId !== null) {
+            return self::whatsappFor($entityId);
+        }
+        foreach (['whatsapp-platform'] as $file) {
             $saved = $file === null ? null : self::read($file);
             if ($saved !== null && filled($saved['phone_number_id'] ?? null) && filled($saved['access_token'] ?? null)) {
                 return [
@@ -51,7 +58,7 @@ final class Integrations
                     'template' => (string) ($saved['template'] ?? $env['template'] ?? 'mill_update'), 'language' => (string) ($saved['language'] ?? $env['language'] ?? 'en'),
                     'api_version' => (string) ($saved['api_version'] ?? $env['api_version'] ?? 'v21.0'),
                     'source' => $file === 'whatsapp-platform' ? 'product' : 'mill', 'business_number' => $saved['business_number'] ?? null,
-                    'doc_template' => (string) ($saved['doc_template'] ?? ''),
+                    'doc_template' => (string) ($saved['doc_template'] ?? ''), 'name_in' => (string) ($saved['name_in'] ?? 'body'),
                 ];
             }
         }
@@ -60,7 +67,7 @@ final class Integrations
             'phone_number_id' => (string) ($env['phone_number_id'] ?? ''), 'access_token' => (string) ($env['access_token'] ?? ''),
             'template' => (string) ($env['template'] ?? 'mill_update'), 'language' => (string) ($env['language'] ?? 'en'),
             'api_version' => (string) ($env['api_version'] ?? 'v21.0'), 'source' => 'server', 'business_number' => null,
-            'doc_template' => (string) ($env['doc_template'] ?? ''),
+            'doc_template' => (string) ($env['doc_template'] ?? ''), 'name_in' => (string) ($env['name_in'] ?? 'body'),
         ];
     }
 
@@ -93,6 +100,7 @@ final class Integrations
             'language' => trim((string) ($input['language'] ?? '')) ?: 'en',
             'api_version' => trim((string) ($input['api_version'] ?? '')) ?: (string) config('ricemill.messaging.whatsapp_cloud.api_version', 'v21.0'),
             'doc_template' => trim((string) ($input['doc_template'] ?? $old['doc_template'] ?? '')),
+            'name_in' => isset(self::NAME_IN[$input['name_in'] ?? '']) ? (string) $input['name_in'] : (string) ($old['name_in'] ?? 'body'),
         ];
         if (! preg_match('/^\d{6,30}$/', $settings['phone_number_id']) || $settings['access_token'] === '') {
             throw new BusinessRuleViolation('Give the phone number ID (digits, from WhatsApp Manager → API setup) and the access token.');
@@ -158,15 +166,51 @@ final class Integrations
     ];
 
     /**
-     * The AI settings for a mill (the Assistant chatbot and the AI reader of roznamcha pages): its own, the product
-     * owner's, or the server's (.env, Anthropic).
+     * A mill's WhatsApp: the platform's connection, sent from the number assigned to the mill (its sender identity), with
+     * that number's own token where it belongs to another business account. No approved sender: nothing to send from.
+     *
+     * @return array{phone_number_id: string, access_token: string, template: string, language: string, api_version: string, source: string, business_number: string|null, doc_template: string, display_name: string|null, problem: string|null}
+     */
+    private static function whatsappFor(string $entityId): array
+    {
+        $platform = self::whatsapp(null);
+        $identity = SenderIdentities::for('whatsapp', $entityId);
+        $set = SenderIdentities::assigned('whatsapp', $entityId);
+        if ($identity === null) {
+            // The one platform number, every message carrying this mill's name; switched off for the mill: nothing.
+            $off = $set !== null && $set->status !== 'approved';
+
+            return ($off ? ['phone_number_id' => '', 'access_token' => ''] : []) + $platform + [
+                'display_name' => SenderIdentities::nameFor($entityId), 'source' => $off ? 'off' : 'platform-number',
+                'problem' => $off ? SenderIdentities::problem('whatsapp', $entityId) : ($platform['phone_number_id'] === '' ? 'WhatsApp is not connected yet (the SaaS owner connects it).' : null),
+            ];
+        }
+        $token = $identity->credential_ref !== null ? (string) (self::read($identity->credential_ref)['access_token'] ?? '') : $platform['access_token'];
+        $templates = json_decode((string) ($identity->templates ?? ''), true) ?: [];
+
+        return ['phone_number_id' => (string) $identity->phone_number_id, 'access_token' => $token,
+            'template' => (string) ($templates[0] ?? $platform['template']), 'language' => (string) ($identity->language ?: $platform['language']),
+            'api_version' => $platform['api_version'], 'source' => $identity->platform_sender ? 'platform-sender' : 'mill-sender',
+            'business_number' => (string) $identity->sender, 'doc_template' => $platform['doc_template'],
+            'display_name' => (string) $identity->display_name, 'name_in' => $platform['name_in'], 'problem' => null];
+    }
+
+    /** Keeps a sender number's own access token (another business account) in the central encrypted store. */
+    public static function storeSenderToken(string $ref, string $token): void
+    {
+        self::write($ref, ['access_token' => trim($token)]);
+    }
+
+    /**
+     * The AI settings every mill uses (the Assistant chatbot and the AI reader of roznamcha pages): the SaaS owner's,
+     * or the server's (.env, Anthropic). No mill has its own.
      *
      * @return array{provider: string, api_key: string, model: string, api_url: string, source: string|null}
      */
     public static function ai(?string $entityId): array
     {
         $env = (array) config('ricemill.assistant');
-        foreach ([$entityId !== null ? 'ai-'.$entityId : null, 'ai-platform'] as $file) {
+        foreach (['ai-platform'] as $file) {
             $saved = $file === null ? null : self::read($file);
             if ($saved !== null && filled($saved['api_key'] ?? null)) {
                 $provider = isset(self::AI_PROVIDERS[$saved['provider'] ?? '']) ? (string) $saved['provider'] : 'anthropic';
@@ -180,6 +224,23 @@ final class Integrations
 
         return ['provider' => 'anthropic', 'api_key' => (string) ($env['api_key'] ?? ''), 'model' => (string) ($env['model'] ?? 'claude-sonnet-5-5'),
             'api_url' => (string) ($env['api_url'] ?? self::AI_PROVIDERS['anthropic']['url']), 'source' => filled($env['api_key'] ?? null) ? 'server' : null];
+    }
+
+    /**
+     * The SaaS owner's fallback AI provider (Platform → AI assistant), used when the main one fails; null without one.
+     *
+     * @return array{provider: string, api_key: string, model: string, api_url: string, source: string|null}|null
+     */
+    public static function aiFallback(): ?array
+    {
+        $saved = self::read('ai-fallback');
+        if ($saved === null || blank($saved['api_key'] ?? null)) {
+            return null;
+        }
+        $provider = isset(self::AI_PROVIDERS[$saved['provider'] ?? '']) ? (string) $saved['provider'] : 'anthropic';
+
+        return ['provider' => $provider, 'api_key' => (string) $saved['api_key'], 'model' => (string) ($saved['model'] ?? self::AI_PROVIDERS[$provider]['model']),
+            'api_url' => self::aiUrl($provider, (string) ($saved['base_url'] ?? ''), (string) (config('ricemill.assistant.api_url') ?? '')), 'source' => 'fallback'];
     }
 
     /** The address to call: the provider's, or the custom one (its /chat/completions). */

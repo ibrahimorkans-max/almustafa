@@ -127,7 +127,7 @@ describe('AI mode (any provider: OpenRouter)', function () {
                 ['id' => 'call_1', 'type' => 'function', 'function' => ['name' => 'vehicles_inside', 'arguments' => '{}']],
             ]], 'finish_reason' => 'tool_calls']]])
             ->push(['choices' => [['message' => ['role' => 'assistant', 'content' => 'Teen gaariyan andar hain.'], 'finish_reason' => 'stop']]]);
-        Integrations::saveAi($this->entity->id, ['provider' => 'openrouter', 'api_key' => 'sk-or-v1-'.str_repeat('a', 40), 'model' => 'openai/gpt-5']);
+        Integrations::saveAi('platform', ['provider' => 'openrouter', 'api_key' => 'sk-or-v1-'.str_repeat('a', 40), 'model' => 'openai/gpt-5']);
 
         $reply = $this->bot->ask($this->admin, 'kitni gaariyan andar hain?');
 
@@ -142,9 +142,9 @@ describe('AI mode (any provider: OpenRouter)', function () {
     it('refuses a custom service that is not https, and an Anthropic key that is not one', function () {
         Storage::fake('local');
         botAs($this, $this->admin);
-        expect(fn () => Integrations::saveAi($this->entity->id, ['provider' => 'custom', 'base_url' => 'http://10.0.0.5:11434/v1', 'api_key' => str_repeat('k', 20), 'model' => 'llama3']))
+        expect(fn () => Integrations::saveAi('platform', ['provider' => 'custom', 'base_url' => 'http://10.0.0.5:11434/v1', 'api_key' => str_repeat('k', 20), 'model' => 'llama3']))
             ->toThrow(BusinessRuleViolation::class, 'https')
-            ->and(fn () => Integrations::saveAi($this->entity->id, ['provider' => 'anthropic', 'api_key' => 'sk-or-v1-'.str_repeat('a', 40), 'model' => 'claude-sonnet-5-5']))
+            ->and(fn () => Integrations::saveAi('platform', ['provider' => 'anthropic', 'api_key' => 'sk-or-v1-'.str_repeat('a', 40), 'model' => 'claude-sonnet-5-5']))
             ->toThrow(BusinessRuleViolation::class, 'sk-ant-');
     });
 });

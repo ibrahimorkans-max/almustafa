@@ -1,33 +1,55 @@
 <x-filament-panels::page>
     @php($s = $this->getState())
     @if (! $s['mill_chosen'])
-        <x-filament::section>Choose a mill first (top right: Switch entity / account): each mill connects its own WhatsApp.</x-filament::section>
+        <x-filament::section>Choose a mill first (top right: Switch entity / account): each mill has its own sender identity.</x-filament::section>
     @else
-        <x-filament::section heading="WhatsApp">
-            <div class="space-y-2 text-sm">
-                <div class="flex flex-wrap items-center gap-2">
-                    @switch($s['source'])
-                        @case('mill')
-                            <x-filament::badge color="success">Connected: the mill's own number</x-filament::badge>
-                            @break
-                        @case('product')
-                            <x-filament::badge color="info">Using the product's WhatsApp</x-filament::badge>
-                            @break
-                        @case('server')
-                            <x-filament::badge color="info">Using the server's WhatsApp settings</x-filament::badge>
-                            @break
-                        @default
-                            <x-filament::badge color="gray">Not connected</x-filament::badge>
-                    @endswitch
-                    @if ($s['number'])
-                        <span class="font-medium">{{ $s['number'] }}</span>
-                    @endif
-                </div>
-                <p class="text-gray-500">Messages to parties (login details, money entries, vehicles unloaded and weighed) go by WhatsApp when it is connected; otherwise they wait under Masters → Party messages to be sent by hand. Which messages go out is set there.</p>
-                @if ($s['own'])
-                    <p class="text-xs text-gray-500">Phone number ID {{ $s['own']['phone_number_id'] }} · template "{{ $s['own']['template'] ?? '' }}" ({{ $s['own']['language'] ?? '' }}) · token saved, encrypted.</p>
-                @endif
-            </div>
+        <p class="text-sm text-gray-500">These services are connected and managed by the SaaS owner for every mill. Nothing is connected here, and no keys or passwords are shown.</p>
+        <x-filament::section heading="Senders: who your messages come from">
+            <table class="w-full text-sm">
+                <thead><tr class="text-left text-xs text-gray-500"><th class="py-1 pr-3">Service</th><th class="pr-3">Status</th><th class="pr-3">Your sender identity</th></tr></thead>
+                <tbody>
+                    @foreach (['whatsapp' => 'WhatsApp', 'sms' => 'SMS', 'email' => 'E-mail'] as $ch => $label)
+                        @php($row = $s[$ch])
+                        <tr class="border-t border-gray-100 dark:border-white/5">
+                            <td class="py-1.5 pr-3 font-medium">{{ $label }}</td>
+                            <td class="pr-3">
+                                @if ($row && $row->status === 'approved')
+                                    <x-filament::badge color="success">Connected</x-filament::badge>
+                                @elseif ($row)
+                                    <x-filament::badge color="warning">{{ \App\Domain\Messaging\SenderIdentities::STATUSES[$row->status] ?? $row->status }}</x-filament::badge>
+                                @elseif ($ch === 'whatsapp' && $s['whatsapp_connected'])
+                                    <x-filament::badge color="success">Connected</x-filament::badge>
+                                @elseif ($ch === 'email')
+                                    <x-filament::badge color="info">Sent under your mill's name</x-filament::badge>
+                                @else
+                                    <x-filament::badge color="gray">Not assigned</x-filament::badge>
+                                @endif
+                            </td>
+                            <td class="pr-3">
+                                @if ($row)
+                                    {{ $row->display_name }} <span class="text-xs text-gray-500">({{ $ch === 'email' ? $row->sender : \App\Domain\Usage\UsageMeter::mask((string) $row->sender) }})</span>
+                                    @if ($row->platform_sender)<div class="text-xs text-warning-600">Goes out under the platform's name, as the SaaS owner set it.</div>@endif
+                                @elseif ($ch === 'whatsapp')
+                                    {{ $s['whatsapp_name'] }} <span class="text-xs text-gray-500">(the platform's WhatsApp number; your name is in every message)</span>
+                                @elseif ($ch === 'email')
+                                    {{ $s['mail_from']->name }} <span class="text-xs text-gray-500">({{ $s['mail_from']->address }})</span>
+                                @else
+                                    <span class="text-gray-500">—</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                    <tr class="border-t border-gray-100 dark:border-white/5">
+                        <td class="py-1.5 pr-3 font-medium">AI services</td>
+                        <td class="pr-3"><x-filament::badge :color="$s['ai'] ? 'success' : 'gray'">{{ $s['ai'] ? 'Available' : 'Unavailable' }}</x-filament::badge></td>
+                        <td class="pr-3 text-gray-500">The assistant and the roznamcha reader; each use is counted against your mill.</td>
+                    </tr>
+                </tbody>
+            </table>
+            @if ($s['whatsapp_problem'])
+                <p class="mt-2 text-sm text-warning-600">{{ $s['whatsapp_problem'] }} Until then WhatsApp messages wait under Masters → Party messages to be sent by hand.</p>
+            @endif
+            <p class="mt-2 text-xs text-gray-500">Last service activity: {{ $s['last'] ? $s['last']->occurred_at->timezone('Asia/Karachi')->format('d M Y H:i').' — '.$s['last']->provider.', '.$s['last']->module : 'none yet' }}. The details are under Administration → Service usage.</p>
         </x-filament::section>
         <x-filament::section heading="Scanner (roznamcha pages)">
             <div class="flex flex-wrap items-center gap-2 text-sm">
