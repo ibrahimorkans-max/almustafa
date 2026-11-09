@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Accounts;
 
 use App\Domain\Documents\DocumentNumbers;
+use App\Domain\Tax\IncomeTax;
 use App\Models\Accounts\PurchaseBill;
 use App\Models\Masters\Party;
 
