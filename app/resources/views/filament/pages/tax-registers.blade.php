@@ -52,6 +52,8 @@
         </table>
     </x-filament::section>
 
+    {{-- Income tax switched off for the mill: no withholding register. --}}
+    @if (\App\Domain\Tax\IncomeTax::enabled())
     <x-filament::section heading="Income tax withheld u/s 153(1)(a) ({{ count($d['wht']) }})">
         <table class="w-full">
             <thead><tr><th class="{{ $th }}">Supplier</th><th class="{{ $th }}">NTN / CNIC</th><th class="{{ $th }}">Filer</th><th class="{{ $th }}">Slip</th><th class="{{ $th }}">Date</th><th class="{{ $th }} text-right">Value of goods</th><th class="{{ $th }} text-right">Taxable</th><th class="{{ $th }}">Rate</th><th class="{{ $th }} text-right">Withheld</th></tr></thead>
@@ -70,4 +72,5 @@
             </tbody>
         </table>
     </x-filament::section>
+    @endif
 </x-filament-panels::page>

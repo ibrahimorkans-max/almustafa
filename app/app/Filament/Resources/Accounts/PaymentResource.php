@@ -12,6 +12,7 @@ use App\Models\Accounts\LedgerAccount;
 use App\Models\Accounts\Payment;
 use App\Models\Accounts\PurchaseBill;
 use App\Models\Masters\Party;
+use App\Models\Masters\PartyBankAccount;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
@@ -84,6 +85,12 @@ class PaymentResource extends Resource
             ->all();
     }
 
+    /** Whether the party has an approved (active) bank account to pay into. */
+    public static function hasApprovedAccount(?string $partyId): bool
+    {
+        return $partyId !== null && PartyBankAccount::query()->where('party_id', $partyId)->where('status', 'active')->exists();
+    }
+
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
@@ -99,8 +106,18 @@ class PaymentResource extends Resource
             CheckboxList::make('bills')->label('Against bills (settled oldest first; any remainder is on account)')
                 ->options(fn (Get $get) => self::billOptions($get('party_id')))->columnSpanFull(),
             Placeholder::make('payee')->label('Paid into')->columnSpanFull()
-                ->visible(fn (Get $get) => $get('mode') !== 'cash')
-                ->content('The party\'s approved bank account (changing it needs a second person\'s approval). The details are frozen with this request.'),
+                ->visible(fn (Get $get) => in_array($get('mode'), Payment::BANK_MODES, true) && self::hasApprovedAccount($get('party_id')))
+                ->content('The party\'s approved bank account, unless you type another one below. The details are frozen with this request.'),
+            // Any account: typed in with the request (shown on its approval before the money is released).
+            TextInput::make('account_holder')->label('Account holder')->maxLength(120)
+                ->visible(fn (Get $get) => in_array($get('mode'), Payment::BANK_MODES, true))
+                ->required(fn (Get $get) => in_array($get('mode'), Payment::BANK_MODES, true) && ! self::hasApprovedAccount($get('party_id')))
+                ->helperText(fn (Get $get) => self::hasApprovedAccount($get('party_id')) ? 'Leave empty to pay into the party\'s approved account.' : 'The party has no approved account: type the account to pay into.'),
+            TextInput::make('account_number')->label('Account number or IBAN')->maxLength(40)
+                ->visible(fn (Get $get) => in_array($get('mode'), Payment::BANK_MODES, true))
+                ->required(fn (Get $get) => in_array($get('mode'), Payment::BANK_MODES, true) && ! self::hasApprovedAccount($get('party_id'))),
+            TextInput::make('bank_name')->label('Bank')->maxLength(80)
+                ->visible(fn (Get $get) => in_array($get('mode'), Payment::BANK_MODES, true)),
             Textarea::make('narration')->maxLength(500)->columnSpanFull(),
         ]);
     }

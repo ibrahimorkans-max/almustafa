@@ -12,6 +12,7 @@ use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
 use App\Domain\Hr\Attendance\AttendanceCalculator;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Domain\Tax\IncomeTax;
 use App\Models\Accounts\LedgerAccount;
 use App\Models\Gate\GateEntry;
 use App\Models\Hr\ContractorBill;
@@ -90,6 +91,9 @@ final class ContractorBilling
         int $deductionPaise = 0, ?string $deductionNote = null): ContractorBill
     {
         $who = $this->require('hr.payroll.run');
+        if (! IncomeTax::enabled()) {
+            $whtBp = 0;   // income tax switched off for the mill
+        }
         $this->vehicles->markContractor($contractor);
         if (! array_key_exists($basis, ContractorBill::BASES)) {
             throw new BusinessRuleViolation('Bill on man-days, piece work or vehicles.');

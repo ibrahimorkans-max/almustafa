@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Masters;
 
+use App\Domain\Tax\IncomeTax;
 use App\Filament\Resources\Masters\Concerns\MasterResourceHelpers;
 use App\Filament\Resources\Masters\PartyResource\Pages;
 use App\Filament\Resources\Masters\PartyResource\RelationManagers\BankAccountsRelationManager;
@@ -124,15 +125,16 @@ class PartyResource extends Resource
                     ->visible(fn () => Filament::auth()->user()?->can('bank.view') ?? false),
                 Select::make('atl_status')->label('FBR Active Taxpayer List')->default('unknown')->required()
                     ->options(['active' => 'Active (filer)', 'inactive' => 'Not on the list (non-filer)', 'unknown' => 'Not checked yet (treated as non-filer)'])
-                    ->helperText('Check the NTN / CNIC on FBR\'s ATL; the withholding rate depends on it.'),
-                DatePicker::make('atl_checked_on')->label('ATL checked on')->maxDate(now()),
+                    ->helperText('Check the NTN / CNIC on FBR\'s ATL; the withholding rate depends on it.')
+                    ->visible(fn () => IncomeTax::enabled()),
+                DatePicker::make('atl_checked_on')->label('ATL checked on')->maxDate(now())->visible(fn () => IncomeTax::enabled()),
                 TextInput::make('credit_limit_rupees')->label('Credit limit (Rs)')->regex('/^\d{1,13}(\.\d{1,2})?$/')
                     ->afterStateHydrated(fn (TextInput $c, ?Party $record) => $c->state($record?->credit_limit_paise !== null ? Money::paise($record->credit_limit_paise)->toDecimal() : null))
                     ->dehydrated(false),
                 TextInput::make('credit_days')->integer()->minValue(0)->maxValue(365),
                 Toggle::make('wht_exempt')->label('No withholding tax u/s 153')
                     ->helperText('Only on the tax adviser\'s instruction, e.g. a grower selling their own produce or an exemption certificate.')
-                    ->visible(fn () => auth()->user()?->can('ledger.post') ?? false),
+                    ->visible(fn () => (auth()->user()?->can('ledger.post') ?? false) && IncomeTax::enabled()),
                 Select::make('status')->options(['active' => 'Active', 'blocked' => 'Blocked'])->default('active')->required(),
                 Textarea::make('notes')->rows(2)->maxLength(2000)->columnSpanFull(),
             ]),

@@ -6,6 +6,7 @@ namespace App\Filament\Pages;
 
 use App\Domain\Hr\Payroll\PayrollSettings;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Domain\Tax\IncomeTax;
 use App\Filament\Resources\Hr\HrScope;
 use App\Filament\Support\Units;
 use App\Models\Hr\HrSetting;
@@ -41,6 +42,11 @@ class PayrollSettingsPage extends Page
 
     protected static string $view = 'filament.pages.payroll-settings';
 
+    protected function getHeaderActions(): array
+    {
+        return [IncomeTax::toggleAction()];
+    }
+
     public static function canAccess(): bool
     {
         $user = Filament::auth()->user();
@@ -55,6 +61,9 @@ class PayrollSettingsPage extends Page
         $today = CarbonImmutable::now('Asia/Karachi');
         $rows = [];
         foreach (PayrollSettings::DEFAULTS as $key => [, $label]) {
+            if ($key === 'income_tax_slabs' && ! IncomeTax::enabled()) {
+                continue;   // income tax switched off: its slabs are hidden
+            }
             $current = HrSetting::query()->where('key', $key)->where('effective_from', '<=', $today->toDateString())
                 ->orderByDesc('effective_from')->orderByDesc('created_at')->first();
             $rows[] = [
