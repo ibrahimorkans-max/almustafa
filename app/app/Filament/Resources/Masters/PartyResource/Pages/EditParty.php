@@ -14,7 +14,13 @@ class EditParty extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [PartyLogin::action()];
+        return [
+            PartyLogin::action(),
+            // Every entry on the party's account, like a bank statement.
+            \Filament\Actions\Action::make('transactions')->label('Transactions')->icon('heroicon-o-queue-list')->color('gray')
+                ->visible(fn () => \App\Filament\Pages\PartyTransactionsPage::canAccess())
+                ->url(fn () => \App\Filament\Pages\PartyTransactionsPage::getUrl().'?party='.$this->record->getKey()),
+        ];
     }
 
     /** @param  array<string, mixed>  $data */

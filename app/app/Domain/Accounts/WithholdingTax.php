@@ -22,7 +22,7 @@ final class WithholdingTax
     public function forBill(PurchaseBill $bill, Party $seller): array
     {
         $none = ['wht_paise' => 0, 'wht_rate_bp' => 0, 'wht_base_paise' => 0, 'wht_filer' => $seller->isFiler()];
-        if (! config('ricemill.tax.wht_enabled') || $seller->wht_exempt) {
+        if (! config('ricemill.tax.wht_enabled') || ! IncomeTax::enabled($bill->entity_id) || $seller->wht_exempt) {
             return $none;
         }
         $value = $bill->gross_paise - $bill->rate_cut_paise;

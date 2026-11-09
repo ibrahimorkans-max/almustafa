@@ -21,7 +21,8 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Payments to parties. A request freezes the payee (only the party's approved bank account),
+ * Payments to parties, of any amount and in cash or to any bank account. A request freezes the payee (the
+ * party's approved bank account, or an account typed in with the request and marked as such),
  * the amount and the bills it settles; it is released by a different person holding
  * `payment.approve` (two different people above the configured amount). Release posts the
  * payment voucher; bank-mode payments then go into a bank file for upload.
@@ -48,6 +49,7 @@ final class PaymentService
         array $allocations = [],
         ?string $narration = null,
         ?PartyBankAccount $bankAccount = null,
+        ?array $typedAccount = null,
     ): Payment {
         $this->require('payment.create');
         if (! isset(Payment::MODES[$mode])) {
@@ -60,7 +62,7 @@ final class PaymentService
             throw new BusinessRuleViolation($mode === 'cash' ? 'Cash is paid from a cash ledger.' : 'Pay from one of the mill bank accounts.');
         }
 
-        return DB::transaction(function () use ($party, $mode, $from, $amountPaise, $date, $allocations, $narration, $bankAccount): Payment {
+        return DB::transaction(function () use ($party, $mode, $from, $amountPaise, $date, $allocations, $narration, $bankAccount, $typedAccount): Payment {
             Party::query()->whereKey($party->id)->lockForUpdate()->first(); // serialise requests per party
 
             $payee = null;
@@ -68,14 +70,26 @@ final class PaymentService
             if (in_array($mode, Payment::BANK_MODES, true)) {
                 $account = $bankAccount ?? PartyBankAccount::query()->where('party_id', $party->id)->where('status', 'active')
                     ->orderByDesc('is_primary')->first();
-                if ($account === null || $account->party_id !== $party->id || $account->status !== 'active') {
-                    throw new BusinessRuleViolation("{$party->name} has no approved bank account. Add one (it needs a second person's approval) before paying by bank.");
+                $typed = filled($typedAccount['account_number'] ?? null);
+                if (! $typed && ($account === null || $account->party_id !== $party->id || $account->status !== 'active')) {
+                    throw new BusinessRuleViolation("{$party->name} has no approved bank account: type the account to pay into.");
                 }
-                $payee = ['holder' => $account->account_holder, 'bank_code' => $account->bank_code, 'last4' => $account->account_last4, 'bank_name' => $account->bank_name];
-                $payeeNumber = $account->account_number;
-                $bankAccount = $account;
-            } elseif ($mode === 'cash') {
-                $this->assertCashLimit($party, $amountPaise, $date);
+                if ($typed) {
+                    // Any account, typed in with the request: marked as not from the party's approved accounts; the
+                    // payment is still released only through its approval, where the account is shown.
+                    $number = strtoupper((string) preg_replace('/[^A-Za-z0-9]/', '', (string) $typedAccount['account_number']));
+                    if (strlen($number) < 6 || strlen($number) > 34 || blank($typedAccount['holder'] ?? null)) {
+                        throw new BusinessRuleViolation('Give the account holder\'s name and the account number or IBAN.');
+                    }
+                    $payee = ['holder' => mb_substr(trim((string) $typedAccount['holder']), 0, 120), 'bank_code' => null, 'last4' => substr($number, -4),
+                        'bank_name' => mb_substr(trim((string) ($typedAccount['bank_name'] ?? '')), 0, 80), 'typed' => true];
+                    $payeeNumber = $number;
+                    $bankAccount = null;
+                } else {
+                    $payee = ['holder' => $account->account_holder, 'bank_code' => $account->bank_code, 'last4' => $account->account_last4, 'bank_name' => $account->bank_name];
+                    $payeeNumber = $account->account_number;
+                    $bankAccount = $account;
+                }
             }
 
             $allocated = 0;
@@ -170,20 +184,6 @@ final class PaymentService
         $payment->forceFill(['reference' => strtoupper($reference)])->save();
 
         return $payment;
-    }
-
-    private function assertCashLimit(Party $party, int $amountPaise, CarbonInterface $date): void
-    {
-        $day = CarbonImmutable::instance($date)->setTimezone('Asia/Karachi')->toDateString();
-        $already = (int) Payment::query()->where('party_id', $party->id)->where('mode', 'cash')->where('payment_date', $day)
-            ->whereIn('status', [Payment::PENDING, Payment::FIRST_APPROVED, Payment::APPROVED])->sum('amount_paise');
-        $limit = (int) config('ricemill.accounts.cash_limit_per_day_paise');
-        if ($already + $amountPaise > $limit) {
-            throw new BusinessRuleViolation(sprintf(
-                'Cash to one person in one day is limited to %s (Income Tax Ordinance s. 21(l)); %s already requested today. Pay by bank.',
-                Money::paise($limit)->format(), Money::paise($already)->format(),
-            ));
-        }
     }
 
     private function require(string $permission): void

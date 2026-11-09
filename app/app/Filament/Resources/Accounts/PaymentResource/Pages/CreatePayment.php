@@ -53,6 +53,8 @@ class CreatePayment extends CreateRecord
                 CarbonImmutable::parse($data['payment_date'], 'Asia/Karachi'),
                 $allocations,
                 $data['narration'] ?? null,
+                null,
+                filled($data['account_number'] ?? null) ? ['holder' => $data['account_holder'] ?? '', 'account_number' => $data['account_number'], 'bank_name' => $data['bank_name'] ?? ''] : null,
             );
         } catch (BusinessRuleViolation|ApprovalDenied $e) {
             throw ValidationException::withMessages(['data.amount' => $e->getMessage()]);

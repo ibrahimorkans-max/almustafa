@@ -111,11 +111,19 @@ it('releases any amount with one approval, and lets the main users release their
     }
 });
 
-it('limits cash to one person per day (s. 21(l))', function () {
+it('pays any amount in cash, and by bank to any account typed in with the request', function () {
     $cash = app(ChartOfAccounts::class)->system('cash');
     requestPayment($this, 150_000_00, mode: 'cash', from: $cash);
+    expect(requestPayment($this, 900_000_00, mode: 'cash', from: $cash)->amount_paise)->toBe(900_000_00);   // no daily cash limit
 
-    expect(fn () => requestPayment($this, 100_000_01, mode: 'cash', from: $cash))->toThrow(BusinessRuleViolation::class, '21(l)');
+    PartyBankAccount::query()->update(['status' => 'inactive']);
+    $this->f->as($this->f->accountant);
+    $typed = app(PaymentService::class)->request($this->seller, 'ibft', $this->f->bank, 50_000_00, now(), [], 'To the son\'s account', null,
+        ['holder' => 'Muhammad Aslam Jr', 'account_number' => 'PK36 MEZN 0000 0099 9999 9999', 'bank_name' => 'Meezan Bank']);
+    expect($typed->payee['typed'])->toBeTrue()->and($typed->payee['last4'])->toBe('9999')->and($typed->party_bank_account_id)->toBeNull()
+        ->and($typed->approval_request_id)->not->toBeNull();   // still released only through its approval
+    PartyBankAccount::query()->update(['status' => 'active']);
+
     expect(fn () => requestPayment($this, 100_00, mode: 'cash'))->toThrow(BusinessRuleViolation::class, 'cash ledger');
     expect(fn () => requestPayment($this, 100_00, mode: 'ibft', from: $cash))->toThrow(BusinessRuleViolation::class, 'bank accounts');
 });

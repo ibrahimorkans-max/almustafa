@@ -7,6 +7,7 @@ namespace App\Domain\Hr\Payroll\Steps;
 use App\Domain\Hr\Payroll\PayContext;
 use App\Domain\Hr\Payroll\PayrollYtd;
 use App\Domain\Hr\Payroll\PayStep;
+use App\Domain\Tax\IncomeTax;
 
 /**
  * Income tax on salary withheld by the employer (Income Tax Ordinance 2001, s. 149). The year's
@@ -20,7 +21,7 @@ final class IncomeTaxStep implements PayStep
     public function apply(PayContext $c): void
     {
         $gross = $c->gross();
-        if ($gross <= 0) {
+        if ($gross <= 0 || ! IncomeTax::enabled($c->employee->entity_id)) {   // income tax switched off for the mill
             return;
         }
         $month = $c->month();

@@ -83,6 +83,8 @@ final class SettingsService
         self::WHATSAPP_FILE_MESSAGE => ['default' => '', 'scope' => 'entity'],
         self::ROZNAMCHA_BUDGET => ['default' => '', 'scope' => 'entity'],
         // Paddy is weighed before the lab (on) or after the lab accepted it (off): App\Domain\Gate\GatePolicy.
+        // Income tax worked out and its settings shown (App\Domain\Tax\IncomeTax).
+        'tax.income_tax' => ['default' => 'on', 'allowed' => ['on', 'off'], 'scope' => 'entity'],
         'gate.weigh_before_lab' => ['default' => 'on', 'allowed' => ['on', 'off'], 'scope' => 'entity'],
         // The weighing mode new paddy vehicles start in, among those the SaaS owner switched on (App\Domain\Gate\WeighModes).
         'gate.default_mode' => ['default' => '', 'allowed' => ['', 'lab_before_slip', 'no_lab', 'weigh_first_lab_later', 'lab_first'], 'scope' => 'entity'],

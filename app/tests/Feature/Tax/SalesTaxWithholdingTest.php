@@ -13,8 +13,11 @@ use App\Domain\Gate\GateService;
 use App\Domain\Gate\SlipRenderer;
 use App\Domain\Sales\SalesBillService;
 use App\Domain\Sales\SalesDocuments;
+use App\Domain\Tax\IncomeTax;
 use App\Domain\Tax\SalesTaxReturns;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Pages\SalesTaxReturnsPage;
+use App\Filament\Resources\Masters\PartyResource\Pages\CreateParty;
 use App\Models\Accounts\VoucherLine;
 use App\Models\ApprovalRequest;
 use App\Models\Entity;
@@ -22,6 +25,8 @@ use App\Models\Gate\GateEntry;
 use App\Models\Gate\GateEvent;
 use App\Models\Masters\Party;
 use App\Models\Masters\TaxRate;
+use Filament\Facades\Filament;
+use Livewire\Livewire;
 use Tests\Support\Make;
 use Tests\Support\SalesFixtures;
 
@@ -153,6 +158,23 @@ describe('withholding tax u/s 153', function () {
         $this->f->as($this->f->acc->owner);
         $this->f->inv->gate->seller->forceFill(['wht_exempt' => false])->save();
         expect(postPaddyBill($this)->wht_paise)->toBe(0);
+    });
+
+    it('works out no income tax and hides its settings when the mill switches income tax off', function () {
+        $this->f->as($this->f->acc->owner);
+        expect(IncomeTax::enabled())->toBeTrue();
+        IncomeTax::set($this->f->acc->owner->entity_id, false);
+        expect(IncomeTax::enabled())->toBeFalse()->and(postPaddyBill($this)->wht_paise)->toBe(0);
+
+        $this->actingAs($this->f->acc->owner, 'web')->withSession(Make::webSession($this->f->acc->owner));
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+        Livewire::test(CreateParty::class)
+            ->assertFormFieldIsHidden('atl_status')->assertFormFieldIsHidden('wht_exempt');
+        Livewire::test(SalesTaxReturnsPage::class)->assertActionVisible('incomeTax')
+            ->assertActionHidden('whtCsv')->assertDontSee('Income tax withheld u/s 153');
+
+        IncomeTax::set($this->f->acc->owner->entity_id, true);
+        Livewire::test(CreateParty::class)->assertFormFieldIsVisible('atl_status');
     });
 });
 

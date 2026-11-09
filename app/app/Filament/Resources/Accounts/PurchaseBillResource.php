@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Accounts;
 
 use App\Domain\Accounts\PurchaseBillService;
+use App\Domain\Tax\IncomeTax;
 use App\Filament\Resources\Accounts\PurchaseBillResource\Pages;
 use App\Filament\Support\AttachmentsPanel;
 use App\Filament\Support\Units;
@@ -99,6 +100,7 @@ class PurchaseBillResource extends Resource
                 TextEntry::make('net_paise')->label('Owed to party')->formatStateUsing($rupees)->weight('bold'),
                 TextEntry::make('brokerage_paise')->label('Brokerage (to broker)')->formatStateUsing($rupees),
                 TextEntry::make('wht_paise')->label('Income tax withheld u/s 153')
+                    ->visible(fn (PurchaseBill $record) => IncomeTax::enabled() || $record->wht_paise > 0)
                     ->formatStateUsing(fn (int $state, PurchaseBill $record) => $state > 0
                         ? Units::paiseToRupees($state).' ('.Units::bpToPercent($record->wht_rate_bp).' of '.Units::paiseToRupees($record->wht_base_paise).', '.($record->wht_filer ? 'filer' : 'non-filer').')'
                         : ($record->status === PurchaseBill::DRAFT ? 'worked out on posting' : '—')),

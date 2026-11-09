@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Hr;
 use App\Domain\Hr\ContractorBilling;
 use App\Domain\Hr\ContractorVehicles;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Domain\Tax\IncomeTax;
 use App\Filament\Pages\PartyStatementPage;
 use App\Filament\Resources\Accounts\ExpenseResource;
 use App\Filament\Resources\Hr\ContractorBillResource\Pages;
@@ -141,7 +142,7 @@ class ContractorBillResource extends Resource
             TextInput::make('sales_tax')->label('Sales tax on services (%)')->default('0')->regex('/^\d{1,2}(\.\d{1,2})?$/')
                 ->helperText('Provincial (PRA) when the contractor charges it'),
             TextInput::make('wht')->label('Income tax withheld (%)')->default('0')->regex('/^\d{1,2}(\.\d{1,2})?$/')
-                ->helperText('s. 153(1)(b), on the amount before sales tax'),
+                ->helperText('s. 153(1)(b), on the amount before sales tax')->visible(fn () => IncomeTax::enabled()),
             TextInput::make('deduction')->label('Deductions (Rs)')->default('0')->regex(Units::DECIMAL_2)->live(onBlur: true)
                 ->helperText('Shortage, damage, advance recovered … taken off what is paid'),
             TextInput::make('deduction_note')->label('Deduction for')->maxLength(300)->columnSpan(2)
