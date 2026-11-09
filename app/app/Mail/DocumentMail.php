@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Mail;
 
 use App\Domain\Documents\PdfRenderer;
+use App\Domain\Messaging\SenderIdentities;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Documents\GeneratedDocument;
 use App\Models\Entity;
@@ -28,7 +29,8 @@ final class DocumentMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: $this->brand()['name'].' — '.$this->title);
+        // From the mill (its e-mail sender, else its name), never the platform.
+        return new Envelope(from: SenderIdentities::mailFrom($this->document->entity_id), subject: $this->brand()['name'].' — '.$this->title);
     }
 
     public function content(): Content

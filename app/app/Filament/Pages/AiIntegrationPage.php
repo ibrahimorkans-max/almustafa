@@ -48,7 +48,8 @@ class AiIntegrationPage extends Page
     {
         $me = Filament::auth()->user();
 
-        return $me instanceof LoginAccount && ($me->isPlatformAdmin() || $me->hasPermission('settings.manage'));
+        // One central connection: only the SaaS owner sets it (no mill connects its own).
+        return $me instanceof LoginAccount && $me->isPlatformAdmin();
     }
 
     /** 'platform' or the mill being worked in; null: no mill chosen. */
@@ -124,6 +125,32 @@ class AiIntegrationPage extends Page
                     }
                     Notification::make()->success()->title('Connected: '.(Integrations::AI_PROVIDERS[$ai['provider']]['name'] ?? $ai['provider']).' answered ('.$ai['model'].').')->send();
                 }),
+            // A second provider that answers when the main one is down, refuses or is overloaded.
+            Action::make('fallback')->label(fn () => Integrations::aiSaved('fallback') ? 'Change fallback provider' : 'Add fallback provider')->icon('heroicon-o-arrow-path-rounded-square')->color('gray')
+                ->visible(fn () => $this->scope() === 'platform')
+                ->modalDescription('Used only when the main provider fails (no answer, overloaded, key refused). Checked before it is saved, kept encrypted.')
+                ->fillForm(fn () => ['provider' => Integrations::aiSaved('fallback')['provider'] ?? 'openrouter', 'model' => Integrations::aiSaved('fallback')['model'] ?? '', 'base_url' => Integrations::aiSaved('fallback')['base_url'] ?? ''])
+                ->form([
+                    Select::make('provider')->required()->native(false)->live()->options(array_map(fn (array $p) => $p['name'], Integrations::AI_PROVIDERS))
+                        ->afterStateUpdated(fn (?string $state, Set $set) => $set('model', Integrations::AI_PROVIDERS[$state ?? 'anthropic']['model'] ?? '')),
+                    TextInput::make('base_url')->label('The service\'s address (OpenAI-compatible)')->url()->maxLength(300)
+                        ->visible(fn (Get $get) => $get('provider') === 'custom')->required(fn (Get $get) => $get('provider') === 'custom'),
+                    TextInput::make('model')->required()->maxLength(120)->datalist(fn (Get $get) => Integrations::AI_PROVIDERS[$get('provider') ?? 'anthropic']['models'] ?? []),
+                    TextInput::make('api_key')->label('API key')->password()->revealable(false)->autocomplete('off')
+                        ->required(fn (Get $get) => (Integrations::aiSaved('fallback')['provider'] ?? null) !== $get('provider')),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        Integrations::saveAi('fallback', $data);
+                        Notification::make()->success()->title('Fallback provider saved and checked.')->send();
+                    } catch (BusinessRuleViolation $e) {
+                        Notification::make()->danger()->title($e->getMessage())->persistent()->send();
+                    }
+                }),
+            Action::make('removeFallback')->label('Remove fallback')->icon('heroicon-o-x-mark')->color('gray')
+                ->visible(fn () => $this->scope() === 'platform' && Integrations::aiSaved('fallback') !== null)
+                ->requiresConfirmation()
+                ->action(fn () => Integrations::removeAi('fallback')),
             Action::make('removeKey')->label('Remove the key')->icon('heroicon-o-trash')->color('danger')
                 ->visible(fn () => $own() !== null)
                 ->requiresConfirmation()

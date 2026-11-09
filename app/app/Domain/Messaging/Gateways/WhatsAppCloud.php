@@ -35,6 +35,10 @@ final class WhatsAppCloud
     public function send(string $to, string $text): array
     {
         $c = Integrations::whatsapp($this->entityId ?? app(TenantContext::class)->entityId());
+        if ($c['phone_number_id'] === '' || $c['access_token'] === '') {
+            // No approved sender for this mill: nothing goes out under another name.
+            return ['ok' => false, 'error' => (string) ($c['problem'] ?? 'WhatsApp is not connected (the SaaS owner connects it).'), 'id' => null];
+        }
         $url = 'https://graph.facebook.com/'.$c['api_version'].'/'.$c['phone_number_id'].'/messages';
         $body = mb_substr(trim(preg_replace('/\s+/u', ' ', $text) ?? ''), 0, 1000);
         try {
@@ -45,7 +49,7 @@ final class WhatsAppCloud
                 'template' => [
                     'name' => $c['template'],
                     'language' => ['code' => $c['language']],
-                    'components' => [['type' => 'body', 'parameters' => [['type' => 'text', 'text' => $body]]]],
+                    'components' => self::branded($c, $body),
                 ],
             ]);
         } catch (Throwable $e) {
@@ -59,6 +63,28 @@ final class WhatsAppCloud
     }
 
     /**
+     * The template's parts with the company's name: one number sends for every mill, so each message says which mill
+     * it is from — in the template's header variable, or in bold at the start of the body.
+     *
+     * @param  array<string, mixed>  $c
+     * @return list<array<string, mixed>>
+     */
+    public static function branded(array $c, string $body): array
+    {
+        $name = trim((string) ($c['display_name'] ?? ''));
+        if ($name === '') {
+            return [['type' => 'body', 'parameters' => [['type' => 'text', 'text' => $body]]]];
+        }
+        if (($c['name_in'] ?? 'body') === 'header') {
+            return [['type' => 'header', 'parameters' => [['type' => 'text', 'text' => mb_substr($name, 0, 60)]]],
+                ['type' => 'body', 'parameters' => [['type' => 'text', 'text' => $body]]]];
+        }
+        $lead = '*'.$name.'*';
+
+        return [['type' => 'body', 'parameters' => [['type' => 'text', 'text' => str_starts_with($body, $lead) ? $body : mb_substr($lead.' · '.$body, 0, 1024)]]]];
+    }
+
+    /**
      * A file (a PDF) with a short message: the file is uploaded to WhatsApp first, then sent. With a document
      * template set (Integrations: an approved template whose header is a document and whose body has one
      * variable) it goes as that template, which reaches anyone; without one it goes as a plain document with
@@ -69,6 +95,10 @@ final class WhatsAppCloud
     public function sendDocument(string $to, string $bytes, string $fileName, string $text, string $mime = 'application/pdf'): array
     {
         $c = Integrations::whatsapp($this->entityId ?? app(TenantContext::class)->entityId());
+        if ($c['phone_number_id'] === '' || $c['access_token'] === '') {
+            // No approved sender for this mill: nothing goes out under another name.
+            return ['ok' => false, 'error' => (string) ($c['problem'] ?? 'WhatsApp is not connected (the SaaS owner connects it).'), 'id' => null];
+        }
         $base = 'https://graph.facebook.com/'.$c['api_version'].'/'.$c['phone_number_id'];
         $caption = mb_substr(trim(preg_replace('/[ \t]+/u', ' ', $text) ?? ''), 0, 1000);
         try {

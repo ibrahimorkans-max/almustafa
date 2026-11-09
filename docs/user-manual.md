@@ -601,3 +601,11 @@ Details: `saas.md`, `millnexa-branding.md`.
 - **Platform → Service prices & billing**: prices per provider and service from a date, for everyone or one company (free allowance, tiers, tax, monthly package fee, quota). Also: **Record a provider's bill**, the reconciliation of estimate against bill, and **Issue monthly statements** per company.
 - Each mill: **Administration → Service usage** (Owner and Super Admins, or anyone given "usage.view"): its own company's usage only, with Today … Last month and custom dates, and Excel / PDF.
 - No SMS gateway is connected yet; SMS usage appears once one is.
+
+### Outside services: connected once, by the SaaS owner
+
+- WhatsApp, AI, push notifications and the WhatsApp webhook are connected only under **Platform** (Integrations, AI assistant, WhatsApp webhook). No mill connects its own or sees any key; a mill sees **Administration → Connected services** (read only).
+- **One WhatsApp number sends for every mill.** Each message carries the mill's own name — in bold at the start of the message, or in the template's header if the approved template has a header variable (Platform → Integrations → WhatsApp → "Each mill's name in its messages"). The name is the mill's letterhead name (Branding) unless the SaaS owner sets another under **Platform → Sender identities**, where a mill's WhatsApp can also be switched off.
+- WhatsApp's own sender name (at the top of the chat) is the one Meta approved for the number; it is the same for every mill. The mill's name is in each message.
+- E-mails to parties come from the mill's e-mail sender if one is set, otherwise from the platform's address under the mill's name.
+- AI: one key for every mill, with an optional **fallback provider** used when the main one fails. Every call is recorded against the mill that made it (API & message costs).

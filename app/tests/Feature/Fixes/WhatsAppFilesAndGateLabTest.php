@@ -28,6 +28,7 @@ beforeEach(function () {
     $this->f->seller->forceFill(['phone' => '0300-1234567'])->save();
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     config(['ricemill.messaging.whatsapp_cloud.phone_number_id' => '1234567890', 'ricemill.messaging.whatsapp_cloud.access_token' => 'meta-token']);
+    Make::whatsappSender($this->f->entity);
 });
 
 function wafSignIn(object $t, LoginAccount $a): void

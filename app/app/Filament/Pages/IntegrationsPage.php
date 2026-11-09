@@ -8,11 +8,13 @@ use App\Domain\Accounts\NetworkScanner;
 use App\Domain\Messaging\Gateways\FirebasePush;
 use App\Domain\Messaging\Gateways\WhatsAppCloud;
 use App\Domain\Messaging\Integrations;
+use App\Domain\Messaging\SenderIdentities;
 use App\Domain\Messaging\WhatsAppFiles;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\LoginAccount;
+use App\Models\Usage\ServiceUsage;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Textarea;
@@ -21,10 +23,10 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 
 /**
- * Administration → Integrations (a mill's Owner or Super Admin): connect the mill's own WhatsApp
- * Business number, so messages to its parties come from it; test it; disconnect. Without its own, the
- * product's WhatsApp (or the server's) is used. Push notifications (Firebase) belong to the product and
- * are shown here only as on or off.
+ * Administration → Connected services (a mill's Owner or Super Admin), read only: the outside services the SaaS
+ * owner connected for every mill, and this mill's sender identity on each — WhatsApp, SMS, e-mail — with AI and push
+ * notifications and the last activity. No credentials are asked for or shown here; only the SaaS owner connects,
+ * changes or assigns them. The mill keeps its own wording for files on WhatsApp, its test message and its scanner.
  */
 class IntegrationsPage extends Page
 {
@@ -32,9 +34,9 @@ class IntegrationsPage extends Page
 
     protected static ?string $navigationGroup = 'Administration';
 
-    protected static ?string $navigationLabel = 'Integrations';
+    protected static ?string $navigationLabel = 'Connected services';
 
-    protected static ?string $title = 'Integrations: WhatsApp and notifications';
+    protected static ?string $title = 'Connected SaaS services';
 
     protected static ?string $slug = 'integrations';
 
@@ -60,10 +62,16 @@ class IntegrationsPage extends Page
         $entityId = $this->entityId();
         $effective = Integrations::whatsapp($entityId);
 
+        $last = $entityId === null ? null : ServiceUsage::query()->where('entity_id', $entityId)->latest('occurred_at')->first();
+
         return [
             'mill_chosen' => $entityId !== null,
-            'own' => $entityId === null ? null : Integrations::whatsappSaved($entityId),
-            'source' => WhatsAppCloud::configured($entityId) ? $effective['source'] : null,
+            'whatsapp' => SenderIdentities::assigned('whatsapp', $entityId), 'whatsapp_problem' => SenderIdentities::problem('whatsapp', $entityId),
+            'whatsapp_connected' => WhatsAppCloud::configured($entityId), 'whatsapp_name' => SenderIdentities::nameFor($entityId),
+            'sms' => SenderIdentities::assigned('sms', $entityId), 'email' => SenderIdentities::assigned('email', $entityId),
+            'mail_from' => SenderIdentities::mailFrom($entityId),
+            'ai' => filled(Integrations::ai($entityId)['api_key']),
+            'last' => $last,
             'number' => $effective['business_number'],
             'push' => FirebasePush::configured(),
             'push_web' => FirebasePush::webReady(),
@@ -74,31 +82,7 @@ class IntegrationsPage extends Page
 
     protected function getHeaderActions(): array
     {
-        $own = fn () => $this->entityId() !== null ? Integrations::whatsappSaved((string) $this->entityId()) : null;
-
         return [
-            Action::make('connectWhatsapp')->label(fn () => $own() ? 'Change WhatsApp' : 'Connect WhatsApp')->icon('heroicon-o-chat-bubble-left-right')
-                ->visible(fn () => $this->entityId() !== null)
-                ->modalHeading('Connect the mill\'s WhatsApp Business number')
-                ->modalDescription('From Meta → WhatsApp Manager → API setup: the phone number ID and a permanent access token (a system user token). The template must be approved in WhatsApp Manager. The settings are checked with WhatsApp before they are saved, and kept encrypted.')
-                ->fillForm(fn () => array_merge(['template' => 'mill_update', 'language' => 'en'], array_diff_key($own() ?? [], ['access_token' => true])))
-                ->form([
-                    TextInput::make('phone_number_id')->label('Phone number ID')->required()->regex('/^\d{6,30}$/'),
-                    TextInput::make('access_token')->label('Access token')->password()->revealable(false)
-                        ->placeholder(fn () => $own() ? 'Saved: leave empty to keep it' : '')->required(fn () => $own() === null),
-                    TextInput::make('template')->label('Message template name')->required()->maxLength(100),
-                    TextInput::make('language')->label('Template language code')->required()->maxLength(10)->placeholder('en, ur'),
-                    TextInput::make('doc_template')->label('Template for files (optional)')->maxLength(100)->placeholder('mill_document')
-                        ->helperText('An approved template whose header is a Document and whose body has one variable {{1}}. With it, files reach anyone; without it, only people who wrote in the last 24 hours.'),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        $s = Integrations::saveWhatsapp((string) $this->entityId(), $data);
-                        Notification::make()->success()->title('WhatsApp connected: '.$s['business_number'])->send();
-                    } catch (BusinessRuleViolation $e) {
-                        Notification::make()->danger()->title($e->getMessage())->persistent()->send();
-                    }
-                }),
             Action::make('fileMessage')->label('WhatsApp file message')->icon('heroicon-o-paper-clip')->color('gray')
                 ->visible(fn () => $this->entityId() !== null)
                 ->modalHeading('The message sent with a file on WhatsApp')
@@ -147,13 +131,6 @@ class IntegrationsPage extends Page
                     }
                     app(SettingsService::class)->put(SettingsService::SCANNER_URL, $address, (string) $this->entityId());
                     Notification::make()->success()->title($address === null ? 'Scanner removed.' : 'Scanner saved: '.$address)->send();
-                }),
-            Action::make('disconnectWhatsapp')->label('Disconnect WhatsApp')->icon('heroicon-o-x-mark')->color('danger')
-                ->visible(fn () => $own() !== null)
-                ->requiresConfirmation()->modalDescription('The saved number and token are deleted. Messages then use the product\'s WhatsApp, or wait to be sent by hand.')
-                ->action(function (): void {
-                    Integrations::removeWhatsapp((string) $this->entityId());
-                    Notification::make()->success()->title('Disconnected.')->send();
                 }),
         ];
     }

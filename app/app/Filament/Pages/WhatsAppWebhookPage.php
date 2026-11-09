@@ -49,7 +49,8 @@ class WhatsAppWebhookPage extends Page
     {
         $me = Filament::auth()->user();
 
-        return $me instanceof LoginAccount && ($me->isPlatformAdmin() || $me->hasPermission('settings.manage'));
+        // One central connection: only the SaaS owner sets it (no mill connects its own).
+        return $me instanceof LoginAccount && $me->isPlatformAdmin();
     }
 
     /** 'platform' (the product's number) or the mill being worked in; null: no mill chosen. */

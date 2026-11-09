@@ -84,7 +84,7 @@ it('reads the photo through any OpenAI-compatible provider too (Gemini here), as
         ->push(['choices' => [['message' => ['content' => '```json'."\n".json_encode(['text' => 'Banam Diesel 3,500', 'lines' => [
             ['account' => 'Diesel', 'credit' => '', 'debit' => '3,500', 'narration' => '', 'reference' => ''],
         ]])."\n```"], 'finish_reason' => 'stop']]]);
-    Integrations::saveAi($this->f->entity->id, ['provider' => 'gemini', 'api_key' => 'AIza'.str_repeat('x', 35), 'model' => 'gemini-2.5-flash']);
+    Integrations::saveAi('platform', ['provider' => 'gemini', 'api_key' => 'AIza'.str_repeat('x', 35), 'model' => 'gemini-2.5-flash']);
 
     $page = app(Roznamcha::class)->record($this->today, 'camera', rzbPhoto());
 

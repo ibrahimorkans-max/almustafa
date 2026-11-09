@@ -190,6 +190,20 @@ final class Make
     }
 
     /** Back to "no context", as at the start of a request. */
+    /**
+     * The SaaS owner's assignment of a WhatsApp sender to a mill (App\Domain\Messaging\SenderIdentities): sent with the
+     * platform's token from this phone number ID, under the mill's approved name.
+     */
+    public static function whatsappSender(Entity $mill, string $phoneNumberId = '1234567890', ?string $name = null): void
+    {
+        self::system(fn () => DB::table('sender_identities')->insert([
+            'id' => (string) Str::uuid(), 'channel' => 'whatsapp', 'entity_id' => $mill->id, 'customer_id' => null,
+            'provider' => 'WhatsApp Cloud (Meta)', 'sender' => '+92 300 0000000', 'display_name' => $name ?? $mill->name,
+            'phone_number_id' => $phoneNumberId, 'platform_sender' => false, 'status' => 'approved', 'language' => 'en',
+            'created_at' => now(), 'updated_at' => now(),
+        ]));
+    }
+
     public static function reset(): void
     {
         app(TenantContext::class)->clear();

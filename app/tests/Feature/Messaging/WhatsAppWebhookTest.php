@@ -59,6 +59,7 @@ it('answers Meta\'s check with the challenge only for the right verify token', f
 
 it('records delivery and read receipts on the message sent, once each, and refuses unsigned calls', function () {
     config(['ricemill.messaging.whatsapp_cloud.phone_number_id' => '1234567890', 'ricemill.messaging.whatsapp_cloud.access_token' => 'meta-token']);
+    Make::whatsappSender($this->f->entity);
     Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.ABC']]])]);
     $this->f->receiveLot();
     $this->f->as($this->f->owner);
@@ -99,15 +100,16 @@ it('refuses everything until the app secret is saved, and checks the secret', fu
     expect(fn () => Integrations::saveWhatsappWebhookSecret($entity, 'not-a-secret'))->toThrow(BusinessRuleViolation::class, 'App secret');
 });
 
-it('shows the mill\'s Owner the callback URL, the verify token and what came back', function () {
+it('shows only the SaaS owner the one webhook — its callback URL, verify token and what came back', function () {
     whkPost($this, ['messages' => [['from' => '923001234567', 'id' => 'wamid.IN2', 'timestamp' => '1793000000', 'type' => 'text', 'text' => ['body' => 'Shukriya']]]])->assertOk();
     whkSignIn($this, $this->f->owner);
-    $mill = Integrations::whatsappWebhook($this->f->entity->id);
+    expect(WhatsAppWebhookPage::canAccess())->toBeFalse();   // no mill registers its own webhook
 
+    whkSignIn($this, Make::platformAdmin($this->f->entity));
+    $hook = Integrations::whatsappWebhook('platform');
     Livewire::test(WhatsAppWebhookPage::class)
-        ->assertSee($mill['url'])->assertSee($mill['verify_token'])
-        ->assertSee('Verify and save')->assertSee('Not saved')
+        ->assertSee($hook['url'])->assertSee($hook['verify_token'])
         ->assertSee('Shukriya')->assertSee('Message received')
         ->callAction('renewToken')->assertNotified();
-    expect(Integrations::whatsappWebhook($this->f->entity->id)['verify_token'])->not->toBe($mill['verify_token']);
+    expect(Integrations::whatsappWebhook('platform')['verify_token'])->not->toBe($hook['verify_token']);
 });

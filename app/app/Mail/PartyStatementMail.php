@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
+use App\Domain\Messaging\SenderIdentities;
+use App\Domain\Tenancy\TenantContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -24,7 +26,8 @@ final class PartyStatementMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: $this->subjectLine);
+        // From the mill (its e-mail sender, else its name), never the platform.
+        return new Envelope(from: SenderIdentities::mailFrom(app(TenantContext::class)->entityId()), subject: $this->subjectLine);
     }
 
     public function content(): Content

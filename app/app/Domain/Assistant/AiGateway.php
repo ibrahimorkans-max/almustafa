@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Assistant;
 
+use App\Domain\Messaging\Integrations;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
@@ -27,6 +29,27 @@ final class AiGateway
      * @param  list<array<string, mixed>>  $tools  Anthropic-format tools
      */
     public function send(array $ai, ?string $system, array $messages, array $tools = [], int $maxTokens = 1024, int $timeout = 45): Response
+    {
+        // The SaaS owner's fallback provider answers when the main one is down, refuses or is overloaded.
+        $fallback = Integrations::aiFallback();
+        try {
+            $response = $this->call($ai, $system, $messages, $tools, $maxTokens, $timeout);
+        } catch (ConnectionException $e) {
+            if ($fallback === null || $fallback['api_key'] === $ai['api_key']) {
+                throw $e;
+            }
+
+            return $this->call($fallback, $system, $messages, $tools, $maxTokens, $timeout);
+        }
+        if ($fallback !== null && $fallback['api_key'] !== $ai['api_key'] && ($response->serverError() || in_array($response->status(), [401, 402, 403, 429], true))) {
+            return $this->call($fallback, $system, $messages, $tools, $maxTokens, $timeout);
+        }
+
+        return $response;
+    }
+
+    /** @param  array{provider: string, api_key: string, model: string, api_url: string}  $ai */
+    private function call(array $ai, ?string $system, array $messages, array $tools, int $maxTokens, int $timeout): Response
     {
         if ($ai['provider'] === 'anthropic') {
             return Http::withHeaders(['x-api-key' => $ai['api_key'], 'anthropic-version' => '2023-06-01'])->acceptJson()->timeout($timeout)
@@ -54,7 +77,8 @@ final class AiGateway
     public static function answer(array $ai, Response $response): array
     {
         $json = (array) $response->json();
-        if ($ai['provider'] === 'anthropic') {
+        // Read by the answer's own shape (a fallback provider may have given it).
+        if (isset($json['content']) && is_array($json['content']) && ! isset($json['choices'])) {
             return ['content' => array_values((array) ($json['content'] ?? [])), 'stop_reason' => (string) ($json['stop_reason'] ?? 'end_turn')];
         }
         $message = (array) ($json['choices'][0]['message'] ?? []);
