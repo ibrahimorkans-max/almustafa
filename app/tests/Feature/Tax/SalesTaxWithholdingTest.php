@@ -166,7 +166,10 @@ describe('withholding tax u/s 153', function () {
         IncomeTax::set($this->f->acc->owner->entity_id, false);
         expect(IncomeTax::enabled())->toBeFalse()->and(postPaddyBill($this)->wht_paise)->toBe(0);
 
-        $this->actingAs($this->f->acc->owner, 'web')->withSession(Make::webSession($this->f->acc->owner));
+        $web = Make::webSession($this->f->acc->owner);
+        $this->actingAs($this->f->acc->owner, 'web')->withSession($web);
+        app(\App\Domain\Auth\AuthContextBinder::class)->bind($this->f->acc->owner,
+            Make::system(fn () => \App\Models\AuthSession::query()->find($web[\App\Http\Middleware\EnsureWebAuthSession::SESSION_KEY])));
         Filament::setCurrentPanel(Filament::getPanel('admin'));
         Livewire::test(CreateParty::class)
             ->assertFormFieldIsHidden('atl_status')->assertFormFieldIsHidden('wht_exempt');
