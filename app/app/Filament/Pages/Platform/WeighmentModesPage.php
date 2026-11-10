@@ -6,6 +6,7 @@ namespace App\Filament\Pages\Platform;
 
 use App\Domain\Gate\LabSetup;
 use App\Domain\Gate\WeighModes;
+use App\Domain\Saas\PlatformCompany;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Customer;
 use App\Models\Entity;
@@ -62,7 +63,7 @@ class WeighmentModesPage extends Page
             $mills = Entity::query()->orderBy('name')->get(['id', 'name', 'code', 'customer_id'])->groupBy('customer_id');
             $term = mb_strtolower(trim($this->search));
 
-            return Customer::query()->orderBy('name')->get(['id', 'name', 'alias'])
+            return Customer::query()->whereNotIn('id', PlatformCompany::customerIds())->orderBy('name')->get(['id', 'name', 'alias'])
                 ->filter(fn (Customer $c) => $term === '' || str_contains(mb_strtolower($c->name.' '.$c->alias.' '.($mills[$c->id] ?? collect())->pluck('name')->implode(' ')), $term))
                 ->map(fn (Customer $c) => [
                     'id' => $c->id, 'name' => $c->name, 'alias' => $c->alias,

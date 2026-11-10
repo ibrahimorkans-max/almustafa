@@ -35,7 +35,7 @@ final class PlatformStats
     {
         return $this->tenant->runAsSystem(function (): array {
             $monthStart = CarbonImmutable::now('Asia/Karachi')->startOfMonth()->utc();
-            $customers = Customer::query()->get();
+            $customers = Customer::query()->whereNotIn('id', PlatformCompany::customerIds())->get();
             $counts = ['trial' => 0, 'trial_ended' => 0, 'active' => 0, 'lifetime' => 0, 'past_due' => 0, 'suspended' => 0, 'cancelled' => 0];
             foreach ($customers as $c) {
                 $state = match (true) {
@@ -91,7 +91,7 @@ final class PlatformStats
             $rows = [];
             for ($i = $months - 1; $i >= 0; $i--) {
                 $start = CarbonImmutable::now('Asia/Karachi')->startOfMonth()->subMonths($i);
-                $in = Customer::query()->whereBetween('created_at', [$start->utc(), $start->endOfMonth()->utc()]);
+                $in = Customer::query()->whereNotIn('id', PlatformCompany::customerIds())->whereBetween('created_at', [$start->utc(), $start->endOfMonth()->utc()]);
                 $rows[] = ['month' => $start->format('M Y'), 'signup' => (clone $in)->where('source', 'signup')->count(),
                     'platform' => (clone $in)->where(fn ($q) => $q->where('source', '!=', 'signup')->orWhereNull('source'))->count()];
             }
@@ -106,7 +106,7 @@ final class PlatformStats
         return $this->tenant->runAsSystem(function (): array {
             $names = Plan::query()->pluck('name', 'id');
             $mix = [];
-            foreach (Customer::query()->where('status', '!=', Customer::CANCELLED)->get() as $c) {
+            foreach (Customer::query()->whereNotIn('id', PlatformCompany::customerIds())->where('status', '!=', Customer::CANCELLED)->get() as $c) {
                 $label = $c->isLifetime() ? 'Lifetime' : ($c->plan_id !== null ? (string) ($names[$c->plan_id] ?? 'Other') : 'No plan');
                 $mix[$label] = ($mix[$label] ?? 0) + 1;
             }
@@ -135,7 +135,7 @@ final class PlatformStats
     /** @return Collection<int, Customer> trials ending within the days given (soonest first), ended ones included */
     public function trialsEnding(int $days = 7): Collection
     {
-        return $this->tenant->runAsSystem(fn () => Customer::query()->where('status', Customer::TRIAL)
+        return $this->tenant->runAsSystem(fn () => Customer::query()->whereNotIn('id', PlatformCompany::customerIds())->where('status', Customer::TRIAL)
             ->whereNotNull('trial_ends_at')->where('trial_ends_at', '<=', now()->addDays($days))->orderBy('trial_ends_at')->limit(20)->get());
     }
 
@@ -162,7 +162,7 @@ final class PlatformStats
     {
         return $this->tenant->runAsSystem(function () use ($percent): array {
             $rows = [];
-            $customers = Customer::query()->whereIn('status', [Customer::TRIAL, Customer::ACTIVE, Customer::PAST_DUE])->whereNotNull('plan_id')->get();
+            $customers = Customer::query()->whereNotIn('id', PlatformCompany::customerIds())->whereIn('status', [Customer::TRIAL, Customer::ACTIVE, Customer::PAST_DUE])->whereNotNull('plan_id')->get();
             foreach ($customers as $customer) {
                 $plan = $this->limits->planOf($customer->id);
                 if ($plan === null) {

@@ -40,6 +40,12 @@ class ApprovalRequestResource extends Resource
 
     protected static ?int $navigationSort = 10;
 
+    /** A mill's screen: the product owner runs the platform, not a mill (Platform → All users). */
+    public static function canAccess(): bool
+    {
+        return parent::canAccess() && ! (Filament::auth()->user()?->isPlatformAdmin() ?? false);
+    }
+
     public static function getNavigationBadge(): ?string
     {
         $count = ApprovalRequest::query()->where('status', ApprovalRequest::STATUS_PENDING)->count();

@@ -32,7 +32,8 @@ class AccessReviewPage extends Page
     {
         $user = Filament::auth()->user();
 
-        return $user instanceof LoginAccount && $user->hasPermission('user.view');
+        // A mill's review of its people's access; not for the product owner.
+        return $user instanceof LoginAccount && $user->hasPermission('user.view') && ! $user->isPlatformAdmin();
     }
 
     /** @return list<array<string, mixed>> */

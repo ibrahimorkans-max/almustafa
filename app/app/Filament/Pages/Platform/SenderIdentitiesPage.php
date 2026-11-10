@@ -6,6 +6,7 @@ namespace App\Filament\Pages\Platform;
 
 use App\Domain\Messaging\Integrations;
 use App\Domain\Messaging\SenderIdentities;
+use App\Domain\Saas\PlatformCompany;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Customer;
@@ -64,7 +65,7 @@ class SenderIdentitiesPage extends Page
             $mills = Entity::query()->orderBy('name')->get(['id', 'name', 'code', 'customer_id'])->groupBy('customer_id');
             $term = mb_strtolower(trim($this->search));
 
-            return Customer::query()->orderBy('name')->get(['id', 'name'])
+            return Customer::query()->whereNotIn('id', PlatformCompany::customerIds())->orderBy('name')->get(['id', 'name'])
                 ->filter(fn (Customer $c) => $term === '' || str_contains(mb_strtolower($c->name.' '.($mills[$c->id] ?? collect())->pluck('name')->implode(' ')), $term))
                 ->map(fn (Customer $c) => ['id' => $c->id, 'name' => $c->name,
                     'own' => $rows->where('customer_id', $c->id)->keyBy('channel')->all(),

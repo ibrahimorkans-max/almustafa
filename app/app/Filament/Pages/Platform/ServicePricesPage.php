@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages\Platform;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Saas\PlatformCompany;
 use App\Domain\Tenancy\TenantContext;
 use App\Domain\Usage\UsageReport;
 use App\Models\Customer;
@@ -63,7 +64,7 @@ class ServicePricesPage extends Page implements HasTable
     /** @return array<string, string> */
     private static function companies(): array
     {
-        return app(TenantContext::class)->runAsSystem(fn () => Customer::query()->orderBy('name')->pluck('name', 'id')->all());
+        return app(TenantContext::class)->runAsSystem(fn () => Customer::query()->whereNotIn('id', PlatformCompany::customerIds())->orderBy('name')->pluck('name', 'id')->all());
     }
 
     public function table(Table $table): Table
