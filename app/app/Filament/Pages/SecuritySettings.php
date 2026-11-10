@@ -25,7 +25,7 @@ class SecuritySettings extends Page implements HasForms
 
     protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
 
-    protected static ?string $navigationGroup = 'Administration';
+    protected static ?string $navigationGroup = 'Platform';
 
     protected static ?string $title = 'Settings';
 

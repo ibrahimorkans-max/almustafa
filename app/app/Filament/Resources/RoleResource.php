@@ -7,6 +7,7 @@ namespace App\Filament\Resources;
 use App\Domain\Access\PermissionCatalog;
 use App\Filament\Resources\RoleResource\Pages;
 use App\Models\Role;
+use Filament\Facades\Filament;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Infolist;
@@ -27,6 +28,12 @@ class RoleResource extends Resource
     protected static ?string $navigationLabel = 'Roles & permissions';
 
     protected static ?int $navigationSort = 30;
+
+    /** A mill's screen: the product owner runs the platform, not a mill (Platform → All users). */
+    public static function canAccess(): bool
+    {
+        return parent::canAccess() && ! (Filament::auth()->user()?->isPlatformAdmin() ?? false);
+    }
 
     /** @return array<string, array<string, string>> module => [code => label] */
     public static function permissionOptionsByModule(): array

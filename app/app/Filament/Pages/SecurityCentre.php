@@ -30,6 +30,12 @@ class SecurityCentre extends Page
 
     protected static ?string $navigationGroup = 'Administration';
 
+    public static function getNavigationGroup(): ?string
+    {
+        // Lockdown and maintenance of the whole product: the product owner's, under Platform.
+        return Filament::auth()->user()?->isPlatformAdmin() ? 'Platform' : 'Administration';
+    }
+
     protected static ?string $title = 'Security centre';
 
     protected static ?string $slug = 'security-centre';

@@ -9,6 +9,7 @@ use App\Domain\Saas\Billing;
 use App\Domain\Saas\CustomerAccess;
 use App\Domain\Saas\PaymentPage;
 use App\Domain\Saas\PlanLimits;
+use App\Domain\Saas\PlatformCompany;
 use App\Filament\Resources\Platform\CustomerResource\Pages;
 use App\Filament\Support\Units;
 use App\Models\Customer;
@@ -35,6 +36,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
@@ -154,6 +156,12 @@ class CustomerResource extends Resource
         app(AuditLogger::class)->record('saas.customer.trial_set', $customer, null, null, ['days' => $days]);
         app(CustomerAccess::class)->forget();
         Notification::make()->success()->title("{$customer->name}: free trial of {$days} days, until {$customer->trial_ends_at?->timezone('Asia/Karachi')->format('d M Y')}.")->send();
+    }
+
+    /** Customers only: the product's own company (the product owner's office) is not one. */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->whereNotIn('id', PlatformCompany::customerIds());
     }
 
     /** The platform's own company: never paused or closed from here. */

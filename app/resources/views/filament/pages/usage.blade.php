@@ -20,7 +20,7 @@
         @if ($platform)
             <label class="text-sm"><span class="text-gray-500">Company</span>
                 <select wire:model.live="customer" class="{{ $sel }}"><option value="">All companies</option>
-                    @foreach (app(\App\Domain\Tenancy\TenantContext::class)->runAsSystem(fn () => \App\Models\Customer::query()->orderBy('name')->pluck('name', 'id')) as $id => $name)<option value="{{ $id }}">{{ $name }}</option>@endforeach
+                    @foreach (app(\App\Domain\Tenancy\TenantContext::class)->runAsSystem(fn () => \App\Models\Customer::query()->whereNotIn('id', \App\Domain\Saas\PlatformCompany::customerIds())->orderBy('name')->pluck('name', 'id')) as $id => $name)<option value="{{ $id }}">{{ $name }}</option>@endforeach
                 </select></label>
         @endif
         <label class="text-sm"><span class="text-gray-500">Mill</span>

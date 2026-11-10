@@ -7,6 +7,7 @@ namespace App\Filament\Pages\Platform;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\AccountStatusService;
 use App\Domain\Auth\SessionService;
+use App\Domain\Saas\PlatformCompany;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\AuditLog;
@@ -85,7 +86,7 @@ class PlatformUsersPage extends Page
                     $mill = $mills->get($a->getAttribute('entity_id') ?? $a->person?->getAttribute('entity_id'));
 
                     return ['id' => $a->id, 'username' => $a->username, 'name' => $a->person?->full_name, 'role' => $a->role?->name,
-                        'mill' => $mill ? $mill->name.' ('.$mill->code.')' : '—', 'company' => $mill ? ($companies[$mill->customer_id] ?? '—') : '—',
+                        'mill' => $mill ? $mill->name.' ('.$mill->code.')' : '—', 'company' => $mill === null ? '—' : (PlatformCompany::is($mill->customer_id) ? 'Platform (product owner)' : ($companies[$mill->customer_id] ?? '—')),
                         'status' => $a->status, 'last_login' => $a->last_login_at?->timezone('Asia/Karachi')->format('d M Y H:i'),
                         'platform' => $a->isPlatformAdmin()];
                 })->all();
@@ -95,7 +96,7 @@ class PlatformUsersPage extends Page
     /** @return array<string, string> */
     public function companies(): array
     {
-        return $this->sys(fn () => Customer::query()->orderBy('name')->pluck('name', 'id')->all());
+        return $this->sys(fn () => Customer::query()->whereNotIn('id', PlatformCompany::customerIds())->orderBy('name')->pluck('name', 'id')->all());
     }
 
     /**

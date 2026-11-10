@@ -49,7 +49,8 @@ it('sums the business: customers by state, recurring income, invoiced, collected
     $b = $billing->issueMonthly($pro, CarbonImmutable::now('Asia/Karachi'));
     $billing->markPaid($b, $platform, 6_000_000, now('Asia/Karachi')->toDateString(), 'HBL-9', null);
 
-    $before = Make::system(fn () => Customer::query()->count());
+    // Customers only: the company holding the product owner's login is not one.
+    $before = Make::system(fn () => Customer::query()->whereNotIn('id', \App\Domain\Saas\PlatformCompany::customerIds())->count());
     $s = app(PlatformStats::class)->summary();
     expect($s['customers']['active'])->toBeGreaterThanOrEqual(2)
         ->and($s['customers']['trial'])->toBeGreaterThanOrEqual(1)
@@ -105,8 +106,8 @@ it('shows the Platform menu to the product owner only, and the product owner no 
         expect(menuOf($this, $account))->not->toHaveKey('Platform');
     }
     $menu = menuOf($this, $platform);
-    expect($menu['Platform'] ?? [])->toBe(['Overview', 'Customers', 'All users', 'Weighment modes', 'API & message costs', 'Service prices & billing', 'Invoices', 'Payment methods', 'Plans', 'Sender identities', 'Integrations', 'Email integration', 'Bank e-mail templates', 'Data visibility', 'WhatsApp webhook', 'AI assistant'])
-        ->and(array_keys($menu))->not->toContain('Procurement')->not->toContain('Gate & weighbridge')
+    expect($menu['Platform'] ?? [])->toBe(['Overview', 'Customers', 'All users', 'Weighment modes', 'API & message costs', 'Service prices & billing', 'Invoices', 'Payment methods', 'Plans', 'Sender identities', 'Integrations', 'Email integration', 'Bank e-mail templates', 'Data visibility', 'WhatsApp webhook', 'AI assistant', 'Settings', 'Security centre'])
+        ->and(array_keys($menu))->not->toContain('Administration')->not->toContain('Procurement')->not->toContain('Gate & weighbridge')
         ->not->toContain('Stock & production')->not->toContain('Accounts')->not->toContain('Masters')
         ->and($platform->hasPermission('gate.entry'))->toBeFalse()
         ->and($platform->hasPermission('user.manage'))->toBeTrue();

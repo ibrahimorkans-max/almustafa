@@ -54,7 +54,7 @@ function adminUrls(LoginAccount $sa, ?string $workingEntity): array
     }
     // Own-records pages (an employee's documents, a party's account), the Office Desk (the Office Coordinator's alone:
     // its 403 for everyone else is tested in ArchiveScreenTest) and the platform admin's pages.
-    foreach (array_filter(array_diff(Filament::getPanel('admin')->getPages(), [MyDocumentsPage::class, PartyPortalPage::class, SecuritySettings::class, PaymentRequiredPage::class, ArchiveSearch::class]), fn (string $p) => ! str_contains($p, '\\Platform\\')) as $page) {
+    foreach (array_filter(array_diff(Filament::getPanel('admin')->getPages(), [MyDocumentsPage::class, PartyPortalPage::class, SecuritySettings::class, PaymentRequiredPage::class, ArchiveSearch::class, \App\Filament\Pages\AiIntegrationPage::class, \App\Filament\Pages\WhatsAppWebhookPage::class]), fn (string $p) => ! str_contains($p, '\\Platform\\')) as $page) {
         $urls[$page::getUrl()] = 'page';
     }
     Make::reset();
