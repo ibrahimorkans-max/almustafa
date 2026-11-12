@@ -32,7 +32,7 @@ class StockEntryResource extends Resource
 
     /** @var array<string, string> */
     public const MOVEMENTS = [
-        'receipt' => 'Receipt (gate)', 'production_issue' => 'Issued to production', 'production_output' => 'Production output',
+        'receipt' => 'Receipt (gate)', 'opening' => 'Opening stock (from paper)', 'production_issue' => 'Issued to production', 'production_output' => 'Production output',
         'transfer_out' => 'Transfer out', 'transfer_in' => 'Transfer in', 'adjustment' => 'Count adjustment',
         'reversal' => 'Reversal', 'dispatch' => 'Dispatch',
     ];

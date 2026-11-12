@@ -609,3 +609,32 @@ Details: `saas.md`, `millnexa-branding.md`.
 - WhatsApp's own sender name (at the top of the chat) is the one Meta approved for the number; it is the same for every mill. The mill's name is in each message.
 - E-mails to parties come from the mill's e-mail sender if one is set, otherwise from the platform's address under the mill's name.
 - AI: one key for every mill, with an optional **fallback provider** used when the main one fails. Every call is recorded against the mill that made it (API & message costs).
+
+## 18. Old records from paper
+
+**Accounts → Old records (from paper)** brings everything from the paper registers, from before the software, into the system: the books, party accounts and stock then carry the mill's whole history.
+
+| Kind | What it does |
+| --- | --- |
+| Opening balance — party | What a party owed the mill (lena) or the mill owed it (dena) on the start date. |
+| Opening balance — cash, bank or other account | Cash in hand, a bank balance, a loan, capital, an asset. Debit or credit. |
+| Opening stock | Paddy, rice or by-products in a godown, in kg, with their value if known. |
+| Purchase / Sale | Bought from or sold to a party. With a product, godown and weight, the stock moves too; with the weight and the rate per maund, the amount is worked out. |
+| Payment / Money received | Paid to or received from a party, through cash or a bank account. |
+| Expense paid | An expense paid from cash or bank. |
+| Journal / adjustment | Any other entry between two accounts, with a description. |
+| Weighbridge slip / Other register entry | Kept as written (vehicle, weights; or the register's words), nothing posted. |
+
+- Every entry is posted **on the date written on the paper**, with its register and page, the number on the paper, and an optional **photo of the page**. Parties are **not** sent WhatsApp messages about old records.
+- **Party details:** phone, CNIC, address and city as written on the paper. They fill in what the party's record is missing; nothing already saved is changed. A copy is kept on the old record.
+- **Vehicle details** (purchase, sale, weighbridge slip, other entry): vehicle number, type, driver name and phone, bags, bilty / gate pass no. A vehicle not yet in **Masters → Vehicles** is added (with the party as owner), and so is its driver.
+- **Payment details** (payment, money received, expense): paid by cash, cheque, pay order, IBFT, RTGS, Raast, bank deposit or JazzCash/Easypaisa; the cheque or transaction no. (required for those), cheque date, the party's bank, and who paid or received it. Cash must go through Cash, and online transfers through a bank account.
+- The list can be searched by vehicle number, driver and cheque / transaction no.
+- Opening balances go against one account, **Opening balances (brought from paper)**. When everything is entered, its balance is the mill's opening capital.
+- **Save and add another** keeps the kind, date, register and cash/bank for the next line of the same page.
+- **Many at once:** download the **spreadsheet template**, fill it in Excel (one row per entry, any kinds mixed), save it as CSV, and use **Import from spreadsheet**.
+  - Parties, accounts, products and godowns are found by name or code. A party not yet in the system is added.
+  - A row with a mistake is listed and left out; fix it and import those rows again.
+  - The same paper number of the same kind on the same date is never entered twice.
+- **A wrong record is not edited.** Open it and choose **Cancel this record**: its voucher and stock movement are reversed on the same date. Then enter it correctly.
+- A month whose books are locked must be unlocked (Accounts → Period locks) before old entries can be dated in it.

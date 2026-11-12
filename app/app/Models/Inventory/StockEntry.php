@@ -57,6 +57,9 @@ class StockEntry extends Model
 
     public const DISPATCH = 'dispatch';
 
+    /** Stock in hand on the day the mill started, brought from its paper stock register. */
+    public const OPENING = 'opening';
+
     protected $table = 'stock_ledger';
 
     protected $fillable = [

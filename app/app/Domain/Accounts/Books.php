@@ -91,8 +91,10 @@ final class Books
                 'type' => $type, 'number' => $voucher->number, 'date' => $day->toDateString(), 'total_paise' => $dr,
                 'lines' => array_map(fn (array $l) => [$l['account']->code, $l['dr'] ?? 0, $l['cr'] ?? 0], $lines),
             ], array_filter($source));
-            // Each party in it hears of it (once the voucher is saved), with its balance after it.
-            app(PartyEventMessages::class)->voucherPosted($voucher, $lines, fn (LedgerAccount $ledger) => $this->balance($ledger));
+            // Each party in it hears of it (once the voucher is saved), with its balance after it — not of old records from paper.
+            if (($source['source_type'] ?? null) !== PaperRecords::SOURCE) {
+                app(PartyEventMessages::class)->voucherPosted($voucher, $lines, fn (LedgerAccount $ledger) => $this->balance($ledger));
+            }
 
             return $voucher;
         });
