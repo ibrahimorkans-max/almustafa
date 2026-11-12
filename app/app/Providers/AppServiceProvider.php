@@ -223,6 +223,7 @@ class AppServiceProvider extends ServiceProvider
             Hr\ContractorBill::class => Policies\Hr\ContractorBillPolicy::class,
             Accounts\ExpenseCategory::class => Policies\Hr\ExpenseCategoryPolicy::class,
             Accounts\Expense::class => Policies\Hr\ExpenseCategoryPolicy::class,
+            Accounts\PaperRecord::class => Policies\Accounts\PaperRecordPolicy::class,
             Accounts\ExpenseBudget::class => Policies\Hr\ExpenseCategoryPolicy::class,
             Accounts\RecurringExpense::class => Policies\Hr\RecurringExpensePolicy::class,
             GeneratedDocument::class => Policies\Hr\DocumentPolicy::class,

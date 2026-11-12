@@ -7,6 +7,7 @@ namespace App\Domain\Files;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Models\Accounts\PaperRecord;
 use App\Models\Accounts\Payment;
 use App\Models\Accounts\PurchaseBill;
 use App\Models\ApprovalRequest;
@@ -33,11 +34,12 @@ final class Attachments
         'purchase_bill' => [PurchaseBill::class, ['supplier_invoice', 'weighbridge_slip', 'other']],
         'payment' => [Payment::class, ['payment_voucher', 'bank_proof', 'other']],
         'approval_request' => [ApprovalRequest::class, ['approval', 'other']],
+        'paper_record' => [PaperRecord::class, ['paper_page', 'other']],
     ];
 
     public const KINDS = [
         'lab_result' => 'Lab result sheet', 'weighbridge_slip' => 'Weighbridge slip', 'supplier_invoice' => 'Supplier invoice',
-        'payment_voucher' => 'Payment voucher (signed)', 'bank_proof' => 'Bank transfer proof', 'approval' => 'Approval paper', 'other' => 'Other document',
+        'payment_voucher' => 'Payment voucher (signed)', 'bank_proof' => 'Bank transfer proof', 'approval' => 'Approval paper', 'paper_page' => 'Photo of the register page', 'other' => 'Other document',
     ];
 
     public function __construct(

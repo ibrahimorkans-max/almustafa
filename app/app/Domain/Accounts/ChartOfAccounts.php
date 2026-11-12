@@ -72,6 +72,9 @@ final class ChartOfAccounts
         // Daily wages of unregistered casual labour (labour groups under a mukadam).
         'daily_wages' => ['EXP-DAILY-WAGES', 'Daily wages (casual labour)', 'DIRECT_EXPENSES', 'system'],
         'daily_wages_payable' => ['DW-PAYABLE', 'Daily wages payable', 'CUR_LIAB', 'system'],
+        // Old records from paper (PaperRecords): the other side of every opening balance, and the value of opening stock.
+        'opening_balance' => ['OPENING-BAL', 'Opening balances (brought from paper)', 'CAPITAL', 'system'],
+        'opening_stock' => ['STOCK-OPENING', 'Opening stock (from paper)', 'STOCK_IN_HAND', 'system'],
     ];
 
     public function __construct(private readonly TenantContext $tenant) {}
