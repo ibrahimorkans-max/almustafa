@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Auth\Exceptions\AuthenticationFailed;
 use App\Domain\Gate\AgentPairing;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Http\Middleware\VerifyAgentSignature;
@@ -95,6 +96,25 @@ it('pairing a gate login locked by wrong passwords unlocks it, so the PC can sig
     $this->f->as($this->f->owner);
     $r = $this->pairing->issue($this->f->scale->id, $gate->id);
     $s = $this->postJson('/api/v1/agent/pair', ['code' => $r['code']])->assertOk()->json();
+    $this->postJson('/api/v1/auth/login', ['username' => $s['username'], 'password' => $s['password'], 'device_uid' => $s['device_uid'], 'platform' => 'agent'])
+        ->assertOk();
+});
+
+it('refuses a person signing in with the PC login, plainly and without locking the PC out', function () {
+    $r = $this->pairing->issue($this->f->scale->id);
+    $s = $this->postJson('/api/v1/agent/pair', ['code' => $r['code']])->json();
+
+    // People trying the PC's login (they do not know its password) many times, from the mill like the PC.
+    for ($i = 0; $i < 4; $i++) {
+        $this->postJson('/api/v1/auth/login', ['username' => $s['username'], 'password' => 'guess-'.$i, 'device_uid' => 'phone-abcdefabcdefabcdef', 'platform' => 'android'])
+            ->assertStatus(403)->assertJsonPath('error', 'machine_login');
+    }
+    expect((new AuthenticationFailed(AuthenticationFailed::MACHINE_LOGIN, 'machine_login', 403))->publicMessage())
+        ->toContain('Sign in with your own login');
+    $pc = Make::system(fn () => LoginAccount::query()->where('username', $s['username'])->sole());
+    expect($pc->failed_attempts)->toBe(0)->and($pc->isLocked())->toBeFalse();
+
+    // The gate agent still signs in.
     $this->postJson('/api/v1/auth/login', ['username' => $s['username'], 'password' => $s['password'], 'device_uid' => $s['device_uid'], 'platform' => 'agent'])
         ->assertOk();
 });

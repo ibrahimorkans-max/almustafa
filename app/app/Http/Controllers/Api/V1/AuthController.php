@@ -32,7 +32,8 @@ final class AuthController extends Controller
 {
     public function login(LoginRequest $request, LoginService $login, TokenService $tokens, AuditLogger $audit): JsonResponse
     {
-        $account = $login->verifyPassword($request->string('username')->toString(), $request->string('password')->toString(), $request->ip(), $request->header('X-Device-Id') ?? $request->input('device_uid'));
+        $account = $login->verifyPassword($request->string('username')->toString(), $request->string('password')->toString(), $request->ip(),
+            $request->header('X-Device-Id') ?? $request->input('device_uid'), asAgent: $request->input('platform') === 'agent');
         // "Only inside the mill": the app sends its position (latitude, longitude, accuracy) with the sign-in.
         $login->assertInsideArea($account, $request->input('latitude'), $request->input('longitude'), $request->input('accuracy'),
             $request->ip(), $request->header('X-Device-Id') ?? $request->input('device_uid'), $request);   // a gate agent is excused only when it signs this request

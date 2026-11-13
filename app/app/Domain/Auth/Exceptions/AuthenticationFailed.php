@@ -39,6 +39,9 @@ final class AuthenticationFailed extends RuntimeException
     /** The mill allows sign-in only inside its premises (SignInArea); the reason says which: no position, or outside. */
     public const OUTSIDE_AREA = 'outside_area';
 
+    /** A weighbridge PC's own login, typed by a person: only the gate agent signs in with it. */
+    public const MACHINE_LOGIN = 'machine_login';
+
     /** Neutral ending (used for the duress PIN): says nothing about why. */
     public const SIGNED_OUT = 'signed_out';
 
@@ -69,6 +72,8 @@ final class AuthenticationFailed extends RuntimeException
             self::SUBSCRIPTION_ENDED => app(CustomerAccess::class)->message($this->reason),
             self::OUTSIDE_AREA => SignInArea::message($this->reason),
             self::SIGNED_OUT => 'Signed out. Please try again later.',
+            self::MACHINE_LOGIN => 'This is the weighbridge PC\'s own login: only the gate agent on that PC signs in with it, and nobody knows its password. '
+                .'Sign in with your own login. No login yet? Ask the Owner or Super Admin: Users → New, role Weighbridge / Gate Operator.',
             default => 'These credentials do not match our records, or the account is locked.',
         };
     }
