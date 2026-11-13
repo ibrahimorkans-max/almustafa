@@ -4,7 +4,7 @@ import tomllib
 import unittest
 from pathlib import Path
 
-from ricemill_agent.api import ApiError
+from ricemill_agent.api import ApiClient, ApiError, Credentials
 from ricemill_agent.cli import login_command, pair_command
 from ricemill_agent.pairing import normalize_code, normalize_server, set_values
 
@@ -98,6 +98,20 @@ class PairingTest(unittest.TestCase):
 
         self.assertEqual(rc, 1)
         self.assertEqual(tomllib.loads(self.config.read_text(encoding="utf-8"))["auth"]["password"], "p" * 32)
+
+    def test_a_refused_password_is_not_sent_again_until_it_changes(self) -> None:
+        # sync runs every minute: retrying a wrong password would lock the login out from the mill's address.
+        marker = Path(self.dir.name) / "sign-in-refused.txt"
+        server = FakeServer(password="right")
+        wrong = ApiClient("https://erp.mill.pk", Credentials("wb.wb1", "old", "agent-x", "s"), transport=server, refused_file=marker)
+        for _ in range(3):
+            with self.assertRaises(ApiError):
+                wrong.login()
+        self.assertEqual(sum(1 for r in server.requests if r[0].endswith("/auth/login")), 1)
+
+        ApiClient("https://erp.mill.pk", Credentials("wb.wb1", "right", "agent-x", "s"), transport=server, refused_file=marker).login()
+        self.assertEqual(sum(1 for r in server.requests if r[0].endswith("/auth/login")), 2)
+        self.assertFalse(marker.exists())
 
     def test_helpers(self) -> None:
         self.assertEqual(normalize_server("ERP.Mill.pk/admin"), "https://erp.mill.pk")

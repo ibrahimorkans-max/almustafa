@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import urllib.error
 import urllib.request
 import uuid
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 from .signing import sign
@@ -68,7 +70,8 @@ class Credentials:
 class ApiClient:
     PREFIX = "/api/v1"
 
-    def __init__(self, base_url: str, credentials: Credentials, transport: Transport | None = None) -> None:
+    def __init__(self, base_url: str, credentials: Credentials, transport: Transport | None = None,
+                 refused_file: Path | None = None) -> None:
         if not base_url.startswith("https://") and not base_url.startswith("http://127.0.0.1") and not base_url.startswith("http://localhost"):
             raise ValueError("The server must be reached over HTTPS.")
         self.base = base_url.rstrip("/")
@@ -76,14 +79,32 @@ class ApiClient:
         self.transport = transport or UrllibTransport()
         self.access: str | None = None
         self.refresh_token: str | None = None
+        # Unattended runs (sync every minute, live restarted on failure): a password the ERP refused is not sent
+        # again until it changes. Each refusal counts against the login from the mill's internet address, which
+        # every computer there shares: retrying would lock that login out for the people at the mill too.
+        self.refused_file = refused_file
+
+    def _fingerprint(self) -> str:
+        return hashlib.sha256("\n".join((self.base, self.creds.username, self.creds.password)).encode()).hexdigest()
 
     # ------------------------------------------------------------------ auth
 
     def login(self) -> dict:
-        body = self._send("POST", "/auth/login", {
-            "username": self.creds.username, "password": self.creds.password,
-            "device_uid": self.creds.device_uid, "device_name": "Gate agent", "platform": "agent",
-        }, auth=False)
+        if self.refused_file is not None and self.refused_file.is_file() \
+                and self.refused_file.read_text(encoding="utf-8").strip() == self._fingerprint():
+            raise ApiError(401, {"error": "invalid_credentials", "message": "The ERP refused this password before; "
+                                 "it is not tried again until it is changed (ricemill-agent pair, or login)."})
+        try:
+            body = self._send("POST", "/auth/login", {
+                "username": self.creds.username, "password": self.creds.password,
+                "device_uid": self.creds.device_uid, "device_name": "Gate agent", "platform": "agent",
+            }, auth=False)
+        except ApiError as e:
+            if self.refused_file is not None and e.body.get("error") == "invalid_credentials":
+                self.refused_file.write_text(self._fingerprint(), encoding="utf-8")
+            raise
+        if self.refused_file is not None and self.refused_file.is_file():
+            self.refused_file.unlink()
         if body.get("status") != "ok":
             raise ApiError(401, {"error": body.get("status", "login_failed")})
         self.access, self.refresh_token = body["access_token"], body["refresh_token"]

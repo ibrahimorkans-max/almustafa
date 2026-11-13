@@ -43,6 +43,7 @@ class SignInAttempts extends Page implements HasTable
         'bad_password' => 'Wrong password', 'bad_mfa_code' => 'Wrong 6-digit code', 'unknown_user' => 'Unknown username',
         'passkey_not_recognised' => 'Passkey not recognised', 'device_not_trusted' => 'Device waiting for approval',
         'ip_not_allowed' => 'Network not allowed', 'lockdown' => 'System locked down', 'locked' => 'Account locked',
+        'locked_here' => 'Locked out from this address (wrong passwords from there; Users → Unlock)',
         'account_suspended' => 'Account suspended', 'account_revoked' => 'Account revoked', 'device_revoked' => 'Device revoked',
         'device_wiped' => 'Device wiped', 'device_wipe_pending' => 'Device being wiped', 'no_panel_access' => 'No back-office access',
         'agent_not_registered' => 'Gate agent not registered',

@@ -195,9 +195,12 @@ def _main(argv: list[str] | None = None) -> int:
         return login_command(args.config, args.username)
     if args.cmd == "check":
         print("Checking every step from the indicator to the Live weight screen...\n")
+        # Someone is watching: try the password once more (e.g. after the office unlocked the login).
+        refused_file(args.config).unlink(missing_ok=True)
         steps = run_check(
             args.config, load_config=AgentConfig.load,
-            make_api=lambda cfg: ApiClient(cfg.server_url, Credentials(cfg.username, cfg.password, cfg.device_uid, cfg.signing_secret)),
+            make_api=lambda cfg: ApiClient(cfg.server_url, Credentials(cfg.username, cfg.password, cfg.device_uid, cfg.signing_secret),
+                                           refused_file=refused_file(args.config)),
             make_samples=lambda cfg: build_indicator(cfg).samples(), reach=reach_server,
         )
         return 0 if steps and all(s.ok for s in steps) and steps[-1].name == "Live weight" else 1
@@ -215,7 +218,8 @@ def _main(argv: list[str] | None = None) -> int:
 
     cfg = AgentConfig.load(args.config)
     store = LocalStore(cfg.store_path, cfg.store_key)
-    api = ApiClient(cfg.server_url, Credentials(cfg.username, cfg.password, cfg.device_uid, cfg.signing_secret))
+    api = ApiClient(cfg.server_url, Credentials(cfg.username, cfg.password, cfg.device_uid, cfg.signing_secret),
+                    refused_file=refused_file(args.config))
 
     if args.cmd == "status":
         print(json.dumps({"unsynced": store.unsynced_count(), "cursor": store.get_meta("cursor", "0"), "stopped": store.get_meta("stopped", "") or None}))
@@ -267,6 +271,11 @@ def _main(argv: list[str] | None = None) -> int:
 def _protect(value: str) -> str:
     """DPAPI on Windows (only this PC can read it back); elsewhere the value as is (use file permissions)."""
     return secrets.protect(value, "machine") if secrets.available() else value
+
+
+def refused_file(config: str | Path) -> Path:
+    """Beside agent.toml: the password the ERP refused, so unattended runs do not retry it (see ApiClient)."""
+    return Path(config).resolve().parent / "sign-in-refused.txt"
 
 
 def _example_beside(config_path: Path) -> Path:
