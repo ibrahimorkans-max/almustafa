@@ -1648,14 +1648,43 @@ class WeighbridgeScene {
         set(q('plate'), plate ? 'VEHICLE: ' + plate : '');
     }
 
+    /** Every 100 ms: the reading of `delay` ms ago (server clock), so every reading the agent sent is shown in turn. */
+    playLive() {
+        const buf = this.live.buf;
+        if (!buf || !buf.length) return;
+        const at = Date.now() + (this.live.offset || 0) - (this.live.delay || 1000);
+        for (let i = buf.length - 1; i >= 0; i--) {
+            if (buf[i].ms <= at) {
+                this.live.kg = Number(buf[i].kg);
+                this.live.stable = !!buf[i].stable;
+                return;
+            }
+        }
+    }
+
     async readLive() {
         if (!this.liveUrl || this.mode !== 'live' || !this.visible || document.hidden) return;
         try {
             const res = await fetch(this.liveUrl, { credentials: 'same-origin', cache: 'no-store', redirect: 'manual', headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
             const r = res.ok ? await res.json() : null;
             this.live.fails = r ? 0 : (this.live.fails || 0) + 1;
-            if (r) Object.assign(this.live, { kg: r.kg === null ? null : Number(r.kg), live: !!r.live, stable: !!r.stable });
-            else if (this.live.fails >= 3) this.live.live = false;
+            if (r && r.live && Array.isArray(r.readings) && r.readings.length && typeof r.now === 'number') {
+                // The readings of the last seconds (about 10 a second), played back by playLive() as in live-weight.js.
+                this.live.live = true;
+                this.live.offset = r.now - Date.now();
+                const lag = r.now - r.readings[r.readings.length - 1].ms + 800;
+                this.live.delay = Math.min(6000, Math.max(1000, lag, (this.live.delay || 1000) * 0.97));
+                const buf = this.live.buf || [];
+                const lastMs = buf.length ? buf[buf.length - 1].ms : 0;
+                r.readings.forEach((s) => { if (s.ms > lastMs) buf.push(s); });
+                this.live.buf = buf.slice(-60);
+            } else if (r) {
+                this.live.buf = null;
+                Object.assign(this.live, { kg: r.kg === null ? null : Number(r.kg), live: !!r.live, stable: !!r.stable });
+            } else if (this.live.fails >= 3) {
+                this.live.buf = null;
+                this.live.live = false;
+            }
         } catch (e) {
             this.live.fails = (this.live.fails || 0) + 1;
             if (this.live.fails >= 3) this.live.live = false;
@@ -1927,6 +1956,7 @@ class WeighbridgeScene {
         // Draw only while it is on screen.
         new IntersectionObserver((entries) => { this.visible = entries.some((en) => en.isIntersecting); }, { threshold: 0.05 }).observe(this.root);
         setInterval(() => this.readLive(), 500);
+        setInterval(() => this.playLive(), 100);
     }
 
     resize() {

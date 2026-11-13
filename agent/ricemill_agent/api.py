@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
-import urllib.error
-import urllib.request
+import ssl
+import urllib.parse
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -45,18 +46,51 @@ class Transport(Protocol):
 
 
 class UrllibTransport:
+    """One connection kept open to the ERP and reused: a send then takes one round trip, not a new
+    TLS handshake each time (live weight sends twice a second). A broken connection is opened again once."""
+
     def __init__(self, timeout: float = 15.0) -> None:
         self.timeout = timeout
+        self._conn: http.client.HTTPConnection | None = None
+        self._origin: tuple[str, str, int | None] | None = None
+
+    def _connection(self, parts: urllib.parse.SplitResult) -> http.client.HTTPConnection:
+        origin = (parts.scheme, parts.hostname or "", parts.port)
+        if self._conn is None or self._origin != origin:
+            self.close()
+            if parts.scheme == "https":
+                self._conn = http.client.HTTPSConnection(parts.hostname, parts.port, timeout=self.timeout,
+                                                         context=ssl.create_default_context())
+            else:
+                self._conn = http.client.HTTPConnection(parts.hostname, parts.port, timeout=self.timeout)
+            self._origin = origin
+        return self._conn
+
+    def close(self) -> None:
+        if self._conn is not None:
+            self._conn.close()
+        self._conn = None
 
     def request(self, method: str, url: str, headers: dict[str, str], body: bytes) -> tuple[int, bytes]:
-        req = urllib.request.Request(url, data=body if method != "GET" else None, method=method, headers=headers)
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310 - configured server URL
-                return resp.status, resp.read()
-        except urllib.error.HTTPError as e:
-            return e.code, e.read()
-        except (urllib.error.URLError, TimeoutError, OSError) as e:
-            raise OfflineError(str(e)) from e
+        parts = urllib.parse.urlsplit(url)
+        path = parts.path + (f"?{parts.query}" if parts.query else "")
+        for attempt in (1, 2):
+            conn = self._connection(parts)
+            try:
+                conn.request(method, path, body=body if method != "GET" else None, headers=headers)
+                resp = conn.getresponse()
+                data = resp.read()
+                if resp.getheader("Connection", "").lower() == "close":
+                    self.close()
+                return resp.status, data
+            except (http.client.HTTPException, ConnectionError, ssl.SSLError) as e:
+                self.close()                          # the server closed the idle connection: open a new one
+                if attempt == 2:
+                    raise OfflineError(str(e)) from e
+            except (TimeoutError, OSError) as e:
+                self.close()
+                raise OfflineError(str(e)) from e
+        raise OfflineError("no answer")
 
 
 @dataclass

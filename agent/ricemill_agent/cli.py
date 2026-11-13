@@ -26,6 +26,7 @@ import getpass
 import json
 import os
 import sys
+import time
 import tomllib
 from decimal import Decimal
 from pathlib import Path
@@ -41,7 +42,7 @@ from .pairing import apply_pairing, current_value, normalize_server, read_config
 from .gate import GateAgent
 from .gate_control import GateController
 from .doctor import explain, kg_text, reach_server, run_check
-from .live import LiveWeightStreamer
+from .live import LiveWeightStreamer, in_background
 from . import secrets
 from .queue import LocalStore
 from .sync import SyncWorker
@@ -252,11 +253,14 @@ def _main(argv: list[str] | None = None) -> int:
     if args.cmd == "live":
         if args.simulate is not None:
             def repeat():
+                # Paced like a real indicator: 10 readings a second, timed when they are "read".
                 while True:
-                    yield from SimulatedIndicator(args.simulate, cfg.resolution_kg).samples()
-            samples = repeat()
+                    for weight, _at in SimulatedIndicator(args.simulate, cfg.resolution_kg, settle_frames=30, hold_frames=50).samples():
+                        time.sleep(0.1)
+                        yield weight, int(time.monotonic() * 1000)
+            samples = in_background(repeat())
         else:
-            samples = build_indicator(cfg).samples()
+            samples = in_background(build_indicator(cfg).samples())
         print(f"Live weight for {cfg.server_url} - leave this window open (Ctrl+C stops it).")
         stats = LiveWeightStreamer(samples, api, cfg.scale_id, cfg.resolution_kg, report=lambda m: print(m, flush=True)).run(args.count)
         print(json.dumps({"readings": stats.readings, "sent": stats.sent, "dropped": stats.dropped, "last_error": stats.last_error}))

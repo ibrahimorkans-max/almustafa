@@ -20,6 +20,11 @@ final class LiveWeightController extends Controller
             'kg' => ['required', 'numeric'],
             'stable' => ['required', 'boolean'],
             'at' => ['nullable', 'date'],
+            // Every reading since the last send (about 10 a second), oldest first; age_ms is how long before the newest.
+            'readings' => ['nullable', 'array', 'max:60'],
+            'readings.*.kg' => ['required', 'numeric'],
+            'readings.*.stable' => ['required', 'boolean'],
+            'readings.*.age_ms' => ['required', 'integer', 'min:0', 'max:10000'],
         ]);
         try {
             $live->record($data);

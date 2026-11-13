@@ -11,8 +11,8 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * The weighbridge reading as it changes, for the screens. The gate agent on the weighbridge PC sends
- * the indicator's value about once a second; it is kept in the cache only and goes stale after a few
+ * The weighbridge reading as it changes, for the screens. The gate agent on the weighbridge PC sends, about
+ * twice a second, every reading of the indicator since the last send (about 10 a second); they are kept in the cache only and go stale after a few
  * seconds, so a dead agent or cable shows as "no signal". The last readings are kept too: recording a
  * weight from the Live weight screen (LiveCapture) takes them as its stability evidence.
  */
@@ -21,11 +21,17 @@ final class LiveWeight
     /** Readings kept per weighbridge for the evidence of a capture from the screen. */
     private const KEEP = 12;
 
+    /** At most one evidence reading per this many ms (the stability check counts readings of about a second each). */
+    private const EVIDENCE_EVERY_MS = 900;
+
+    /** Readings kept for the screens' stream: about 6 seconds at 10 a second. */
+    private const STREAM = 60;
+
     public function __construct(
         private readonly ActorContext $actor,
     ) {}
 
-    /** @param  array{scale_id: string, kg: string|int|float, stable: bool, at?: string|null}  $reading */
+    /** @param  array{scale_id: string, kg: string|int|float, stable: bool, at?: string|null, readings?: list<array{kg: string|int|float, stable: bool, age_ms: int}>|null}  $reading */
     public function record(array $reading): void
     {
         if (! ($this->actor->account()?->hasPermission('weighment.capture') ?? false)) {
@@ -40,14 +46,43 @@ final class LiveWeight
             throw new BusinessRuleViolation('The reading is outside the weighbridge range.');
         }
         $now = now();
+        $nowMs = (int) $now->getTimestampMs();
         Cache::put($this->key($scale), [
             'kg' => $kg, 'stable' => (bool) $reading['stable'], 'received_at' => $now->toIso8601String(),
             'device_id' => $this->actor->deviceId(),
         ], now()->addMinutes(10));
 
+        // The screens' stream: every reading the agent read (about 10 a second), timed by its age at sending.
+        $batch = [];
+        foreach ((array) ($reading['readings'] ?? []) as $r) {
+            $value = round((float) $r['kg'], 1);
+            if (abs($value) <= (float) $scale->capacity_kg * 1.2) {
+                $batch[] = ['kg' => $value, 'stable' => (bool) $r['stable'], 'ms' => $nowMs - (int) $r['age_ms']];
+            }
+        }
+        $batch = $batch !== [] ? $batch : [['kg' => $kg, 'stable' => (bool) $reading['stable'], 'ms' => $nowMs]];
+        $last = (array) Cache::get($this->streamKey($scale), []);
+        $lastMs = $last === [] ? 0 : $last[count($last) - 1]['ms'];
+        $stream = array_merge($last, array_values(array_filter($batch, fn (array $s) => $s['ms'] > $lastMs)));
+        Cache::put($this->streamKey($scale), array_slice($stream, -self::STREAM), now()->addMinutes(10));
+
+        // The capture evidence stays about one reading a second, however fast the agent sends.
         $samples = Cache::get($this->samplesKey($scale), []);
-        $samples[] = ['kg' => $kg, 'ms' => (int) $now->getTimestampMs()];
-        Cache::put($this->samplesKey($scale), array_slice($samples, -self::KEEP), now()->addMinutes(10));
+        $previous = $samples === [] ? null : $samples[count($samples) - 1]['ms'];
+        if ($previous === null || $nowMs - $previous >= self::EVIDENCE_EVERY_MS) {
+            $samples[] = ['kg' => $kg, 'ms' => $nowMs];
+            Cache::put($this->samplesKey($scale), array_slice($samples, -self::KEEP), now()->addMinutes(10));
+        }
+    }
+
+    /**
+     * The readings of the last seconds, for the dial to play back at the rate they were read.
+     *
+     * @return list<array{kg: float, stable: bool, ms: int}>
+     */
+    public function stream(Scale $scale, int $sinceMs): array
+    {
+        return array_values(array_filter((array) Cache::get($this->streamKey($scale), []), fn (array $s) => $s['ms'] > $sinceMs));
     }
 
     /**
@@ -112,6 +147,11 @@ final class LiveWeight
     private function key(Scale $scale): string
     {
         return 'live-weight:'.$scale->entity_id.':'.$scale->id;
+    }
+
+    private function streamKey(Scale $scale): string
+    {
+        return 'live-weight-stream:'.$scale->entity_id.':'.$scale->id;
     }
 
     private function samplesKey(Scale $scale): string
