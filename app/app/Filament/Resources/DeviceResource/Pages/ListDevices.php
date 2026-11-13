@@ -17,7 +17,6 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
-use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 class ListDevices extends ListRecords
@@ -51,10 +50,13 @@ class ListDevices extends ListRecords
 
                         return;
                     }
+                    // The address as this browser reaches the ERP: that is what the PC must type too.
+                    $server = request()->getSchemeAndHttpHost() ?: rtrim((string) config('app.url'), '/');
+                    // Notification bodies take a string (rendered as sanitized HTML), not an HtmlString.
                     Notification::make()->title('Pairing code: '.$r['code'])
-                        ->body(new HtmlString('On the weighbridge PC, in the agent folder, run the set-up and type:<br>ERP address: <b>'.e(rtrim((string) config('app.url'), '/'))
-                            .'</b><br>Pairing code: <b style="font-size:1.3em;letter-spacing:.1em">'.e($r['code']).'</b><br>It works once, until '.e($r['expires_at']->format('H:i'))
-                            .'. PC login: '.e($r['username']).($r['new_login'] ? ' (new)' : '').'.'))
+                        ->body('On the weighbridge PC, in the agent folder, run the set-up and type:<br>ERP address: <b>'.e($server)
+                            .'</b><br>Pairing code: <b>'.e($r['code']).'</b><br>It works once, until '.e($r['expires_at']->format('H:i'))
+                            .'. PC login: '.e($r['username']).($r['new_login'] ? ' (new)' : '').'.')
                         ->persistent()->success()->send();
                 }),
             Action::make('registerAgent')->label('Register by hand')->color('gray')->icon('heroicon-o-cpu-chip')
