@@ -171,6 +171,24 @@ describe('trusted devices', function () {
             ->and(Make::system(fn () => Device::query()->where('device_uid', $pc)->sole()->isTrusted()))->toBeTrue();
     });
 
+    it('shows the server admin the waiting device and the mill its request is in, and trusts it from the server', function () {
+        $clerk = Make::account($this->entity, 'GATE_OPERATOR');
+        Make::system(fn () => app(SettingsService::class)->put(SettingsService::TRUSTED_DEVICES, 'everyone', $this->entity->id));
+        $pc = (string) Str::uuid();
+        secPasswordLogin($clerk, $pc)->assertHasFormErrors(['username']);
+        Make::reset();
+
+        $this->artisan('auth:devices', ['username' => $clerk->username])
+            ->expectsOutputToContain('WAITING')->expectsOutputToContain('SEC')->assertSuccessful();
+        $this->artisan('auth:devices', ['username' => $clerk->username, '--trust' => true])
+            ->expectsOutputToContain('They can sign in on it now')->assertSuccessful();
+        expect(Make::system(fn () => Device::query()->where('device_uid', $pc)->sole()->isTrusted()))->toBeTrue()
+            ->and(Make::system(fn () => ApprovalRequest::query()->where('action', TrustDevice::KEY)->sole()->status))->toBe(ApprovalRequest::STATUS_CANCELLED);
+        Make::reset();
+
+        secPasswordLogin($clerk, $pc)->assertHasNoFormErrors()->assertRedirect();
+    });
+
     it('leaves attendance-only employees out, applies "selected" per account, and does nothing when off', function () {
         $employee = Make::account($this->entity, 'EMPLOYEE');
         $clerk = Make::account($this->entity, 'GATE_OPERATOR');
