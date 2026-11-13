@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AgentPairController;
 use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuditController;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -32,6 +33,8 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('auth/login', [AuthController::class, 'login'])->name('auth.login');
         Route::post('auth/refresh', [AuthController::class, 'refresh'])->name('auth.refresh');
     });
+    // A weighbridge PC trades its one-time pairing code for its settings (no sign-in; the code is the proof).
+    Route::post('agent/pair', [AgentPairController::class, 'pair'])->middleware('throttle:10,1')->name('agent.pair');
 
     Route::middleware(['auth:api', VerifyAgentSignature::class, EnforceRemoteWipe::class, ApplyDataVisibility::class, 'throttle:api'])->group(function (): void {
         Route::get('sync/bootstrap', [SyncController::class, 'bootstrap'])->name('sync.bootstrap');

@@ -1,7 +1,10 @@
 # One-step set-up of the gate agent on the weighbridge PC (Windows 10/11).
 # Run in PowerShell from this folder:   powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1
-# It installs the agent, makes agent.toml, finds the weighing indicator on the COM ports and writes its
-# settings, and lists the cameras. Secrets (password, signing secret) are asked for, never shown.
+# It installs the agent, pairs this PC with the ERP using a pairing code (login, device, weighbridge and
+# secrets are filled in by themselves and the sign-in is tested), finds the weighing indicator on the COM
+# ports and writes its settings, and lists the cameras. Run it again at any time: it keeps what works.
+#
+# Before running it, in the ERP: Security -> Devices -> Pair a weighbridge PC -> Make pairing code.
 
 $ErrorActionPreference = 'Stop'
 Set-Location -Path $PSScriptRoot
@@ -22,32 +25,27 @@ if (-not (Test-Path .venv)) { & py -3.12 -m venv .venv }
 & .\.venv\Scripts\pip.exe install --quiet -e '.[serial]'
 $agent = '.\.venv\Scripts\ricemill-agent.exe'
 
-Step 'Configuration file agent.toml'
-if (-not (Test-Path agent.toml)) {
-    Copy-Item agent.example.toml agent.toml
-    $server = Read-Host 'ERP address (for example https://almustafarm.zhtrader.com)'
-    $user = Read-Host 'Login of this PC (Weighbridge / Gate Operator, for example wb.agent)'
-    $uid = Read-Host 'device_uid shown under Security -> Devices -> Register gate agent'
-    $scale = Read-Host 'Weighbridge id (Gate & weighbridge -> Weighbridges)'
-    Write-Host 'Now the password of that login (typing is hidden):'
-    $password = (& $agent protect) | Select-Object -Last 1
-    Write-Host 'Now the signing secret shown once with the device_uid (typing is hidden):'
-    $secret = (& $agent protect) | Select-Object -Last 1
-    $key = (& $agent new-store-key) | Select-Object -Last 1
-    $keyProtected = (& .\.venv\Scripts\python.exe -c "from ricemill_agent import secrets; print(secrets.protect('$key', 'machine'))") | Select-Object -Last 1
-    $text = Get-Content agent.toml -Raw
-    $text = $text -replace 'url = "https://erp.example.in"', "url = `"$server`""
-    $text = $text -replace 'username = "wb.agent"', "username = `"$user`""
-    $text = $text -replace 'device_uid = "agent-x+"', "device_uid = `"$uid`""
-    $text = $text -replace '(?m)^password = ""', "password = `"$password`""
-    $text = $text -replace '(?m)^signing_secret = ""', "signing_secret = `"$secret`""
-    $text = $text -replace '(?m)^key = ""', "key = `"$keyProtected`""
-    $text = $text -replace '(?m)^id = ""', "id = `"$scale`""
-    # UTF-8 without a byte-order mark (Windows PowerShell 5.1 adds one with -Encoding UTF8, which TOML rejects)
-    [System.IO.File]::WriteAllText((Join-Path (Get-Location) 'agent.toml'), $text, (New-Object System.Text.UTF8Encoding $false))
-    Write-Host 'agent.toml written (secrets protected for this PC only).'
-} else {
-    Write-Host 'agent.toml already exists; keeping it.'
+Step 'Pairing this PC with the ERP'
+$pair = $true
+if (Test-Path agent.toml) {
+    & $agent --config agent.toml check *> $null
+    if ($LASTEXITCODE -eq 0) {
+        $again = Read-Host 'This PC is already paired and working. Pair it again with a new code? (y/N)'
+        $pair = $again -match '^[yY]'
+    }
+}
+if ($pair) {
+    Write-Host 'In the ERP: Security -> Devices -> Pair a weighbridge PC -> Make pairing code. Then type it here.'
+    $ok = $false
+    for ($i = 1; $i -le 3 -and -not $ok; $i++) {
+        & $agent --config agent.toml pair
+        $ok = ($LASTEXITCODE -eq 0)
+        if (-not $ok -and $i -lt 3) { Write-Host 'Pairing did not finish (see above). Try again.' -ForegroundColor Yellow }
+    }
+    if (-not $ok) {
+        Write-Host 'Pairing did not work. Check the ERP address (as in the browser) and make a new code, then run this again.' -ForegroundColor Yellow
+        exit 1
+    }
 }
 
 Step 'COM ports'
@@ -56,7 +54,7 @@ Step 'COM ports'
 Step 'Finding the weighing indicator (keep a weight on the scale, or press on the platform)'
 & $agent --config agent.toml detect --write
 if ($LASTEXITCODE -ne 0) {
-    Write-Host 'The indicator was not found. See "If the indicator is not found" in docs\connect-weighbridge.md.' -ForegroundColor Yellow
+    Write-Host 'The indicator was not found. See "If the indicator is not found" in the README.' -ForegroundColor Yellow
 } else {
     Step 'Readings for 10 seconds (they must match the indicator display)'
     & $agent --config agent.toml watch --seconds 10
@@ -71,7 +69,10 @@ if (Get-Command ffmpeg -ErrorAction SilentlyContinue) {
     Write-Host 'ffmpeg is not installed (needed for USB and IP cameras): winget install Gyan.FFmpeg   (or download from ffmpeg.org)' -ForegroundColor Yellow
 }
 
+Step 'Testing every step'
+& $agent --config agent.toml check
+
 Step 'Next'
-Write-Host "Test the server connection:   $agent --config agent.toml sync"
 Write-Host "Live weight on the screens:   $agent --config agent.toml live"
-Write-Host 'Then add the two Task Scheduler tasks (live at startup, sync every minute) - see docs\connect-weighbridge.md.'
+Write-Host "Send recorded weights:        $agent --config agent.toml sync"
+Write-Host 'Then add the two Task Scheduler tasks (live at startup, sync every minute) - see the README.'

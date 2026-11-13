@@ -1,6 +1,8 @@
 """Command line: `ricemill-agent --config agent.toml <command>`.
 
-    status                       unsynced events, last cursor
+    pair [--server URL] [--code CODE]   set this PC up with a pairing code from the ERP (login, device, weighbridge)
+    login [--username NAME]      type the PC's login password again; it is tested before it is saved
+    status                      unsynced events, last cursor
     sync                         upload photos, push events, pull the feed
     arrive REG [--sauda ID]      record a vehicle arrival (works offline)
     capture ENTRY gross|tare     wait for a stable weight, photograph, queue
@@ -22,16 +24,20 @@ from __future__ import annotations
 import argparse
 import getpass
 import json
+import os
 import sys
+import tomllib
 from decimal import Decimal
+from pathlib import Path
 
-from .api import ApiClient, Credentials
+from .api import ApiClient, ApiError, Credentials
 from .config import AgentConfig
 from .drivers.anpr import HttpAnprCamera, SimulatedAnprCamera
 from .drivers.barrier import SimulatedBarrier, TcpRelayBarrier
 from .drivers.camera import FfmpegCamera, HttpSnapshotCamera, SimulatedCamera, list_usb_cameras
 from .drivers.display import SimulatedDisplay, TcpTextDisplay
 from .drivers.indicator import SerialIndicator, SimulatedIndicator, TcpIndicator, make_parser
+from .pairing import apply_pairing, current_value, normalize_server, read_config_text, request_pairing, set_values, write_config_text
 from .gate import GateAgent
 from .gate_control import GateController
 from .doctor import explain, kg_text, reach_server, run_check
@@ -135,6 +141,11 @@ def _main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="ricemill-agent")
     p.add_argument("--config", default="agent.toml")
     sub = p.add_subparsers(dest="cmd", required=True)
+    pa = sub.add_parser("pair", help="set this PC up with a pairing code from the ERP (Security -> Devices -> Pair a weighbridge PC)")
+    pa.add_argument("--server", help="the ERP address, e.g. https://erp.example.com")
+    pa.add_argument("--code", help="the pairing code, e.g. ABCD-EF23")
+    lg = sub.add_parser("login", help="type the PC's login password again; it is tested with the ERP before it is saved")
+    lg.add_argument("--username")
     sub.add_parser("check", help="test every step from the indicator to the Live weight screen")
     sub.add_parser("status")
     sub.add_parser("sync")
@@ -178,6 +189,10 @@ def _main(argv: list[str] | None = None) -> int:
 
     if args.cmd in ("ports", "detect", "watch", "cameras", "camera-test"):
         return hardware_command(args)
+    if args.cmd == "pair":
+        return pair_command(args.config, args.server, args.code)
+    if args.cmd == "login":
+        return login_command(args.config, args.username)
     if args.cmd == "check":
         print("Checking every step from the indicator to the Live weight screen...\n")
         steps = run_check(
@@ -245,6 +260,81 @@ def _main(argv: list[str] | None = None) -> int:
     if args.cmd == "manual-open":
         build_gate(cfg, store, api).manual_open(args.side, args.reason, args.entry)
         print("barrier opened manually; the event is queued for sync")
+        return 0
+    return 1
+
+
+def _protect(value: str) -> str:
+    """DPAPI on Windows (only this PC can read it back); elsewhere the value as is (use file permissions)."""
+    return secrets.protect(value, "machine") if secrets.available() else value
+
+
+def _example_beside(config_path: Path) -> Path:
+    beside = config_path.resolve().parent / "agent.example.toml"
+    return beside if beside.exists() else Path(__file__).resolve().parents[1] / "agent.example.toml"
+
+
+def _ask(prompt: str, default: str = "") -> str:
+    answer = input(f"{prompt}{f' [{default}]' if default else ''}: ").strip()
+    return answer or default
+
+
+def pair_command(config: str, server: str | None, code: str | None, transport=None, ask=_ask, protect=_protect) -> int:
+    """Pairing code -> agent.toml (login, password, device_uid, signing secret, weighbridge), then a sign-in test."""
+    path = Path(config)
+    text = read_config_text(path, _example_beside(path))
+    known = current_value(text, "server", "url")
+    if "example" in known:
+        known = ""
+    server = normalize_server(server or ask("ERP address (as in the browser, e.g. https://erp.example.com)", known))
+    print("In the ERP: Security -> Devices -> Pair a weighbridge PC gives the code.")
+    code = code or ask("Pairing code")
+    settings = request_pairing(server, code, transport)
+
+    text = apply_pairing(text, server, settings, protect, lambda: LocalStore.new_key().decode())
+    write_config_text(path, text)
+    scale = " - ".join(v for v in (settings.get("scale_code"), settings.get("scale_name")) if v) or settings["scale_id"]
+    print(f"Paired: login {settings['username']}, weighbridge {scale}. Saved in {path.resolve()} (secrets protected for this PC).")
+
+    cfg = AgentConfig.load(path)
+    ApiClient(cfg.server_url, Credentials(cfg.username, cfg.password, cfg.device_uid, cfg.signing_secret),
+              transport=transport).login()
+    print(f"Sign-in tested: OK ({cfg.username}).")
+    print("Next: find the indicator and test everything:")
+    print(f"  .venv\\Scripts\\ricemill-agent --config {config} detect --write")
+    print(f"  .venv\\Scripts\\ricemill-agent --config {config} check")
+    return 0
+
+
+def login_command(config: str, username: str | None, transport=None, ask=_ask, ask_secret=getpass.getpass, protect=_protect, tries: int = 3) -> int:
+    """The PC's password typed again, tested with the ERP first: a wrong one is never saved."""
+    path = Path(config)
+    text = read_config_text(path, _example_beside(path))
+    data = tomllib.loads(text)
+    auth = data.get("auth", {})
+    server = data.get("server", {}).get("url", "")
+    if not server or "example" in server or not auth.get("device_uid") or "xxxx" in auth.get("device_uid", ""):
+        print("This PC is not set up yet. Run:  .venv\\Scripts\\ricemill-agent --config agent.toml pair", file=sys.stderr)
+        return 1
+    username = (username or ask("Login of this PC", auth.get("username", ""))).strip().lower()
+    signing = secrets.reveal(os.environ.get("RICEMILL_AGENT_SIGNING_SECRET") or auth.get("signing_secret", ""))
+    for attempt in range(1, tries + 1):
+        password = ask_secret("Password (typing is hidden): ")
+        if not password:
+            print("Nothing typed.")
+            continue
+        try:
+            ApiClient(server, Credentials(username, password, auth["device_uid"], signing), transport=transport).login()
+        except ApiError as e:
+            p = explain(e, server)
+            print(f"Not saved: {p.what}")
+            if e.body.get("error") != "invalid_credentials" or attempt == tries:
+                print(p.fix)
+                return 1
+            print(f"Try again ({tries - attempt} left; too many wrong passwords lock the login).")
+            continue
+        write_config_text(path, set_values(text, {"auth": {"username": username, "password": protect(password)}}))
+        print(f"Sign-in OK: password saved (protected) for {username}. Now run:  .venv\\Scripts\\ricemill-agent --config {config} check")
         return 0
     return 1
 
