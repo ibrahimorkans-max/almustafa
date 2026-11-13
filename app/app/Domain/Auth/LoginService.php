@@ -55,8 +55,12 @@ final class LoginService
         private readonly ActorContext $actor,
     ) {}
 
-    /** @throws AuthenticationFailed */
-    public function verifyPassword(string $username, string $password, ?string $ip, ?string $deviceUid = null): LoginAccount
+    /**
+     * @param  bool  $asAgent  the gate agent's own sign-in (API, platform agent): the only way a weighbridge PC login signs in
+     *
+     * @throws AuthenticationFailed
+     */
+    public function verifyPassword(string $username, string $password, ?string $ip, ?string $deviceUid = null, bool $asAgent = false): LoginAccount
     {
         $username = mb_strtolower(trim($username));
 
@@ -77,6 +81,14 @@ final class LoginService
         // From here on we act inside the account's entity (audit chain, RLS).
         $this->binder->bind($account);
         $this->actor->clear();
+
+        // A weighbridge PC's login (made by pairing; its password is known only to that PC) typed by a person: told
+        // plainly, and not counted as a wrong password, or people trying it would lock the PC itself out.
+        if ($account->is_machine && ! $asAgent) {
+            $this->audit->record('auth.login.blocked', $account, meta: ['reason' => 'machine_login', 'ip' => $ip]);
+
+            throw new AuthenticationFailed(AuthenticationFailed::MACHINE_LOGIN, 'machine_login', 403);
+        }
 
         // Duress PIN typed instead of the password: alert silently, end everything, neutral message.
         if ($account->duress_pin_hash !== null && app(DuressService::class)->matches($account, $password)) {
