@@ -67,7 +67,7 @@ final class PlanLimits
             return [
                 'mills' => $mills->count(),
                 'users' => LoginAccount::query()->whereIn('entity_id', $mills)->where('status', LoginAccount::STATUS_ACTIVE)
-                    ->where('is_platform_admin', false)
+                    ->where('is_platform_admin', false)->where('is_machine', false)
                     ->whereHas('role', fn ($q) => $q->where('code', '!=', RoleTemplates::PARTY)->orWhereNull('code'))
                     ->count(),
                 'vehicles' => GateEntry::query()->whereIn('entity_id', $mills)->where('arrived_at', '>=', $monthStart)->count(),

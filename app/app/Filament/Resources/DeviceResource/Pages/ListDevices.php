@@ -35,17 +35,25 @@ class ListDevices extends ListRecords
                         ->options(fn () => Scale::query()->orderBy('code')->get()->mapWithKeys(fn (Scale $s) => [$s->id => "{$s->code} - {$s->name}"]))
                         ->default(fn () => Scale::query()->count() === 1 ? Scale::query()->value('id') : null),
                     Select::make('login_account_id')->label('PC login')->placeholder('Make a new login just for this PC (recommended)')
-                        ->options(fn () => LoginAccount::query()->with('role')->where('status', 'active')->get()
+                        ->options(fn () => LoginAccount::query()->with('role')->where('is_machine', true)->get()
                             ->filter(fn (LoginAccount $a) => $a->role->code === RoleTemplates::GATE_OPERATOR)
                             ->mapWithKeys(fn (LoginAccount $a) => [$a->id => $a->username]))
-                        ->helperText('Choosing an existing gate login gives it a new password that only the PC knows: do not choose a login a person signs in with.'),
+                        ->helperText('Leave empty for a new PC. To pair the same PC again, choose its login: it gets a new password that only the PC knows. People\'s logins are never listed.'),
                     TextInput::make('name')->label('PC name')->required()->default('Weighbridge PC')->maxLength(120),
                 ])
                 ->action(function (array $data, Action $action): void {
                     try {
                         $r = app(AgentPairing::class)->issue($data['scale_id'], $data['login_account_id'] ?? null, $data['name']);
                     } catch (BusinessRuleViolation $e) {
-                        Notification::make()->title($e->getMessage())->danger()->send();
+                        Notification::make()->title('No code made')->body(e($e->getMessage()))->danger()->persistent()->send();
+                        $action->halt();
+
+                        return;
+                    } catch (\Throwable $e) {
+                        // Never a silent failure: the office sees that it did not work, the details go to the log.
+                        report($e);
+                        Notification::make()->title('No code made')->body('Something went wrong on the ERP; it is written in the log. Try again, or tell your provider.')
+                            ->danger()->persistent()->send();
                         $action->halt();
 
                         return;
