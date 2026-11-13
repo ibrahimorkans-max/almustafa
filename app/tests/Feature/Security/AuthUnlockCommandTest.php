@@ -36,3 +36,17 @@ it('unlocks the only Owner from the server, and on request gives a temporary pas
 
     $this->artisan('auth:unlock', ['username' => 'nobody.here'])->assertFailed();
 });
+
+it('tells the server admin the real reason each sign-in was refused', function () {
+    $mill = Make::entity('WHY');
+    $owner = Make::owner($mill);
+    $this->postJson('/api/v1/auth/login', ['username' => $owner->username, 'password' => 'wrong-one', 'device_uid' => 'agent-abcdefabcdefabcdefabcdef', 'platform' => 'agent'])->assertStatus(401);
+    $this->postJson('/api/v1/auth/login', ['username' => 'no.such.user', 'password' => 'x', 'device_uid' => 'agent-abcdefabcdefabcdefabcdef', 'platform' => 'agent'])->assertStatus(401);
+
+    $this->artisan('auth:sign-ins', ['username' => $owner->username])
+        ->expectsOutputToContain('Wrong password')
+        ->assertSuccessful();
+    $this->artisan('auth:sign-ins', ['--failed' => true])
+        ->expectsOutputToContain('Unknown username')
+        ->assertSuccessful();
+});
