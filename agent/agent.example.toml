@@ -4,18 +4,22 @@
 [server]
 url = "https://erp.example.in"          # HTTPS required (http://127.0.0.1 allowed for local testing)
 
+# Easiest: do not fill these by hand. In the ERP: Security -> Devices -> Pair a weighbridge PC, then on this PC:
+#   .venv\Scripts\ricemill-agent --config agent.toml pair
+# It fills [server], [auth], [store] key and [scale] id by itself and tests the sign-in.
+
 [auth]
 username = "wb.agent"                  # a GATE_OPERATOR login account reserved for this PC
-password = ""                          # `ricemill-agent protect` → "dpapi:…", or RICEMILL_AGENT_PASSWORD
-device_uid = "agent-xxxxxxxxxxxxxxxxxxxxxxxx"   # shown once by Devices → "Register gate agent"
-signing_secret = ""                    # shown once with the device_uid; protect it ("dpapi:…") or use the env variable
+password = ""                          # `ricemill-agent protect` -> "dpapi:...", or RICEMILL_AGENT_PASSWORD
+device_uid = "agent-xxxxxxxxxxxxxxxxxxxxxxxx"   # shown once by Devices -> "Register gate agent"
+signing_secret = ""                    # shown once with the device_uid; protect it ("dpapi:...") or use the env variable
 
 [store]
 path = "C:/ProgramData/RiceMillAgent/store.sqlite3"
-key = ""                               # `ricemill-agent new-store-key`, then protect it ("dpapi:…") or use RICEMILL_AGENT_STORE_KEY
+key = ""                               # `ricemill-agent new-store-key`, then protect it ("dpapi:...") or use RICEMILL_AGENT_STORE_KEY
 
 [scale]
-id = ""                                # Weighbridges → copy the scale's id
+id = ""                                # Weighbridges -> copy the scale's id
 resolution_kg = "10"
 min_stable_samples = 6
 

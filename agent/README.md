@@ -21,8 +21,26 @@ Runs on the weighbridge PC. It is the only component that talks to gate hardware
 
 ## Setup (Windows weighbridge PC)
 
-Quickest: `powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1` (installs, writes agent.toml, finds the
-indicator, lists cameras). Step by step:
+### Easiest: a pairing code (nothing typed by hand)
+
+1. In the ERP: **Security → Devices → Pair a weighbridge PC**. Choose the weighbridge and press **Make pairing code**.
+   You get a code like `ABCD-EF23`. It works once, for 30 minutes.
+2. On the PC, in this folder: `powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1`. Type the ERP address
+   (as in the browser) and the code.
+3. The PC gets its own login, a password nobody else sees, its device and signing secret, and the weighbridge.
+   These are saved in `agent.toml`, DPAPI-protected for this PC. The sign-in is tested right away.
+4. The script then finds the indicator and runs `check`.
+
+If you pair again later, use `.venv\Scripts\ricemill-agent --config agent.toml pair` with a new code. It changes only
+the login, device and weighbridge values; the indicator and camera settings stay. The old password and device stop
+working.
+
+Sign-in refused, and you know the right password of an existing login? Run
+`.venv\Scripts\ricemill-agent --config agent.toml login`. It saves the password only after the ERP accepts it.
+
+### By hand
+
+Step by step:
 
 ```powershell
 py -3.12 -m venv .venv

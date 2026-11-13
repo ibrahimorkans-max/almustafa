@@ -238,7 +238,7 @@ it('walks through connecting the devices step by step, ticking what the system c
 
     // The fixture has a weighbridge and a gate operator login: those steps are done by themselves.
     expect($steps->pluck('done', 'title')->all())->toMatchArray([
-        'Add the weighbridge in the ERP' => true, 'Create the PC\'s login' => true, 'Register the gate agent' => false,
+        'Add the weighbridge in the ERP' => true, 'The PC\'s login' => true, 'Make a pairing code' => false,
     ])->and($page->get('step'))->toBe(1);   // the first step not done yet
 
     $page->assertSee('Step 1 of 12')->call('toggle', 1)->assertSet('step', 2)->assertSee('Switch on continuous output')

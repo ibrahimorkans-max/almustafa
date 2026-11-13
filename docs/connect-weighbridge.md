@@ -119,15 +119,31 @@ In the indicator's settings menu (see its manual, or ask the scale company's eng
 
 1. **Gate & weighbridge → Weighbridges → New**: code (e.g. `WB1`), name, capacity in kg, and the
    stamping certificate with its dates. Open it and copy its **id**.
-2. **Administration → Users → New**: a login for the PC only, role **Weighbridge / Gate Operator**,
-   username e.g. `wb.agent`. Sign in with it once to set its own password.
-3. **Security → Devices → Register gate agent**: choose that login. Copy the `device_uid` and the
-   `signing_secret`. **The secret is shown only once**; keep it until step 5 is done.
+2. **Security → Devices → Pair a weighbridge PC**: choose the weighbridge and press **Make pairing code**.
+   A code like `ABCD-EF23` appears. It works once, for 30 minutes.
+
+   The code makes a login just for the PC (e.g. `wb.wb1`, role Weighbridge / Gate Operator) with a password
+   nobody sees, and registers the PC. In step 5 the set-up script asks only for the ERP address and this code,
+   and fills `agent.toml` by itself.
+
+   *Doing it by hand instead:* **Users → New** a Weighbridge / Gate Operator login for the PC, sign in with it
+   once to set its password, then **Security → Devices → Register by hand** and copy the `device_uid` and
+   `signing_secret` (shown once). Then edit `agent.toml` as below.
 
 ## 5. Install the gate agent on the weighbridge PC
 
 Install Python 3.12 (python.org, tick *Add to PATH*), copy the `agent` folder to e.g. `C:\RiceMillAgent`, then
 in PowerShell in that folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1
+```
+
+It asks for the ERP address and the pairing code from step 4, tests the sign-in, finds the indicator and runs
+`check`. If a code is used up or expired, make a new one and run
+`.venv\Scripts\ricemill-agent --config agent.toml pair`.
+
+By hand (only without a pairing code):
 
 ```powershell
 py -3.12 -m venv .venv
