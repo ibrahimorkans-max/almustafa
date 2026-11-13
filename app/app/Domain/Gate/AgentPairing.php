@@ -8,6 +8,7 @@ use App\Domain\Access\RoleTemplates;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Auth\DeviceService;
+use App\Domain\Auth\LoginService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\Device;
@@ -67,7 +68,10 @@ final class AgentPairing
                 if ($account === null || $account->role?->code !== RoleTemplates::GATE_OPERATOR) {
                     throw new BusinessRuleViolation('Choose a login with the role Weighbridge / Gate Operator.');
                 }
-                $account->forceFill(['password' => $password, 'must_change_password' => false, 'status' => LoginAccount::STATUS_ACTIVE])->save();
+                // The old password is gone, so a lock from wrong tries with it (e.g. the PC retrying) is lifted too.
+                $account->forceFill(['password' => $password, 'must_change_password' => false, 'status' => LoginAccount::STATUS_ACTIVE,
+                    'locked_until' => null, 'failed_attempts' => 0, 'needs_admin_unlock' => false, 'lockouts_24h' => 0])->save();
+                LoginService::clearAddressLocks($account);
                 $new = false;
             } else {
                 $role = Role::query()->where('entity_id', $entityId)->where('code', RoleTemplates::GATE_OPERATOR)->first()

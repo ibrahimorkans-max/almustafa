@@ -8,6 +8,7 @@ use App\Http\Middleware\VerifyAgentSignature;
 use App\Models\Device;
 use App\Models\Gate\AgentPairing as Pairing;
 use App\Models\LoginAccount;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\Support\GateFixtures;
 use Tests\Support\Make;
@@ -79,6 +80,22 @@ it('pairs again with the same login: new password and device, the old ones stop 
     $this->postJson('/api/v1/auth/login', ['username' => $old['username'], 'password' => $old['password'], 'device_uid' => $old['device_uid'], 'platform' => 'agent'])
         ->assertStatus(401);
     $this->postJson('/api/v1/auth/login', ['username' => $new['username'], 'password' => $new['password'], 'device_uid' => $new['device_uid'], 'platform' => 'agent'])
+        ->assertOk();
+});
+
+it('pairing a gate login locked by wrong passwords unlocks it, so the PC can sign in', function () {
+    $gate = Make::account($this->f->entity, 'GATE_OPERATOR', ['username' => 'gate.pc']);
+    // Locked by the PC retrying an old password: the whole account, and its address.
+    Make::system(function () use ($gate) {
+        LoginAccount::query()->whereKey($gate->id)->update(['needs_admin_unlock' => true, 'locked_until' => now()->addMinutes(15), 'lockouts_24h' => 3]);
+        DB::table('login_address_locks')->insert(['login_account_id' => $gate->id, 'ip_hash' => hash('sha256', config('app.key').'|127.0.0.1'),
+            'failures' => 0, 'locked_until' => now()->addMinutes(15), 'updated_at' => now()]);
+    });
+
+    $this->f->as($this->f->owner);
+    $r = $this->pairing->issue($this->f->scale->id, $gate->id);
+    $s = $this->postJson('/api/v1/agent/pair', ['code' => $r['code']])->assertOk()->json();
+    $this->postJson('/api/v1/auth/login', ['username' => $s['username'], 'password' => $s['password'], 'device_uid' => $s['device_uid'], 'platform' => 'agent'])
         ->assertOk();
 });
 
