@@ -44,7 +44,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('files', [FileController::class, 'store'])->name('files.store');
         Route::post('gate/barrier', [GateBarrierController::class, 'decide'])->name('gate.barrier');
         // About one reading a second from each weighbridge PC; its own limit so it never eats the sync budget.
-        Route::post('gate/live-weight', [LiveWeightController::class, 'store'])->withoutMiddleware('throttle:api')->middleware('throttle:120,1')->name('gate.live_weight');
+        Route::post('gate/live-weight', [LiveWeightController::class, 'store'])->withoutMiddleware('throttle:api')->middleware('throttle:300,1')->name('gate.live_weight');
 
         Route::get('attendance/me', [AttendanceController::class, 'me'])->name('attendance.me');
         Route::post('attendance/consent', [AttendanceController::class, 'consent'])->name('attendance.consent');

@@ -151,5 +151,5 @@
     </div>
 
     <script type="importmap">{ "imports": { "three": "{{ asset('js/vendor/three-0.169.0.module.min.js') }}" } }</script>
-    <script type="module" src="{{ asset('js/weighbridge-3d.js') }}?v=7"></script>
+    <script type="module" src="{{ asset('js/weighbridge-3d.js') }}?v=8"></script>
 </section>

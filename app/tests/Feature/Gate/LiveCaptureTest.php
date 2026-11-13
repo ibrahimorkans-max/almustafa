@@ -211,6 +211,31 @@ it('shows the connection steps and whether each weighbridge sends readings', fun
     $this->get(ConnectWeighbridge::getUrl())->assertOk()->assertSee('Connected')->assertSee('last reading 25,480 kg');
 });
 
+it('keeps every reading the agent sends (10 a second) for the dial, and the capture evidence at about one a second', function () {
+    $this->f->as($this->operator);
+    $live = app(LiveWeight::class);
+    // Two sends half a second apart, each with the 5 readings since the last one (100 ms apart, the newest last).
+    foreach ([[25400, 25420, 25440, 25460, 25470], [25480, 25480, 25480, 25480, 25480]] as $send) {
+        $live->record(['scale_id' => $this->f->scale->id, 'kg' => end($send), 'stable' => false,
+            'readings' => array_map(fn ($kg, $i) => ['kg' => $kg, 'stable' => false, 'age_ms' => (4 - $i) * 100], $send, array_keys($send))]);
+        $this->travel(500)->milliseconds();
+    }
+
+    $stream = $live->stream($this->f->scale, 0);
+    expect(array_column($stream, 'kg'))->toBe([25400.0, 25420.0, 25440.0, 25460.0, 25470.0, 25480.0, 25480.0, 25480.0, 25480.0, 25480.0])
+        ->and($stream[1]['ms'] - $stream[0]['ms'])->toBe(100);
+
+    // The screen gets them, with the server's clock to play them back in time.
+    lwcSignIn($this, $this->f->owner);
+    $r = $this->getJson(route('filament.admin.gate.live-weight', $this->f->scale->id))->assertOk()->json();
+    expect($r['kg'])->toEqual(25480)->and($r['readings'])->toHaveCount(10)->and($r['now'])->toBeInt();
+
+    // An older agent (one reading a send) still works.
+    $this->f->as($this->operator);
+    $live->record(['scale_id' => $this->f->scale->id, 'kg' => 25490, 'stable' => true]);
+    expect(array_column($live->stream($this->f->scale, 0), 'kg'))->toHaveCount(11)->toContain(25490.0);
+});
+
 it('shows the readings of an Owner working across all firms', function () {
     lwcFeed($this, array_fill(0, 2, 25480));
     $owner = Make::owner($this->f->entity);

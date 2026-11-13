@@ -3,13 +3,17 @@
  * without reloading anything.
  *
  * Twice a second the reading is fetched as plain JSON (GET /admin/gate/live-weight/{scale}) and the dial's
- * needle, figure, maund and status are changed in place. The next read starts half a second after the last
+ * needle, figure, maund and status are changed in place. It carries the readings of the last seconds (the agent
+ * sends about 10 a second): they are played back one by one, every 100 ms, about a second behind the scale. The next read starts half a second after the last
  * one started (never two at once), so a new weight shows within about half a second of reaching the server. No Livewire request is made, so typing in the
  * weighing form and "Record weight" are never interrupted, and a refused or failed read only shows
  * "NO SIGNAL" until the next one succeeds: it never reloads the page.
  */
 (function () {
     const EVERY = 500;
+    const DELAY = 1000;   // the agent sends twice a second: one second behind, every reading has arrived
+    const MAX_DELAY = 6000;
+    const STREAM = 60;
     const TONES = { none: '--gray-400', stable: '--success-500', moving: '--warning-500' };
 
     function fmt(n, digits) {
@@ -18,14 +22,15 @@
 
     // The needle moves to its new angle in about a third of a second, through the SVG rotate attribute
     // (which every browser turns; some ignore a CSS transform on an SVG group).
-    function turn(needle, to) {
+    function turn(needle, to, ms) {
+        const length = ms || 350;
         const from = parseFloat(needle.getAttribute('data-angle'));
         needle.setAttribute('data-angle', to);
         if (needle.lwFrame) cancelAnimationFrame(needle.lwFrame);
         const start = isNaN(from) ? to : (needle.lwAt !== undefined ? needle.lwAt : from);
         const t0 = performance.now();
         const step = (now) => {
-            const k = Math.min(1, (now - t0) / 350);
+            const k = Math.min(1, (now - t0) / length);
             const at = start + (to - start) * (1 - Math.pow(1 - k, 3));
             needle.lwAt = at;
             needle.setAttribute('transform', 'rotate(' + at.toFixed(2) + ' 120 120)');
@@ -39,7 +44,7 @@
         }
     }
 
-    function paint(dial, r) {
+    function paint(dial, r, turnMs) {
         const cap = Math.max(1, parseFloat(dial.dataset.capacity) || 60000);
         const c = 120;
         const live = !!(r && r.live);
@@ -62,7 +67,7 @@
         figure.textContent = kg === null ? '— — — —' : fmt(kg, 0);
         figure.style.fill = live ? '#4ade80' : '#6b7280';
         q('maund').textContent = kg !== null ? fmt(kg / 40, 2) + ' maund' : 'no reading yet';
-        turn(q('needle'), angle);
+        turn(q('needle'), angle, turnMs);
         const svg = dial.querySelector('svg');
         if (svg) svg.setAttribute('aria-label', (dial.dataset.name || '') + ': ' + (kg === null ? 'no reading' : fmt(kg, 0) + ' kg') + ', ' + status.toLowerCase());
     }
@@ -99,8 +104,23 @@
                     el.lwFails = r ? 0 : (el.lwFails || 0) + 1;
                     if (r) {
                         el.lwLast = r;
-                        draw(el, r);
+                        if (r.live && Array.isArray(r.readings) && r.readings.length && typeof r.now === 'number') {
+                            // Played back by play(), at the rate the indicator was read.
+                            el.lwOffset = r.now - Date.now();
+                            // How late readings reach this screen (agent's sending, the network, the server): play
+                            // back that far behind, so none is skipped; up at once, down slowly.
+                            const lag = r.now - r.readings[r.readings.length - 1].ms + EVERY + 300;
+                            el.lwDelay = Math.min(MAX_DELAY, Math.max(DELAY, lag, (el.lwDelay || DELAY) * 0.97));
+                            const buf = el.lwBuf || [];
+                            const lastMs = buf.length ? buf[buf.length - 1].ms : 0;
+                            r.readings.forEach((s) => { if (s.ms > lastMs) buf.push(s); });
+                            el.lwBuf = buf.slice(-STREAM);
+                        } else {
+                            el.lwBuf = null;
+                            draw(el, r);
+                        }
                     } else if (el.lwFails >= 3) {
+                        el.lwBuf = null;
                         draw(el, { kg: el.lwLast ? el.lwLast.kg : null, live: false, stable: false, age: null });
                     }
                 });
@@ -120,5 +140,25 @@
         Promise.all(Array.from(byUrl, ([url, els]) => read(url, els))).finally(() => setTimeout(tick, Math.max(0, EVERY - (Date.now() - started))));
     }
 
+    // Every 100 ms: the reading of DELAY ms ago (by the server's clock), so each reading the agent sent is shown in turn.
+    function play() {
+        if (document.hidden) return;
+        document.querySelectorAll('[data-live-weight], [data-live-weight-mini]').forEach((el) => {
+            const buf = el.lwBuf;
+            const r = el.lwLast;
+            if (!buf || !buf.length || !r || !el.isConnected) return;
+            const at = Date.now() + (el.lwOffset || 0) - (el.lwDelay || DELAY);
+            let pick = null;
+            for (let i = buf.length - 1; i >= 0; i--) {
+                if (buf[i].ms <= at) { pick = buf[i]; break; }
+            }
+            if (pick === null || pick === el.lwShown) return;
+            el.lwShown = pick;
+            const draw = el.hasAttribute('data-live-weight-mini') ? paintMini : paint;
+            draw(el, { kg: pick.kg, live: r.live, stable: r.live && pick.stable, age: r.age }, 90);
+        });
+    }
+
     tick();
+    setInterval(play, 100);
 })();

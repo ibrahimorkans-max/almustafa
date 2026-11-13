@@ -22,7 +22,11 @@ final class LiveWeightReadingController
         $found = Scale::query()->find($scale) ?? abort(404);
         $r = $live->current($found);
 
-        return response()->json(['kg' => $r['kg'], 'live' => $r['live'], 'stable' => $r['stable'], 'age' => $r['age_seconds']])
+        // With the readings of the last 3 seconds and the server's clock, the dial plays them back at about 10 a second.
+        $now = (int) now()->getTimestampMs();
+
+        return response()->json(['kg' => $r['kg'], 'live' => $r['live'], 'stable' => $r['stable'], 'age' => $r['age_seconds'],
+            'now' => $now, 'readings' => $r['live'] ? $live->stream($found, $now - 3000) : []])
             ->header('Cache-Control', 'no-store');
     }
 }
