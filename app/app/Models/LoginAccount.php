@@ -32,6 +32,7 @@ use Spatie\LaravelPasskeys\Models\Concerns\InteractsWithPasskeys;
  * @property string $id
  * @property string $entity_id
  * @property bool $is_platform_admin the provider's account (never set from a form)
+ * @property bool $is_machine a weighbridge PC's login made by pairing (not a staff user; never set from a form)
  * @property string $person_id
  * @property string $role_id
  * @property string $username
@@ -113,6 +114,7 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
             'password_changed_at' => 'datetime',
             'must_change_password' => 'boolean',
             'is_platform_admin' => 'boolean',
+            'is_machine' => 'boolean',
             'require_trusted_device' => 'boolean',
             'duress_pin_set_at' => 'datetime',
             'duress_suspends' => 'boolean',
@@ -130,7 +132,7 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
         // The plan's staff-user limit (party logins and the platform's own accounts are not counted).
         static::creating(function (LoginAccount $account): void {
             $role = app(TenantContext::class)->runAsSystem(fn () => Role::query()->whereKey($account->role_id)->value('code'));
-            if ($role !== RoleTemplates::PARTY && ! ($account->getAttributes()['is_platform_admin'] ?? false)) {
+            if ($role !== RoleTemplates::PARTY && ! ($account->getAttributes()['is_platform_admin'] ?? false) && ! ($account->getAttributes()['is_machine'] ?? false)) {
                 app(PlanLimits::class)->assertCanAddUser($account->customerId());
             }
         });

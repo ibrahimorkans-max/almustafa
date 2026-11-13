@@ -68,6 +68,10 @@ final class AgentPairing
                 if ($account === null || $account->role?->code !== RoleTemplates::GATE_OPERATOR) {
                     throw new BusinessRuleViolation('Choose a login with the role Weighbridge / Gate Operator.');
                 }
+                // A person's login would get a password the person does not know, and lose its sign-in.
+                if (! $account->is_machine) {
+                    throw new BusinessRuleViolation("{$account->username} is a person's login. Leave PC login empty: the PC gets a login of its own.");
+                }
                 // The old password is gone, so a lock from wrong tries with it (e.g. the PC retrying) is lifted too.
                 $account->forceFill(['password' => $password, 'must_change_password' => false, 'status' => LoginAccount::STATUS_ACTIVE,
                     'locked_until' => null, 'failed_attempts' => 0, 'needs_admin_unlock' => false, 'lockouts_24h' => 0])->save();
@@ -77,10 +81,12 @@ final class AgentPairing
                 $role = Role::query()->where('entity_id', $entityId)->where('code', RoleTemplates::GATE_OPERATOR)->first()
                     ?? throw new BusinessRuleViolation('This mill has no Weighbridge / Gate Operator role.');
                 $person = Person::query()->create(['full_name' => $pcName.' ('.$scale->code.')']);
-                $account = LoginAccount::query()->create([
+                // A machine's login: not a staff user of the plan.
+                $account = (new LoginAccount)->forceFill([
                     'person_id' => $person->id, 'role_id' => $role->id, 'username' => $this->freeUsername($scale),
-                    'password' => $password, 'status' => LoginAccount::STATUS_ACTIVE, 'must_change_password' => false,
+                    'password' => $password, 'status' => LoginAccount::STATUS_ACTIVE, 'must_change_password' => false, 'is_machine' => true,
                 ]);
+                $account->save();
                 $new = true;
             }
 

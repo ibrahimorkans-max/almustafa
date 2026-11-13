@@ -87,7 +87,7 @@ it('pairing a gate login locked by wrong passwords unlocks it, so the PC can sig
     $gate = Make::account($this->f->entity, 'GATE_OPERATOR', ['username' => 'gate.pc']);
     // Locked by the PC retrying an old password: the whole account, and its address.
     Make::system(function () use ($gate) {
-        LoginAccount::query()->whereKey($gate->id)->update(['needs_admin_unlock' => true, 'locked_until' => now()->addMinutes(15), 'lockouts_24h' => 3]);
+        LoginAccount::query()->whereKey($gate->id)->update(['is_machine' => true, 'needs_admin_unlock' => true, 'locked_until' => now()->addMinutes(15), 'lockouts_24h' => 3]);
         DB::table('login_address_locks')->insert(['login_account_id' => $gate->id, 'ip_hash' => hash('sha256', config('app.key').'|127.0.0.1'),
             'failures' => 0, 'locked_until' => now()->addMinutes(15), 'updated_at' => now()]);
     });
@@ -107,4 +107,7 @@ it('lets only those who manage devices make codes, and only for gate logins', fu
     $this->f->as($this->f->owner);
     $accountant = Make::account($this->f->entity, 'ACCOUNTANT', ['username' => 'acc.one']);
     expect(fn () => $this->pairing->issue($this->f->scale->id, $accountant->id))->toThrow(BusinessRuleViolation::class, 'Weighbridge / Gate Operator');
+
+    // A person's gate login is never taken over: its password would change under them.
+    expect(fn () => $this->pairing->issue($this->f->scale->id, $clerk->id))->toThrow(BusinessRuleViolation::class, "a person's login");
 });

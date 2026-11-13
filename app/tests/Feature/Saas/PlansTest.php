@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Access\EntityProvisioner;
 use App\Domain\Access\PermissionCatalog;
 use App\Domain\Auth\AuthContextBinder;
+use App\Domain\Gate\AgentPairing;
 use App\Domain\Gate\GateService;
 use App\Domain\Saas\Modules;
 use App\Domain\Saas\PlanLimits;
@@ -100,6 +101,21 @@ it('stops a new mill, a new user and a new vehicle once the plan\'s limit is rea
     $gate->arrive(['registration_no' => 'LES 2', 'party_id' => $f->seller->id]);
     expect(fn () => $gate->arrive(['registration_no' => 'LES 3', 'party_id' => $f->seller->id]))
         ->toThrow(BusinessRuleViolation::class, 'vehicles a month');
+});
+
+it('pairs a weighbridge PC when the plan has no user place left: a PC login is not a staff user', function () {
+    [$customer, $mill] = planCustomer('PCL', 'basic');
+    Make::system(fn () => Plan::query()->where('code', 'basic')->update(['max_users' => null]));
+    app(PlanLimits::class)->forget();
+    $f = new GateFixtures($mill);
+    $users = app(PlanLimits::class)->usage($customer->id)['users'];
+    Make::system(fn () => Plan::query()->where('code', 'basic')->update(['max_users' => $users]));
+    app(PlanLimits::class)->forget();
+
+    $f->as($f->owner);
+    $r = app(AgentPairing::class)->issue($f->scale->id);
+    expect($r['new_login'])->toBeTrue()
+        ->and(app(PlanLimits::class)->usage($customer->id)['users'])->toBe($users);
 });
 
 it('locks the customer while it counts, so two arrivals at once cannot both take the last place', function () {
