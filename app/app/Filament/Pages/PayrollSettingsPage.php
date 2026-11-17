@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Domain\Hr\Payroll\PayrollSettings;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tax\IncomeTax;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Resources\Hr\HrScope;
 use App\Filament\Support\Units;
 use App\Models\Hr\HrSetting;
@@ -28,7 +29,7 @@ use Filament\Pages\Page;
  */
 class PayrollSettingsPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-adjustments-horizontal';
 

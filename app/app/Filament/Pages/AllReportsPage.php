@@ -6,6 +6,7 @@ namespace App\Filament\Pages;
 
 use App\Domain\Reports\ReportCatalog;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Http\Controllers\ReportPrintController;
 use App\Models\LoginAccount;
 use Carbon\CarbonImmutable;
@@ -19,7 +20,7 @@ use Filament\Pages\Page;
  */
 class AllReportsPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-printer';
 

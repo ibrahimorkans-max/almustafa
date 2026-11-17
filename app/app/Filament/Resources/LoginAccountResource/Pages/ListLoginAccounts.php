@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\LoginAccountResource\Pages;
 
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Resources\LoginAccountResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
 class ListLoginAccounts extends ListRecords
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static string $resource = LoginAccountResource::class;
 

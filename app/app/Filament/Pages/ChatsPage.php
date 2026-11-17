@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\LoginAccount;
 use App\Models\Masters\Party;
 use App\Models\PartyMessage;
@@ -21,7 +22,7 @@ use Livewire\Attributes\Url;
  */
 class ChatsPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
 

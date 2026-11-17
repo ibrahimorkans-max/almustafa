@@ -7,7 +7,9 @@ namespace App\Filament\Pages;
 use App\Domain\Messaging\Integrations;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\LoginAccount;
+use App\Support\Locales;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
@@ -25,7 +27,7 @@ use Filament\Pages\Page;
  */
 class AiIntegrationPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-sparkles';
 
@@ -91,7 +93,7 @@ class AiIntegrationPage extends Page
                 ->fillForm(fn () => ['provider' => $own()['provider'] ?? 'anthropic', 'model' => $own()['model'] ?? 'claude-sonnet-5-5', 'base_url' => $own()['base_url'] ?? ''])
                 ->form([
                     Select::make('provider')->label(__('Provider'))->required()->native(false)->live()
-                        ->options(\App\Support\Locales::options(array_map(fn (array $p) => $p['name'], Integrations::AI_PROVIDERS)))
+                        ->options(Locales::options(array_map(fn (array $p) => $p['name'], Integrations::AI_PROVIDERS)))
                         ->afterStateUpdated(fn (?string $state, Set $set) => $set('model', Integrations::AI_PROVIDERS[$state ?? 'anthropic']['model'] ?? '')),
                     TextInput::make('base_url')->label(__('The service\'s address (OpenAI-compatible)'))->placeholder(__('https://api.example.com/v1'))
                         ->visible(fn (Get $get) => $get('provider') === 'custom')->required(fn (Get $get) => $get('provider') === 'custom')->url()->maxLength(300),
@@ -133,7 +135,7 @@ class AiIntegrationPage extends Page
                 ->modalDescription(__('Used only when the main provider fails (no answer, overloaded, key refused). Checked before it is saved, kept encrypted.'))
                 ->fillForm(fn () => ['provider' => Integrations::aiSaved('fallback')['provider'] ?? 'openrouter', 'model' => Integrations::aiSaved('fallback')['model'] ?? '', 'base_url' => Integrations::aiSaved('fallback')['base_url'] ?? ''])
                 ->form([
-                    Select::make('provider')->required()->native(false)->live()->options(\App\Support\Locales::options(array_map(fn (array $p) => $p['name'], Integrations::AI_PROVIDERS)))
+                    Select::make('provider')->required()->native(false)->live()->options(Locales::options(array_map(fn (array $p) => $p['name'], Integrations::AI_PROVIDERS)))
                         ->afterStateUpdated(fn (?string $state, Set $set) => $set('model', Integrations::AI_PROVIDERS[$state ?? 'anthropic']['model'] ?? '')),
                     TextInput::make('base_url')->label(__('The service\'s address (OpenAI-compatible)'))->url()->maxLength(300)
                         ->visible(fn (Get $get) => $get('provider') === 'custom')->required(fn (Get $get) => $get('provider') === 'custom'),

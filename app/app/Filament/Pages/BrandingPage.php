@@ -9,8 +9,10 @@ use App\Domain\Documents\PaperSize;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\Entity;
 use App\Models\LoginAccount;
+use App\Support\Locales;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\ColorPicker;
@@ -41,9 +43,8 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
  */
 class BrandingPage extends Page implements HasForms
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithForms;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-paint-brush';
 
@@ -146,7 +147,7 @@ class BrandingPage extends Page implements HasForms
             Section::make(__('Paper per document'))->columns(3)
                 ->description(__('Each kind of document prints on its own paper on every computer. Empty: the paper chosen on that computer (top bar), else the document\'s own size.'))
                 ->schema([
-                    ...array_map(fn (string $kind, string $label) => Select::make('paper_'.$kind)->label($label)->options(\App\Support\Locales::options(PaperSize::OPTIONS))->placeholder(__('As chosen on the computer')),
+                    ...array_map(fn (string $kind, string $label) => Select::make('paper_'.$kind)->label($label)->options(Locales::options(PaperSize::OPTIONS))->placeholder(__('As chosen on the computer')),
                         array_keys(PaperSize::KINDS), PaperSize::KINDS),
                     TextInput::make('custom_width')->label(__('Custom paper width (mm)'))->integer()->minValue(40)->maxValue(420),
                     TextInput::make('custom_height')->label(__('Custom paper height (mm)'))->integer()->minValue(40)->maxValue(1200),

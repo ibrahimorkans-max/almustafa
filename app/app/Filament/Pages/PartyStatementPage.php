@@ -9,11 +9,13 @@ use App\Domain\Accounts\PartyStatementSharing;
 use App\Domain\Documents\PrintDelivery;
 use App\Domain\Messaging\WhatsAppFiles;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\Accounts\StatementShare;
 use App\Models\LoginAccount;
 use App\Models\Masters\Party;
 use App\Models\Masters\Product;
 use App\Models\Procurement\Sauda;
+use App\Support\Locales;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -43,9 +45,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class PartyStatementPage extends Page implements HasForms
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithForms;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
@@ -107,13 +108,13 @@ class PartyStatementPage extends Page implements HasForms
                 ->getOptionLabelUsing(fn ($value) => ($p = Party::query()->find($value)) ? "{$p->name} ({$p->code})" : null),
             DatePicker::make('from')->required()->live(),
             DatePicker::make('to')->required()->live()->afterOrEqual('from'),
-            Select::make('view')->options(\App\Support\Locales::options(PartyStatementReport::VIEWS))->required()->live()->selectablePlaceholder(false),
-            Select::make('type')->label(__('Transaction type'))->options(\App\Support\Locales::options(PartyStatementReport::TYPES))->live()->selectablePlaceholder(false),
+            Select::make('view')->options(Locales::options(PartyStatementReport::VIEWS))->required()->live()->selectablePlaceholder(false),
+            Select::make('type')->label(__('Transaction type'))->options(Locales::options(PartyStatementReport::TYPES))->live()->selectablePlaceholder(false),
             Select::make('product_id')->label(__('Product'))->searchable()->live()->options(fn () => Product::query()->orderBy('name')->pluck('name', 'id')->all()),
             TextInput::make('vehicle')->label(__('Vehicle number'))->live(onBlur: true)->maxLength(20),
             Select::make('sauda_id')->label(__('Sauda'))->searchable()->live()
                 ->options(fn () => filled($this->data['party_id'] ?? null) ? Sauda::query()->where('party_id', $this->data['party_id'])->orderByDesc('created_at')->limit(200)->pluck('number', 'id')->all() : []),
-            Select::make('payment_status')->label(__('Payment status'))->options(\App\Support\Locales::options(PartyStatementReport::PAYMENT_STATUSES))->live()->selectablePlaceholder(false),
+            Select::make('payment_status')->label(__('Payment status'))->options(Locales::options(PartyStatementReport::PAYMENT_STATUSES))->live()->selectablePlaceholder(false),
         ]);
     }
 

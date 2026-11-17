@@ -8,6 +8,7 @@ use App\Domain\Documents\Engine\DocumentService;
 use App\Domain\Documents\Engine\DocumentTypes;
 use App\Domain\Hr\Attendance\AttendanceService;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Support\DocumentActions;
 use App\Models\Documents\GeneratedDocument;
 use App\Models\LoginAccount;
@@ -24,9 +25,8 @@ use Filament\Tables\Table;
 /** Employee self-service: my payslips, receipts and certificates, and nobody else's. */
 class MyDocumentsPage extends Page implements HasTable
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithTable;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 

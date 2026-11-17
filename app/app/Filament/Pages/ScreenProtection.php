@@ -8,6 +8,7 @@ use App\Domain\Access\RoleTemplates;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
@@ -19,7 +20,7 @@ use Filament\Pages\Page;
  */
 class ScreenProtection extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-eye-slash';
 

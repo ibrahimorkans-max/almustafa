@@ -57,10 +57,12 @@ final class LoginService
 
     /**
      * @param  bool  $asAgent  the gate agent's own sign-in (API, platform agent): the only way a weighbridge PC login signs in
+     * @param  bool  $newNetworkCheck  the web sign-in: from a network the login may not use, it goes on and is held on
+     *                                 "Verify this new network" (NewNetwork) instead of being refused, when it can be proven
      *
      * @throws AuthenticationFailed
      */
-    public function verifyPassword(string $username, string $password, ?string $ip, ?string $deviceUid = null, bool $asAgent = false): LoginAccount
+    public function verifyPassword(string $username, string $password, ?string $ip, ?string $deviceUid = null, bool $asAgent = false, bool $newNetworkCheck = false): LoginAccount
     {
         $username = mb_strtolower(trim($username));
 
@@ -117,7 +119,7 @@ final class LoginService
             throw AuthenticationFailed::credentials('bad_password');
         }
 
-        $this->admit($account, $password, $ip, $deviceUid);
+        $this->admit($account, $password, $ip, $deviceUid, $newNetworkCheck);
 
         return $account;
     }
@@ -129,7 +131,7 @@ final class LoginService
      *
      * @throws AuthenticationFailed
      */
-    public function verifyPasskey(LoginAccount $account, ?string $ip, ?string $deviceUid = null): LoginAccount
+    public function verifyPasskey(LoginAccount $account, ?string $ip, ?string $deviceUid = null, bool $newNetworkCheck = false): LoginAccount
     {
         $this->binder->bind($account);
         $this->actor->clear();
@@ -142,7 +144,7 @@ final class LoginService
         if (! $account->isOwner() && ! $account->entity->isActive()) {
             $this->blocked($account, 'entity_'.$account->entity->status);
         }
-        $this->admit($account, null, $ip, $deviceUid);
+        $this->admit($account, null, $ip, $deviceUid, $newNetworkCheck);
 
         return $account;
     }
@@ -152,7 +154,7 @@ final class LoginService
      *
      * @throws AuthenticationFailed
      */
-    private function admit(LoginAccount $account, ?string $password, ?string $ip, ?string $deviceUid): void
+    private function admit(LoginAccount $account, ?string $password, ?string $ip, ?string $deviceUid, bool $newNetworkCheck = false): void
     {
         // Only after the right password: a suspended / revoked person is told plainly, and nothing else.
         if ($account->isAccessWithdrawn()) {
@@ -184,6 +186,11 @@ final class LoginService
         }
 
         if (! $this->ipAllowlist->allows($account, $ip)) {
+            if ($newNetworkCheck && app(NewNetwork::class)->possible($account)) {
+                $this->audit->record('auth.login.new_network', $account, meta: ['ip' => $ip]);
+
+                return;   // signed in, then held until the network is proven (Login::finish)
+            }
             $this->audit->record('auth.login.blocked', $account, meta: ['reason' => 'ip_not_allowed', 'ip' => $ip]);
 
             throw new AuthenticationFailed(AuthenticationFailed::NETWORK_NOT_ALLOWED, 'ip_not_allowed', 403);

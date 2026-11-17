@@ -5,21 +5,36 @@ declare(strict_types=1);
 namespace App\Filament\Resources\LoginAccountResource\Pages;
 
 use App\Domain\Auth\SessionService;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Resources\LoginAccountResource;
 use App\Models\LoginAccount;
+use App\Support\Values\PakistanIds;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 class EditLoginAccount extends EditRecord
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static string $resource = LoginAccountResource::class;
 
     protected function getHeaderActions(): array
     {
         return [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        /** @var LoginAccount $record */
+        $record = $this->getRecord();
+        $phone = $record->person?->phone;
+
+        return $data + ['security_email' => $record->email ?? $record->person?->email, 'security_phone' => PakistanIds::formatMobile($phone) ?? $phone];
     }
 
     /** @param  array<string, mixed>  $data */
@@ -36,7 +51,17 @@ class EditLoginAccount extends EditRecord
             if (array_key_exists('require_trusted_device', $data) && $record->person_id !== auth()->user()?->person_id) {
                 $record->require_trusted_device = (bool) $data['require_trusted_device'];
             }
+            // The e-mail every security code goes to: a new one is confirmed again by its next code.
+            $email = filled($data['security_email'] ?? null) ? mb_strtolower(trim((string) $data['security_email'])) : null;
+            if ($email !== null && $email !== $record->email) {
+                $record->forceFill(['email' => $email, 'email_verified_at' => null]);
+            }
             $record->save();
+            $phone = filled($data['security_phone'] ?? null) ? PakistanIds::normalizeMobile((string) $data['security_phone']) : null;
+            if ($phone !== null && $record->person !== null && $phone !== $record->person->phone) {
+                $record->person->phone = $phone;
+                $record->person->save();
+            }
 
             // New permissions take effect on next sign-in; end current sessions so nobody keeps old rights.
             if ($roleChanged) {

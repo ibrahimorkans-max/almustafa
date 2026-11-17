@@ -9,6 +9,7 @@ use App\Domain\Saas\CustomerAccess;
 use App\Domain\Saas\Modules;
 use App\Domain\Saas\PaymentPage;
 use App\Domain\Saas\PlanLimits;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Pages\Concerns\PaysSubscription;
 use App\Filament\Support\Units;
 use App\Models\Customer;
@@ -25,9 +26,8 @@ use Filament\Pages\Page;
  */
 class SubscriptionPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use PaysSubscription;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-credit-card';
 

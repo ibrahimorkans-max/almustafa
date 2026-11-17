@@ -8,11 +8,13 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Documents\PdfRenderer;
 use App\Domain\Masters\CodeDirectory;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Support\ExportGuard;
 use App\Models\CodeDirectoryEntry;
 use App\Models\Entity;
 use App\Models\LoginAccount;
 use App\Support\Export\XlsxWriter;
+use App\Support\Locales;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Pages\Page;
@@ -31,9 +33,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class CodeDirectoryPage extends Page implements HasTable
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithTable;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-hashtag';
 
@@ -69,7 +70,7 @@ class CodeDirectoryPage extends Page implements HasTable
                 TextColumn::make('created_at')->label(__('Created'))->dateTime('d M Y H:i', 'Asia/Karachi')->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
-            ->filters([SelectFilter::make('module')->options(\App\Support\Locales::options(CodeDirectory::MODULES))->multiple()])
+            ->filters([SelectFilter::make('module')->options(Locales::options(CodeDirectory::MODULES))->multiple()])
             ->recordUrl(fn (CodeDirectoryEntry $record) => CodeDirectory::url($record))
             ->paginated([25, 50, 100]);
     }

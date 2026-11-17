@@ -11,6 +11,7 @@ use App\Domain\Gate\VehicleRegister;
 use App\Domain\Security\PanicButton;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\Entity;
 use App\Models\Gate\GateEntry;
 use App\Models\LoginAccount;
@@ -29,7 +30,7 @@ use Filament\Pages\Page;
  */
 class ArchiveSearch extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-briefcase';
 

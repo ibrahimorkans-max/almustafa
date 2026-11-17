@@ -7,6 +7,7 @@ use App\Domain\Auth\DeviceInfo;
 use App\Domain\Auth\FirstSignIn;
 use App\Domain\Auth\IpAllowlistPolicy;
 use App\Domain\Auth\LoginService;
+use App\Domain\Auth\SignInApprovals;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Mail\FirstSignInVerificationMail;
 use App\Models\AuthSession;
@@ -14,6 +15,7 @@ use App\Models\Device;
 use App\Models\IpAllowlistEntry;
 use App\Models\LoginAccount;
 use App\Models\Person;
+use App\Models\SignInApproval;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Tests\Support\Make;
@@ -43,30 +45,28 @@ it('sends a new user to the first sign-in before any screen, with where the sign
 
     $this->actingAs($user, 'web')->withSession($session)->get('/admin')->assertRedirect('/admin/first-sign-in');
     $this->actingAs($user, 'web')->withSession($session)->get('/admin/first-sign-in')->assertOk()
-        ->assertSee('127.0.0.1')->assertSee('Send verification e-mail');
+        ->assertSee('127.0.0.1')->assertSee('Send the code');
 });
 
-it('confirms the e-mail with the one-time button in the e-mail, then the user gives their details and is in', function () {
+it('confirms the e-mail with the code typed on the signing-in screen, then the user gives their details and is in', function () {
     $entity = Make::entity('FSV');
     $user = Make::account($entity, 'SUPER_ADMIN', ['mfa' => true]);
     $session = Make::webSession($user);
+    $sessionId = $session['auth_session_id'];
 
-    app(FirstSignIn::class)->sendVerification(fsiAccount($user), 'Ali.Raza@Example.com');
-    $url = null;
-    Mail::assertSent(FirstSignInVerificationMail::class, function (FirstSignInVerificationMail $mail) use (&$url) {
-        $url = $mail->url;
-
-        return $mail->hasTo('ali.raza@example.com');
-    });
+    app(FirstSignIn::class)->sendVerification(fsiAccount($user), 'Ali.Raza@Example.com', $sessionId);
+    $code = fsiCode('ali.raza@example.com');
+    expect($code)->toMatch('/^\d{6}$/');
     expect(fn () => app(FirstSignIn::class)->complete(fsiAccount($user), ['full_name' => 'Ali Raza', 'phone' => '0300-1234567']))
         ->toThrow(BusinessRuleViolation::class, 'Confirm your e-mail');
 
-    // Opened on another device (not signed in): it says so; the link works once.
-    $this->get($url)->assertOk()->assertSee('E-mail confirmed');
+    // Only on the screen that asked for it; a wrong code counts.
+    expect(fn () => app(FirstSignIn::class)->verifyCode(fsiAccount($user), $code, (string) Str::uuid()))
+        ->toThrow(BusinessRuleViolation::class, 'another sign-in')
+        ->and(fn () => app(FirstSignIn::class)->verifyCode(fsiAccount($user), $code === '000000' ? '111111' : '000000', $sessionId))
+        ->toThrow(BusinessRuleViolation::class, '4 tries left');
+    app(FirstSignIn::class)->verifyCode(fsiAccount($user), $code, $sessionId);
     expect(fsiAccount($user)->email_verified_at)->not->toBeNull();
-    $this->get($url)->assertStatus(410);
-    // A changed link is refused by its signature.
-    $this->get($url.'x')->assertForbidden();
 
     app(FirstSignIn::class)->complete(fsiAccount($user), ['full_name' => 'Ali Raza', 'phone' => '0300-1234567']);
     $user = fsiAccount($user);
@@ -76,6 +76,23 @@ it('confirms the e-mail with the one-time button in the e-mail, then the user gi
         ->full_name->toBe('Ali Raza')->email->toBe('ali.raza@example.com');
 
     $this->actingAs($user, 'web')->withSession($session)->get('/admin')->assertOk();
+});
+
+it('takes a code only a few times, and not once it is too old', function () {
+    $user = Make::account(Make::entity('FST'), 'SUPER_ADMIN', ['mfa' => true]);
+    app(FirstSignIn::class)->sendVerification(fsiAccount($user), 'a@example.com');
+    $code = fsiCode('a@example.com');
+    $wrong = $code === '000000' ? '111111' : '000000';
+    foreach (range(1, FirstSignIn::CODE_TRIES) as $i) {
+        expect(fn () => app(FirstSignIn::class)->verifyCode(fsiAccount($user), $wrong, null))->toThrow(BusinessRuleViolation::class);
+    }
+    expect(fn () => app(FirstSignIn::class)->verifyCode(fsiAccount($user), $code, null))->toThrow(BusinessRuleViolation::class, 'Send a new e-mail');
+
+    $this->travel(2)->minutes();
+    app(FirstSignIn::class)->sendVerification(fsiAccount($user), 'a@example.com');
+    $code = fsiCode('a@example.com', 2);
+    $this->travel(16)->minutes();
+    expect(fn () => app(FirstSignIn::class)->verifyCode(fsiAccount($user), $code, null))->toThrow(BusinessRuleViolation::class, 'too old');
 });
 
 it('refuses a bad address and a second e-mail within a minute', function () {
@@ -114,12 +131,8 @@ it('lets a new Owner finish the first sign-in from an unlisted network and a new
         new DeviceInfo((string) Str::uuid(), 'web', 'Chrome on Windows'), '149.40.161.14', 'pest', true);
     Make::reset();
 
-    app(FirstSignIn::class)->sendVerification(fsiAccount($owner), 'owner@example.com');
-    Mail::assertSent(FirstSignInVerificationMail::class, function (FirstSignInVerificationMail $mail) {
-        $this->get($mail->url)->assertOk();
-
-        return true;
-    });
+    app(FirstSignIn::class)->sendVerification(fsiAccount($owner), 'owner@example.com', $auth->id);
+    app(FirstSignIn::class)->verifyCode(fsiAccount($owner), fsiCode('owner@example.com'), $auth->id);
     app(FirstSignIn::class)->complete(fsiAccount($owner), ['full_name' => 'Firdous Amr', 'phone' => '0300-1234567'], $auth);
 
     $owner = fsiAccount($owner);
@@ -174,4 +187,75 @@ it('lets a new Owner whose listed network is another one finish the first sign-i
         ->toBe(['10.0.0.0/8', '149.40.161.0/24'])
         ->and(Make::system(fn () => $policy->allows(fsiAccount($owner), '149.40.161.14')))->toBeTrue()
         ->and(Make::system(fn () => $policy->allows(fsiAccount($owner), '8.8.8.8')))->toBeFalse();
+});
+
+/** The code in the n-th e-mail sent to an address (Mail::fake). */
+function fsiCode(string $to, int $nth = 1): string
+{
+    $mails = Mail::sent(FirstSignInVerificationMail::class, fn (FirstSignInVerificationMail $m) => $m->hasTo($to))->values();
+
+    return $mails[$nth - 1]->code;
+}
+
+it('waits for somebody signed in to approve the sign-in: QR code, then the matching number', function () {
+    $entity = Make::entity('FSA');
+    $approver = Make::account($entity, 'OWNER', ['mfa' => true]);
+    Make::system(fn () => LoginAccount::query()->withoutGlobalScopes()->whereKey($approver->id)->update(['first_sign_in_completed_at' => now()]));
+    $newbie = Make::account($entity, 'SUPER_ADMIN', ['mfa' => true]);
+    $session = Make::webSession($newbie);
+    $authId = $session['auth_session_id'];
+    Make::system(fn () => LoginAccount::query()->withoutGlobalScopes()->whereKey($newbie->id)->update(['email' => 'n@example.com', 'email_verified_at' => now()]));
+    $approvals = app(SignInApprovals::class);
+
+    expect($approvals->needed(fsiAccount($newbie)))->toBeTrue()
+        ->and($approvals->approvers(fsiAccount($newbie))->pluck('id')->all())->toBe([$approver->id])
+        ->and(fn () => app(FirstSignIn::class)->complete(fsiAccount($newbie), ['full_name' => 'New Admin', 'phone' => '0300-1234567']))
+        ->toThrow(BusinessRuleViolation::class, 'approved first');
+
+    // The new screen shows the QR code and the number.
+    $this->actingAs(fsiAccount($newbie), 'web')->withSession($session)->get('/admin/first-sign-in')->assertOk()
+        ->assertSee('They pick this number')->assertSee('<svg', false);
+    $open = Make::system(fn () => SignInApproval::query()->withoutGlobalScopes()->where('login_account_id', $newbie->id)->where('status', 'pending')->sole());
+    expect($open->choices)->toHaveCount(3)->toContain($open->number);
+
+    // A wrong number refuses it and ends that sign-in.
+    $wrong = collect($open->choices)->first(fn ($n) => $n !== $open->number);
+    expect($approvals->pick(fsiAccount($approver), $open->id, $wrong))->toBeFalse()
+        ->and($approvals->status($open->id))->toBe('denied')
+        ->and(Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->find($authId))->revoked_at)->not->toBeNull();
+
+    // A new request; the person signing in cannot approve it, the right number does.
+    $again = $approvals->open(fsiAccount($newbie), null)['approval'];
+    expect(fn () => $approvals->pick(fsiAccount($newbie), $again->id, $again->number))->toThrow(BusinessRuleViolation::class, 'may not approve')
+        ->and($approvals->pendingFor(fsiAccount($approver))->pluck('id')->all())->toBe([$again->id])
+        ->and($approvals->pick(fsiAccount($approver), $again->id, $again->number))->toBeTrue()
+        ->and($approvals->needed(fsiAccount($newbie)))->toBeFalse()
+        ->and(fn () => $approvals->pick(fsiAccount($approver), $again->id, $again->number))->toThrow(BusinessRuleViolation::class, 'no longer waiting');
+
+    app(FirstSignIn::class)->complete(fsiAccount($newbie), ['full_name' => 'New Admin', 'phone' => '0300-1234567']);
+    expect(fsiAccount($newbie)->needsFirstSignIn())->toBeFalse();
+});
+
+it('shows the approver the scanned request with three numbers, and lets them refuse it', function () {
+    $entity = Make::entity('FSP');
+    $approver = Make::account($entity, 'OWNER', ['mfa' => true]);
+    Make::system(fn () => LoginAccount::query()->withoutGlobalScopes()->whereKey($approver->id)->update(['first_sign_in_completed_at' => now()]));
+    $newbie = Make::account($entity, 'SUPER_ADMIN', ['mfa' => true]);
+    $opened = app(SignInApprovals::class)->open(fsiAccount($newbie), null);
+
+    $this->actingAs(fsiAccount($approver), 'web')->withSession(Make::webSession($approver))
+        ->get('/admin/approve-sign-ins?t='.$opened['token'])->assertOk()
+        ->assertSee($newbie->username)->assertSee('Pick the number shown on their screen');
+
+    app(SignInApprovals::class)->deny(fsiAccount($approver), $opened['approval']->id);
+    expect(app(SignInApprovals::class)->status($opened['approval']->id))->toBe('denied');
+});
+
+it('skips the approval when nobody else could approve (a new company\'s first Owner)', function () {
+    $owner = Make::account(Make::entity('FSK'), 'OWNER', ['mfa' => true]);
+    Make::system(fn () => LoginAccount::query()->withoutGlobalScopes()->whereKey($owner->id)->update(['email' => 'k@example.com', 'email_verified_at' => now()]));
+
+    expect(app(SignInApprovals::class)->needed(fsiAccount($owner)))->toBeFalse();
+    app(FirstSignIn::class)->complete(fsiAccount($owner), ['full_name' => 'First Owner', 'phone' => '0300-1234567']);
+    expect(fsiAccount($owner)->needsFirstSignIn())->toBeFalse();
 });

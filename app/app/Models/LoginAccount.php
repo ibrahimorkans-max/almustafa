@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Domain\Access\RoleTemplates;
 use App\Domain\Audit\Auditable;
+use App\Domain\Auth\NewNetwork;
 use App\Domain\Saas\CustomerAccess;
 use App\Domain\Saas\Modules;
 use App\Domain\Saas\PlanLimits;
@@ -34,12 +35,13 @@ use Spatie\LaravelPasskeys\Models\Concerns\InteractsWithPasskeys;
  * @property bool $is_platform_admin the provider's account (never set from a form)
  * @property bool $is_machine a weighbridge PC's login made by pairing (not a staff user; never set from a form)
  * @property string|null $email the address confirmed at the first sign-in
- * @property \Illuminate\Support\Carbon|null $email_verified_at
+ * @property Carbon|null $email_verified_at
  * @property string|null $email_verify_token_hash
- * @property \Illuminate\Support\Carbon|null $email_verify_sent_at
- * @property \Illuminate\Support\Carbon|null $first_sign_in_at
+ * @property Carbon|null $email_verify_sent_at
+ * @property Carbon|null $first_sign_in_at
  * @property array<string, mixed>|null $first_sign_in where the first sign-in came from (IP, place, device)
- * @property \Illuminate\Support\Carbon|null $first_sign_in_completed_at
+ * @property Carbon|null $first_sign_in_completed_at
+ * @property Carbon|null $first_sign_in_approved_at somebody signed in approved the first sign-in (QR code + number)
  * @property string $person_id
  * @property string $role_id
  * @property string $username
@@ -136,6 +138,7 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
             'first_sign_in_at' => 'datetime',
             'first_sign_in' => 'array',
             'first_sign_in_completed_at' => 'datetime',
+            'first_sign_in_approved_at' => 'datetime',
         ];
     }
 
@@ -270,10 +273,14 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
         return app(CustomerAccess::class)->readOnly($this) ? CustomerAccess::viewOnly($codes) : $codes;
     }
 
-    /** Pending 2FA enrollment, a forced password change or the first sign-in check: the account holds no permissions yet. */
+    /**
+     * Pending 2FA enrollment, a forced password change, the first sign-in check, or (in this request) a sign-in held
+     * for a new network: the account holds no permissions yet.
+     */
     public function hasPendingSecuritySetup(): bool
     {
-        return ($this->mfaRequired() && ! $this->hasMfa()) || $this->must_change_password || $this->needsFirstSignIn();
+        return ($this->mfaRequired() && ! $this->hasMfa()) || $this->must_change_password || $this->needsFirstSignIn()
+            || NewNetwork::isHeld();
     }
 
     /**
@@ -287,6 +294,34 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
             && $this->first_sign_in_completed_at === null
             && ! $this->is_machine
             && $this->role?->code !== RoleTemplates::PARTY;
+    }
+
+    /** The SaaS owner, a company's Owners and a mill's Super Admin: an e-mail and a mobile number are compulsory. */
+    public function isTopRole(): bool
+    {
+        return $this->isPlatformAdmin() || $this->isOwner() || $this->role?->code === RoleTemplates::SUPER_ADMIN;
+    }
+
+    /** A top-role login (isTopRole) without its e-mail (where every security code goes) or mobile number. */
+    public function missingSecurityContact(): bool
+    {
+        if (! config('ricemill.auth.require_security_contact', true) || $this->is_machine || ! $this->isTopRole()
+            || ! array_key_exists('email', $this->getAttributes())) {
+            return false;
+        }
+
+        return blank($this->email) || blank($this->person?->phone);
+    }
+
+    /** Whether a role (by its id) is one of the top roles whose e-mail and mobile number are compulsory. */
+    public static function isTopRoleId(?string $roleId): bool
+    {
+        if ($roleId === null) {
+            return false;
+        }
+        $role = app(TenantContext::class)->runAsSystem(fn () => Role::query()->withoutGlobalScopes()->find($roleId));
+
+        return $role !== null && ($role->is_super_admin || $role->code === RoleTemplates::SUPER_ADMIN);
     }
 
     public function hasPermission(string $code): bool

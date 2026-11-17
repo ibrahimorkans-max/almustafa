@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages\Platform;
 
 use App\Domain\Saas\PlatformStats;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Resources\Platform\CustomerResource;
 use App\Filament\Resources\Platform\PaymentMethodResource;
 use App\Filament\Resources\Platform\SaasInvoiceResource;
@@ -26,7 +27,7 @@ use Filament\Pages\Page;
  */
 class PlatformOverview extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-presentation-chart-line';
 

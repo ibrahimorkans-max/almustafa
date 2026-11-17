@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Gate\VehicleRegister;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Resources\Gate\GateEntryResource;
 use App\Filament\Support\ExportGuard;
 use App\Models\Gate\GateEntry;
@@ -33,9 +34,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class VehicleRegisterPage extends Page implements HasTable
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithTable;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-truck';
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Domain\Security\AccessReview;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Support\ExportGuard;
 use App\Models\LoginAccount;
 use Filament\Actions\Action;
@@ -14,7 +15,7 @@ use Filament\Pages\Page;
 /** Who has which role and permission, last sign-in, where each person is (exact location), and accounts that need a decision. */
 class AccessReviewPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
 

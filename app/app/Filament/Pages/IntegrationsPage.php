@@ -13,6 +13,7 @@ use App\Domain\Messaging\WhatsAppFiles;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\LoginAccount;
 use App\Models\Usage\ServiceUsage;
 use Filament\Actions\Action;
@@ -30,7 +31,7 @@ use Filament\Pages\Page;
  */
 class IntegrationsPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-link';
 

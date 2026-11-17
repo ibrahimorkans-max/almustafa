@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Domain\Reports\OperationalReports;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Support\ExportGuard;
 use App\Http\Controllers\ReportPrintController;
 use App\Models\LoginAccount;
@@ -17,7 +18,7 @@ use Livewire\Attributes\Url;
 /** Registers and summaries with CSV export (exports are audited). */
 class OperationalReportsPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-table-cells';
 

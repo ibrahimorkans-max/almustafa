@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Domain\Messaging\PartyStatement;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\LoginAccount;
 use App\Models\Masters\Party;
 use Filament\Facades\Filament;
@@ -16,7 +17,7 @@ use Filament\Pages\Page;
  */
 class PartyPortalPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-user-circle';
 

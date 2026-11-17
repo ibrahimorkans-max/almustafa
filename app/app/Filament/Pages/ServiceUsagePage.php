@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Pages\Concerns\ShowsUsage;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
@@ -16,9 +17,8 @@ use Filament\Pages\Page;
  */
 class ServiceUsagePage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use ShowsUsage;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-signal';
 

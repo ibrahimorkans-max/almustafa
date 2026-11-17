@@ -8,6 +8,7 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Documents\PdfRenderer;
 use App\Domain\Reports\BusinessReport;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Support\ExportGuard;
 use App\Models\Entity;
 use App\Models\LoginAccount;
@@ -25,7 +26,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class BusinessReportPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
 

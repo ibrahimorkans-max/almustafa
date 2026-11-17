@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Pages\Platform\PlatformOverview;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
@@ -17,7 +18,7 @@ use Illuminate\Http\RedirectResponse;
  */
 class Dashboard extends BaseDashboard
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     public function mount(): void
     {

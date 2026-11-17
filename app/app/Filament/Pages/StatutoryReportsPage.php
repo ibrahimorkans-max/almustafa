@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Hr\Payroll\StatutoryReports;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Support\ExportGuard;
 use App\Http\Controllers\ReportPrintController;
 use App\Models\LoginAccount;
@@ -21,7 +22,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 /** EOBI, PESSI, s. 149 salary tax, wages and overtime registers of a finalized month; CSV or Excel. */
 class StatutoryReportsPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
 

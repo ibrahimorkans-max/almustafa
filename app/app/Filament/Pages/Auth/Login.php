@@ -7,9 +7,10 @@ namespace App\Filament\Pages\Auth;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Auth\DeviceInfo;
-use App\Domain\Auth\FirstSignIn;
 use App\Domain\Auth\Exceptions\AuthenticationFailed;
+use App\Domain\Auth\FirstSignIn;
 use App\Domain\Auth\LoginService;
+use App\Domain\Auth\NewNetwork;
 use App\Domain\Auth\PasskeyService;
 use App\Domain\Security\SignInArea;
 use App\Domain\Tenancy\TenantContext;
@@ -136,7 +137,7 @@ class Login extends BaseLogin
 
         try {
             if (! $this->awaitingCode) {
-                $account = $login->verifyPassword((string) $data['username'], (string) $data['password'], request()->ip(), (string) request()->cookie(self::DEVICE_COOKIE) ?: null);
+                $account = $login->verifyPassword((string) $data['username'], (string) $data['password'], request()->ip(), (string) request()->cookie(self::DEVICE_COOKIE) ?: null, newNetworkCheck: true);
                 $this->assertPanelAccess($account);
                 $this->assertInsideArea($account);
 
@@ -214,7 +215,7 @@ class Login extends BaseLogin
         try {
             $account = app(PasskeyService::class)->authenticate(mb_substr($credential, 0, 20_000))
                 ?? throw AuthenticationFailed::credentials('passkey_not_recognised');
-            app(LoginService::class)->verifyPasskey($account, request()->ip(), (string) request()->cookie(self::DEVICE_COOKIE) ?: null);
+            app(LoginService::class)->verifyPasskey($account, request()->ip(), (string) request()->cookie(self::DEVICE_COOKIE) ?: null, newNetworkCheck: true);
             $this->assertPanelAccess($account);
             $this->assertInsideArea($account);
             session()->forget(self::PENDING_KEY);
@@ -253,6 +254,11 @@ class Login extends BaseLogin
         // A new user's first sign-in: where it came from (IP, place, device) is kept; the e-mail check follows.
         app(FirstSignIn::class)->capture($account, $session, $device->uid, $device->name,
             $this->data['latitude'] ?? null, $this->data['longitude'] ?? null, $this->data['accuracy'] ?? null);
+        // From a network the login may not use (let through only when it can be proven): held until it is.
+        $network = app(NewNetwork::class);
+        if (! $network->allowed($account, request()->ip())) {
+            $network->hold($session);
+        }
 
         Filament::auth()->login($account);
         session()->regenerate();

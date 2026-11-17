@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Support\QuickLabTest;
 use App\Filament\Widgets\LiveWeightBoard;
 use Filament\Pages\Page;
@@ -11,7 +12,7 @@ use Filament\Pages\Page;
 /** Full-screen view of every weighbridge's live reading, for the gate office or a wall screen. */
 class LiveWeightPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-scale';
 

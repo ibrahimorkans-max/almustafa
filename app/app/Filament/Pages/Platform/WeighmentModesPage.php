@@ -8,11 +8,13 @@ use App\Domain\Gate\LabSetup;
 use App\Domain\Gate\WeighModes;
 use App\Domain\Saas\PlatformCompany;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\Customer;
 use App\Models\Entity;
 use App\Models\LoginAccount;
 use App\Models\WeighmentModeChange;
 use App\Models\WeighmentModeConfig;
+use App\Support\Locales;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\CheckboxList;
@@ -30,7 +32,7 @@ use Illuminate\Support\Facades\DB;
  */
 class WeighmentModesPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-adjustments-vertical';
 
@@ -99,7 +101,7 @@ class WeighmentModesPage extends Page
             ->fillForm(fn (array $arguments) => ['modes' => app(TenantContext::class)->runAsSystem(
                 fn () => WeighmentModeConfig::query()->where('customer_id', $arguments['customer'] ?? '')->first()?->enabled() ?? [])])
             ->form([
-                CheckboxList::make('modes')->label(__('Switched on'))->options(\App\Support\Locales::options(WeighModes::LABELS))->descriptions(\App\Support\Locales::options(WeighModes::HELP)),
+                CheckboxList::make('modes')->label(__('Switched on'))->options(Locales::options(WeighModes::LABELS))->descriptions(Locales::options(WeighModes::HELP)),
                 Textarea::make('reason')->label(__('Why (kept in the history)'))->rows(2)->maxLength(500),
             ])
             ->action(function (array $data, array $arguments): void {
@@ -122,8 +124,8 @@ class WeighmentModesPage extends Page
             })
             ->form(fn (array $arguments) => [
                 Radio::make('follow')->label(isset($arguments['mill']) ? 'This mill' : 'This company')->required()->live()
-                    ->options(\App\Support\Locales::options(isset($arguments['mill']) ? ['default' => "Follows its company's lab features", 'own' => 'Has its own'] : ['default' => 'Every lab feature allowed', 'own' => 'Only those chosen'])),
-                CheckboxList::make('features')->label(__('Allowed'))->options(\App\Support\Locales::options(LabSetup::FEATURES))->visible(fn (Get $get) => $get('follow') === 'own'),
+                    ->options(Locales::options(isset($arguments['mill']) ? ['default' => "Follows its company's lab features", 'own' => 'Has its own'] : ['default' => 'Every lab feature allowed', 'own' => 'Only those chosen'])),
+                CheckboxList::make('features')->label(__('Allowed'))->options(Locales::options(LabSetup::FEATURES))->visible(fn (Get $get) => $get('follow') === 'own'),
             ])
             ->action(function (array $data, array $arguments): void {
                 $features = $data['follow'] === 'own' ? array_map(fn (string $f) => in_array($f, (array) ($data['features'] ?? []), true), array_combine(array_keys(LabSetup::FEATURES), array_keys(LabSetup::FEATURES))) : null;
@@ -143,7 +145,7 @@ class WeighmentModesPage extends Page
             })
             ->form([
                 Radio::make('follow')->label(__('This mill'))->options(['company' => __("Follows its company's defaults"), 'own' => __('Has its own setting')])->live()->required(),
-                CheckboxList::make('modes')->label(__('Switched on for this mill'))->options(\App\Support\Locales::options(WeighModes::LABELS))->descriptions(\App\Support\Locales::options(WeighModes::HELP))
+                CheckboxList::make('modes')->label(__('Switched on for this mill'))->options(Locales::options(WeighModes::LABELS))->descriptions(Locales::options(WeighModes::HELP))
                     ->visible(fn (Get $get) => $get('follow') === 'own'),
                 Textarea::make('reason')->label(__('Why (kept in the history)'))->rows(2)->maxLength(500),
             ])

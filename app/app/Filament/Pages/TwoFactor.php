@@ -8,6 +8,7 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Auth\MfaService;
 use App\Domain\Auth\SessionService;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\LoginAccount;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -27,9 +28,8 @@ use Illuminate\Validation\ValidationException;
  */
 class TwoFactor extends Page implements HasForms
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithForms;
+    use TranslatesLabels;
 
     private const ENROLL_SECRET_KEY = 'mfa.enroll_secret';
 

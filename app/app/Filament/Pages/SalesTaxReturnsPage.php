@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Tax\IncomeTax;
 use App\Domain\Tax\SalesTaxReturns;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Support\ExportGuard;
 use App\Http\Controllers\ReportPrintController;
 use App\Models\LoginAccount;
@@ -20,7 +21,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 /** Monthly sales-tax register (Annex-C) and the s. 153 withholding register, from posted documents only. */
 class SalesTaxReturnsPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
 

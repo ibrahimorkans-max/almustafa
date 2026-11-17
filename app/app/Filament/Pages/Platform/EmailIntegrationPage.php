@@ -7,6 +7,7 @@ namespace App\Filament\Pages\Platform;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Banking\MailOAuth;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\Banking\EmailConnection;
 use App\Models\Banking\EmailSyncRun;
 use App\Models\Customer;
@@ -27,9 +28,8 @@ use Filament\Tables\Table;
  */
 class EmailIntegrationPage extends Page implements HasTable
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithTable;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-envelope';
 
