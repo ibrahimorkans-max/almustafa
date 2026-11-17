@@ -16,6 +16,12 @@ final class IpAllowlistPolicy
 {
     public function allows(LoginAccount $account, ?string $ip): bool
     {
+        // A new person's first sign-in opens no screen until the e-mail is confirmed: let in from any network
+        // (an Owner's network is added when it is finished, FirstSignIn::complete).
+        if ($account->needsFirstSignIn()) {
+            return true;
+        }
+
         $cidrs = IpAllowlistEntry::query()
             ->withoutGlobalScopes()
             ->where('login_account_id', $account->id)
@@ -23,8 +29,7 @@ final class IpAllowlistPolicy
             ->all();
 
         if ($cidrs === []) {
-            // A new Owner's first sign-in opens no screen until the e-mail is confirmed; its network is added then.
-            return ! ($account->isOwner() && config('ricemill.security.super_admin_require_ip_allowlist')) || $account->needsFirstSignIn();
+            return ! ($account->isOwner() && config('ricemill.security.super_admin_require_ip_allowlist'));
         }
 
         return $ip !== null && IpUtils::checkIp($ip, $cidrs);
