@@ -243,6 +243,14 @@ final class DeviceService
             return;
         }
 
+        // A new person's first sign-in opens no screen until the e-mail is confirmed; this device is approved
+        // then (FirstSignIn::complete), while it is still their only one.
+        if (! $hasTrusted && $account->needsFirstSignIn()) {
+            $this->audit->record('device.first_sign_in_admitted', $device);
+
+            return;
+        }
+
         $pending = ApprovalRequest::query()
             ->where('action', TrustDevice::KEY)
             ->where('status', ApprovalRequest::STATUS_PENDING)

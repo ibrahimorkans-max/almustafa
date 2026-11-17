@@ -6,6 +6,10 @@ namespace App\Filament\Pages;
 
 use App\Domain\Auth\FirstSignIn;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
+use App\Http\Middleware\EnsureWebAuthSession;
+use App\Models\AuthSession;
 use App\Models\LoginAccount;
 use App\Support\Values\PakistanIds;
 use Filament\Facades\Filament;
@@ -26,8 +30,8 @@ use Filament\Pages\Page;
  */
 class FirstSignInPage extends Page implements HasForms
 {
-    use \App\Filament\Concerns\TranslatesLabels;
     use InteractsWithForms;
+    use TranslatesLabels;
 
     protected static ?string $slug = 'first-sign-in';
 
@@ -58,7 +62,7 @@ class FirstSignInPage extends Page implements HasForms
         $this->detailsForm->fill(['full_name' => $account->person?->full_name, 'phone' => PakistanIds::formatMobile($account->person?->phone) ?? $account->person?->phone]);
     }
 
-    /** @return array<string, Form> */
+    /** @return list<string> */
     protected function getForms(): array
     {
         return ['emailForm', 'detailsForm'];
@@ -130,7 +134,10 @@ class FirstSignInPage extends Page implements HasForms
     {
         $data = $this->detailsForm->getState();
         try {
-            app(FirstSignIn::class)->complete($this->account(), ['full_name' => (string) $data['full_name'], 'phone' => (string) $data['phone']]);
+            $sessionId = session()->get(EnsureWebAuthSession::SESSION_KEY);
+            $session = $sessionId === null ? null : app(TenantContext::class)->runAsSystem(fn () => AuthSession::query()->withoutGlobalScopes()->find($sessionId));
+            app(FirstSignIn::class)->complete($this->account(), ['full_name' => (string) $data['full_name'], 'phone' => (string) $data['phone']],
+                $session?->login_account_id === $this->account()->id ? $session : null);
         } catch (BusinessRuleViolation $e) {
             Notification::make()->title(__($e->getMessage()))->danger()->send();
 

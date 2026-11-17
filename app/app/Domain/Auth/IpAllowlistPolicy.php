@@ -23,7 +23,8 @@ final class IpAllowlistPolicy
             ->all();
 
         if ($cidrs === []) {
-            return ! ($account->isOwner() && config('ricemill.security.super_admin_require_ip_allowlist'));
+            // A new Owner's first sign-in opens no screen until the e-mail is confirmed; its network is added then.
+            return ! ($account->isOwner() && config('ricemill.security.super_admin_require_ip_allowlist')) || $account->needsFirstSignIn();
         }
 
         return $ip !== null && IpUtils::checkIp($ip, $cidrs);
