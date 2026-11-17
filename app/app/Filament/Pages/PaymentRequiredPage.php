@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Domain\Saas\Billing;
 use App\Domain\Saas\CustomerAccess;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Pages\Concerns\PaysSubscription;
 use App\Models\LoginAccount;
 use Carbon\CarbonImmutable;
@@ -21,9 +22,8 @@ use Filament\Support\Enums\MaxWidth;
  */
 class PaymentRequiredPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use PaysSubscription;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-credit-card';
 

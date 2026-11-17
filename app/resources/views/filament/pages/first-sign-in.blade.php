@@ -1,22 +1,34 @@
 <x-filament-panels::page>
     @php
         $info = $this->info();
-        $verified = $this->verified();
+        $step = $finished ? 'finished' : $this->step();
+        $withApproval = $this->hasApprovalStep();
         $place = implode(', ', array_filter([$info['city'] ?? null, $info['region'] ?? null, $info['country'] ?? null]));
+        // Steps: this sign-in, e-mail code, approval (when somebody can approve), your details.
+        $steps = array_values(array_filter([
+            ['key' => 'recorded', 'label' => __('This sign-in is recorded')],
+            ['key' => 'email', 'label' => __('E-mail code')],
+            $withApproval ? ['key' => 'approval', 'label' => __('Approval (QR + number)')] : null,
+            ['key' => 'details', 'label' => __('Your details')],
+        ]));
+        $order = array_column($steps, 'key');
+        $at = $finished ? count($steps) : array_search($step, $order, true);
+        [$title, $sub] = match ($step) {
+            'email' => [__('Checking it is really you'), __('Confirm your e-mail with the 6-digit code we send you.')],
+            'approval' => [__('Waiting for approval'), __('Someone already signed in scans the QR code and picks your number.')],
+            'details' => [__('Almost done'), __('Tell us your name and mobile number.')],
+            default => [__('You are verified'), __('Welcome! Opening your dashboard…')],
+        };
     @endphp
 
-    {{-- Steps: 1 this sign-in, 2 e-mail, 3 your details --}}
-    <ol class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        @foreach ([__('This sign-in is recorded'), __('Confirm your e-mail'), __('Your details')] as $i => $step)
-            @php $done = $i === 0 || ($i === 1 && $verified); $current = ($i === 1 && ! $verified) || ($i === 2 && $verified); @endphp
-            <li class="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm {{ $current ? 'border-primary-500 bg-primary-50 font-semibold dark:bg-primary-500/10' : 'border-gray-200 dark:border-white/10' }}">
-                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs {{ $done ? 'bg-success-600 text-white' : 'bg-gray-200 dark:bg-white/10' }}">{{ $done ? '✓' : $i + 1 }}</span>
-                {{ $step }}
-            </li>
-        @endforeach
-    </ol>
+    <x-verify.panel :steps="array_column($steps, 'label')" :at="$at" :title="$title" :subtitle="$sub"
+        :state="$finished ? 'done' : ($step === 'approval' ? 'waiting' : 'working')" />
+    <x-verify.busy target="sendEmail,checkCode,saveDetails" />
 
-    <x-filament::section :heading="__('This sign-in')" icon="heroicon-o-map-pin">
+    @if ($finished)
+        <div x-data x-init="setTimeout(() => window.location.href = @js(\Filament\Facades\Filament::getUrl()), 2200)"></div>
+    @else
+    <x-filament::section :heading="__('This sign-in')" icon="heroicon-o-map-pin" collapsible :collapsed="$step !== 'email'">
         <dl class="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
             <div><dt class="text-gray-500">{{ __('IP address') }}</dt><dd class="font-medium" dir="ltr">{{ $info['ip'] ?? '—' }}</dd></div>
             <div><dt class="text-gray-500">{{ __('Place') }}</dt><dd class="font-medium">{{ $place !== '' ? $place : '—' }}</dd></div>
@@ -32,27 +44,58 @@
         </dl>
     </x-filament::section>
 
-    @if (! $verified)
-        <x-filament::section :heading="__('Confirm your e-mail')" icon="heroicon-o-envelope">
+    @if ($step === 'email')
+        <x-filament::section :heading="__('Confirm your e-mail')" icon="heroicon-o-envelope" class="rmv-enter" wire:key="fsi-email">
             <form wire:submit="sendEmail" class="space-y-4">
                 {{ $this->emailForm }}
-                <x-filament::button type="submit" icon="heroicon-o-paper-airplane">{{ $emailSent ? __('Send the e-mail again') : __('Send verification e-mail') }}</x-filament::button>
+                <x-filament::button type="submit" icon="heroicon-o-paper-airplane" :color="$emailSent ? 'gray' : 'primary'">{{ $emailSent ? __('Send the e-mail again') : __('Send the code') }}</x-filament::button>
             </form>
             @if ($emailSent)
-                <div wire:poll.4s="checkVerified" class="mt-4 flex items-center gap-2 rounded-lg bg-warning-50 p-3 text-sm text-warning-800 dark:bg-warning-500/10 dark:text-warning-300">
-                    <x-filament::loading-indicator class="h-5 w-5" />
-                    {{ __('Waiting for you to press "Verify my e-mail" in the e-mail… Check the spam folder too.') }}
-                </div>
+                <form wire:submit="checkCode" class="mt-6 max-w-sm space-y-4 border-t border-gray-200 pt-6 dark:border-white/10">
+                    {{ $this->codeForm }}
+                    <x-filament::button type="submit" icon="heroicon-o-check-badge">{{ __('Confirm the code') }}</x-filament::button>
+                </form>
             @endif
         </x-filament::section>
+    @elseif ($step === 'approval')
+        <x-filament::section :heading="__('Approval by someone already signed in')" icon="heroicon-o-qr-code" class="rmv-enter" wire:key="fsi-approval">
+            <div wire:poll.3s="checkApproval" class="grid grid-cols-1 items-center gap-6 md:grid-cols-2">
+                @if ($approvalState === 'pending' && $approvalToken)
+                    <div class="flex flex-col items-center gap-2">
+                        <div class="rounded-lg bg-white p-3 shadow-sm ring-1 ring-gray-200" style="line-height:0">{!! $this->approvalQr() !!}</div>
+                        <p class="text-xs text-gray-500">{{ __('Scan with a phone that is signed in') }}</p>
+                    </div>
+                    <div class="space-y-4 text-sm">
+                        <p>{{ __('Ask an Owner or your administrator to scan this QR code with their phone (or open Security → Approve sign-ins). They will see your name and where you are signing in from.') }}</p>
+                        <div>
+                            <p class="text-gray-500">{{ __('They pick this number:') }}</p>
+                            <p class="mt-1 font-bold text-primary-600" style="font-size:3.5rem;line-height:1;letter-spacing:.2em" dir="ltr">{{ $approvalNumber }}</p>
+                        </div>
+                        <p class="flex items-center gap-2 text-warning-700 dark:text-warning-400"><x-filament::loading-indicator class="h-5 w-5" /> {{ __('Waiting for the approval… this page moves on by itself.') }}</p>
+                        <p class="text-xs text-gray-500">{{ __('Never tell the number to someone who phones you: only the person approving needs to see it, on your screen.') }}</p>
+                    </div>
+                @else
+                    <div class="space-y-3 text-sm md:col-span-2">
+                        <p class="font-semibold text-danger-600">
+                            {{ $approvalState === 'denied' ? __('This sign-in was refused.') : __('The QR code is too old.') }}
+                        </p>
+                        <x-filament::button wire:click="startApproval" icon="heroicon-o-arrow-path">{{ __('Show a new QR code') }}</x-filament::button>
+                    </div>
+                @endif
+            </div>
+        </x-filament::section>
     @else
-        <x-filament::section :heading="__('Your details')" icon="heroicon-o-user">
-            <p class="mb-4 text-sm text-success-700 dark:text-success-400">✓ {{ __('E-mail confirmed: :email', ['email' => $this->account()->email]) }}</p>
-            <form wire:submit="saveDetails" class="space-y-4">
+        <x-filament::section :heading="__('Your details')" icon="heroicon-o-user" class="rmv-enter" wire:key="fsi-details">
+            <p class="mb-1 text-sm text-success-700 dark:text-success-400">✓ {{ __('E-mail confirmed: :email', ['email' => $this->account()->email]) }}</p>
+            @if ($this->account()->first_sign_in_approved_at)
+                <p class="mb-4 text-sm text-success-700 dark:text-success-400">✓ {{ __('Sign-in approved.') }}</p>
+            @endif
+            <form wire:submit="saveDetails" class="mt-4 space-y-4">
                 {{ $this->detailsForm }}
                 <x-filament::button type="submit" icon="heroicon-o-check">{{ __('Save and continue') }}</x-filament::button>
             </form>
         </x-filament::section>
+    @endif
     @endif
 
     {{-- The browser's own position, once allowed (more exact than the IP's city). --}}

@@ -11,6 +11,7 @@ use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Auth\DeviceInfo;
 use App\Domain\Auth\Exceptions\AuthenticationFailed;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Pages\Auth\Login;
 use App\Http\Middleware\EnsureWebAuthSession;
 use App\Models\Entity;
@@ -26,7 +27,7 @@ use Illuminate\Support\Collection;
  */
 class SwitchContext extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $slug = 'switch';
 

@@ -8,7 +8,6 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Security\SecurityNotifier;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
-use App\Mail\FirstSignInVerificationMail;
 use App\Models\AuthSession;
 use App\Models\Device;
 use App\Models\IpAllowlistEntry;
@@ -16,20 +15,21 @@ use App\Models\LoginAccount;
 use App\Models\Person;
 use App\Support\Values\PakistanIds;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\IpUtils;
 
 /**
- * A new user's first sign-in, in three steps before any screen opens:
+ * A new user's first sign-in, in four steps before any screen opens:
  *  1. where it came from is kept: IP, place (from the IP, and the browser's GPS when allowed) and the device;
- *  2. the user gives an e-mail address and confirms it with the button in the e-mail sent to it (a one-time link);
- *  3. the user fills in their own details (name, mobile) and is signed in.
+ *  2. the user gives an e-mail address and types the 6-digit code sent to it, on this screen;
+ *  3. somebody already signed in approves it: they scan the QR code and pick the number shown (SignInApprovals);
+ *  4. the user fills in their own details (name, mobile) and is signed in.
  * Only one column per step is written (never the whole account), so it cannot clash with a change made elsewhere.
  */
 final class FirstSignIn
 {
+    /** Wrong codes allowed for one e-mail. */
+    public const CODE_TRIES = EmailCode::TRIES;
+
     public function __construct(
         private readonly TenantContext $tenant,
         private readonly AuditLogger $audit,
@@ -76,41 +76,22 @@ final class FirstSignIn
         $this->write($account, ['first_sign_in' => array_filter($info, fn ($v) => $v !== null)]);
     }
 
-    /** Step 2: sends the e-mail with the verification button. At most once a minute, five times an hour. */
-    public function sendVerification(LoginAccount $account, string $email): void
+    /**
+     * Step 2: the e-mail with a 6-digit code for this sign-in (`$sessionId`), typed on this screen (EmailCode). It goes
+     * to the login's own e-mail (the one its administrator entered); without one, to the address typed here, which is
+     * kept from then on.
+     */
+    public function sendVerification(LoginAccount $account, ?string $email, ?string $sessionId = null): void
     {
-        $email = mb_strtolower(trim($email));
-        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false || mb_strlen($email) > 191) {
-            throw new BusinessRuleViolation('Enter a valid e-mail address.');
-        }
-        $key = 'first-sign-in-mail:'.$account->id;
-        if (RateLimiter::tooManyAttempts($key, 5)) {
-            throw new BusinessRuleViolation(sprintf('Too many e-mails. Try again in %d minutes.', (int) ceil(RateLimiter::availableIn($key) / 60)));
-        }
-        if ($account->email_verify_sent_at !== null && $account->email_verify_sent_at->gt(now()->subMinute())) {
-            throw new BusinessRuleViolation('An e-mail was sent less than a minute ago. Wait a moment, then send it again.');
-        }
-        RateLimiter::hit($key, 3600);
-
-        $token = Str::random(48);
-        $minutes = (int) config('ricemill.auth.email_verify_minutes', 60);
-        $this->write($account, ['email' => $email, 'email_verified_at' => null, 'email_verify_token_hash' => hash('sha256', $token), 'email_verify_sent_at' => now()]);
-        $url = URL::temporarySignedRoute('first-sign-in.verify', now()->addMinutes($minutes), ['account' => $account->id, 'token' => $token]);
-        Mail::to($email)->send(new FirstSignInVerificationMail($account->fresh() ?? $account, $url, $minutes));
-        $this->audit->record('auth.first_sign_in.email_sent', $account, meta: ['email' => self::masked($email)]);
+        app(EmailCode::class)->send($account, $email, $sessionId, EmailCode::FIRST_SIGN_IN);
     }
 
-    /** The button in the e-mail: the link works once, for the address it was sent to. */
-    public function verify(string $accountId, string $token): LoginAccount
+    /** The code from the e-mail, typed on the screen that asked for it: the address is then confirmed. */
+    public function verifyCode(LoginAccount $account, string $code, ?string $sessionId): void
     {
-        $account = $this->tenant->runAsSystem(fn () => LoginAccount::query()->find($accountId));
-        if ($account === null || $account->email_verify_token_hash === null || ! hash_equals($account->email_verify_token_hash, hash('sha256', $token))) {
-            throw new BusinessRuleViolation('This link is not valid any more. Sign in again and send a new e-mail.');
-        }
-        $this->write($account, ['email_verified_at' => now(), 'email_verify_token_hash' => null]);
+        app(EmailCode::class)->check($account, $code, $sessionId);
+        $this->write($account, ['email_verified_at' => now()]);
         $this->audit->record('auth.first_sign_in.email_verified', $account, meta: ['email' => self::masked((string) $account->email)]);
-
-        return $account;
     }
 
     /**
@@ -121,7 +102,15 @@ final class FirstSignIn
     public function complete(LoginAccount $account, array $details, ?AuthSession $session = null): void
     {
         if ($account->email_verified_at === null) {
-            throw new BusinessRuleViolation('Confirm your e-mail address first: press the button in the e-mail.');
+            throw new BusinessRuleViolation('Confirm your e-mail address first: type the code from the e-mail.');
+        }
+        $approvals = app(SignInApprovals::class);
+        if ($approvals->needed($account)) {
+            throw new BusinessRuleViolation('This sign-in has to be approved first: ask an Owner or administrator to scan the QR code and pick the number.');
+        }
+        if ($approvals->enabled() && $account->first_sign_in_approved_at === null) {
+            // Nobody else could approve it (a new company's first Owner): recorded.
+            $this->audit->record('auth.first_sign_in.approval_skipped', $account, meta: ['reason' => 'no_approver']);
         }
         $name = trim((string) $details['full_name']);
         if (mb_strlen($name) < 3) {

@@ -46,6 +46,8 @@
         <env name="RICEMILL_GEOCODER" value="off"/>
         <!-- Tests sign in made-up users directly; FirstSignInTest switches the first sign-in check on. -->
         <env name="RICEMILL_FIRST_SIGN_IN_CHECK" value="false"/>
+        <!-- Made-up Owners and Super Admins have no e-mail or mobile; SignInChecksTest switches the rule on. -->
+        <env name="RICEMILL_REQUIRE_SECURITY_CONTACT" value="false"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

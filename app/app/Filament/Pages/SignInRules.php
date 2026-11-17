@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
-use App\Models\Entity;
 use App\Domain\Approvals\Actions\TrustDevice;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Security\SignInArea;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Resources\ApprovalRequestResource;
 use App\Models\ApprovalRequest;
+use App\Models\Entity;
 use App\Models\LoginAccount;
+use App\Support\Locales;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
@@ -33,9 +35,8 @@ use Filament\Pages\Page;
  */
 class SignInRules extends Page implements HasForms
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithForms;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-lock-closed';
 
@@ -110,13 +111,13 @@ class SignInRules extends Page implements HasForms
                 ->helperText(fn () => 'Nobody of this mill can sign in, or stay signed in, unless their phone or computer is inside one of the mill\'s sites (HR → Sites: '
                     .$this->siteSummary().'). Location must be allowed in the browser and the app. A session that leaves the mill is ended.'),
             Select::make('max_devices')->label(__('Devices per person'))->required()
-                ->options(\App\Support\Locales::options(array_combine(SettingsService::MAX_DEVICES_CHOICES, array_map(fn (int $n) => $n === 0 ? 'No limit' : $n.($n === 1 ? ' device' : ' devices'), SettingsService::MAX_DEVICES_CHOICES))))
+                ->options(Locales::options(array_combine(SettingsService::MAX_DEVICES_CHOICES, array_map(fn (int $n) => $n === 0 ? 'No limit' : $n.($n === 1 ? ' device' : ' devices'), SettingsService::MAX_DEVICES_CHOICES))))
                 ->helperText(__('A new phone or computer is refused once the person already uses this many. They can remove an old one under Security → My devices. Gate computers are not counted.')),
             Toggle::make('record_location')->label(__('Record location with entries'))
                 ->helperText(__('Gate entries, paddy stock entries, expenses and roznamcha pages keep where the phone or computer was, when its browser is allowed to share it. Nothing is recorded when location is refused.')),
             Select::make('retention')->label(__('Closed records leave the working screens after'))->visible(fn () => self::ownsRetention())
                 ->in(SettingsService::ARCHIVE_RETENTION_CHOICES)
-                ->options(\App\Support\Locales::options(array_combine(SettingsService::ARCHIVE_RETENTION_CHOICES, array_map(fn (int $m) => $m.' months', SettingsService::ARCHIVE_RETENTION_CHOICES))))
+                ->options(Locales::options(array_combine(SettingsService::ARCHIVE_RETENTION_CHOICES, array_map(fn (int $m) => $m.' months', SettingsService::ARCHIVE_RETENTION_CHOICES))))
                 ->helperText(__('For all your mills. They go to the Office Coordinator\'s Office Desk at the next monthly run, where they can be read and restored.')),
         ]);
     }

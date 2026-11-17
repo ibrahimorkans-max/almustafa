@@ -6,6 +6,7 @@ namespace App\Filament\Pages;
 
 use App\Domain\Access\RoleTemplates;
 use App\Domain\Gate\LiveWeight;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Resources\DeviceResource;
 use App\Filament\Resources\Gate\ScaleResource;
 use App\Filament\Resources\LoginAccountResource;
@@ -24,7 +25,7 @@ use Filament\Pages\Page;
  */
 class ConnectWeighbridge extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-link';
 

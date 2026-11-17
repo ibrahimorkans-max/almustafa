@@ -8,6 +8,7 @@ use App\Domain\Gate\GateService;
 use App\Domain\Gate\LabReport;
 use App\Domain\Gate\NegotiationTimeline;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Resources\Gate\GateEntryResource;
 use App\Filament\Support\NegotiationActions;
 use App\Filament\Support\Units;
@@ -28,7 +29,7 @@ use Livewire\Attributes\Url;
  */
 class NegotiationPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
 

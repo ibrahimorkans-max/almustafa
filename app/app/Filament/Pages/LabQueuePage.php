@@ -9,9 +9,11 @@ use App\Domain\Gate\GatePolicy;
 use App\Domain\Gate\LabSetup;
 use App\Domain\Gate\WeighModes;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\Gate\GateEntry;
 use App\Models\Gate\LabTest;
 use App\Models\LoginAccount;
+use App\Support\Locales;
 use Filament\Actions\Action as PageAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Placeholder;
@@ -38,9 +40,8 @@ use Illuminate\Support\Str;
  */
 class LabQueuePage extends Page implements HasTable
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithTable;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-beaker';
 
@@ -137,9 +138,9 @@ class LabQueuePage extends Page implements HasTable
                 ->form([
                     Toggle::make('active')->label(__('Use a time rule')),
                     TextInput::make('minutes')->label(__('Minutes the lab has'))->integer()->minValue(5)->maxValue(10080)->required(),
-                    Select::make('starts_at_event')->label(__('Counted from'))->options(\App\Support\Locales::options(LabSetup::STARTS))->required(),
-                    Select::make('ends_at_event')->label(__('Until'))->options(\App\Support\Locales::options(LabSetup::ENDS))->required(),
-                    Select::make('late_rule')->label(__('A late result'))->options(\App\Support\Locales::options(LabSetup::LATE_RULES))->required(),
+                    Select::make('starts_at_event')->label(__('Counted from'))->options(Locales::options(LabSetup::STARTS))->required(),
+                    Select::make('ends_at_event')->label(__('Until'))->options(Locales::options(LabSetup::ENDS))->required(),
+                    Select::make('late_rule')->label(__('A late result'))->options(Locales::options(LabSetup::LATE_RULES))->required(),
                     Toggle::make('alert_on_expiry')->label(__('Alert the lab supervisors when the time runs out')),
                 ])
                 ->action(function (array $data): void {

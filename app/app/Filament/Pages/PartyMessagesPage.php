@@ -10,6 +10,7 @@ use App\Domain\Messaging\MessageText;
 use App\Domain\Messaging\PartyMessenger;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\LoginAccount;
 use App\Models\PartyMessage;
 use App\Models\WhatsAppEvent;
@@ -34,9 +35,8 @@ use Filament\Tables\Table;
  */
 class PartyMessagesPage extends Page implements HasTable
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithTable;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-bottom-center-text';
 

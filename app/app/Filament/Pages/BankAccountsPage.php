@@ -6,6 +6,7 @@ namespace App\Filament\Pages;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\Accounts\AccountGroup;
 use App\Models\Accounts\LedgerAccount;
 use App\Models\Accounts\VoucherLine;
@@ -34,9 +35,8 @@ use Illuminate\Support\Facades\DB;
  */
 class BankAccountsPage extends Page implements HasTable
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithTable;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-library';
 

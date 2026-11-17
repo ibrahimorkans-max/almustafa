@@ -8,10 +8,12 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Documents\PdfRenderer;
 use App\Domain\Reports\FinancialTables;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Support\ExportGuard;
 use App\Models\Entity;
 use App\Models\LoginAccount;
 use App\Support\Export\XlsxWriter;
+use App\Support\Locales;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
@@ -34,9 +36,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class FinancialReportsPage extends Page implements HasForms
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithForms;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-chart-bar-square';
 
@@ -80,7 +81,7 @@ class FinancialReportsPage extends Page implements HasForms
         $uses = fn (string ...$reports) => fn (Get $get) => in_array($get('report'), $reports, true);
 
         return $form->columns(4)->statePath('data')->schema([
-            Select::make('report')->options(\App\Support\Locales::options(FinancialTables::REPORTS))->required()->live()->selectablePlaceholder(false)
+            Select::make('report')->options(Locales::options(FinancialTables::REPORTS))->required()->live()->selectablePlaceholder(false)
                 ->afterStateUpdated(fn (?string $state) => $this->report = (string) $state),
             DatePicker::make('from')->live()->required()->visible($uses('pl', 'monthly', 'payroll', 'cashflow')),
             DatePicker::make('to')->label(fn (Get $get) => $get('report') === 'staff' ? 'As on' : 'To')->live()->required()

@@ -9,10 +9,12 @@ use App\Domain\Messaging\SenderIdentities;
 use App\Domain\Saas\PlatformCompany;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\Customer;
 use App\Models\Entity;
 use App\Models\LoginAccount;
 use App\Models\Usage\ServiceUsage;
+use App\Support\Locales;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Grid;
@@ -34,7 +36,7 @@ use Illuminate\Support\Facades\DB;
  */
 class SenderIdentitiesPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-identification';
 
@@ -117,7 +119,7 @@ class SenderIdentitiesPage extends Page
                     $arguments['channel'] === 'whatsapp' ? TextInput::make('access_token')->label(__('Its own access token (only if in another business account)'))->password()->revealable(false)
                         ->placeholder(__('Empty: the platform\'s token'))->hidden(fn (Get $get) => (bool) $get('platform_sender')) : null,
                     TextInput::make('provider')->required()->maxLength(60),
-                    Select::make('status')->options(\App\Support\Locales::options(SenderIdentities::STATUSES))->required(),
+                    Select::make('status')->options(Locales::options(SenderIdentities::STATUSES))->required(),
                     TextInput::make('language')->label(__('Default language'))->maxLength(10)->default('en'),
                     $arguments['channel'] === 'whatsapp' ? TagsInput::make('templates')->label(__('Approved templates (first = default; empty: the platform\'s)'))->columnSpanFull() : null,
                 ]))),

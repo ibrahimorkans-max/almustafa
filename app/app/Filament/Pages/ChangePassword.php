@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Auth\SessionService;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\TextInput;
@@ -25,9 +26,8 @@ use Illuminate\Validation\ValidationException;
  */
 class ChangePassword extends Page implements HasForms
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithForms;
+    use TranslatesLabels;
 
     protected static ?string $slug = 'change-password';
 

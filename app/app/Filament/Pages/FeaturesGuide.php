@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
+use App\Filament\Concerns\TranslatesLabels;
 use App\Providers\Filament\AdminPanelProvider;
 use App\Support\FeatureDescriptions;
 use Filament\Facades\Filament;
@@ -15,7 +16,7 @@ use Filament\Pages\Page;
  */
 class FeaturesGuide extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-question-mark-circle';
 

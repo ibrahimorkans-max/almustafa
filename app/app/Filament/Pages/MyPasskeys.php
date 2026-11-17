@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Domain\Auth\PasskeyService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\LoginAccount;
 use App\Models\Passkey;
 use Filament\Facades\Filament;
@@ -21,7 +22,7 @@ use Illuminate\Support\Collection;
  */
 class MyPasskeys extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $slug = 'passkeys';
 

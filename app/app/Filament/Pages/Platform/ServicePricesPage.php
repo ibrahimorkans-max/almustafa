@@ -8,12 +8,14 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Saas\PlatformCompany;
 use App\Domain\Tenancy\TenantContext;
 use App\Domain\Usage\UsageReport;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\Customer;
 use App\Models\LoginAccount;
 use App\Models\Usage\ProviderExpense;
 use App\Models\Usage\ServicePrice;
 use App\Models\Usage\ServiceUsage;
 use App\Models\Usage\UsageStatement;
+use App\Support\Locales;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -38,9 +40,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class ServicePricesPage extends Page implements HasTable
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithTable;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-receipt-percent';
 
@@ -98,12 +99,12 @@ class ServicePricesPage extends Page implements HasTable
             ->modalDescription(__('A new price from its date; the earlier price stays for the usage before it. TOTAL = QUANTITY × UNIT PRICE.'))
             ->form([
                 Grid::make(3)->schema([
-                    Select::make('channel')->options(\App\Support\Locales::options(ServiceUsage::CHANNELS))->required(),
+                    Select::make('channel')->options(Locales::options(ServiceUsage::CHANNELS))->required(),
                     TextInput::make('provider')->label(__('Provider (* = any)'))->default('*')->required()->maxLength(60)
                         ->datalist(['*', 'OpenRouter', 'OpenAI', 'Google Gemini', 'WhatsApp Cloud (Meta)', 'Firebase Cloud Messaging', 'Gmail API', 'Microsoft Graph', 'Twilio']),
                     TextInput::make('service')->label(__('Service (* = any)'))->default('*')->required()->maxLength(80),
-                    Select::make('customer_id')->label(__('For'))->options(\App\Support\Locales::options(self::companies()))->placeholder(__('Every company'))->searchable(),
-                    Select::make('model')->label(__('Pricing'))->options(\App\Support\Locales::options(ServicePrice::MODELS))->default('pay_per_use')->required(),
+                    Select::make('customer_id')->label(__('For'))->options(Locales::options(self::companies()))->placeholder(__('Every company'))->searchable(),
+                    Select::make('model')->label(__('Pricing'))->options(Locales::options(ServicePrice::MODELS))->default('pay_per_use')->required(),
                     DatePicker::make('effective_from')->label(__('From'))->default(now('Asia/Karachi')->toDateString())->required(),
                     TextInput::make('unit_price')->label(__('Cost per unit'))->numeric()->minValue(0)->required(),
                     TextInput::make('charge_price')->label(__('Charged to the company per unit (empty: same)'))->numeric()->minValue(0),
@@ -137,7 +138,7 @@ class ServicePricesPage extends Page implements HasTable
             ->form([
                 Grid::make(2)->schema([
                     TextInput::make('provider')->required()->maxLength(60),
-                    Select::make('channel')->options(\App\Support\Locales::options(ServiceUsage::CHANNELS)),
+                    Select::make('channel')->options(Locales::options(ServiceUsage::CHANNELS)),
                     DatePicker::make('period')->label(__('Month billed (any day of it)'))->required(),
                     TextInput::make('amount')->numeric()->minValue(0)->required(),
                     Select::make('currency')->options(['PKR' => __('PKR'), 'USD' => __('USD')])->default('PKR')->required(),

@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Domain\Messaging\Integrations;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\LoginAccount;
 use App\Models\WhatsAppEvent;
 use Filament\Actions\Action;
@@ -26,7 +27,7 @@ use Illuminate\Support\Collection;
  */
 class WhatsAppWebhookPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-arrows-right-left';
 

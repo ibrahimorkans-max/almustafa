@@ -10,6 +10,7 @@ use App\Domain\Auth\SessionService;
 use App\Domain\Saas\PlatformCompany;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\AuditLog;
 use App\Models\AuthSession;
 use App\Models\Customer;
@@ -39,7 +40,7 @@ use Illuminate\Validation\Rules\Password;
  */
 class PlatformUsersPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
 

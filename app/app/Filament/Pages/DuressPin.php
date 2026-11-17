@@ -6,6 +6,7 @@ namespace App\Filament\Pages;
 
 use App\Domain\Security\DuressService;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\TextInput;
@@ -23,9 +24,8 @@ use Filament\Pages\Page;
  */
 class DuressPin extends Page implements HasForms
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithForms;
+    use TranslatesLabels;
 
     protected static ?string $slug = 'duress-pin';
 

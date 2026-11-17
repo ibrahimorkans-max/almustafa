@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
+use App\Filament\Concerns\TranslatesLabels;
 use App\Livewire\Concerns\TalksToAssistant;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
@@ -16,9 +17,8 @@ use Filament\Pages\Page;
  */
 class AssistantPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use TalksToAssistant;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
 

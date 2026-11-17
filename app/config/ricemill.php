@@ -52,11 +52,21 @@ return [
         // Idle timeout for web sessions (minutes); the absolute limit is the role's session_max_minutes.
         'web_idle_minutes' => (int) env('RICEMILL_WEB_IDLE_MINUTES', 30),
 
-        // A new user's first sign-in: its IP, place and device are kept, an e-mail address is confirmed by a link
+        // A new user's first sign-in: its IP, place and device are kept, an e-mail address is confirmed by a code
         // sent to it and the user fills in their own details before any screen opens. Needs mail to be set up (MAIL_*).
         'first_sign_in_check' => (bool) env('RICEMILL_FIRST_SIGN_IN_CHECK', true),
-        // How long the link in the verification e-mail works (minutes).
-        'email_verify_minutes' => (int) env('RICEMILL_EMAIL_VERIFY_MINUTES', 60),
+        // How long the code in the verification e-mail works (minutes).
+        'email_verify_minutes' => (int) env('RICEMILL_EMAIL_VERIFY_MINUTES', 15),
+        // The first sign-in is approved by somebody already signed in who may manage devices (QR code + number).
+        'first_sign_in_approval' => (bool) env('RICEMILL_FIRST_SIGN_IN_APPROVAL', true),
+        // A web sign-in from a network the login may not use is held until it is proven (e-mail code, else QR
+        // approval) and the network is then added; off: refused as before.
+        'new_network_check' => (bool) env('RICEMILL_NEW_NETWORK_CHECK', true),
+        // "Forgot your password?" on the sign-in page, for the SaaS owner, Owners and Super Admins (code by e-mail).
+        'password_reset' => (bool) env('RICEMILL_PASSWORD_RESET', true),
+        // The SaaS owner, Owners and Super Admins must have an e-mail (the only address security codes go to) and a
+        // mobile number: required on their login, and asked for after signing in until given.
+        'require_security_contact' => (bool) env('RICEMILL_REQUIRE_SECURITY_CONTACT', true),
 
         'recovery_codes' => 10,
         'password_min_length' => 12,

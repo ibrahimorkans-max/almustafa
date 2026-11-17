@@ -6,6 +6,7 @@ namespace App\Filament\Pages;
 
 use App\Domain\Gate\GatePolicy;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Resources\Gate\GateEntryResource;
 use App\Filament\Support\QuickLabTest;
 use App\Models\Gate\GateEntry;
@@ -28,9 +29,8 @@ use Livewire\Attributes\Locked;
  */
 class LabTestEntryPage extends Page implements HasForms
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithForms;
+    use TranslatesLabels;
 
     /** The vehicle comes as ?entry=…; without one, the page points to the list of lab tests to add. */
     protected static ?string $slug = 'gate/lab-test';

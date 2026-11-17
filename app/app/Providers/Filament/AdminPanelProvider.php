@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers\Filament;
 
 use App\Domain\Assistant\Prerequisites;
+use App\Filament\Pages\Auth\ForgotPassword;
 use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\ChangePassword;
 use App\Filament\Pages\Dashboard;
@@ -87,6 +88,10 @@ class AdminPanelProvider extends PanelProvider
             ->collapsedSidebarWidth('4.5rem')
             ->sidebarCollapsibleOnDesktop()
             ->login(Login::class)
+            // "Forgot your password?": the SaaS owner, Owners and Super Admins only (App\Domain\Auth\PasswordReset).
+            ->routes(fn () => Route::get('/forgot-password', ForgotPassword::class)
+                ->middleware('throttle:30,1')->name('auth.forgot-password'))
+            ->renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_AFTER, fn () => view('filament.hooks.forgot-password-link'))
             ->authGuard('web')
             ->databaseNotifications()
             ->colors(['primary' => Color::hex(config('ricemill.product.green')), 'warning' => Color::hex(config('ricemill.product.gold'))])

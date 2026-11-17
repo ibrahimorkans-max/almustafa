@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Domain\Security\GeoIp;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\AuditLog;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
@@ -23,9 +24,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class SignInAttempts extends Page implements HasTable
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithTable;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-shield-exclamation';
 

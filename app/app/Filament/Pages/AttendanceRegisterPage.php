@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Domain\Hr\Attendance\AttendanceRegister;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Resources\Hr\HrScope;
 use App\Filament\Support\ExportGuard;
 use App\Http\Controllers\ReportPrintController;
@@ -17,7 +18,7 @@ use Filament\Pages\Page;
 /** Month × employees: P / ½P / A / L / ½L / HO / WO / MO, with totals. */
 class AttendanceRegisterPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-table-cells';
 

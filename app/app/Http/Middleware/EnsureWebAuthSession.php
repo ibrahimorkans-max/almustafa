@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Auth\IpAllowlistPolicy;
+use App\Domain\Auth\NewNetwork;
 use App\Domain\Auth\SessionService;
 use App\Domain\Saas\CustomerAccess;
 use App\Domain\Saas\PaymentGate;
@@ -34,12 +35,16 @@ final class EnsureWebAuthSession
 
     public const WORKING_ENTITY_KEY = 'working_entity_id';
 
+    /** The only screen of a sign-in held for a new network (App\Domain\Auth\NewNetwork). */
+    public const NEW_NETWORK_ROUTE = 'filament.admin.pages.new-network';
+
     /** Route names reachable while 2FA enrollment / password change is pending. */
     private const ALWAYS_ALLOWED = [
         'filament.admin.auth.logout',
         'filament.admin.pages.two-factor',
         'filament.admin.pages.change-password',
         'filament.admin.pages.first-sign-in',
+        'filament.admin.pages.security-email',
     ];
 
     public function __construct(
@@ -83,7 +88,17 @@ final class EnsureWebAuthSession
             return $this->endSession($request, $ownSession ? $session : null, 'expired_or_revoked');
         }
 
-        if (! $this->ipAllowlist->allows($account, $request->ip())) {
+        // Signed in from a new network: held on "Verify this new network", with no rights, until it is proven.
+        $held = $session->network_pending_at !== null;
+        if ($held) {
+            $request->attributes->set(NewNetwork::HELD, true);
+            if (! $request->is('livewire/*')) {
+                $route = $request->route()?->getName();
+                if ($route !== self::NEW_NETWORK_ROUTE && $route !== 'filament.admin.auth.logout') {
+                    return redirect()->route(self::NEW_NETWORK_ROUTE);
+                }
+            }
+        } elseif (! $this->ipAllowlist->allows($account, $request->ip())) {
             $this->sessions->revoke($session, 'ip_not_allowed');
 
             return $this->endSession($request, null, 'ip_not_allowed');
@@ -102,6 +117,9 @@ final class EnsureWebAuthSession
         }
 
         $this->sessions->touch($session);
+        if ($held) {
+            return $next($request);   // only the new-network screen (no rights), nothing else asked yet
+        }
 
         $route = $request->route()?->getName();
         $livewire = $request->is('livewire/*');
@@ -115,6 +133,10 @@ final class EnsureWebAuthSession
             }
             if ($account->must_change_password) {
                 return redirect()->route('filament.admin.pages.change-password');
+            }
+            // The SaaS owner, Owners and Super Admins must have an e-mail (every security code goes there) and a mobile.
+            if ($account->missingSecurityContact()) {
+                return redirect()->route('filament.admin.pages.security-email');
             }
         }
 

@@ -10,6 +10,7 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Documents\PdfRenderer;
 use App\Domain\Reports\CashBankBooks;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Support\ExportGuard;
 use App\Http\Controllers\ReportPrintController;
 use App\Models\Accounts\LedgerAccount;
@@ -17,6 +18,7 @@ use App\Models\Entity;
 use App\Models\LoginAccount;
 use App\Models\Masters\Godown;
 use App\Models\Masters\Product;
+use App\Support\Locales;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -37,9 +39,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class AccountsReports extends Page implements HasForms
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithForms;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-presentation-chart-line';
 
@@ -111,7 +112,7 @@ class AccountsReports extends Page implements HasForms
     public function form(Form $form): Form
     {
         return $form->columns(4)->statePath('data')->schema([
-            Select::make('report')->options(\App\Support\Locales::options(self::REPORTS))->required()->live()->selectablePlaceholder(false),
+            Select::make('report')->options(Locales::options(self::REPORTS))->required()->live()->selectablePlaceholder(false),
             Select::make('ledger')->label(__('Ledger'))->searchable()->live()
                 ->options(fn () => LedgerAccount::query()->orderBy('name')->get()->mapWithKeys(fn (LedgerAccount $l) => [$l->id => $l->displayName()]))
                 ->visible(fn (Get $get) => $get('report') === 'ledger'),

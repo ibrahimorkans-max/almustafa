@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Domain\Accounts\AccountReports;
 use App\Domain\Accounts\PartyStatementReport;
 use App\Domain\Saas\DataVisibility;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Support\ExportGuard;
 use App\Models\Accounts\LedgerAccount;
 use App\Models\Accounts\Voucher;
@@ -27,7 +28,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class PartyTransactionsPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-queue-list';
 

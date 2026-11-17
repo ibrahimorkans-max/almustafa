@@ -8,7 +8,9 @@ use App\Domain\Messaging\Gateways\FirebasePush;
 use App\Domain\Messaging\Gateways\WhatsAppCloud;
 use App\Domain\Messaging\Integrations;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\LoginAccount;
+use App\Support\Locales;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\FileUpload;
@@ -27,7 +29,7 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
  */
 class PlatformIntegrationsPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-link';
 
@@ -80,8 +82,8 @@ class PlatformIntegrationsPage extends Page
                         ->placeholder(fn () => $saved() ? 'Saved: leave empty to keep it' : '')->required(fn () => $saved() === null),
                     TextInput::make('template')->label(__('Message template name'))->required()->maxLength(100),
                     TextInput::make('language')->label(__('Template language code'))->required()->maxLength(10),
-                    \Filament\Forms\Components\Radio::make('name_in')->label(__('Each mill\'s name in its messages (one number sends for all)'))
-                        ->options(\App\Support\Locales::options(Integrations::NAME_IN))->default('body')->required(),
+                    Radio::make('name_in')->label(__('Each mill\'s name in its messages (one number sends for all)'))
+                        ->options(Locales::options(Integrations::NAME_IN))->default('body')->required(),
                     TextInput::make('doc_template')->label(__('Template for files (optional)'))->maxLength(100)->placeholder('mill_document')
                         ->helperText(__('An approved template whose header is a Document and whose body has one variable {{1}}. With it, files reach anyone; without it, only people who wrote in the last 24 hours.')),
                 ])

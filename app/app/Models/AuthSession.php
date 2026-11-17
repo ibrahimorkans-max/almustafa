@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $expires_at
  * @property Carbon|null $last_seen_at
  * @property Carbon|null $revoked_at
+ * @property Carbon|null $network_pending_at held until the new network it came from is proven (App\Domain\Auth\NewNetwork)
  * @property string|null $revoked_by
  * @property string|null $revoked_reason
  * @property Carbon $created_at
@@ -70,6 +71,7 @@ class AuthSession extends Model
             'expires_at' => 'datetime',
             'last_seen_at' => 'datetime',
             'revoked_at' => 'datetime',
+            'network_pending_at' => 'datetime',
             'latitude' => 'float',
             'longitude' => 'float',
             'location_accuracy_m' => 'integer',

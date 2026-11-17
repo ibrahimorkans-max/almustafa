@@ -12,10 +12,12 @@ use App\Domain\Auth\SessionService;
 use App\Domain\Security\DuressService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesResourceLabels;
 use App\Filament\Resources\LoginAccountResource\Pages;
 use App\Filament\Resources\LoginAccountResource\RelationManagers\IpAllowlistRelationManager;
 use App\Models\LoginAccount;
 use App\Models\Role;
+use App\Support\Values\PakistanIds;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
@@ -23,6 +25,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\Action;
@@ -39,7 +42,7 @@ use Illuminate\Validation\Rules\Password;
 
 class LoginAccountResource extends Resource
 {
-    use \App\Filament\Concerns\TranslatesResourceLabels;
+    use TranslatesResourceLabels;
 
     protected static ?string $model = LoginAccount::class;
 
@@ -83,13 +86,43 @@ class LoginAccountResource extends Resource
             ->all();
     }
 
+    /** Compulsory for the top roles (LoginAccount::isTopRole): the SaaS owner, Owners and Super Admins. */
+    private static function mustHaveContact(Get $get, ?LoginAccount $record): bool
+    {
+        return LoginAccount::isTopRoleId($get('role_id')) || ($record !== null && $record->isPlatformAdmin());
+    }
+
+    private static function emailField(string $name): TextInput
+    {
+        return TextInput::make($name)->label(__('E-mail'))->email()->maxLength(191)
+            ->required(fn (Get $get, ?LoginAccount $record) => self::mustHaveContact($get, $record))
+            ->helperText(__('Every security code (first sign-in, new network, forgotten password) goes only to this address. Compulsory for the SaaS owner, Owners and Super Admins.'));
+    }
+
+    private static function phoneField(string $name): TextInput
+    {
+        return TextInput::make($name)->label(__('Mobile number'))->tel()->maxLength(20)->placeholder('0300-1234567')
+            ->required(fn (Get $get, ?LoginAccount $record) => self::mustHaveContact($get, $record))
+            ->rule(fn () => function (string $attribute, mixed $value, \Closure $fail): void {
+                if (filled($value) && PakistanIds::normalizeMobile((string) $value) === null) {
+                    $fail(__('Enter your mobile number, e.g. 0300-1234567.'));
+                }
+            });
+    }
+
     public static function form(Form $form): Form
     {
         return $form->schema([
             Section::make(__('Person'))->columns(3)->visibleOn('create')->schema([
                 TextInput::make('full_name')->required()->maxLength(255),
-                TextInput::make('phone')->tel()->maxLength(20),
-                TextInput::make('email')->email()->maxLength(255),
+                self::phoneField('phone'),
+                self::emailField('email'),
+            ]),
+            // The e-mail every security code goes to (first sign-in, new network, forgotten password) and the mobile:
+            // compulsory for the SaaS owner, Owners and Super Admins. A changed e-mail is confirmed again by its next code.
+            Section::make(__('E-mail and mobile (security codes)'))->columns(2)->visibleOn('edit')->schema([
+                self::emailField('security_email'),
+                self::phoneField('security_phone'),
             ]),
             Section::make(__('Login account'))->columns(2)->schema([
                 TextInput::make('username')->required()->maxLength(64)
@@ -106,7 +139,7 @@ class LoginAccountResource extends Resource
                         }
                     })
                     ->disabledOn('edit'),
-                Select::make('role_id')->label(__('Role'))->required()
+                Select::make('role_id')->label(__('Role'))->required()->live()
                     ->options(fn () => static::assignableRoles())
                     ->in(fn () => array_keys(static::assignableRoles())),
                 TextInput::make('password')->label(__('Temporary password'))->password()->revealable()

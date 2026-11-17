@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Domain\Settings\SettingsService;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Radio;
@@ -21,9 +22,8 @@ use Filament\Pages\Page;
  */
 class SecuritySettings extends Page implements HasForms
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithForms;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
 

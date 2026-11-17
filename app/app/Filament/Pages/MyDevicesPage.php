@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Auth\DeviceService;
 use App\Domain\Settings\SettingsService;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\Device;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
@@ -26,9 +27,8 @@ use Filament\Tables\Table;
  */
 class MyDevicesPage extends Page implements HasTable
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithTable;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-computer-desktop';
 

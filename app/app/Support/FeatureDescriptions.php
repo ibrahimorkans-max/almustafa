@@ -136,6 +136,8 @@ final class FeatureDescriptions
         'SignInRules' => 'Decide which new devices need approval and where people may sign in.',
         'ScreenProtection' => 'Hide sensitive screens from screenshots and screen sharing.',
         'MyDevicesPage' => 'See the devices signed in to your account and remove old ones.',
+        'SecurityEmailPage' => 'Confirm the e-mail your security codes go to: for a sign-in from a new network or a forgotten password.',
+        'SignInApprovalPage' => 'Approve a new person\'s first sign-in: scan the QR code on their screen and pick the number it shows.',
         'FirstSignInPage' => 'Confirm your e-mail and details the first time you sign in.',
         // Platform (SaaS owner)
         'PlatformOverview' => 'See all customers, income and usage of the platform.',

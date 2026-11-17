@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\LoginAccount;
 use Filament\Facades\Filament;
 use Filament\GlobalSearch\GlobalSearchResults;
@@ -17,7 +18,7 @@ use Livewire\Attributes\Url;
  */
 class SearchResultsPage extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-magnifying-glass';
 

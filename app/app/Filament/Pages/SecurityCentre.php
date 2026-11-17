@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Domain\Security\Lockdown;
 use App\Domain\Security\MaintenanceService;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\Entity;
 use App\Models\LoginAccount;
 use Carbon\CarbonImmutable;
@@ -26,7 +27,7 @@ use Illuminate\Support\Facades\Cookie;
  */
 class SecurityCentre extends Page
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-shield-exclamation';
 

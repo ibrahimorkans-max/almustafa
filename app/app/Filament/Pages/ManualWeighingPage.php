@@ -8,6 +8,7 @@ use App\Domain\Access\RoleTemplates;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Gate\ManualWeighing;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Models\LoginAccount;
 use App\Models\Role;
 use Filament\Facades\Filament;
@@ -29,9 +30,8 @@ use Filament\Pages\Page;
  */
 class ManualWeighingPage extends Page implements HasForms
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use InteractsWithForms;
+    use TranslatesLabels;
 
     protected static ?string $navigationIcon = 'heroicon-o-pencil-square';
 
