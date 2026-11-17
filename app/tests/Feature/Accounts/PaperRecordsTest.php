@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Accounts\Books;
 use App\Domain\Accounts\ChartOfAccounts;
 use App\Domain\Accounts\PaperRecords;
+use App\Domain\Accounts\PaperRecordSheet;
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Inventory\StockLedger;
 use App\Domain\Shared\BusinessRuleViolation;
@@ -17,6 +18,7 @@ use App\Models\AuthSession;
 use App\Models\Masters\Party;
 use App\Models\Masters\Vehicle;
 use App\Models\PartyMessage;
+use App\Support\Export\XlsxWorkbook;
 use App\Support\Values\Weight;
 use Filament\Facades\Filament;
 use Livewire\Livewire;
@@ -198,7 +200,7 @@ it('is a screen under Accounts: add a record, download the template, open and ca
     Livewire::test(ListPaperRecords::class)
         ->callAction('add', ['kind' => 'opening_party', 'date' => '2025-06-30', 'party_id' => $this->f->inv->gate->seller->id, 'side' => 'receivable', 'amount' => '1000'])
         ->assertHasNoActionErrors()->assertNotified()
-        ->callAction('template')->assertFileDownloaded('old-records-template.csv')
+        ->callAction('template')->assertFileDownloaded('old-records.xlsx')
         ->callAction('add', ['kind' => 'payment', 'date' => '2025-07-11', 'party_id' => $this->f->inv->gate->seller->id, 'amount' => '5000',
             'cash_bank_id' => $this->f->bank->id, 'payment_mode' => 'cheque', 'reference' => '778899', 'cheque_date' => '2025-07-11', 'handled_by' => 'Munshi'])
         ->assertHasNoActionErrors()
@@ -218,16 +220,16 @@ it('is a screen under Accounts: add a record, download the template, open and ca
 
 it('imports the easy Excel sheet: plain column names, values from its lists, and vehicle details on any record', function () {
     // The template: the sheet to fill (plain names), the guide, examples and the lists.
-    $template = \App\Domain\Accounts\PaperRecordSheet::template();
-    expect(\App\Domain\Accounts\PaperRecordSheet::rows($template)[0])->toBe(array_values(\App\Domain\Accounts\PaperRecordSheet::HEADERS));
+    $template = PaperRecordSheet::template();
+    expect(PaperRecordSheet::rows($template)[0])->toBe(array_values(PaperRecordSheet::HEADERS));
 
-    $headers = \App\Domain\Accounts\PaperRecordSheet::HEADERS;
+    $headers = PaperRecordSheet::HEADERS;
     $row = fn (array $values) => array_map(fn (string $c) => $values[$c] ?? null, array_keys($headers));
-    $file = (new \App\Support\Export\XlsxWorkbook)->addSheet('Old records', array_values($headers), [
+    $file = (new XlsxWorkbook)->addSheet('Old records', array_values($headers), [
         $row(['kind' => 'Money received', 'date' => '12/07/2025', 'party' => 'Haji Aslam', 'amount' => '150000', 'cash_bank' => $this->f->bank->name,
             'payment_mode' => 'IBFT (online transfer)', 'reference' => 'TXN 88213']),
         $row(['kind' => 'Payment to party', 'date' => '13/07/2025', 'party' => 'Haji Aslam', 'amount' => '6000', 'payment_mode' => 'Cash',
-            'vehicle' => 'MNA-21-1234', 'vehicle_type' => \App\Models\Masters\Vehicle::typeLabel('truck'), 'driver_name' => 'Muhammad Akram',
+            'vehicle' => 'MNA-21-1234', 'vehicle_type' => Vehicle::typeLabel('truck'), 'driver_name' => 'Muhammad Akram',
             'driver_cnic' => '36302-1234567-1', 'vehicle_owner' => 'Rana Transport', 'from_place' => 'Kahror Pakka', 'to_place' => 'Lodhran', 'freight' => '6,000']),
     ])->toString();
 

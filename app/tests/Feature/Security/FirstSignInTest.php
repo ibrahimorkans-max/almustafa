@@ -2,13 +2,20 @@
 
 declare(strict_types=1);
 
+use App\Domain\Auth\AuthContextBinder;
+use App\Domain\Auth\DeviceInfo;
 use App\Domain\Auth\FirstSignIn;
+use App\Domain\Auth\IpAllowlistPolicy;
+use App\Domain\Auth\LoginService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Mail\FirstSignInVerificationMail;
 use App\Models\AuthSession;
+use App\Models\Device;
+use App\Models\IpAllowlistEntry;
 use App\Models\LoginAccount;
 use App\Models\Person;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Tests\Support\Make;
 
 beforeEach(function () {
@@ -92,4 +99,43 @@ it('leaves weighbridge PC logins, party logins and users who finished alone', fu
 
     config(['ricemill.auth.first_sign_in_check' => false]);
     expect(fsiAccount(Make::account($entity, 'SUPER_ADMIN', ['mfa' => true]))->needsFirstSignIn())->toBeFalse();
+});
+
+it('lets a new Owner finish the first sign-in from an unlisted network and a new device, then keeps both as theirs', function () {
+    config(['ricemill.security.super_admin_require_ip_allowlist' => true, 'ricemill.security.super_admin_require_trusted_device' => true]);
+    $entity = Make::entity('FSO');
+    $owner = Make::account($entity, 'OWNER', ['mfa' => true]);
+    $policy = app(IpAllowlistPolicy::class);
+    expect($policy->allows(fsiAccount($owner), '149.40.161.14'))->toBeTrue();
+
+    // A device nobody approved yet: admitted for the first sign-in only.
+    app(AuthContextBinder::class)->bind(fsiAccount($owner));
+    $auth = app(LoginService::class)->completeLogin(fsiAccount($owner), AuthSession::CHANNEL_WEB,
+        new DeviceInfo((string) Str::uuid(), 'web', 'Chrome on Windows'), '149.40.161.14', 'pest', true);
+    Make::reset();
+
+    app(FirstSignIn::class)->sendVerification(fsiAccount($owner), 'owner@example.com');
+    Mail::assertSent(FirstSignInVerificationMail::class, function (FirstSignInVerificationMail $mail) {
+        $this->get($mail->url)->assertOk();
+
+        return true;
+    });
+    app(FirstSignIn::class)->complete(fsiAccount($owner), ['full_name' => 'Firdous Amr', 'phone' => '0300-1234567'], $auth);
+
+    $owner = fsiAccount($owner);
+    expect($owner->needsFirstSignIn())->toBeFalse()
+        ->and(Make::system(fn () => Device::query()->withoutGlobalScopes()->find($auth->device_id))->isTrusted())->toBeTrue()
+        ->and(Make::system(fn () => IpAllowlistEntry::query()->withoutGlobalScopes()->where('login_account_id', $owner->id)->pluck('cidr')->all()))
+        ->toBe(['149.40.161.0/24'])
+        ->and(Make::system(fn () => $policy->allows($owner, '149.40.161.200')))->toBeTrue()
+        ->and(Make::system(fn () => $policy->allows($owner, '8.8.8.8')))->toBeFalse();
+});
+
+it('keeps a finished Owner without listed networks out when the allow-list is required', function () {
+    config(['ricemill.security.super_admin_require_ip_allowlist' => true]);
+    $owner = Make::account(Make::entity('FSL'), 'OWNER', ['mfa' => true]);
+    Make::system(fn () => LoginAccount::query()->withoutGlobalScopes()->whereKey($owner->id)->update(['first_sign_in_completed_at' => now()]));
+
+    expect(app(IpAllowlistPolicy::class)->allows(fsiAccount($owner), '149.40.161.14'))->toBeFalse()
+        ->and(FirstSignIn::network('2001:db8:1:2:3:4:5:6'))->toBe('2001:db8:1:2::/64');
 });

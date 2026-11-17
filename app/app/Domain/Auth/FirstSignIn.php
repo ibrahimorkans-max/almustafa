@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Domain\Auth;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Security\SecurityNotifier;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Mail\FirstSignInVerificationMail;
 use App\Models\AuthSession;
+use App\Models\Device;
+use App\Models\IpAllowlistEntry;
 use App\Models\LoginAccount;
 use App\Models\Person;
 use App\Support\Values\PakistanIds;
@@ -114,7 +117,7 @@ final class FirstSignIn
      *
      * @param  array{full_name: string, phone: string}  $details
      */
-    public function complete(LoginAccount $account, array $details): void
+    public function complete(LoginAccount $account, array $details, ?AuthSession $session = null): void
     {
         if ($account->email_verified_at === null) {
             throw new BusinessRuleViolation('Confirm your e-mail address first: press the button in the e-mail.');
@@ -135,6 +138,58 @@ final class FirstSignIn
         });
         $this->write($account, ['first_sign_in_completed_at' => now()]);
         $this->audit->record('auth.first_sign_in.completed', $account);
+        if ($session !== null) {
+            $this->secureFirstPlace($account, $session);
+        }
+    }
+
+    /**
+     * The device and network the first sign-in was finished on (e-mail confirmed) are the person's own from now
+     * on: the device is approved when one must be and none is yet, and an Owner who must use listed networks gets
+     * this one (its /24, or /64 for IPv6: home and mobile addresses change within it). The other Owners are told.
+     */
+    private function secureFirstPlace(LoginAccount $account, AuthSession $session): void
+    {
+        $done = [];
+        $this->tenant->runAsSystem(function () use ($account, $session, &$done): void {
+            $devices = app(DeviceService::class);
+            $device = $session->device_id !== null ? Device::query()->withoutGlobalScopes()->find($session->device_id) : null;
+            if ($device !== null && ! $device->isTrusted() && $device->login_account_id === $account->id && $devices->requiresTrustedDevice($account, $device)
+                && ! Device::query()->withoutGlobalScopes()->where('login_account_id', $account->id)->whereNotNull('trusted_at')->exists()) {
+                $devices->trust($device, null, 'first_sign_in_email_verified');
+                $done[] = 'device '.($device->name ?? $device->platform).' approved';
+            }
+            $ip = $session->ip;
+            if ($ip !== null && $account->isOwner() && config('ricemill.security.super_admin_require_ip_allowlist')
+                && ! IpAllowlistEntry::query()->withoutGlobalScopes()->where('login_account_id', $account->id)->exists()) {
+                $cidr = self::network($ip);
+                IpAllowlistEntry::query()->create([
+                    'entity_id' => $account->entity_id, 'login_account_id' => $account->id, 'cidr' => $cidr,
+                    'note' => 'Added at the first sign-in (e-mail confirmed)',
+                ]);
+                $done[] = "network {$cidr} allowed";
+            }
+        });
+        if ($done !== []) {
+            $this->audit->record('auth.first_sign_in.secured', $account, meta: ['done' => $done, 'ip' => $session->ip]);
+            app(SecurityNotifier::class)->owners($account->entity_id, "First sign-in finished: {$account->username}",
+                "{$account->username} confirmed their e-mail from {$session->ip}: ".implode(', ', $done).'. If this was not them, suspend the login.',
+                includeOwners: true);
+        }
+    }
+
+    /** The network an address belongs to: x.y.z.0/24 for IPv4, the /64 for IPv6. */
+    public static function network(string $ip): string
+    {
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
+            return implode('.', array_slice(explode('.', $ip), 0, 3)).'.0/24';
+        }
+        $bin = inet_pton($ip);
+        if ($bin === false) {
+            return $ip;
+        }
+
+        return inet_ntop(substr($bin, 0, 8).str_repeat("\0", 8)).'/64';
     }
 
     /** @param  array<string, mixed>  $values */
