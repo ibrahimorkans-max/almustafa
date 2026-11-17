@@ -16,6 +16,8 @@ use Illuminate\Validation\ValidationException;
 /** HR requests an advance or loan; a different person approves it before it is paid out. */
 class CreateAdvance extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = AdvanceResource::class;
 
     protected static ?string $title = 'Request advance or loan';

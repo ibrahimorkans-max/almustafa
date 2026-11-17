@@ -30,6 +30,8 @@ use Illuminate\Database\Eloquent\Builder;
 /** Expense and income categories, each posted to one ledger; staff claims choose from the claimable ones. */
 class ExpenseCategoryResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = ExpenseCategory::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-tag';
@@ -49,14 +51,14 @@ class ExpenseCategoryResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            TextInput::make('code')->required()->maxLength(20)->regex('/^[A-Za-z][A-Za-z0-9_]{1,19}$/')->helperText('2–20 letters, digits or _'),
+            TextInput::make('code')->required()->maxLength(20)->regex('/^[A-Za-z][A-Za-z0-9_]{1,19}$/')->helperText(__('2–20 letters, digits or _')),
             TextInput::make('name')->required()->maxLength(120),
-            Select::make('kind')->options(self::KINDS)->default('expense')->required()->live(),
-            Select::make('ledger_account_id')->label('Ledger')->required()->searchable()
+            Select::make('kind')->options(\App\Support\Locales::options(self::KINDS))->default('expense')->required()->live(),
+            Select::make('ledger_account_id')->label(__('Ledger'))->required()->searchable()
                 ->options(fn (Get $get) => LedgerAccount::query()->where('status', 'active')
                     ->whereHas('group', fn (Builder $query) => $query->where('nature', $get('kind') ?? 'expense'))
                     ->orderBy('name')->get()->mapWithKeys(fn (LedgerAccount $l) => [$l->id => "{$l->code} {$l->name}"])->all()),
-            Toggle::make('claimable')->label('Staff may claim it')->default(true)->visible(fn (Get $get) => $get('kind') === 'expense'),
+            Toggle::make('claimable')->label(__('Staff may claim it'))->default(true)->visible(fn (Get $get) => $get('kind') === 'expense'),
         ]);
     }
 
@@ -68,25 +70,25 @@ class ExpenseCategoryResource extends Resource
                 TextColumn::make('code')->searchable()->sortable(),
                 TextColumn::make('name')->searchable(),
                 TextColumn::make('kind')->badge()->formatStateUsing(fn (string $state) => self::KINDS[$state] ?? $state),
-                TextColumn::make('ledger.name')->label('Ledger'),
-                IconColumn::make('claimable')->label('Claimable')->boolean(),
+                TextColumn::make('ledger.name')->label(__('Ledger')),
+                IconColumn::make('claimable')->label(__('Claimable'))->boolean(),
                 TextColumn::make('status')->badge(),
             ])
             ->defaultSort('code')->paginationPageOptions([25, 50, 100])->defaultPaginationPageOption(25)
-            ->filters([SelectFilter::make('kind')->options(self::KINDS)])
+            ->filters([SelectFilter::make('kind')->options(\App\Support\Locales::options(self::KINDS))])
             ->actions([
-                Action::make('budget')->label('Budget')->icon('heroicon-o-calculator')->color('gray')
+                Action::make('budget')->label(__('Budget'))->icon('heroicon-o-calculator')->color('gray')
                     ->visible(fn () => Filament::auth()->user() instanceof LoginAccount && Filament::auth()->user()->hasPermission('ledger.post'))
                     ->form([
                         TextInput::make('month')->required()->regex('/^\d{4}-(0[1-9]|1[0-2])$/')->default(fn () => now('Asia/Karachi')->format('Y-m'))->live(),
-                        TextInput::make('amount')->label('Budget (Rs)')->required()->regex(Units::DECIMAL_2)
+                        TextInput::make('amount')->label(__('Budget (Rs)'))->required()->regex(Units::DECIMAL_2)
                             ->helperText(fn (ExpenseCategory $record, Get $get) => ($b = ExpenseBudget::query()->where('expense_category_id', $record->id)
                                 ->where('month', (string) $get('month'))->value('amount_paise')) !== null ? 'Now: '.Units::paiseToRupees((int) $b) : 'No budget yet for this month.'),
                     ])
                     ->action(function (ExpenseCategory $record, array $data): void {
                         try {
                             app(Expenses::class)->setBudget($record, (string) $data['month'], Units::rupeesToPaise((string) $data['amount']));
-                            Notification::make()->title("Budget for {$data['month']} saved.")->success()->send();
+                            Notification::make()->title(__('Budget for :month saved.', ['month' => $data['month']]))->success()->send();
                         } catch (BusinessRuleViolation $e) {
                             Notification::make()->title($e->getMessage())->danger()->send();
                         }

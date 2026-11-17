@@ -9,7 +9,7 @@
     <x-filament::section>
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <div class="text-xs uppercase tracking-wide text-gray-500">Your account</div>
+                <div class="text-xs uppercase tracking-wide text-gray-500">{{ __('Your account') }}</div>
                 <div class="text-2xl font-bold {{ $st['balance'] < 0 ? 'text-success-600' : ($st['balance'] > 0 ? 'text-danger-600' : '') }}">{{ $st['standing'] }}</div>
             </div>
             <div class="flex gap-2">
@@ -59,12 +59,12 @@
                         } catch (e) { this.state = 'error'; }
                     },
                 }" class="flex flex-wrap items-center gap-3 text-sm">
-                <x-filament::button icon="heroicon-o-bell-alert" x-on:click="turnOn()" x-bind:disabled="state === 'working'">Get notifications on this device</x-filament::button>
-                <span x-show="state === 'on'" class="text-success-600">Notifications are on for this device.</span>
-                <span x-show="state === 'denied'" class="text-danger-600">Notifications are blocked: allow them for this site in the browser settings.</span>
-                <span x-show="state === 'unsupported'" class="text-gray-500">This browser cannot show notifications.</span>
-                <span x-show="state === 'error'" class="text-danger-600">Could not turn notifications on. Try again.</span>
-                <span x-show="state === 'off'" class="text-gray-500">Your vehicles, payments and bills will appear as notifications.</span>
+                <x-filament::button icon="heroicon-o-bell-alert" x-on:click="turnOn()" x-bind:disabled="state === 'working'">{{ __('Get notifications on this device') }}</x-filament::button>
+                <span x-show="state === 'on'" class="text-success-600">{{ __('Notifications are on for this device.') }}</span>
+                <span x-show="state === 'denied'" class="text-danger-600">{{ __('Notifications are blocked: allow them for this site in the browser settings.') }}</span>
+                <span x-show="state === 'unsupported'" class="text-gray-500">{{ __('This browser cannot show notifications.') }}</span>
+                <span x-show="state === 'error'" class="text-danger-600">{{ __('Could not turn notifications on. Try again.') }}</span>
+                <span x-show="state === 'off'" class="text-gray-500">{{ __('Your vehicles, payments and bills will appear as notifications.') }}</span>
             </div>
         </x-filament::section>
     @endif
@@ -73,7 +73,7 @@
         <div class="overflow-x-auto">
             @if ($tab === 'vehicles')
                 <table class="w-full">
-                    <thead><tr><th class="{{ $th }}">Date</th><th class="{{ $th }}">Token</th><th class="{{ $th }}">Vehicle</th><th class="{{ $th }}">Item</th><th class="{{ $th }} text-right">Loaded kg</th><th class="{{ $th }} text-right">Empty kg</th><th class="{{ $th }} text-right">Net kg</th><th class="{{ $th }} text-right">Payable kg</th><th class="{{ $th }}">Lab</th><th class="{{ $th }}">Status</th></tr></thead>
+                    <thead><tr><th class="{{ $th }}">{{ __('Date') }}</th><th class="{{ $th }}">{{ __('Token') }}</th><th class="{{ $th }}">{{ __('Vehicle') }}</th><th class="{{ $th }}">{{ __('Item') }}</th><th class="{{ $th }} text-right">{{ __('Loaded kg') }}</th><th class="{{ $th }} text-right">{{ __('Empty kg') }}</th><th class="{{ $th }} text-right">{{ __('Net kg') }}</th><th class="{{ $th }} text-right">{{ __('Payable kg') }}</th><th class="{{ $th }}">{{ __('Lab') }}</th><th class="{{ $th }}">{{ __('Status') }}</th></tr></thead>
                     <tbody>
                         @forelse ($st['vehicles'] as $v)
                             <tr class="border-t border-gray-100 dark:border-white/5">
@@ -89,13 +89,13 @@
                                 <td class="{{ $td }}">{{ $v['status'] }}</td>
                             </tr>
                         @empty
-                            <tr><td class="{{ $td }} text-gray-500" colspan="10">No vehicles yet.</td></tr>
+                            <tr><td class="{{ $td }} text-gray-500" colspan="10">{{ __('No vehicles yet.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             @elseif ($tab === 'entries')
                 <table class="w-full">
-                    <thead><tr><th class="{{ $th }}">Date</th><th class="{{ $th }}">Entry</th><th class="{{ $th }}">Details</th><th class="{{ $th }} text-right">You owe (debit)</th><th class="{{ $th }} text-right">We owe (credit)</th><th class="{{ $th }} text-right">Balance</th></tr></thead>
+                    <thead><tr><th class="{{ $th }}">{{ __('Date') }}</th><th class="{{ $th }}">{{ __('Entry') }}</th><th class="{{ $th }}">{{ __('Details') }}</th><th class="{{ $th }} text-right">{{ __('You owe (debit)') }}</th><th class="{{ $th }} text-right">{{ __('We owe (credit)') }}</th><th class="{{ $th }} text-right">{{ __('Balance') }}</th></tr></thead>
                     <tbody>
                         @forelse ($st['entries'] as $e)
                             <tr class="border-t border-gray-100 dark:border-white/5">
@@ -107,13 +107,13 @@
                                 <td class="{{ $td }} text-right">{{ $e['balance'] < 0 ? 'We owe '.$money(-$e['balance']) : ($e['balance'] > 0 ? 'You owe '.$money($e['balance']) : 'Settled') }}</td>
                             </tr>
                         @empty
-                            <tr><td class="{{ $td }} text-gray-500" colspan="6">No account entries yet.</td></tr>
+                            <tr><td class="{{ $td }} text-gray-500" colspan="6">{{ __('No account entries yet.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             @else
                 <table class="w-full">
-                    <thead><tr><th class="{{ $th }}">Date</th><th class="{{ $th }}">Bill</th><th class="{{ $th }}">Kind</th><th class="{{ $th }}">Due</th><th class="{{ $th }} text-right">Amount</th><th class="{{ $th }} text-right">Still open</th></tr></thead>
+                    <thead><tr><th class="{{ $th }}">{{ __('Date') }}</th><th class="{{ $th }}">{{ __('Bill') }}</th><th class="{{ $th }}">{{ __('Kind') }}</th><th class="{{ $th }}">{{ __('Due') }}</th><th class="{{ $th }} text-right">{{ __('Amount') }}</th><th class="{{ $th }} text-right">{{ __('Still open') }}</th></tr></thead>
                     <tbody>
                         @forelse ($st['bills'] as $b)
                             <tr class="border-t border-gray-100 dark:border-white/5">
@@ -125,7 +125,7 @@
                                 <td class="{{ $td }} text-right">{{ $b['open'] ? $money($b['open']) : 'Paid' }}</td>
                             </tr>
                         @empty
-                            <tr><td class="{{ $td }} text-gray-500" colspan="6">No bills yet.</td></tr>
+                            <tr><td class="{{ $td }} text-gray-500" colspan="6">{{ __('No bills yet.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>

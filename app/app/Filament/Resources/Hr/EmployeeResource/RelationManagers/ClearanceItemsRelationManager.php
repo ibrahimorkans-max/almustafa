@@ -40,14 +40,14 @@ class ClearanceItemsRelationManager extends RelationManager
         return $table
             ->columns([
                 TextColumn::make('item'),
-                TextColumn::make('done_at')->label('Cleared')->dateTime('d M Y H:i')->placeholder('open'),
-                TextColumn::make('done_by')->label('By')->placeholder('—')
+                TextColumn::make('done_at')->label(__('Cleared'))->dateTime('d M Y H:i')->placeholder('open'),
+                TextColumn::make('done_by')->label(__('By'))->placeholder('—')
                     ->formatStateUsing(fn (?string $state) => $state ? LoginAccount::query()->whereKey($state)->value('username') : null),
                 TextColumn::make('note')->wrap()->placeholder('—'),
             ])
             ->defaultSort('created_at')
             ->actions([
-                Action::make('clear')->label('Mark cleared')->icon('heroicon-o-check')
+                Action::make('clear')->label(__('Mark cleared'))->icon('heroicon-o-check')
                     ->visible(function (ClearanceItem $r): bool {
                         $user = Filament::auth()->user();
 

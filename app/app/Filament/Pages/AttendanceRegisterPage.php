@@ -17,6 +17,8 @@ use Filament\Pages\Page;
 /** Month × employees: P / ½P / A / L / ½L / HO / WO / MO, with totals. */
 class AttendanceRegisterPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-table-cells';
 
     protected static ?string $navigationGroup = HrScope::GROUP;
@@ -62,10 +64,10 @@ class AttendanceRegisterPage extends Page
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('pdf')->visible(fn () => ExportGuard::allowed('hr.employee.view'))->label('PDF')->icon('heroicon-o-printer')
+            Action::make('pdf')->visible(fn () => ExportGuard::allowed('hr.employee.view'))->label(__('PDF'))->icon('heroicon-o-printer')
                 ->url(fn () => ReportPrintController::url(['attendance'], $this->month.'-01', $this->month.'-01', $this->department ? ['department' => $this->department] : []), shouldOpenInNewTab: true),
-            Action::make('allReports')->label('All reports')->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
-            Action::make('csv')->visible(fn () => ExportGuard::allowed('hr.employee.view'))->label('Export CSV')->icon('heroicon-o-arrow-down-tray')
+            Action::make('allReports')->label(__('All reports'))->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
+            Action::make('csv')->visible(fn () => ExportGuard::allowed('hr.employee.view'))->label(__('Export CSV'))->icon('heroicon-o-arrow-down-tray')
                 ->action(fn () => response()->streamDownload(
                     fn () => print app(AttendanceRegister::class)->csv($this->month, $this->department ?: null),
                     "attendance-register-{$this->month}.csv", ['Content-Type' => 'text/csv'],

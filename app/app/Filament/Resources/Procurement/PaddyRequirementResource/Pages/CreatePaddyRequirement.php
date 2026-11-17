@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class CreatePaddyRequirement extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PaddyRequirementResource::class;
 
     /** @param  array<string, mixed>  $data */

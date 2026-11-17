@@ -24,10 +24,10 @@ final class AttachmentsPanel
 {
     public static function action(): Action
     {
-        return Action::make('attach')->label('Attach file')->icon('heroicon-o-paper-clip')->color('gray')
-            ->modalDescription('A photo (JPEG, PNG) or a PDF (up to 10 MB). A phone photo is made smaller before it is sent. Attached files cannot be changed or removed.')
+        return Action::make('attach')->label(__('Attach file'))->icon('heroicon-o-paper-clip')->color('gray')
+            ->modalDescription(__('A photo (JPEG, PNG) or a PDF (up to 10 MB). A phone photo is made smaller before it is sent. Attached files cannot be changed or removed.'))
             ->form(fn (Model $record) => [
-                Select::make('kind')->label('Document')->required()->options(Attachments::kindsFor($record)),
+                Select::make('kind')->label(__('Document'))->required()->options(\App\Support\Locales::options(Attachments::kindsFor($record))),
                 FileUpload::make('file')->required()->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480),
                 TextInput::make('note')->maxLength(300),
             ])
@@ -46,13 +46,13 @@ final class AttachmentsPanel
 
                     return;
                 }
-                Notification::make()->title('File attached')->success()->send();
+                Notification::make()->title(__('File attached'))->success()->send();
             });
     }
 
     public static function section(): Section
     {
-        return Section::make('Attachments')->collapsible()->schema([
+        return Section::make(__('Attachments'))->collapsible()->schema([
             TextEntry::make('attachments_list')->hiddenLabel()->html()
                 ->state(function (Model $record): string {
                     $items = app(Attachments::class)->of($record);

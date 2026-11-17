@@ -10,10 +10,12 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListClaims extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = ClaimResource::class;
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('Raise claim')];
+        return [CreateAction::make()->label(__('Raise claim'))];
     }
 }

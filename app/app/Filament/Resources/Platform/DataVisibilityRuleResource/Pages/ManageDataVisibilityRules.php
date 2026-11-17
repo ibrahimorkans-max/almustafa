@@ -10,6 +10,8 @@ use Filament\Resources\Pages\ManageRecords;
 
 class ManageDataVisibilityRules extends ManageRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = DataVisibilityRuleResource::class;
 
     protected function getHeaderActions(): array

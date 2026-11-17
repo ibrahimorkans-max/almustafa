@@ -35,6 +35,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class BankEmailTransactionResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = BankEmailTransaction::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-inbox-stack';
@@ -84,28 +86,28 @@ class BankEmailTransactionResource extends Resource
             ->modifyQueryUsing(fn ($query) => $query->with(['party', 'bankLedger']))
             ->columns([
                 TextColumn::make('number')->searchable()->sortable(),
-                TextColumn::make('txn_date')->label('Date')->date('d M Y')->sortable()->description(fn (BankEmailTransaction $r) => $r->txn_time ? substr($r->txn_time, 0, 5) : null),
-                TextColumn::make('bank_name')->label('Bank')->description(fn (BankEmailTransaction $r) => $r->account_hint),
-                TextColumn::make('amount_paise')->label('Amount')->alignEnd()->fontFamily('mono')->state(fn (BankEmailTransaction $r) => self::amount($r))
+                TextColumn::make('txn_date')->label(__('Date'))->date('d M Y')->sortable()->description(fn (BankEmailTransaction $r) => $r->txn_time ? substr($r->txn_time, 0, 5) : null),
+                TextColumn::make('bank_name')->label(__('Bank'))->description(fn (BankEmailTransaction $r) => $r->account_hint),
+                TextColumn::make('amount_paise')->label(__('Amount'))->alignEnd()->fontFamily('mono')->state(fn (BankEmailTransaction $r) => self::amount($r))
                     ->color(fn (BankEmailTransaction $r) => $r->direction === 'credit' ? 'success' : 'danger'),
-                TextColumn::make('counterparty')->label('Sender / receiver')->searchable()->placeholder('—')->description(fn (BankEmailTransaction $r) => $r->reference),
-                TextColumn::make('party.name')->label('Party')->placeholder('—')
+                TextColumn::make('counterparty')->label(__('Sender / receiver'))->searchable()->placeholder('—')->description(fn (BankEmailTransaction $r) => $r->reference),
+                TextColumn::make('party.name')->label(__('Party'))->placeholder('—')
                     ->description(fn (BankEmailTransaction $r) => BankEmailTransaction::MATCH_LABELS[$r->match_status] ?? $r->match_status),
-                TextColumn::make('import_status')->label('Import')->badge()->formatStateUsing(fn (string $state) => BankEmailTransaction::IMPORT_LABELS[$state] ?? $state)
+                TextColumn::make('import_status')->label(__('Import'))->badge()->formatStateUsing(fn (string $state) => BankEmailTransaction::IMPORT_LABELS[$state] ?? $state)
                     ->color(fn (string $state) => match ($state) {
                         'parsed' => 'gray', 'duplicate' => 'warning', default => 'danger',
                     })->toggleable(),
-                TextColumn::make('reconciliation_status')->label('Status')->badge()->formatStateUsing(fn (string $state) => BankEmailTransaction::RECONCILIATION_LABELS[$state] ?? $state)
+                TextColumn::make('reconciliation_status')->label(__('Status'))->badge()->formatStateUsing(fn (string $state) => BankEmailTransaction::RECONCILIATION_LABELS[$state] ?? $state)
                     ->color(fn (string $state) => match ($state) {
                         'on_statement' => 'success', 'confirmed' => 'info', 'ignored' => 'gray', default => 'warning',
                     }),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
-                SelectFilter::make('reconciliation_status')->label('Status')->options(BankEmailTransaction::RECONCILIATION_LABELS)->default('pending'),
-                SelectFilter::make('match_status')->label('Party')->options(BankEmailTransaction::MATCH_LABELS),
-                SelectFilter::make('import_status')->label('Import')->options(BankEmailTransaction::IMPORT_LABELS),
-                SelectFilter::make('direction')->options(['credit' => 'Money in', 'debit' => 'Money out']),
+                SelectFilter::make('reconciliation_status')->label(__('Status'))->options(\App\Support\Locales::options(BankEmailTransaction::RECONCILIATION_LABELS))->default('pending'),
+                SelectFilter::make('match_status')->label(__('Party'))->options(\App\Support\Locales::options(BankEmailTransaction::MATCH_LABELS)),
+                SelectFilter::make('import_status')->label(__('Import'))->options(\App\Support\Locales::options(BankEmailTransaction::IMPORT_LABELS)),
+                SelectFilter::make('direction')->options(['credit' => __('Money in'), 'debit' => __('Money out')]),
                 Filter::make('dates')->form([DatePicker::make('from'), DatePicker::make('until')])
                     ->query(fn (Builder $query, array $data) => $query
                         ->when($data['from'] ?? null, fn (Builder $q, $d) => $q->whereDate('txn_date', '>=', $d))
@@ -136,26 +138,26 @@ class BankEmailTransactionResource extends Resource
         $me = fn () => Filament::auth()->user();
 
         return [
-            $class::make('confirm')->label('Confirm')->icon('heroicon-o-check')->color('success')
+            $class::make('confirm')->label(__('Confirm'))->icon('heroicon-o-check')->color('success')
                 ->visible(fn (BankEmailTransaction $r) => $r->import_status === 'parsed' && $r->reconciliation_status === 'pending')
                 ->fillForm(fn (BankEmailTransaction $r) => ['party_id' => $r->party_id])
                 ->form(fn (BankEmailTransaction $r) => [
-                    Select::make('party_id')->label('Party')->searchable()
+                    Select::make('party_id')->label(__('Party'))->searchable()
                         ->options(fn () => Party::query()->where('status', 'active')->orderBy('name')->get(['id', 'name', 'code'])
                             ->mapWithKeys(fn (Party $p) => [$p->id => $p->name.' ('.$p->code.')'])->all())
                         ->helperText($r->match_reason),
                 ])
-                ->modalDescription('Checked against the e-mail: the amount, the date and who it is from or to.')
+                ->modalDescription(__('Checked against the e-mail: the amount, the date and who it is from or to.'))
                 ->action(fn (BankEmailTransaction $record, array $data) => $run(
                     fn (BankEmailImport $i) => $i->confirm($record, filled($data['party_id'] ?? null) ? Party::query()->find($data['party_id']) : null, true),
                     'Confirmed',
                 )),
-            $class::make('statement')->label('To bank statement')->icon('heroicon-o-document-plus')->color('primary')
+            $class::make('statement')->label(__('To bank statement'))->icon('heroicon-o-document-plus')->color('primary')
                 ->visible(fn (BankEmailTransaction $r) => $r->reconciliation_status === 'confirmed' && ($me()?->can('ledger.post') ?? false))
                 ->requiresConfirmation()
-                ->modalDescription('Adds it to the bank statement of its account, where it is matched with the books.')
+                ->modalDescription(__('Adds it to the bank statement of its account, where it is matched with the books.'))
                 ->action(fn (BankEmailTransaction $record) => $run(fn (BankEmailImport $i) => $i->toStatement($record), 'Added to the bank statement')),
-            $class::make('ignore')->label('Ignore')->icon('heroicon-o-eye-slash')->color('gray')
+            $class::make('ignore')->label(__('Ignore'))->icon('heroicon-o-eye-slash')->color('gray')
                 ->visible(fn (BankEmailTransaction $r) => in_array($r->reconciliation_status, ['pending', 'confirmed'], true))
                 ->form([Textarea::make('reason')->required()->minLength(3)->maxLength(300)])
                 ->action(fn (BankEmailTransaction $record, array $data) => $run(fn (BankEmailImport $i) => $i->ignore($record, (string) $data['reason']), 'Ignored')),
@@ -166,29 +168,29 @@ class BankEmailTransactionResource extends Resource
     {
         return $infolist->schema([
             Section::make()->columns(4)->schema([
-                TextEntry::make('number')->label('Transaction ID'),
-                TextEntry::make('reference')->label('Bank reference')->placeholder('—'),
-                TextEntry::make('txn_date')->label('Transaction date')->date('d M Y')->placeholder('—'),
-                TextEntry::make('txn_time')->label('Transaction time')->placeholder('—'),
-                TextEntry::make('bank_name')->label('Bank name')->placeholder('—'),
-                TextEntry::make('bankLedger.name')->label('Bank account')->placeholder('—')->helperText(fn (BankEmailTransaction $r) => $r->account_hint),
-                TextEntry::make('direction')->label('Debit / credit')->formatStateUsing(fn (?string $state) => $state === 'credit' ? 'Credit (money in)' : ($state === 'debit' ? 'Debit (money out)' : '—')),
+                TextEntry::make('number')->label(__('Transaction ID')),
+                TextEntry::make('reference')->label(__('Bank reference'))->placeholder('—'),
+                TextEntry::make('txn_date')->label(__('Transaction date'))->date('d M Y')->placeholder('—'),
+                TextEntry::make('txn_time')->label(__('Transaction time'))->placeholder('—'),
+                TextEntry::make('bank_name')->label(__('Bank name'))->placeholder('—'),
+                TextEntry::make('bankLedger.name')->label(__('Bank account'))->placeholder('—')->helperText(fn (BankEmailTransaction $r) => $r->account_hint),
+                TextEntry::make('direction')->label(__('Debit / credit'))->formatStateUsing(fn (?string $state) => $state === 'credit' ? 'Credit (money in)' : ($state === 'debit' ? 'Debit (money out)' : '—')),
                 TextEntry::make('amount')->state(fn (BankEmailTransaction $r) => self::amount($r)),
-                TextEntry::make('counterparty')->label('Sender / receiver')->placeholder('—'),
-                TextEntry::make('counterparty_account')->label('Their account')->placeholder('—'),
-                TextEntry::make('party.name')->label('Party')->placeholder('—'),
-                TextEntry::make('party_id')->label('Party ID')->placeholder('—')->fontFamily('mono'),
-                TextEntry::make('match_reason')->label('Party matching')->columnSpan(2)->placeholder('—'),
-                TextEntry::make('import_status')->label('Import status')->formatStateUsing(fn (string $state) => BankEmailTransaction::IMPORT_LABELS[$state] ?? $state)
+                TextEntry::make('counterparty')->label(__('Sender / receiver'))->placeholder('—'),
+                TextEntry::make('counterparty_account')->label(__('Their account'))->placeholder('—'),
+                TextEntry::make('party.name')->label(__('Party'))->placeholder('—'),
+                TextEntry::make('party_id')->label(__('Party ID'))->placeholder('—')->fontFamily('mono'),
+                TextEntry::make('match_reason')->label(__('Party matching'))->columnSpan(2)->placeholder('—'),
+                TextEntry::make('import_status')->label(__('Import status'))->formatStateUsing(fn (string $state) => BankEmailTransaction::IMPORT_LABELS[$state] ?? $state)
                     ->helperText(fn (BankEmailTransaction $r) => $r->parse_error),
-                TextEntry::make('reconciliation_status')->label('Reconciliation status')->formatStateUsing(fn (string $state) => BankEmailTransaction::RECONCILIATION_LABELS[$state] ?? $state),
+                TextEntry::make('reconciliation_status')->label(__('Reconciliation status'))->formatStateUsing(fn (string $state) => BankEmailTransaction::RECONCILIATION_LABELS[$state] ?? $state),
             ]),
-            Section::make('Source e-mail')->columns(3)->schema([
-                TextEntry::make('message_from')->label('From'),
-                TextEntry::make('message_subject')->label('Subject'),
-                TextEntry::make('received_at')->label('Received')->dateTime('d M Y H:i', 'Asia/Karachi')->placeholder('—'),
-                TextEntry::make('message_id')->label('E-mail reference')->columnSpanFull()->fontFamily('mono'),
-                TextEntry::make('excerpt')->label('Text read')->columnSpanFull()->placeholder('—')->extraAttributes(['class' => 'whitespace-pre-line text-sm']),
+            Section::make(__('Source e-mail'))->columns(3)->schema([
+                TextEntry::make('message_from')->label(__('From')),
+                TextEntry::make('message_subject')->label(__('Subject')),
+                TextEntry::make('received_at')->label(__('Received'))->dateTime('d M Y H:i', 'Asia/Karachi')->placeholder('—'),
+                TextEntry::make('message_id')->label(__('E-mail reference'))->columnSpanFull()->fontFamily('mono'),
+                TextEntry::make('excerpt')->label(__('Text read'))->columnSpanFull()->placeholder('—')->extraAttributes(['class' => 'whitespace-pre-line text-sm']),
             ]),
         ]);
     }

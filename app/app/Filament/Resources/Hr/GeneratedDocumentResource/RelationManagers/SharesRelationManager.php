@@ -31,12 +31,12 @@ class SharesRelationManager extends RelationManager
         return $table
             ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('created_at')->label('Shared')->dateTime('d M Y H:i', 'Asia/Karachi'),
+                TextColumn::make('created_at')->label(__('Shared'))->dateTime('d M Y H:i', 'Asia/Karachi'),
                 TextColumn::make('channel')->formatStateUsing(fn (string $state) => DocumentShare::CHANNELS[$state] ?? $state),
-                TextColumn::make('recipient_masked')->label('To')->state(fn (DocumentShare $r) => self::mask($r->recipient)),
-                TextColumn::make('expires_at')->label('Open until')->dateTime('d M Y H:i', 'Asia/Karachi'),
-                TextColumn::make('open_count')->label('Opened')->formatStateUsing(fn (DocumentShare $r) => $r->open_count.($r->max_opens !== null ? ' of '.$r->max_opens : '')),
-                IconColumn::make('protected')->label('CNIC password')->boolean(),
+                TextColumn::make('recipient_masked')->label(__('To'))->state(fn (DocumentShare $r) => self::mask($r->recipient)),
+                TextColumn::make('expires_at')->label(__('Open until'))->dateTime('d M Y H:i', 'Asia/Karachi'),
+                TextColumn::make('open_count')->label(__('Opened'))->formatStateUsing(fn (DocumentShare $r) => $r->open_count.($r->max_opens !== null ? ' of '.$r->max_opens : '')),
+                IconColumn::make('protected')->label(__('CNIC password'))->boolean(),
                 TextColumn::make('state')->badge()->state(fn (DocumentShare $r) => $r->revoked_at !== null ? 'revoked' : ($r->isUsable() ? 'open' : 'closed'))
                     ->color(fn (string $state) => $state === 'open' ? 'success' : 'gray'),
             ])
@@ -45,7 +45,7 @@ class SharesRelationManager extends RelationManager
                     ->visible(fn (DocumentShare $r) => $r->revoked_at === null && DocumentActions::allowed('hr.documents.share'))
                     ->action(function (DocumentShare $record): void {
                         app(DocumentSharing::class)->revoke($record);
-                        Notification::make()->title('Link revoked: it no longer opens.')->success()->send();
+                        Notification::make()->title(__('Link revoked: it no longer opens.'))->success()->send();
                     }),
             ]);
     }

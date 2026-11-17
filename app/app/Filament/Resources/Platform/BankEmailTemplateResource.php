@@ -32,6 +32,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class BankEmailTemplateResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = BankEmailTemplate::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-magnifying-glass';
@@ -85,12 +87,12 @@ class BankEmailTemplateResource extends Resource
         return $form->columns(2)->schema([
             TextInput::make('bank_name')->required()->maxLength(80),
             Toggle::make('active')->default(true)->inline(false),
-            Section::make('Which e-mails')->columns(2)->schema([
+            Section::make(__('Which e-mails'))->columns(2)->schema([
                 $regex('sender_pattern', 'Sender (From) pattern', 'e.g. alerts@hbl\.com')->required(),
                 $regex('subject_pattern', 'Subject pattern (optional)', 'e.g. Transaction Alert'),
             ]),
-            Section::make('What to read')->columns(2)
-                ->description('Regular expressions, case-insensitive. Put the wanted part in a group: (?<amount>…) for the amount, (?<value>…) or the first group for the others.')
+            Section::make(__('What to read'))->columns(2)
+                ->description(__('Regular expressions, case-insensitive. Put the wanted part in a group: (?<amount>…) for the amount, (?<value>…) or the first group for the others.'))
                 ->schema([
                     $regex('amount_pattern', 'Amount', 'e.g. PKR\s*(?<amount>[\d,]+\.?\d*)')->required(),
                     $regex('credit_pattern', 'Money in when it matches', 'e.g. credited|received'),
@@ -100,8 +102,8 @@ class BankEmailTemplateResource extends Resource
                     $regex('counterparty_pattern', 'Sender / receiver name', 'e.g. from\s+([A-Z][\w &.]+?)\s+(?:on|A/C)'),
                     $regex('counterparty_account_pattern', 'Sender / receiver account or IBAN', 'e.g. (PK\d{2}[A-Z]{4}\d{16})'),
                     $regex('date_pattern', 'Date and time', 'e.g. on\s+(\d{2}-\w{3}-\d{4} \d{2}:\d{2})'),
-                    TextInput::make('date_format')->label('Date format (PHP)')->maxLength(40)->placeholder('d-M-Y H:i')
-                        ->helperText('Empty: the date is read as written; the e-mail\'s own time is used when no date is found.'),
+                    TextInput::make('date_format')->label(__('Date format (PHP)'))->maxLength(40)->placeholder('d-M-Y H:i')
+                        ->helperText(__('Empty: the date is read as written; the e-mail\'s own time is used when no date is found.')),
                 ]),
         ]);
     }
@@ -111,24 +113,24 @@ class BankEmailTemplateResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('bank_name')->searchable()->sortable(),
-                TextColumn::make('sender_pattern')->label('Sender')->fontFamily('mono'),
+                TextColumn::make('sender_pattern')->label(__('Sender'))->fontFamily('mono'),
                 IconColumn::make('active')->boolean(),
-                TextColumn::make('updated_at')->label('Updated')->since(),
+                TextColumn::make('updated_at')->label(__('Updated'))->since(),
             ])
             ->defaultSort('bank_name')
             ->actions([
-                Action::make('test')->label('Test with an e-mail')->icon('heroicon-o-beaker')
+                Action::make('test')->label(__('Test with an e-mail'))->icon('heroicon-o-beaker')
                     ->form([
-                        TextInput::make('from')->required()->placeholder('alerts@bank.com'),
+                        TextInput::make('from')->required()->placeholder(__('alerts@bank.com')),
                         TextInput::make('subject'),
-                        Textarea::make('text')->label('E-mail text')->required()->rows(8),
+                        Textarea::make('text')->label(__('E-mail text'))->required()->rows(8),
                     ])
-                    ->modalSubmitActionLabel('Read it')
+                    ->modalSubmitActionLabel(__('Read it'))
                     ->action(function (BankEmailTemplate $record, array $data): void {
                         $r = app(BankEmailParser::class)->parse(new MailMessage('test', (string) $data['from'], (string) ($data['subject'] ?? ''),
                             CarbonImmutable::now(), MailMessage::textOf((string) $data['text'], false)), [$record]);
                         if ($r['template'] === null) {
-                            Notification::make()->warning()->title('This template does not apply to that sender or subject.')->send();
+                            Notification::make()->warning()->title(__('This template does not apply to that sender or subject.'))->send();
 
                             return;
                         }

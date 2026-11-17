@@ -27,6 +27,8 @@ use Illuminate\Validation\ValidationException;
  */
 class TwoFactor extends Page implements HasForms
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithForms;
 
     private const ENROLL_SECRET_KEY = 'mfa.enroll_secret';
@@ -53,7 +55,7 @@ class TwoFactor extends Page implements HasForms
     public function form(Form $form): Form
     {
         return $form->schema([
-            TextInput::make('code')->label('Code from your authenticator app')->required()->maxLength(10)
+            TextInput::make('code')->label(__('Code from your authenticator app'))->required()->maxLength(10)
                 ->autocomplete('one-time-code'),
         ])->statePath('data');
     }
@@ -111,23 +113,23 @@ class TwoFactor extends Page implements HasForms
 
         $this->recoveryCodes = $codes;
         $this->form->fill();
-        Notification::make()->title('Two-factor authentication is on')->success()->send();
+        Notification::make()->title(__('Two-factor authentication is on'))->success()->send();
     }
 
     protected function getHeaderActions(): array
     {
         return [
             Action::make('regenerate')
-                ->label('New recovery codes')
+                ->label(__('New recovery codes'))
                 ->visible(fn () => $this->isEnrolled())
                 ->requiresConfirmation()
-                ->modalDescription('Your old recovery codes will stop working.')
-                ->form([TextInput::make('code')->label('Current authentication code')->required()])
+                ->modalDescription(__('Your old recovery codes will stop working.'))
+                ->form([TextInput::make('code')->label(__('Current authentication code'))->required()])
                 ->action(function (array $data): void {
                     $mfa = app(MfaService::class);
                     $account = $this->account();
                     if (! $mfa->verifyCode($account, (string) $data['code'])) {
-                        Notification::make()->title('Code not valid')->danger()->send();
+                        Notification::make()->title(__('Code not valid'))->danger()->send();
 
                         return;
                     }

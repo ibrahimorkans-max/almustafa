@@ -6,13 +6,12 @@
     <x-filament::section>
         <p class="text-sm text-gray-600 dark:text-gray-300">
             Rates change with each Finance Act and the EOBI, PESSI and minimum-wage notifications. A change applies from its date; months
-            already paid keep the value they were paid with. Values marked <strong>default</strong> are examples built into the system and
-            must be confirmed by the owner or tax adviser before payroll is finalized.
+            already paid keep the value they were paid with. Values marked <strong>{{ __('default') }}</strong> {{ __('are examples built into the system and must be confirmed by the owner or tax adviser before payroll is finalized.') }}
         </p>
     </x-filament::section>
     <x-filament::section>
         <table class="w-full">
-            <thead><tr><th class="{{ $th }}">Setting</th><th class="{{ $th }}">In force today</th><th class="{{ $th }}">Source</th><th class="{{ $th }}"></th></tr></thead>
+            <thead><tr><th class="{{ $th }}">{{ __('Setting') }}</th><th class="{{ $th }}">{{ __('In force today') }}</th><th class="{{ $th }}">{{ __('Source') }}</th><th class="{{ $th }}"></th></tr></thead>
             <tbody>
                 @foreach ($this->rows() as $row)
                     <tr class="border-t border-gray-100 dark:border-white/5">
@@ -20,7 +19,7 @@
                         <td class="{{ $td }} font-mono">{{ $row['value'] }}</td>
                         <td class="{{ $td }}">
                             @if ($row['default'])
-                                <x-filament::badge color="warning">default — confirm</x-filament::badge>
+                                <x-filament::badge color="warning">{{ __('default — confirm') }}</x-filament::badge>
                             @else
                                 from {{ $row['from'] }} · {{ $row['note'] }}
                             @endif

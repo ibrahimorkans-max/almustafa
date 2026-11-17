@@ -10,10 +10,12 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListRequisitions extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = RequisitionResource::class;
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('New requisition')];
+        return [CreateAction::make()->label(__('New requisition'))];
     }
 }

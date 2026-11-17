@@ -44,6 +44,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 /** Staff expense claims: submitted with receipts, checked by a supervisor, approved by accounts, then paid. */
 class ReimbursementResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = Reimbursement::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-receipt-percent';
@@ -80,19 +82,19 @@ class ReimbursementResource extends Resource
         $today = fn () => now('Asia/Karachi');
 
         return $form->columns(2)->schema([
-            Select::make('employee_id')->label('Employee')->required()->searchable()
+            Select::make('employee_id')->label(__('Employee'))->required()->searchable()
                 ->options(fn () => Employee::query()->with('person')->where('status', '!=', Employee::EXITED)->orderBy('code')->get()
                     ->mapWithKeys(fn (Employee $e) => [$e->id => "{$e->code} {$e->name()}"])->all()),
-            TextInput::make('purpose')->label('What the expenses were for')->required()->minLength(5)->maxLength(500),
-            Repeater::make('lines')->label('Expenses')->columnSpanFull()->required()->minItems(1)->maxItems(30)->defaultItems(1)->columns(5)
+            TextInput::make('purpose')->label(__('What the expenses were for'))->required()->minLength(5)->maxLength(500),
+            Repeater::make('lines')->label(__('Expenses'))->columnSpanFull()->required()->minItems(1)->maxItems(30)->defaultItems(1)->columns(5)
                 ->schema([
-                    Select::make('category_id')->label('Category')->required()
+                    Select::make('category_id')->label(__('Category'))->required()
                         ->options(fn () => ExpenseCategory::query()->where('status', 'active')->where('claimable', true)->orderBy('name')->pluck('name', 'id')),
-                    DatePicker::make('spent_on')->label('Date')->required()->default($today)->maxDate($today)
+                    DatePicker::make('spent_on')->label(__('Date'))->required()->default($today)->maxDate($today)
                         ->minDate(fn () => now('Asia/Karachi')->subDays(90)),
                     TextInput::make('description')->required()->minLength(3)->maxLength(200),
-                    TextInput::make('amount')->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2),
-                    FileUpload::make('receipt')->label('Receipt')->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480)
+                    TextInput::make('amount')->label(__('Amount (Rs)'))->required()->regex(Units::DECIMAL_2),
+                    FileUpload::make('receipt')->label(__('Receipt'))->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480)
                         ->helperText('Needed above '.Money::paise(Reimbursements::RECEIPT_REQUIRED_ABOVE_PAISE)->format()),
                 ]),
         ]);
@@ -117,12 +119,12 @@ class ReimbursementResource extends Resource
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['employee.person'])->withCount('lines'))
             ->columns([
                 TextColumn::make('number')->searchable(),
-                TextColumn::make('claim_date')->label('Date')->date('d M Y')->sortable(),
-                TextColumn::make('employee.code')->label('Employee')->searchable(),
-                TextColumn::make('employee.person.full_name')->label('Name'),
+                TextColumn::make('claim_date')->label(__('Date'))->date('d M Y')->sortable(),
+                TextColumn::make('employee.code')->label(__('Employee'))->searchable(),
+                TextColumn::make('employee.person.full_name')->label(__('Name')),
                 TextColumn::make('purpose')->limit(40)->tooltip(fn (Reimbursement $r) => $r->purpose),
-                TextColumn::make('lines_count')->label('Lines')->alignEnd(),
-                TextColumn::make('total_paise')->label('Total')->alignEnd()->formatStateUsing($rs),
+                TextColumn::make('lines_count')->label(__('Lines'))->alignEnd(),
+                TextColumn::make('total_paise')->label(__('Total'))->alignEnd()->formatStateUsing($rs),
                 TextColumn::make('status')->badge()->formatStateUsing(fn (string $state) => Reimbursement::STATUSES[$state] ?? $state)
                     ->color(fn (string $state) => match ($state) {
                         Reimbursement::SUBMITTED, Reimbursement::CHECKED => 'warning', Reimbursement::APPROVED => 'info',
@@ -130,24 +132,24 @@ class ReimbursementResource extends Resource
                     }),
             ])
             ->defaultSort('created_at', 'desc')
-            ->filters([SelectFilter::make('status')->options(Reimbursement::STATUSES)])
+            ->filters([SelectFilter::make('status')->options(\App\Support\Locales::options(Reimbursement::STATUSES))])
             ->actions([
                 ViewAction::make(),
                 Action::make('voucher')->icon('heroicon-o-printer')->color('gray')
                     ->visible(fn (Reimbursement $r) => in_array($r->status, [Reimbursement::APPROVED, Reimbursement::PAID], true) && DocumentActions::allowed())
                     ->form(DocumentActions::form('reimbursement_voucher'))
                     ->action(fn (Reimbursement $record, array $data) => DocumentActions::run('reimbursement_voucher', $record->id, $data)),
-                Action::make('check')->label('Check')->icon('heroicon-o-check')->color('success')
+                Action::make('check')->label(__('Check'))->icon('heroicon-o-check')->color('success')
                     ->visible(fn (Reimbursement $r) => $r->status === Reimbursement::SUBMITTED && $can('hr.attendance.review', 'hr.leave.approve'))
-                    ->modalDescription('Confirm the expenses were real and for the mill\'s work.')
+                    ->modalDescription(__('Confirm the expenses were real and for the mill\'s work.'))
                     ->form([Textarea::make('note')->maxLength(500)])
                     ->action($run(fn (Reimbursement $r, array $d) => $svc()->check($r, $d['note'] ?? null), 'Claim checked; it goes to accounts.')),
                 Action::make('approve')->icon('heroicon-o-check-badge')->color('success')
                     ->visible(fn (Reimbursement $r) => $r->status === Reimbursement::CHECKED && $can('ledger.post'))
-                    ->modalDescription('Posts each line to its expense ledger, owed to the employee.')
+                    ->modalDescription(__('Posts each line to its expense ledger, owed to the employee.'))
                     ->form([Textarea::make('note')->maxLength(500)])
                     ->action($run(fn (Reimbursement $r, array $d) => $svc()->approve($r, $d['note'] ?? null), 'Claim approved and posted.')),
-                Action::make('reject')->label('Refuse')->icon('heroicon-o-x-mark')->color('danger')
+                Action::make('reject')->label(__('Refuse'))->icon('heroicon-o-x-mark')->color('danger')
                     ->visible(fn (Reimbursement $r) => in_array($r->status, [Reimbursement::SUBMITTED, Reimbursement::CHECKED], true)
                         && $can('hr.attendance.review', 'hr.leave.approve', 'ledger.post'))
                     ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(500)])
@@ -155,7 +157,7 @@ class ReimbursementResource extends Resource
                 Action::make('pay')->icon('heroicon-o-banknotes')->color('primary')
                     ->visible(fn (Reimbursement $r) => $r->status === Reimbursement::APPROVED && $can('payment.create'))
                     ->form([
-                        Select::make('from')->label('Paid from')->required()
+                        Select::make('from')->label(__('Paid from'))->required()
                             ->options(fn () => LedgerAccount::query()->whereIn('kind', ['cash', 'bank'])->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
                         DatePicker::make('date')->required()->default(now('Asia/Karachi'))->maxDate(now('Asia/Karachi')),
                     ])
@@ -171,21 +173,21 @@ class ReimbursementResource extends Resource
         return $infolist->schema([
             Section::make()->columns(4)->schema([
                 TextEntry::make('number'),
-                TextEntry::make('employee.code')->label('Employee')
+                TextEntry::make('employee.code')->label(__('Employee'))
                     ->formatStateUsing(fn (Reimbursement $record) => "{$record->employee->code} {$record->employee->name()}"),
-                TextEntry::make('claim_date')->label('Date')->date('d M Y'),
+                TextEntry::make('claim_date')->label(__('Date'))->date('d M Y'),
                 TextEntry::make('status')->badge()->formatStateUsing(fn (string $state) => Reimbursement::STATUSES[$state] ?? $state),
                 TextEntry::make('purpose')->columnSpan(2),
-                TextEntry::make('total_paise')->label('Total')->formatStateUsing($rs),
-                TextEntry::make('decision_note')->label('Decision note')->placeholder('—'),
+                TextEntry::make('total_paise')->label(__('Total'))->formatStateUsing($rs),
+                TextEntry::make('decision_note')->label(__('Decision note'))->placeholder('—'),
             ]),
-            Section::make('Expenses')->schema([
+            Section::make(__('Expenses'))->schema([
                 RepeatableEntry::make('lines')->hiddenLabel()->columns(5)->schema([
-                    TextEntry::make('spent_on')->label('Date')->date('d M Y'),
-                    TextEntry::make('category.name')->label('Category'),
+                    TextEntry::make('spent_on')->label(__('Date'))->date('d M Y'),
+                    TextEntry::make('category.name')->label(__('Category')),
                     TextEntry::make('description'),
-                    TextEntry::make('amount_paise')->label('Amount')->formatStateUsing($rs),
-                    TextEntry::make('receipt_file_id')->label('Receipt')->placeholder('none')
+                    TextEntry::make('amount_paise')->label(__('Amount'))->formatStateUsing($rs),
+                    TextEntry::make('receipt_file_id')->label(__('Receipt'))->placeholder('none')
                         ->formatStateUsing(fn (ReimbursementLine $record) => $record->receipt?->mime === 'application/pdf' ? 'PDF' : 'Photo')
                         ->suffixAction(InfolistAction::make('download')->icon('heroicon-o-arrow-down-tray')
                             ->visible(fn (ReimbursementLine $record) => $record->receipt_file_id !== null)

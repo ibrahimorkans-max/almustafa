@@ -19,6 +19,8 @@ use Filament\Pages\Page;
  */
 class AllReportsPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-printer';
 
     protected static ?string $navigationGroup = 'Reports';

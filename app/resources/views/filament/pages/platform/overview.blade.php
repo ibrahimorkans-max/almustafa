@@ -14,9 +14,9 @@
     <div class="grid gap-6 lg:grid-cols-2">
         {{-- Payments to check --}}
         <x-filament::section icon="heroicon-o-inbox-arrow-down" icon-color="warning">
-            <x-slot name="heading">Payments to check</x-slot>
-            <x-slot name="description">Customers say they have paid: check the bank, then mark paid</x-slot>
-            <x-slot name="headerEnd"><x-filament::link :href="$invoicesUrl.'?'.http_build_query(['tableFilters' => ['reported' => ['isActive' => true]]])" size="sm">Open</x-filament::link></x-slot>
+            <x-slot name="heading">{{ __('Payments to check') }}</x-slot>
+            <x-slot name="description">{{ __('Customers say they have paid: check the bank, then mark paid') }}</x-slot>
+            <x-slot name="headerEnd"><x-filament::link :href="$invoicesUrl.'?'.http_build_query(['tableFilters' => ['reported' => ['isActive' => true]]])" size="sm">{{ __('Open') }}</x-filament::link></x-slot>
             <ul class="divide-y divide-gray-100 dark:divide-white/5">
                 @forelse ($reported as $inv)
                     <li class="flex items-center gap-3 py-3">
@@ -28,15 +28,15 @@
                         <div class="text-sm font-semibold">{{ $rs($inv->amount_paise) }}</div>
                     </li>
                 @empty
-                    <li class="flex items-center gap-2 py-6 text-sm text-gray-500"><x-filament::icon icon="heroicon-o-check-circle" class="h-5 w-5 text-success-500" /> Nothing waiting to be checked.</li>
+                    <li class="flex items-center gap-2 py-6 text-sm text-gray-500"><x-filament::icon icon="heroicon-o-check-circle" class="h-5 w-5 text-success-500" /> {{ __('Nothing waiting to be checked.') }}</li>
                 @endforelse
             </ul>
         </x-filament::section>
 
         {{-- Overdue --}}
         <x-filament::section icon="heroicon-o-exclamation-triangle" icon-color="danger">
-            <x-slot name="heading">Overdue invoices</x-slot>
-            <x-slot name="description">Oldest first</x-slot>
+            <x-slot name="heading">{{ __('Overdue invoices') }}</x-slot>
+            <x-slot name="description">{{ __('Oldest first') }}</x-slot>
             <ul class="divide-y divide-gray-100 dark:divide-white/5">
                 @forelse ($overdue as $inv)
                     <li class="flex items-center gap-3 py-3">
@@ -48,15 +48,15 @@
                         <div class="text-sm font-semibold text-danger-600 dark:text-danger-400">{{ $rs($inv->amount_paise) }}</div>
                     </li>
                 @empty
-                    <li class="flex items-center gap-2 py-6 text-sm text-gray-500"><x-filament::icon icon="heroicon-o-check-circle" class="h-5 w-5 text-success-500" /> No overdue invoices.</li>
+                    <li class="flex items-center gap-2 py-6 text-sm text-gray-500"><x-filament::icon icon="heroicon-o-check-circle" class="h-5 w-5 text-success-500" /> {{ __('No overdue invoices.') }}</li>
                 @endforelse
             </ul>
         </x-filament::section>
 
         {{-- Trials ending --}}
         <x-filament::section icon="heroicon-o-clock" icon-color="info">
-            <x-slot name="heading">Trials ending within 7 days</x-slot>
-            <x-slot name="description">A good moment to call</x-slot>
+            <x-slot name="heading">{{ __('Trials ending within 7 days') }}</x-slot>
+            <x-slot name="description">{{ __('A good moment to call') }}</x-slot>
             <ul class="divide-y divide-gray-100 dark:divide-white/5">
                 @forelse ($trials as $t)
                     <li class="flex items-center gap-3 py-3">
@@ -70,15 +70,15 @@
                         </x-filament::badge>
                     </li>
                 @empty
-                    <li class="py-6 text-sm text-gray-500">No trials ending soon.</li>
+                    <li class="py-6 text-sm text-gray-500">{{ __('No trials ending soon.') }}</li>
                 @endforelse
             </ul>
         </x-filament::section>
 
         {{-- Near a limit --}}
         <x-filament::section icon="heroicon-o-arrow-trending-up" icon-color="success">
-            <x-slot name="heading">Ready for a bigger plan</x-slot>
-            <x-slot name="description">Using 80 % or more of a limit</x-slot>
+            <x-slot name="heading">{{ __('Ready for a bigger plan') }}</x-slot>
+            <x-slot name="description">{{ __('Using 80 % or more of a limit') }}</x-slot>
             <ul class="divide-y divide-gray-100 dark:divide-white/5">
                 @forelse ($near as $row)
                     @php($pct = min(100, (int) round($row['used'] * 100 / max(1, $row['max']))))
@@ -90,7 +90,7 @@
                         <div class="mt-1 h-1.5 w-full rounded-full bg-gray-200 dark:bg-white/10"><div class="h-1.5 rounded-full {{ $pct >= 100 ? 'bg-danger-500' : 'bg-warning-500' }}" style="width: {{ $pct }}%"></div></div>
                     </li>
                 @empty
-                    <li class="py-6 text-sm text-gray-500">No customer is near a limit.</li>
+                    <li class="py-6 text-sm text-gray-500">{{ __('No customer is near a limit.') }}</li>
                 @endforelse
             </ul>
         </x-filament::section>
@@ -98,8 +98,8 @@
 
     {{-- Newest --}}
     <x-filament::section icon="heroicon-o-sparkles">
-        <x-slot name="heading">Newest customers</x-slot>
-        <x-slot name="headerEnd"><x-filament::link :href="\App\Filament\Resources\Platform\CustomerResource::getUrl()" size="sm">All customers</x-filament::link></x-slot>
+        <x-slot name="heading">{{ __('Newest customers') }}</x-slot>
+        <x-slot name="headerEnd"><x-filament::link :href="\App\Filament\Resources\Platform\CustomerResource::getUrl()" size="sm">{{ __('All customers') }}</x-filament::link></x-slot>
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             @forelse ($newest as $n)
                 <a href="{{ $customerUrl($n) }}" class="flex items-center gap-3 rounded-xl border border-gray-200 p-3 transition hover:border-primary-400 hover:shadow-sm dark:border-white/10">
@@ -112,7 +112,7 @@
                     </div>
                 </a>
             @empty
-                <p class="text-sm text-gray-500">No customers yet.</p>
+                <p class="text-sm text-gray-500">{{ __('No customers yet.') }}</p>
             @endforelse
         </div>
     </x-filament::section>

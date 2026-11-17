@@ -21,7 +21,7 @@
     }"
     class="text-xs text-gray-500"
 >
-    <span x-show="state === 'asking'">Getting this device's location (your mill records where entries are made)…</span>
-    <span x-show="state === 'ok'" x-cloak class="text-success-600">Location will be kept with this entry.</span>
-    <span x-show="state === 'refused' || state === 'unsupported'" x-cloak>Location not shared: the entry is saved without it.</span>
+    <span x-show="state === 'asking'">{{ __('Getting this device\'s location (your mill records where entries are made)…') }}</span>
+    <span x-show="state === 'ok'" x-cloak class="text-success-600">{{ __('Location will be kept with this entry.') }}</span>
+    <span x-show="state === 'refused' || state === 'unsupported'" x-cloak>{{ __('Location not shared: the entry is saved without it.') }}</span>
 </div>

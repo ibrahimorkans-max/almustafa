@@ -215,3 +215,27 @@ it('is a screen under Accounts: add a record, download the template, open and ca
         ->callAction('cancel', ['reason' => 'Wrong party'])->assertNotified('Record cancelled');
     expect($record->fresh()->isCancelled())->toBeTrue();
 });
+
+it('imports the easy Excel sheet: plain column names, values from its lists, and vehicle details on any record', function () {
+    // The template: the sheet to fill (plain names), the guide, examples and the lists.
+    $template = \App\Domain\Accounts\PaperRecordSheet::template();
+    expect(\App\Domain\Accounts\PaperRecordSheet::rows($template)[0])->toBe(array_values(\App\Domain\Accounts\PaperRecordSheet::HEADERS));
+
+    $headers = \App\Domain\Accounts\PaperRecordSheet::HEADERS;
+    $row = fn (array $values) => array_map(fn (string $c) => $values[$c] ?? null, array_keys($headers));
+    $file = (new \App\Support\Export\XlsxWorkbook)->addSheet('Old records', array_values($headers), [
+        $row(['kind' => 'Money received', 'date' => '12/07/2025', 'party' => 'Haji Aslam', 'amount' => '150000', 'cash_bank' => $this->f->bank->name,
+            'payment_mode' => 'IBFT (online transfer)', 'reference' => 'TXN 88213']),
+        $row(['kind' => 'Payment to party', 'date' => '13/07/2025', 'party' => 'Haji Aslam', 'amount' => '6000', 'payment_mode' => 'Cash',
+            'vehicle' => 'MNA-21-1234', 'vehicle_type' => \App\Models\Masters\Vehicle::typeLabel('truck'), 'driver_name' => 'Muhammad Akram',
+            'driver_cnic' => '36302-1234567-1', 'vehicle_owner' => 'Rana Transport', 'from_place' => 'Kahror Pakka', 'to_place' => 'Lodhran', 'freight' => '6,000']),
+    ])->toString();
+
+    $result = $this->paper->import($file);
+    expect($result['errors'])->toBe([])->and($result['entered'])->toBe(2)
+        ->and(PaperRecord::query()->where('kind', 'receipt')->sole()->details)->toMatchArray(['payment_mode' => 'ibft', 'reference' => 'TXN 88213'])
+        ->and(PaperRecord::query()->where('kind', 'payment')->sole()->details)->toMatchArray(['vehicle' => 'MNA-21-1234', 'vehicle_type' => 'truck',
+            'driver_name' => 'Muhammad Akram', 'driver_cnic' => '*********5671', 'vehicle_owner' => 'Rana Transport',
+            'from_place' => 'Kahror Pakka', 'to_place' => 'Lodhran', 'freight' => '6000.00'])
+        ->and(Vehicle::query()->where('registration_no', 'MNA211234')->exists())->toBeTrue();
+});

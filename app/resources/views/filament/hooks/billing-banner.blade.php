@@ -11,7 +11,7 @@
     ])>
         <span><strong>{{ $banner['title'] }}</strong> {{ $banner['body'] }}</span>
         @if ($banner['link'])
-            <a href="{{ $banner['link'] }}" class="font-semibold underline">Pay or report a payment</a>
+            <a href="{{ $banner['link'] }}" class="font-semibold underline">{{ __('Pay or report a payment') }}</a>
         @endif
     </div>
 @endif

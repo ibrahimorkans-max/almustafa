@@ -10,10 +10,12 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListQuotes extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = QuoteResource::class;
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('Record offer')];
+        return [CreateAction::make()->label(__('Record offer'))];
     }
 }

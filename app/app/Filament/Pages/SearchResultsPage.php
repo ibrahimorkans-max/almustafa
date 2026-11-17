@@ -17,6 +17,8 @@ use Livewire\Attributes\Url;
  */
 class SearchResultsPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-magnifying-glass';
 
     protected static ?string $title = 'Search';

@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreatePriceList extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PriceListResource::class;
 
     /** @param  array<string, mixed>  $data */

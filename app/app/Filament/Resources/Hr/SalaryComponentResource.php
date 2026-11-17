@@ -18,6 +18,8 @@ use Filament\Tables\Table;
 
 class SalaryComponentResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = SalaryComponent::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-banknotes';
@@ -34,13 +36,13 @@ class SalaryComponentResource extends Resource
     {
         return $form->schema([
             TextInput::make('code')->required()->maxLength(20)->regex('/^[A-Z0-9_]+$/')
-                ->disabledOn('edit')->helperText('Upper case, e.g. NIGHT. Fixed once created.')
+                ->disabledOn('edit')->helperText(__('Upper case, e.g. NIGHT. Fixed once created.'))
                 ->unique(ignoreRecord: true, modifyRuleUsing: fn ($rule) => HrScope::inEntity($rule)),
             TextInput::make('name')->required()->maxLength(120),
-            Select::make('kind')->options(['earning' => 'Earning', 'deduction' => 'Deduction'])->required()->disabledOn('edit'),
-            Toggle::make('is_statutory')->label('Statutory (PF, ESI, PT, TDS)'),
+            Select::make('kind')->options(['earning' => __('Earning'), 'deduction' => __('Deduction')])->required()->disabledOn('edit'),
+            Toggle::make('is_statutory')->label(__('Statutory (PF, ESI, PT, TDS)')),
             TextInput::make('sort')->numeric()->default(100)->required(),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')])->default('active')->required(),
         ]);
     }
 
@@ -51,7 +53,7 @@ class SalaryComponentResource extends Resource
                 TextColumn::make('code')->searchable(),
                 TextColumn::make('name')->searchable(),
                 TextColumn::make('kind')->badge()->color(fn (string $state) => $state === 'earning' ? 'success' : 'warning'),
-                IconColumn::make('is_statutory')->label('Statutory')->boolean(),
+                IconColumn::make('is_statutory')->label(__('Statutory'))->boolean(),
                 TextColumn::make('status')->badge(),
             ])
             ->defaultSort('sort')

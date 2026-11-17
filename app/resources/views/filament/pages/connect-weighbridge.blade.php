@@ -1,10 +1,10 @@
 <x-filament-panels::page>
     <x-filament::section>
-        <x-slot name="heading">Connection now</x-slot>
+        <x-slot name="heading">{{ __('Connection now') }}</x-slot>
         <div wire:poll.5s>
             @php $scales = $this->scales(); @endphp
             @if ($scales === [])
-                <p class="text-sm text-gray-500">No weighbridge is set up yet: follow the steps below.</p>
+                <p class="text-sm text-gray-500">{{ __('No weighbridge is set up yet: follow the steps below.') }}</p>
             @else
                 <ul class="space-y-1 text-sm">
                     @foreach ($scales as $s)
@@ -22,25 +22,25 @@
                     @endforeach
                 </ul>
             @endif
-            <p class="mt-3 text-xs text-gray-500">Load cells → <strong>indicator</strong> → RS-232 cable → <strong>weighbridge PC</strong> (gate agent, camera) → internet → this ERP.</p>
+            <p class="mt-3 text-xs text-gray-500">{{ __('Load cells →') }} <strong>{{ __('indicator') }}</strong> {{ __('→ RS-232 cable →') }} <strong>{{ __('weighbridge PC') }}</strong> {{ __('(gate agent, camera) → internet → this ERP.') }}</p>
         </div>
     </x-filament::section>
 
     @php $cd = $this->connectionDetails(); @endphp
     <x-filament::section collapsible>
-        <x-slot name="heading">Details to copy</x-slot>
-        <x-slot name="description">What the weighbridge PC asks for. The PC's password and the signing secret are not shown here: the password is never stored readable, and the secret is shown once, when the agent is registered (register it again under Devices if it was lost).</x-slot>
+        <x-slot name="heading">{{ __('Details to copy') }}</x-slot>
+        <x-slot name="description">{{ __('What the weighbridge PC asks for. The PC\'s password and the signing secret are not shown here: the password is never stored readable, and the secret is shown once, when the agent is registered (register it again under Devices if it was lost).') }}</x-slot>
         <div class="space-y-4 text-sm">
             <div>
-                <div class="mb-1 text-xs font-medium text-gray-500">ERP address</div>
+                <div class="mb-1 text-xs font-medium text-gray-500">{{ __('ERP address') }}</div>
                 <div class="flex items-center gap-2" x-data="{ copied: false }">
                     <code class="flex-1 overflow-x-auto rounded-lg bg-gray-950 px-3 py-2 font-mono text-xs text-gray-100">{{ $cd['server'] }}</code>
-                    <x-filament::button size="xs" color="gray" x-on:click="navigator.clipboard.writeText(@js($cd['server'])); copied = true; setTimeout(() => copied = false, 1500)"><span x-text="copied ? 'Copied' : 'Copy'">Copy</span></x-filament::button>
+                    <x-filament::button size="xs" color="gray" x-on:click="navigator.clipboard.writeText(@js($cd['server'])); copied = true; setTimeout(() => copied = false, 1500)"><span x-text="copied ? 'Copied' : 'Copy'">{{ __('Copy') }}</span></x-filament::button>
                 </div>
             </div>
 
             <div>
-                <div class="mb-1 text-xs font-medium text-gray-500">Gate agents (registered PCs)</div>
+                <div class="mb-1 text-xs font-medium text-gray-500">{{ __('Gate agents (registered PCs)') }}</div>
                 @forelse ($cd['agents'] as $ag)
                     <div class="mb-2 rounded-lg border border-gray-200 p-2 dark:border-white/10">
                         <div class="mb-1 text-xs text-gray-500">{{ $ag['name'] }} · login <strong>{{ $ag['username'] }}</strong> · {{ $ag['status'] }} · last seen {{ $ag['last_seen'] }}</div>
@@ -48,35 +48,35 @@
                             <div class="mb-1 flex items-center gap-2" x-data="{ copied: false }">
                                 <span class="w-24 shrink-0 text-xs text-gray-500">{{ $label }}</span>
                                 <code class="flex-1 overflow-x-auto rounded bg-gray-950 px-2 py-1 font-mono text-xs text-gray-100">{{ $value }}</code>
-                                <x-filament::button size="xs" color="gray" x-on:click="navigator.clipboard.writeText(@js($value)); copied = true; setTimeout(() => copied = false, 1500)"><span x-text="copied ? 'Copied' : 'Copy'">Copy</span></x-filament::button>
+                                <x-filament::button size="xs" color="gray" x-on:click="navigator.clipboard.writeText(@js($value)); copied = true; setTimeout(() => copied = false, 1500)"><span x-text="copied ? 'Copied' : 'Copy'">{{ __('Copy') }}</span></x-filament::button>
                             </div>
                         @endforeach
                     </div>
                 @empty
-                    <p class="text-gray-500">No gate agent registered yet: Security → Devices → Register gate agent.</p>
+                    <p class="text-gray-500">{{ __('No gate agent registered yet: Security → Devices → Register gate agent.') }}</p>
                 @endforelse
             </div>
 
             <div>
-                <div class="mb-1 text-xs font-medium text-gray-500">Weighbridges</div>
+                <div class="mb-1 text-xs font-medium text-gray-500">{{ __('Weighbridges') }}</div>
                 @forelse ($cd['scales'] as $sc)
                     <div class="mb-3 rounded-lg border border-gray-200 p-2 dark:border-white/10">
                         <div class="mb-1 text-xs text-gray-500"><strong>{{ $sc['code'] }}</strong> · {{ $sc['name'] }} · step {{ $sc['resolution_kg'] }} kg · {{ $sc['status'] }}</div>
                         <div class="mb-2 flex items-center gap-2" x-data="{ copied: false }">
-                            <span class="w-24 shrink-0 text-xs text-gray-500">weighbridge id</span>
+                            <span class="w-24 shrink-0 text-xs text-gray-500">{{ __('weighbridge id') }}</span>
                             <code class="flex-1 overflow-x-auto rounded bg-gray-950 px-2 py-1 font-mono text-xs text-gray-100">{{ $sc['id'] }}</code>
-                            <x-filament::button size="xs" color="gray" x-on:click="navigator.clipboard.writeText(@js($sc['id'])); copied = true; setTimeout(() => copied = false, 1500)"><span x-text="copied ? 'Copied' : 'Copy'">Copy</span></x-filament::button>
+                            <x-filament::button size="xs" color="gray" x-on:click="navigator.clipboard.writeText(@js($sc['id'])); copied = true; setTimeout(() => copied = false, 1500)"><span x-text="copied ? 'Copied' : 'Copy'">{{ __('Copy') }}</span></x-filament::button>
                         </div>
                         <div x-data="{ copied: false }">
                             <div class="mb-1 flex items-center justify-between">
-                                <span class="text-xs text-gray-500">agent.toml for this weighbridge (fill in the three empty secrets on the PC)</span>
-                                <x-filament::button size="xs" color="gray" x-on:click="navigator.clipboard.writeText(@js($sc['toml'])); copied = true; setTimeout(() => copied = false, 1500)"><span x-text="copied ? 'Copied' : 'Copy agent.toml'">Copy agent.toml</span></x-filament::button>
+                                <span class="text-xs text-gray-500">{{ __('agent.toml for this weighbridge (fill in the three empty secrets on the PC)') }}</span>
+                                <x-filament::button size="xs" color="gray" x-on:click="navigator.clipboard.writeText(@js($sc['toml'])); copied = true; setTimeout(() => copied = false, 1500)"><span x-text="copied ? 'Copied' : 'Copy agent.toml'">{{ __('Copy agent.toml') }}</span></x-filament::button>
                             </div>
                             <pre class="overflow-x-auto rounded-lg bg-gray-950 px-3 py-2 font-mono text-xs text-gray-100">{{ $sc['toml'] }}</pre>
                         </div>
                     </div>
                 @empty
-                    <p class="text-gray-500">No weighbridge added yet: Weighbridges → New.</p>
+                    <p class="text-gray-500">{{ __('No weighbridge added yet: Weighbridges → New.') }}</p>
                 @endforelse
             </div>
         </div>
@@ -127,12 +127,12 @@
 
                 @if ($current['commands'] !== [])
                     <div>
-                        <div class="mb-1 text-xs font-medium text-gray-500">Type on the weighbridge PC (PowerShell, in the agent folder):</div>
+                        <div class="mb-1 text-xs font-medium text-gray-500">{{ __('Type on the weighbridge PC (PowerShell, in the agent folder):') }}</div>
                         @foreach ($current['commands'] as $cmd)
                             <div class="mb-2 flex items-center gap-2" x-data="{ copied: false }">
                                 <code class="flex-1 overflow-x-auto rounded-lg bg-gray-950 px-3 py-2 font-mono text-xs text-gray-100">{{ $cmd }}</code>
                                 <x-filament::button size="xs" color="gray" x-on:click="navigator.clipboard.writeText(@js($cmd)); copied = true; setTimeout(() => copied = false, 1500)">
-                                    <span x-text="copied ? 'Copied' : 'Copy'">Copy</span>
+                                    <span x-text="copied ? 'Copied' : 'Copy'">{{ __('Copy') }}</span>
                                 </x-filament::button>
                             </div>
                         @endforeach
@@ -149,35 +149,35 @@
 
                 <div class="rounded-lg border border-gray-200 p-3 dark:border-white/10">
                     @if ($current['auto'] === true)
-                        <x-filament::badge color="success" icon="heroicon-o-check-circle">Done — the system can see this step is finished</x-filament::badge>
+                        <x-filament::badge color="success" icon="heroicon-o-check-circle">{{ __('Done — the system can see this step is finished') }}</x-filament::badge>
                     @elseif ($current['auto'] === false)
-                        <x-filament::badge color="warning" icon="heroicon-o-clock">Not yet — this is ticked by itself once it is done</x-filament::badge>
+                        <x-filament::badge color="warning" icon="heroicon-o-clock">{{ __('Not yet — this is ticked by itself once it is done') }}</x-filament::badge>
                     @else
                         <label class="flex items-center gap-2">
                             <input type="checkbox" wire:click="toggle({{ $step }})" @checked($current['done']) class="rounded border-gray-300 text-primary-600">
-                            <span>I have done this step</span>
+                            <span>{{ __('I have done this step') }}</span>
                         </label>
                     @endif
                 </div>
 
                 <div class="flex justify-between">
-                    <x-filament::button color="gray" wire:click="back" :disabled="$step === 1" icon="heroicon-o-arrow-left">Back</x-filament::button>
-                    <x-filament::button wire:click="next" :disabled="$step === count($steps)" icon="heroicon-o-arrow-right" icon-position="after">Next step</x-filament::button>
+                    <x-filament::button color="gray" wire:click="back" :disabled="$step === 1" icon="heroicon-o-arrow-left">{{ __('Back') }}</x-filament::button>
+                    <x-filament::button wire:click="next" :disabled="$step === count($steps)" icon="heroicon-o-arrow-right" icon-position="after">{{ __('Next step') }}</x-filament::button>
                 </div>
             </div>
         </x-filament::section>
     </div>
 
     <x-filament::section collapsible collapsed>
-        <x-slot name="heading">If something is wrong</x-slot>
+        <x-slot name="heading">{{ __('If something is wrong') }}</x-slot>
         <ul class="list-disc space-y-1 pl-5 text-sm">
-            <li><strong>First</strong>: on the weighbridge PC run <code>.venv\Scriptsicemill-agent --config agent.toml check</code>. It tests every step in order and says in plain words what is wrong and what to do.</li>
-            <li><strong>No signal</strong>: is the agent running (live)? Is the PC online, the cable in, the indicator on?</li>
-            <li><strong>detect finds nothing</strong>: continuous output is off, wrong cable (try null-modem), or another program uses the COM port.</li>
-            <li><strong>Wrong numbers</strong> (×1000, missing digits): run detect again with a weight on; for unusual indicators set frame_pattern in agent.toml.</li>
-            <li><strong>Always Moving</strong>: resolution_kg in agent.toml is smaller than the indicator's division, or the platform wobbles.</li>
-            <li><strong>No camera photo</strong>: run camera-test; check the camera name / RTSP address and that ffmpeg is installed.</li>
-            <li><strong>"This device is new to your account"</strong> for the agent: approve it under Approvals, or register it again under Devices.</li>
+            <li><strong>{{ __('First') }}</strong>{{ __(': on the weighbridge PC run') }} <code>{{ __('.venv\\Scripts icemill-agent --config agent.toml check') }}</code>{{ __('. It tests every step in order and says in plain words what is wrong and what to do.') }}</li>
+            <li><strong>{{ __('No signal') }}</strong>{{ __(': is the agent running (live)? Is the PC online, the cable in, the indicator on?') }}</li>
+            <li><strong>{{ __('detect finds nothing') }}</strong>{{ __(': continuous output is off, wrong cable (try null-modem), or another program uses the COM port.') }}</li>
+            <li><strong>{{ __('Wrong numbers') }}</strong> (×1000, missing digits): run detect again with a weight on; for unusual indicators set frame_pattern in agent.toml.</li>
+            <li><strong>{{ __('Always Moving') }}</strong>{{ __(': resolution_kg in agent.toml is smaller than the indicator\'s division, or the platform wobbles.') }}</li>
+            <li><strong>{{ __('No camera photo') }}</strong>: run camera-test; check the camera name / RTSP address and that ffmpeg is installed.</li>
+            <li><strong>"This device is new to your account"</strong> {{ __('for the agent: approve it under Approvals, or register it again under Devices.') }}</li>
         </ul>
     </x-filament::section>
 </x-filament-panels::page>

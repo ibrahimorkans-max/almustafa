@@ -12,6 +12,8 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewVoucher extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = VoucherResource::class;
 
     protected function getHeaderActions(): array

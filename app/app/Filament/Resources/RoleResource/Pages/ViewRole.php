@@ -21,16 +21,18 @@ use Illuminate\Validation\ValidationException;
 
 class ViewRole extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = RoleResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
             Action::make('requestChange')
-                ->label('Request permission change')
+                ->label(__('Request permission change'))
                 ->icon('heroicon-o-pencil-square')
                 ->visible(fn (Role $record) => Gate::allows('requestChange', $record))
-                ->modalDescription('The change takes effect only after a different person approves it (maker-checker).')
+                ->modalDescription(__('The change takes effect only after a different person approves it (maker-checker).'))
                 ->fillForm(fn (Role $record) => collect(RoleResource::permissionOptionsByModule())
                     ->mapWithKeys(fn (array $options, string $module) => [
                         'module_'.$module => array_values(array_intersect(array_keys($options), $record->permissionCodes())),
@@ -56,7 +58,7 @@ class ViewRole extends ViewRecord
 
                         return;
                     } catch (ValidationException $e) {
-                        Notification::make()->title('Request not submitted')->body(implode(' ', $e->validator->errors()->all()))->danger()->send();
+                        Notification::make()->title(__('Request not submitted'))->body(implode(' ', $e->validator->errors()->all()))->danger()->send();
 
                         return;
                     }

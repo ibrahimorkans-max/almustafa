@@ -24,6 +24,8 @@ use Filament\Pages\Page;
  */
 class ConnectWeighbridge extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-link';
 
     protected static ?string $navigationGroup = 'Gate & weighbridge';

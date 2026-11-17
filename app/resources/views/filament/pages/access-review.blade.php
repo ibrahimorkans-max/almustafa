@@ -5,9 +5,9 @@
             "Dormant" means no sign-in for {{ $this->dormantDays() }} days.
         </x-slot>
         <div class="mb-4 flex gap-2">
-            <x-filament::button size="sm" :color="$show === 'attention' ? 'primary' : 'gray'" wire:click="$set('show', 'attention')">Needs attention</x-filament::button>
-            <x-filament::button size="sm" :color="$show === 'all' ? 'primary' : 'gray'" wire:click="$set('show', 'all')">All accounts</x-filament::button>
-            <x-filament::button size="sm" :color="$show === 'online' ? 'primary' : 'gray'" wire:click="$set('show', 'online')" icon="heroicon-o-signal">Online now</x-filament::button>
+            <x-filament::button size="sm" :color="$show === 'attention' ? 'primary' : 'gray'" wire:click="$set('show', 'attention')">{{ __('Needs attention') }}</x-filament::button>
+            <x-filament::button size="sm" :color="$show === 'all' ? 'primary' : 'gray'" wire:click="$set('show', 'all')">{{ __('All accounts') }}</x-filament::button>
+            <x-filament::button size="sm" :color="$show === 'online' ? 'primary' : 'gray'" wire:click="$set('show', 'online')" icon="heroicon-o-signal">{{ __('Online now') }}</x-filament::button>
         </div>
         @php($rows = $this->rows())
         @if ($rows === [])
@@ -17,8 +17,8 @@
                 <table class="w-full text-left text-sm">
                     <thead>
                         <tr class="border-b border-gray-200 dark:border-gray-700">
-                            <th class="p-2">User</th><th class="p-2">Role</th><th class="p-2">Status</th><th class="p-2">2FA</th>
-                            <th class="p-2">Last sign-in (PKT)</th><th class="p-2">Location (area, city, region, country)</th><th class="p-2">Attention</th><th class="p-2 text-right">Permissions</th>
+                            <th class="p-2">{{ __('User') }}</th><th class="p-2">{{ __('Role') }}</th><th class="p-2">{{ __('Status') }}</th><th class="p-2">{{ __('2FA') }}</th>
+                            <th class="p-2">{{ __('Last sign-in (PKT)') }}</th><th class="p-2">{{ __('Location (area, city, region, country)') }}</th><th class="p-2">{{ __('Attention') }}</th><th class="p-2 text-right">{{ __('Permissions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -29,7 +29,7 @@
                                 <td class="p-2">{{ $r['status'] }}</td>
                                 <td class="p-2">{{ $r['two_factor'] }}</td>
                                 <td class="p-2">{{ $r['last_login'] }}
-                                    @if ($r['online'] === 'online now')<div class="text-xs font-medium text-success-600">● online now</div>@endif
+                                    @if ($r['online'] === 'online now')<div class="text-xs font-medium text-success-600">{{ __('● online now') }}</div>@endif
                                 </td>
                                 <td class="p-2" title="{{ $r['address'] }}">
                                     @if ($r['map_url'])

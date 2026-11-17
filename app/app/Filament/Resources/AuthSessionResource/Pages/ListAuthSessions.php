@@ -18,6 +18,8 @@ use Illuminate\Contracts\Support\Htmlable;
 
 class ListAuthSessions extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = AuthSessionResource::class;
 
     public function getSubheading(): string|Htmlable|null
@@ -28,16 +30,16 @@ class ListAuthSessions extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('others')->label('Sign out all my other sessions')->icon('heroicon-o-arrow-right-start-on-rectangle')->color('danger')
+            Action::make('others')->label(__('Sign out all my other sessions'))->icon('heroicon-o-arrow-right-start-on-rectangle')->color('danger')
                 ->requiresConfirmation()
-                ->modalDescription('Every other browser and phone signed in to your account is signed out now. This one stays.')
+                ->modalDescription(__('Every other browser and phone signed in to your account is signed out now. This one stays.'))
                 ->action(function (): void {
                     /** @var LoginAccount $me */
                     $me = Filament::auth()->user();
                     $n = app(SessionService::class)->revokeAllFor($me, 'revoked_by_user', app(ActorContext::class)->session()?->id);
                     Notification::make()->title($n === 0 ? 'No other sessions were open.' : "{$n} other session(s) signed out.")->success()->send();
                 }),
-            Action::make('attempts')->label('Failed sign-ins')->icon('heroicon-o-shield-exclamation')->color('gray')
+            Action::make('attempts')->label(__('Failed sign-ins'))->icon('heroicon-o-shield-exclamation')->color('gray')
                 ->url(fn () => SignInAttempts::getUrl())->visible(fn () => SignInAttempts::canAccess()),
         ];
     }

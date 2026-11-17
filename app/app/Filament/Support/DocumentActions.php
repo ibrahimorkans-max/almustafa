@@ -45,23 +45,23 @@ final class DocumentActions
     {
         $t = DocumentTypes::get($type);
         $fields = [
-            Select::make('layout')->placeholder('Template default')->options(DocumentTemplate::LAYOUTS),
-            Select::make('language')->options(DocumentPresenter::LANGUAGES)->default('bilingual')->required(),
-            Select::make('paper')->options(DocumentRenderer::PAPERS)->default($t->defaultPaper())->required(),
-            Select::make('format')->options(DocumentRenderer::FORMATS)->default('pdf')->required(),
-            Select::make('digits')->options(['western' => 'Western (123)', 'urdu' => 'Urdu (۱۲۳)'])->default('western')->required(),
-            Select::make('deliver')->label('Output')->options(self::DELIVERY)->default('print')->required(),
+            Select::make('layout')->placeholder(__('Template default'))->options(\App\Support\Locales::options(DocumentTemplate::LAYOUTS)),
+            Select::make('language')->options(\App\Support\Locales::options(DocumentPresenter::LANGUAGES))->default('bilingual')->required(),
+            Select::make('paper')->options(\App\Support\Locales::options(DocumentRenderer::PAPERS))->default($t->defaultPaper())->required(),
+            Select::make('format')->options(\App\Support\Locales::options(DocumentRenderer::FORMATS))->default('pdf')->required(),
+            Select::make('digits')->options(['western' => __('Western (123)'), 'urdu' => __('Urdu (۱۲۳)')])->default('western')->required(),
+            Select::make('deliver')->label(__('Output'))->options(\App\Support\Locales::options(self::DELIVERY))->default('print')->required(),
         ];
         if (in_array($type, ['salary_certificate', 'employment_letter'], true)) {
-            $fields[] = TextInput::make('purpose')->label('Purpose (printed)')->maxLength(120)->placeholder('e.g. bank account opening');
-            $fields[] = Select::make('unmask')->label('CNIC')->options([0 => 'Masked', 1 => 'Full (audited)'])->default(0)
+            $fields[] = TextInput::make('purpose')->label(__('Purpose (printed)'))->maxLength(120)->placeholder(__('e.g. bank account opening'));
+            $fields[] = Select::make('unmask')->label(__('CNIC'))->options([0 => __('Masked'), 1 => __('Full (audited)')])->default(0)
                 ->visible(fn () => self::allowed('hr.employee.sensitive.view'));
         }
         if ($extra) {
-            $fields[] = CheckboxList::make('toggles')->label('Show')->columns(2)->options(TemplateRepository::TOGGLES);
-            $fields[] = Select::make('password')->label('Protect the PDF with')->options(['none' => 'No password', 'cnic5' => 'Last 5 digits of the CNIC', 'pin' => 'A PIN'])->default('none')->live();
-            $fields[] = TextInput::make('pin')->label('PIN')->password()->revealable()->regex('/^\d{4,12}$/')->visible(fn ($get) => $get('password') === 'pin');
-            $fields[] = Select::make('unmask')->label('CNIC / bank account')->options([0 => 'Masked', 1 => 'Full (audited)'])->default(0)
+            $fields[] = CheckboxList::make('toggles')->label(__('Show'))->columns(2)->options(\App\Support\Locales::options(TemplateRepository::TOGGLES));
+            $fields[] = Select::make('password')->label(__('Protect the PDF with'))->options(['none' => __('No password'), 'cnic5' => __('Last 5 digits of the CNIC'), 'pin' => __('A PIN')])->default('none')->live();
+            $fields[] = TextInput::make('pin')->label(__('PIN'))->password()->revealable()->regex('/^\d{4,12}$/')->visible(fn ($get) => $get('password') === 'pin');
+            $fields[] = Select::make('unmask')->label(__('CNIC / bank account'))->options([0 => __('Masked'), 1 => __('Full (audited)')])->default(0)
                 ->visible(fn () => self::allowed('hr.employee.sensitive.view'));
         }
 
@@ -78,7 +78,7 @@ final class DocumentActions
             $source = $t->sourceClass()::query()->findOrFail($sourceId);
             if (! $t->isFinal($source)) {
                 $out = $svc->preview($type, $sourceId, $options);
-                Notification::make()->title('Draft preview — not final yet, so not issued.')->warning()->send();
+                Notification::make()->title(__('Draft preview — not final yet, so not issued.'))->warning()->send();
 
                 return self::stream($out, $data['deliver'] ?? 'download');
             }

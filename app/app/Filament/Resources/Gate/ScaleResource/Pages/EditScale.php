@@ -9,5 +9,7 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditScale extends EditRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = ScaleResource::class;
 }

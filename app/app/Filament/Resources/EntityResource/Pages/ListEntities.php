@@ -10,6 +10,8 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListEntities extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = EntityResource::class;
 
     protected function getHeaderActions(): array

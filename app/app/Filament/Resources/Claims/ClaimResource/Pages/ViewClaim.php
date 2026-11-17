@@ -21,6 +21,8 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewClaim extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use RunsDomainActions;
 
     protected static string $resource = ClaimResource::class;
@@ -32,11 +34,11 @@ class ViewClaim extends ViewRecord
 
         return [
             PrintButton::header('claim'),
-            Action::make('approve')->label('Approve settlement')->icon('heroicon-o-check')->color('success')
+            Action::make('approve')->label(__('Approve settlement'))->icon('heroicon-o-check')->color('success')
                 ->visible(fn (Claim $c) => $c->status === Claim::OPEN && $can('claim.approve'))
-                ->modalDescription('Fix how much is settled (at most the amount claimed). Accounts then posts the credit or debit note.')
+                ->modalDescription(__('Fix how much is settled (at most the amount claimed). Accounts then posts the credit or debit note.'))
                 ->form([
-                    TextInput::make('amount')->label('Settle (Rs)')->required()->regex(Units::DECIMAL_2)
+                    TextInput::make('amount')->label(__('Settle (Rs)'))->required()->regex(Units::DECIMAL_2)
                         ->default(fn (Claim $record) => bcdiv((string) $record->claimed_paise, '100', 2)),
                     Textarea::make('note')->maxLength(1000),
                 ])
@@ -45,7 +47,7 @@ class ViewClaim extends ViewRecord
                 ->visible(fn (Claim $c) => $c->status === Claim::OPEN && $can('claim.approve'))
                 ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(1000)])
                 ->action(fn (Claim $c, array $data) => $this->runDomain(fn () => $service()->reject($c, $data['reason']), 'Claim rejected')),
-            Action::make('settle')->label('Post note')->icon('heroicon-o-document-check')->color('primary')
+            Action::make('settle')->label(__('Post note'))->icon('heroicon-o-document-check')->color('primary')
                 ->visible(fn (Claim $c) => $c->status === Claim::APPROVED && $can('ledger.post'))
                 ->requiresConfirmation()
                 ->modalDescription(fn (Claim $c) => $c->document_type === Claim::SALES
@@ -53,11 +55,11 @@ class ViewClaim extends ViewRecord
                     : 'Posts a debit note to the supplier.')
                 ->action(fn (Claim $c) => $this->runDomain(fn () => $service()->settle($c), 'Note posted')),
             ActionGroup::make([
-                Action::make('note')->label('Add note')->icon('heroicon-o-chat-bubble-left')
+                Action::make('note')->label(__('Add note'))->icon('heroicon-o-chat-bubble-left')
                     ->visible(fn (Claim $c) => in_array($c->status, [Claim::OPEN, Claim::APPROVED], true) && $can('claim.manage'))
-                    ->form([Textarea::make('text')->label('Note')->required()->maxLength(2000)])
+                    ->form([Textarea::make('text')->label(__('Note'))->required()->maxLength(2000)])
                     ->action(fn (Claim $c, array $data) => $this->runDomain(fn () => $service()->note($c, $data['text']), 'Note added')),
-                Action::make('evidence')->label('Add evidence')->icon('heroicon-o-paper-clip')
+                Action::make('evidence')->label(__('Add evidence'))->icon('heroicon-o-paper-clip')
                     ->visible(fn (Claim $c) => $c->status === Claim::OPEN && $can('claim.manage'))
                     ->form([FileUpload::make('files')->multiple()->required()->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480)])
                     ->action(fn (Claim $c, array $data) => $this->runDomain(fn () => $service()->addEvidence($c, CreateClaim::store((array) $data['files'])), 'Evidence added')),

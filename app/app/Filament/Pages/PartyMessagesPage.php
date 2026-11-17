@@ -34,6 +34,8 @@ use Filament\Tables\Table;
  */
 class PartyMessagesPage extends Page implements HasTable
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-bottom-center-text';
@@ -90,7 +92,7 @@ class PartyMessagesPage extends Page implements HasTable
     {
         $entity = $this->entityId();
         if ($entity === null || ! isset(SettingsService::MESSAGE_EVENTS[$event])) {
-            Notification::make()->title('Choose a firm first (Switch entity).')->warning()->send();
+            Notification::make()->title(__('Choose a firm first (Switch entity).'))->warning()->send();
 
             return;
         }
@@ -126,20 +128,20 @@ class PartyMessagesPage extends Page implements HasTable
             // Connect (or change) the mill's own WhatsApp number from here.
             HeaderAction::make('connectWhatsApp')->label(fn () => WhatsAppCloud::configured($this->entityId()) ? 'WhatsApp settings' : 'Connect WhatsApp')
                 ->icon('heroicon-o-link')->url(fn () => IntegrationsPage::getUrl())->visible(fn () => IntegrationsPage::canAccess()),
-            HeaderAction::make('testWhatsApp')->label('Send a test WhatsApp')->icon('heroicon-o-paper-airplane')->color('gray')
+            HeaderAction::make('testWhatsApp')->label(__('Send a test WhatsApp'))->icon('heroicon-o-paper-airplane')->color('gray')
                 ->visible(fn () => WhatsAppCloud::configured($this->entityId()))
-                ->form([TextInput::make('mobile')->label('Mobile number')->placeholder('0300-1234567')->required()])
+                ->form([TextInput::make('mobile')->label(__('Mobile number'))->placeholder('0300-1234567')->required()])
                 ->action(function (array $data): void {
                     $to = PakistanIds::normalizeMobile((string) $data['mobile']);
                     if ($to === null) {
-                        Notification::make()->title('Give a Pakistani mobile number, e.g. 0300-1234567.')->danger()->send();
+                        Notification::make()->title(__('Give a Pakistani mobile number, e.g. 0300-1234567.'))->danger()->send();
 
                         return;
                     }
                     $r = (new WhatsAppCloud($this->entityId()))->send($to, MessageText::forTemplate(MessageText::make(app(PartyMessenger::class)->millName($this->entityId()),
                         'Test message', ['Messages to parties are connected.'])));
                     $r['ok'] ? Notification::make()->success()->title('Test sent to '.$to)->send()
-                        : Notification::make()->danger()->title('Not sent')->body($r['error'])->send();
+                        : Notification::make()->danger()->title(__('Not sent'))->body($r['error'])->send();
                 }),
         ];
     }
@@ -155,13 +157,13 @@ class PartyMessagesPage extends Page implements HasTable
             ->query(PartyMessage::query()->with('party'))
             ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('created_at')->label('When')->dateTime('d M Y H:i')->sortable(),
-                TextColumn::make('party.name')->label('Party')->searchable(),
+                TextColumn::make('created_at')->label(__('When'))->dateTime('d M Y H:i')->sortable(),
+                TextColumn::make('party.name')->label(__('Party'))->searchable(),
                 TextColumn::make('event')->badge()->formatStateUsing(fn (string $state) => match ($state) {
                     'login' => 'Login details', 'money' => 'Money', 'unloaded' => 'Unloaded', 'weighed' => 'Weights', default => $state,
                 }),
-                TextColumn::make('recipient')->label('To')->fontFamily('mono'),
-                TextColumn::make('body')->label('Message')->wrap()->limit(160)
+                TextColumn::make('recipient')->label(__('To'))->fontFamily('mono'),
+                TextColumn::make('body')->label(__('Message'))->wrap()->limit(160)
                     ->state(fn (PartyMessage $r) => $r->redacted ? '(login details — shown only once, when made)' : $r->body),
                 TextColumn::make('status')->badge()->color(fn (string $state) => match ($state) {
                     PartyMessage::SENT => 'success', PartyMessage::MANUAL => 'warning', PartyMessage::FAILED => 'danger', default => 'gray',
@@ -169,7 +171,7 @@ class PartyMessagesPage extends Page implements HasTable
                     PartyMessage::MANUAL => 'to send by hand', default => $state,
                 }.($r->error ? ' — '.$r->error : '')),
                 // What WhatsApp reported through the webhook (Administration → WhatsApp webhook).
-                TextColumn::make('delivery_status')->label('WhatsApp')->badge()->placeholder('—')
+                TextColumn::make('delivery_status')->label(__('WhatsApp'))->badge()->placeholder('—')
                     ->color(fn (?string $state) => match ($state) {
                         'read' => 'success', 'delivered' => 'info', 'failed' => 'danger', default => 'gray'
                     })
@@ -178,19 +180,19 @@ class PartyMessagesPage extends Page implements HasTable
             ])
             ->filters([
                 SelectFilter::make('status')->options([
-                    PartyMessage::MANUAL => 'To send by hand', PartyMessage::SENT => 'Sent', PartyMessage::FAILED => 'Failed', PartyMessage::SKIPPED => 'Skipped',
+                    PartyMessage::MANUAL => __('To send by hand'), PartyMessage::SENT => __('Sent'), PartyMessage::FAILED => __('Failed'), PartyMessage::SKIPPED => __('Skipped'),
                 ]),
-                SelectFilter::make('event')->options(['login' => 'Login details', 'money' => 'Money', 'unloaded' => 'Unloaded', 'weighed' => 'Weights']),
+                SelectFilter::make('event')->options(['login' => __('Login details'), 'money' => __('Money'), 'unloaded' => __('Unloaded'), 'weighed' => __('Weights')]),
             ])
             ->actions([
-                Action::make('whatsapp')->label('Send on WhatsApp')->icon('heroicon-o-paper-airplane')->color('success')
+                Action::make('whatsapp')->label(__('Send on WhatsApp'))->icon('heroicon-o-paper-airplane')->color('success')
                     ->visible(fn (PartyMessage $r) => in_array($r->status, [PartyMessage::MANUAL, PartyMessage::FAILED], true) && ! $r->redacted && $r->body !== null)
                     ->url(fn (PartyMessage $r) => PartyMessenger::whatsappLink($r->recipient, (string) $r->body), shouldOpenInNewTab: true),
-                Action::make('markSent')->label('Mark sent')->icon('heroicon-o-check')->color('gray')
+                Action::make('markSent')->label(__('Mark sent'))->icon('heroicon-o-check')->color('gray')
                     ->visible(fn (PartyMessage $r) => in_array($r->status, [PartyMessage::MANUAL, PartyMessage::FAILED], true))
                     ->action(function (PartyMessage $r): void {
                         $r->forceFill(['status' => PartyMessage::SENT, 'sent_at' => now(), 'error' => null])->save();
-                        Notification::make()->success()->title('Marked sent')->send();
+                        Notification::make()->success()->title(__('Marked sent'))->send();
                     }),
             ]);
     }

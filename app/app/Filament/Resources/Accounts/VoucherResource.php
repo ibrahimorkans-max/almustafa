@@ -25,6 +25,8 @@ use Illuminate\Database\Eloquent\Builder;
 /** All posted vouchers (append-only). */
 class VoucherResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = Voucher::class;
 
     protected static ?string $recordTitleAttribute = 'number';
@@ -55,17 +57,17 @@ class VoucherResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('voucher_date')->label('Date')->date('d M Y')->sortable(),
+                TextColumn::make('voucher_date')->label(__('Date'))->date('d M Y')->sortable(),
                 TextColumn::make('number')->searchable(),
                 TextColumn::make('type')->badge()->formatStateUsing(fn (string $state) => self::TYPE_LABELS[$state] ?? $state),
                 TextColumn::make('narration')->limit(60)->wrap()->placeholder('—'),
-                TextColumn::make('total_paise')->label('Amount')->alignEnd()->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
+                TextColumn::make('total_paise')->label(__('Amount'))->alignEnd()->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
                 TextColumn::make('reverses_id')->label('')->badge()->color('danger')
                     ->formatStateUsing(fn () => 'Reversal')->placeholder(''),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
-                SelectFilter::make('type')->options(self::TYPE_LABELS),
+                SelectFilter::make('type')->options(\App\Support\Locales::options(self::TYPE_LABELS)),
                 Filter::make('dates')->form([DatePicker::make('from'), DatePicker::make('to')])
                     ->query(fn (Builder $q, array $data) => $q
                         ->when($data['from'] ?? null, fn ($q, $d) => $q->where('voucher_date', '>=', $d))
@@ -81,15 +83,15 @@ class VoucherResource extends Resource
                 TextEntry::make('number'),
                 TextEntry::make('type')->formatStateUsing(fn (string $state) => self::TYPE_LABELS[$state] ?? $state)->badge(),
                 TextEntry::make('voucher_date')->date('d M Y'),
-                TextEntry::make('total_paise')->label('Amount')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
+                TextEntry::make('total_paise')->label(__('Amount'))->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
                 TextEntry::make('narration')->columnSpanFull()->placeholder('—'),
             ]),
-            Section::make('Entries')->schema([
+            Section::make(__('Entries'))->schema([
                 RepeatableEntry::make('lines')->hiddenLabel()->columns(4)->schema([
-                    TextEntry::make('account.name')->label('Ledger')
+                    TextEntry::make('account.name')->label(__('Ledger'))
                         ->state(fn (VoucherLine $record) => $record->account->displayName()),
-                    TextEntry::make('dr_paise')->label('Debit')->formatStateUsing(fn (int $state) => $state > 0 ? Units::paiseToRupees($state) : ''),
-                    TextEntry::make('cr_paise')->label('Credit')->formatStateUsing(fn (int $state) => $state > 0 ? Units::paiseToRupees($state) : ''),
+                    TextEntry::make('dr_paise')->label(__('Debit'))->formatStateUsing(fn (int $state) => $state > 0 ? Units::paiseToRupees($state) : ''),
+                    TextEntry::make('cr_paise')->label(__('Credit'))->formatStateUsing(fn (int $state) => $state > 0 ? Units::paiseToRupees($state) : ''),
                     TextEntry::make('memo')->placeholder('—'),
                 ]),
             ]),

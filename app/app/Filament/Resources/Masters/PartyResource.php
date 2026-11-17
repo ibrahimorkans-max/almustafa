@@ -33,7 +33,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class PartyResource extends Resource
 {
-    use MasterResourceHelpers;
+    use \App\Filament\Concerns\TranslatesResourceLabels, MasterResourceHelpers {
+        MasterResourceHelpers::getNavigationGroup insteadof \App\Filament\Concerns\TranslatesResourceLabels;
+    }
 
     protected static ?string $model = Party::class;
 
@@ -67,38 +69,38 @@ class PartyResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Section::make('Party')->columns(3)->schema([
+            Section::make(__('Party'))->columns(3)->schema([
                 static::codeInput('parties', 30, automatic: true),
                 TextInput::make('name')->required()->maxLength(160),
                 TextInput::make('legal_name')->maxLength(200),
-                CheckboxList::make('roles')->label('Acts as')->options(self::ROLE_OPTIONS)->columns(6)->columnSpanFull()
+                CheckboxList::make('roles')->label(__('Acts as'))->options(\App\Support\Locales::options(self::ROLE_OPTIONS))->columns(6)->columnSpanFull()
                     ->required()
                     ->afterStateHydrated(fn (CheckboxList $component, ?Party $record) => $component->state(
                         $record ? array_values(array_filter(Party::ROLES, fn (string $r) => (bool) $record->getAttribute($r))) : [],
                     ))
                     ->dehydrated(false),
             ]),
-            Section::make('Contact')->columns(3)->schema([
+            Section::make(__('Contact'))->columns(3)->schema([
                 TextInput::make('contact_person')->maxLength(120),
                 TextInput::make('phone')->tel()->maxLength(16)->placeholder('0300-1234567')
                     ->rule(fn () => fn (string $a, mixed $v, Closure $fail) => $v && ! PakistanIds::normalizeMobile((string) $v) ? $fail('Enter a Pakistani mobile number, e.g. 0300-1234567.') : null),
                 TextInput::make('email')->email()->maxLength(160),
                 Textarea::make('address')->rows(2)->maxLength(500)->columnSpan(2),
                 TextInput::make('city')->maxLength(80),
-                Select::make('province')->options(array_combine(PakistanIds::PROVINCES, PakistanIds::PROVINCES))->default('Punjab'),
-                Toggle::make('messages_on')->label('Send messages to this party')->default(true)
-                    ->helperText('Money entries, vehicles unloaded and weighed, login details (each kind can be switched off for the mill in Party messages).'),
-                Toggle::make('make_login')->label('Make a login for this party and send the details')->dehydrated(false)
-                    ->helperText('The party then sees its own vehicles, bills, payments and balance. Needs a mobile number.')
+                Select::make('province')->options(\App\Support\Locales::options(array_combine(PakistanIds::PROVINCES, PakistanIds::PROVINCES)))->default('Punjab'),
+                Toggle::make('messages_on')->label(__('Send messages to this party'))->default(true)
+                    ->helperText(__('Money entries, vehicles unloaded and weighed, login details (each kind can be switched off for the mill in Party messages).')),
+                Toggle::make('make_login')->label(__('Make a login for this party and send the details'))->dehydrated(false)
+                    ->helperText(__('The party then sees its own vehicles, bills, payments and balance. Needs a mobile number.'))
                     ->visible(fn (string $operation) => $operation === 'create' && PartyLogin::allowed()),
             ]),
-            Section::make('Tax & credit')->columns(3)->schema([
-                TextInput::make('ntn')->label('NTN')->maxLength(20)->placeholder('1234567-8')
+            Section::make(__('Tax & credit'))->columns(3)->schema([
+                TextInput::make('ntn')->label(__('NTN'))->maxLength(20)->placeholder('1234567-8')
                     ->formatStateUsing(fn (?string $state) => PakistanIds::formatNtn($state))
                     ->rule(fn () => fn (string $a, mixed $v, Closure $fail) => $v && ! PakistanIds::isValidNtn((string) PakistanIds::digits((string) $v))
                         ? $fail('The NTN must be 7 digits and the check digit (1234567-8), or a 13-digit CNIC.') : null)
-                    ->helperText('Printed on invoices. Stored encrypted.'),
-                TextInput::make('strn')->label('STRN (sales tax)')->maxLength(20)
+                    ->helperText(__('Printed on invoices. Stored encrypted.')),
+                TextInput::make('strn')->label(__('STRN (sales tax)'))->maxLength(20)
                     ->rule(fn (?Party $record) => function (string $a, mixed $value, Closure $fail) use ($record): void {
                         $strn = PakistanIds::digits((string) $value);
                         if ($strn === null) {
@@ -115,27 +117,27 @@ class PartyResource extends Resource
                             $fail('Another party already has this STRN.');
                         }
                     })
-                    ->helperText('Empty = not registered for sales tax (further tax may apply on sales). Stored encrypted.'),
-                TextInput::make('cnic')->label('CNIC')->maxLength(15)->placeholder('35202-1234567-1')
+                    ->helperText(__('Empty = not registered for sales tax (further tax may apply on sales). Stored encrypted.')),
+                TextInput::make('cnic')->label(__('CNIC'))->maxLength(15)->placeholder('35202-1234567-1')
                     ->formatStateUsing(fn (?string $state) => PakistanIds::formatCnic($state))
                     ->rule(fn () => fn (string $a, mixed $v, Closure $fail) => $v && ! PakistanIds::isValidCnic((string) PakistanIds::digits((string) $v))
                         ? $fail('The CNIC must have 13 digits (35202-1234567-1).') : null)
-                    ->helperText('For individuals (farmers, arhtis). Stored encrypted.')
+                    ->helperText(__('For individuals (farmers, arhtis). Stored encrypted.'))
                     // The CNIC stays hidden in the form for users who may not see it.
                     ->visible(fn () => Filament::auth()->user()?->can('bank.view') ?? false),
-                Select::make('atl_status')->label('FBR Active Taxpayer List')->default('unknown')->required()
-                    ->options(['active' => 'Active (filer)', 'inactive' => 'Not on the list (non-filer)', 'unknown' => 'Not checked yet (treated as non-filer)'])
-                    ->helperText('Check the NTN / CNIC on FBR\'s ATL; the withholding rate depends on it.')
+                Select::make('atl_status')->label(__('FBR Active Taxpayer List'))->default('unknown')->required()
+                    ->options(['active' => __('Active (filer)'), 'inactive' => __('Not on the list (non-filer)'), 'unknown' => __('Not checked yet (treated as non-filer)')])
+                    ->helperText(__('Check the NTN / CNIC on FBR\'s ATL; the withholding rate depends on it.'))
                     ->visible(fn () => IncomeTax::enabled()),
-                DatePicker::make('atl_checked_on')->label('ATL checked on')->maxDate(now())->visible(fn () => IncomeTax::enabled()),
-                TextInput::make('credit_limit_rupees')->label('Credit limit (Rs)')->regex('/^\d{1,13}(\.\d{1,2})?$/')
+                DatePicker::make('atl_checked_on')->label(__('ATL checked on'))->maxDate(now())->visible(fn () => IncomeTax::enabled()),
+                TextInput::make('credit_limit_rupees')->label(__('Credit limit (Rs)'))->regex('/^\d{1,13}(\.\d{1,2})?$/')
                     ->afterStateHydrated(fn (TextInput $c, ?Party $record) => $c->state($record?->credit_limit_paise !== null ? Money::paise($record->credit_limit_paise)->toDecimal() : null))
                     ->dehydrated(false),
                 TextInput::make('credit_days')->integer()->minValue(0)->maxValue(365),
-                Toggle::make('wht_exempt')->label('No withholding tax u/s 153')
-                    ->helperText('Only on the tax adviser\'s instruction, e.g. a grower selling their own produce or an exemption certificate.')
+                Toggle::make('wht_exempt')->label(__('No withholding tax u/s 153'))
+                    ->helperText(__('Only on the tax adviser\'s instruction, e.g. a grower selling their own produce or an exemption certificate.'))
                     ->visible(fn () => (auth()->user()?->can('ledger.post') ?? false) && IncomeTax::enabled()),
-                Select::make('status')->options(['active' => 'Active', 'blocked' => 'Blocked'])->default('active')->required(),
+                Select::make('status')->options(['active' => __('Active'), 'blocked' => __('Blocked')])->default('active')->required(),
                 Textarea::make('notes')->rows(2)->maxLength(2000)->columnSpanFull(),
             ]),
         ]);
@@ -167,9 +169,9 @@ class PartyResource extends Resource
                 TextColumn::make('name')->searchable()->sortable()->description(fn (Party $r) => implode(' · ', $r->roleLabels())),
                 TextColumn::make('city')->placeholder('—'),
                 TextColumn::make('phone')->placeholder('—'),
-                TextColumn::make('tax_registration')->label('Sales tax')->badge()
+                TextColumn::make('tax_registration')->label(__('Sales tax'))->badge()
                     ->color(fn (string $state) => $state === 'registered' ? 'success' : 'gray'),
-                TextColumn::make('atl_status')->label('ATL')->badge()
+                TextColumn::make('atl_status')->label(__('ATL'))->badge()
                     ->color(fn (string $state) => match ($state) {
                         'active' => 'success', 'inactive' => 'danger', default => 'warning'
                     }),
@@ -178,9 +180,9 @@ class PartyResource extends Resource
             ])
             ->defaultSort('name')
             ->filters([
-                SelectFilter::make('role')->options(self::ROLE_OPTIONS)
+                SelectFilter::make('role')->options(\App\Support\Locales::options(self::ROLE_OPTIONS))
                     ->query(fn (Builder $q, array $data) => $data['value'] ? $q->where($data['value'], true) : $q),
-                SelectFilter::make('status')->options(['active' => 'Active', 'blocked' => 'Blocked']),
+                SelectFilter::make('status')->options(['active' => __('Active'), 'blocked' => __('Blocked')]),
             ])
             ->searchable()
             ->actions([EditAction::make()]);

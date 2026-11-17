@@ -31,6 +31,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class CodeDirectoryPage extends Page implements HasTable
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-hashtag';
@@ -59,15 +61,15 @@ class CodeDirectoryPage extends Page implements HasTable
         return $table
             ->query(CodeDirectory::query())
             ->columns([
-                TextColumn::make('code')->label('Code')->fontFamily('mono')->weight('bold')->searchable()->sortable()->copyable(),
-                TextColumn::make('module')->label('Module')->badge()->formatStateUsing(fn (string $state) => CodeDirectory::MODULES[$state] ?? $state)->sortable(),
-                TextColumn::make('name')->label('Record')
+                TextColumn::make('code')->label(__('Code'))->fontFamily('mono')->weight('bold')->searchable()->sortable()->copyable(),
+                TextColumn::make('module')->label(__('Module'))->badge()->formatStateUsing(fn (string $state) => CodeDirectory::MODULES[$state] ?? $state)->sortable(),
+                TextColumn::make('name')->label(__('Record'))
                     ->searchable(query: fn (Builder $query, string $search) => $query->orWhereRaw('LOWER(name) LIKE ?', ['%'.mb_strtolower($search).'%']))
                     ->placeholder('—')->wrap(),
-                TextColumn::make('created_at')->label('Created')->dateTime('d M Y H:i', 'Asia/Karachi')->sortable(),
+                TextColumn::make('created_at')->label(__('Created'))->dateTime('d M Y H:i', 'Asia/Karachi')->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
-            ->filters([SelectFilter::make('module')->options(CodeDirectory::MODULES)->multiple()])
+            ->filters([SelectFilter::make('module')->options(\App\Support\Locales::options(CodeDirectory::MODULES))->multiple()])
             ->recordUrl(fn (CodeDirectoryEntry $record) => CodeDirectory::url($record))
             ->paginated([25, 50, 100]);
     }
@@ -75,8 +77,8 @@ class CodeDirectoryPage extends Page implements HasTable
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('excel')->visible(fn () => ExportGuard::allowed())->label('Excel')->icon('heroicon-o-table-cells')->color('gray')->action(fn () => $this->export('xlsx')),
-            Action::make('pdf')->visible(fn () => ExportGuard::allowed())->label('PDF')->icon('heroicon-o-document-arrow-down')->color('gray')->action(fn () => $this->export('pdf')),
+            Action::make('excel')->visible(fn () => ExportGuard::allowed())->label(__('Excel'))->icon('heroicon-o-table-cells')->color('gray')->action(fn () => $this->export('xlsx')),
+            Action::make('pdf')->visible(fn () => ExportGuard::allowed())->label(__('PDF'))->icon('heroicon-o-document-arrow-down')->color('gray')->action(fn () => $this->export('pdf')),
         ];
     }
 

@@ -21,6 +21,8 @@ use Filament\Tables\Table;
 /** Phones employees asked to use for attendance: one approved per employee. */
 class EmployeeDeviceResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = EmployeeDevice::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-device-phone-mobile';
@@ -63,10 +65,10 @@ class EmployeeDeviceResource extends Resource
 
         return $table
             ->columns([
-                TextColumn::make('employee.code')->label('Employee')->searchable(),
-                TextColumn::make('employee.person.full_name')->label('Name'),
-                TextColumn::make('device.name')->label('Phone')->placeholder('—')->limit(40),
-                TextColumn::make('device.platform')->label('Platform'),
+                TextColumn::make('employee.code')->label(__('Employee'))->searchable(),
+                TextColumn::make('employee.person.full_name')->label(__('Name')),
+                TextColumn::make('device.name')->label(__('Phone'))->placeholder('—')->limit(40),
+                TextColumn::make('device.platform')->label(__('Platform')),
                 TextColumn::make('status')->badge()->color(fn (string $state) => match ($state) {
                     'approved' => 'success', 'pending' => 'warning', default => 'gray',
                 }),
@@ -75,14 +77,14 @@ class EmployeeDeviceResource extends Resource
             ])
             ->defaultSort('requested_at', 'desc')
             ->filters([SelectFilter::make('status')->options([
-                'pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected', 'revoked' => 'Replaced',
+                'pending' => __('Pending'), 'approved' => __('Approved'), 'rejected' => __('Rejected'), 'revoked' => __('Replaced'),
             ])->default('pending')])
             ->actions([
                 Action::make('approve')->color('success')->icon('heroicon-o-check')->visible($canDecide)
-                    ->modalDescription('Any previously approved phone of this employee stops being accepted for attendance.')
+                    ->modalDescription(__('Any previously approved phone of this employee stops being accepted for attendance.'))
                     ->form([Textarea::make('note')->maxLength(500)])->action($decide(true)),
                 Action::make('reject')->color('danger')->icon('heroicon-o-x-mark')->visible($canDecide)
-                    ->form([Textarea::make('note')->label('Reason')->required()->maxLength(500)])->action($decide(false)),
+                    ->form([Textarea::make('note')->label(__('Reason'))->required()->maxLength(500)])->action($decide(false)),
             ]);
     }
 

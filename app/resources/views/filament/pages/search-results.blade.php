@@ -3,9 +3,9 @@
     <x-filament::section>
         <x-filament::input.wrapper prefix-icon="heroicon-o-magnifying-glass">
             <x-filament::input type="search" wire:model.live.debounce.400ms="q" autofocus
-                placeholder="Token, vehicle, party, sauda, bill, invoice, voucher, employee, code…" />
+                placeholder="{{ __('Token, vehicle, party, sauda, bill, invoice, voucher, employee, code…') }}" />
         </x-filament::input.wrapper>
-        <p class="mt-2 text-xs text-gray-500">At least 2 letters. Part of a name or number is enough. Ctrl + K searches from any screen.</p>
+        <p class="mt-2 text-xs text-gray-500">{{ __('At least 2 letters. Part of a name or number is enough. Ctrl + K searches from any screen.') }}</p>
     </x-filament::section>
 
     @if ($results !== null)

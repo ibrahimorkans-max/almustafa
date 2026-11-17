@@ -38,6 +38,8 @@ use Illuminate\Support\Str;
  */
 class LabQueuePage extends Page implements HasTable
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-beaker';
@@ -102,15 +104,15 @@ class LabQueuePage extends Page implements HasTable
             ->defaultSort(fn (Builder $q) => $q->orderByRaw('token_serial IS NULL')->orderBy('token_serial')->orderBy('arrived_at'))
             ->poll('15s')
             ->columns([
-                TextColumn::make('token')->label('Token')->state(fn (GateEntry $e) => $e->token_serial !== null || $e->token_no !== null ? $e->tokenLabel() : '—'),
-                TextColumn::make('registration_no')->label('Vehicle')->state(fn (GateEntry $e) => $e->vehicleLabel())->searchable()->weight('bold'),
-                TextColumn::make('party')->label('Party')->state(fn (GateEntry $e) => $e->partyLabel() ?? '—'),
-                TextColumn::make('item')->label('Item')->state(fn (GateEntry $e) => $e->itemLabel()),
-                TextColumn::make('bag_count')->label('Bags')->placeholder('—'),
-                TextColumn::make('gross_kg')->label('Loaded weight')->placeholder('not weighed yet')
+                TextColumn::make('token')->label(__('Token'))->state(fn (GateEntry $e) => $e->token_serial !== null || $e->token_no !== null ? $e->tokenLabel() : '—'),
+                TextColumn::make('registration_no')->label(__('Vehicle'))->state(fn (GateEntry $e) => $e->vehicleLabel())->searchable()->weight('bold'),
+                TextColumn::make('party')->label(__('Party'))->state(fn (GateEntry $e) => $e->partyLabel() ?? '—'),
+                TextColumn::make('item')->label(__('Item'))->state(fn (GateEntry $e) => $e->itemLabel()),
+                TextColumn::make('bag_count')->label(__('Bags'))->placeholder('—'),
+                TextColumn::make('gross_kg')->label(__('Loaded weight'))->placeholder(__('not weighed yet'))
                     ->formatStateUsing(fn ($state) => $state === null ? null : number_format((float) $state, 0).' kg'),
-                TextColumn::make('arrived_at')->label('Arrived')->since()->tooltip(fn (GateEntry $e) => $e->arrived_at?->timezone('Asia/Karachi')->format('d M Y, h:i A')),
-                TextColumn::make('lab')->label('Lab')->badge()
+                TextColumn::make('arrived_at')->label(__('Arrived'))->since()->tooltip(fn (GateEntry $e) => $e->arrived_at?->timezone('Asia/Karachi')->format('d M Y, h:i A')),
+                TextColumn::make('lab')->label(__('Lab'))->badge()
                     ->state(fn (GateEntry $e) => LabTest::query()->where('gate_entry_id', $e->id)->exists() ? 'Result saved, waiting for decision' : 'Lab test to add')
                     ->color(fn (string $state) => str_starts_with($state, 'Result') ? 'warning' : 'gray'),
             ])
@@ -119,8 +121,8 @@ class LabQueuePage extends Page implements HasTable
                 Action::make('lab')->label(fn (GateEntry $e) => LabTest::query()->where('gate_entry_id', $e->id)->exists() ? 'Open lab test' : 'Add lab test')
                     ->icon('heroicon-o-beaker')->button()->url(fn (GateEntry $e) => LabTestEntryPage::getUrl(['entry' => $e->id])),
             ])
-            ->emptyStateHeading('No vehicle is waiting for its lab test.')
-            ->emptyStateDescription('Paddy vehicles show here from their arrival until the lab accepts or rejects them.')
+            ->emptyStateHeading(__('No vehicle is waiting for its lab test.'))
+            ->emptyStateDescription(__('Paddy vehicles show here from their arrival until the lab accepts or rejects them.'))
             ->emptyStateIcon('heroicon-o-beaker');
     }
 
@@ -128,17 +130,17 @@ class LabQueuePage extends Page implements HasTable
     {
         return [
             // How long the lab has for a lot, what happens to a late result, and the alert when the time runs out.
-            PageAction::make('timeRule')->label('Lab time rule')->icon('heroicon-o-clock')->color('gray')
+            PageAction::make('timeRule')->label(__('Lab time rule'))->icon('heroicon-o-clock')->color('gray')
                 ->visible(fn () => self::can('lab.limits') && LabSetup::allows(app(TenantContext::class)->entityId(), 'time_grace'))
                 ->fillForm(fn () => (array) (DB::table('lab_time_rules')->where('entity_id', app(TenantContext::class)->entityId())->first()
                     ?? ['minutes' => 60, 'starts_at_event' => 'arrived', 'ends_at_event' => 'lab_result', 'alert_on_expiry' => true, 'late_rule' => 'approval', 'active' => true]))
                 ->form([
-                    Toggle::make('active')->label('Use a time rule'),
-                    TextInput::make('minutes')->label('Minutes the lab has')->integer()->minValue(5)->maxValue(10080)->required(),
-                    Select::make('starts_at_event')->label('Counted from')->options(LabSetup::STARTS)->required(),
-                    Select::make('ends_at_event')->label('Until')->options(LabSetup::ENDS)->required(),
-                    Select::make('late_rule')->label('A late result')->options(LabSetup::LATE_RULES)->required(),
-                    Toggle::make('alert_on_expiry')->label('Alert the lab supervisors when the time runs out'),
+                    Toggle::make('active')->label(__('Use a time rule')),
+                    TextInput::make('minutes')->label(__('Minutes the lab has'))->integer()->minValue(5)->maxValue(10080)->required(),
+                    Select::make('starts_at_event')->label(__('Counted from'))->options(\App\Support\Locales::options(LabSetup::STARTS))->required(),
+                    Select::make('ends_at_event')->label(__('Until'))->options(\App\Support\Locales::options(LabSetup::ENDS))->required(),
+                    Select::make('late_rule')->label(__('A late result'))->options(\App\Support\Locales::options(LabSetup::LATE_RULES))->required(),
+                    Toggle::make('alert_on_expiry')->label(__('Alert the lab supervisors when the time runs out')),
                 ])
                 ->action(function (array $data): void {
                     $entity = (string) app(TenantContext::class)->entityId();
@@ -148,33 +150,33 @@ class LabQueuePage extends Page implements HasTable
                     $q = DB::table('lab_time_rules')->where('entity_id', $entity);
                     $q->exists() ? $q->update($values) : DB::table('lab_time_rules')->insert($values + ['id' => (string) Str::uuid(), 'entity_id' => $entity, 'created_at' => now()]);
                     app(AuditLogger::class)->record('lab.time_rule', null, null, $values);
-                    Notification::make()->success()->title('Lab time rule saved.')->send();
+                    Notification::make()->success()->title(__('Lab time rule saved.'))->send();
                 }),
             // The modes the SaaS owner switched on for this mill: seen here, never changed here; the mill picks its default.
-            PageAction::make('modes')->label('Weighing modes')->icon('heroicon-o-adjustments-vertical')->color('gray')
+            PageAction::make('modes')->label(__('Weighing modes'))->icon('heroicon-o-adjustments-vertical')->color('gray')
                 ->visible(fn () => WeighModes::effective(app(TenantContext::class)->entityId())['level'] !== 'default')
-                ->modalDescription('The SaaS owner decides which modes this mill may use. A vehicle keeps the mode it was registered in.')
+                ->modalDescription(__('The SaaS owner decides which modes this mill may use. A vehicle keeps the mode it was registered in.'))
                 ->fillForm(fn () => ['default' => WeighModes::defaultMode(app(TenantContext::class)->entityId())])
                 ->form([
-                    Placeholder::make('on')->label('Switched on for this mill')
+                    Placeholder::make('on')->label(__('Switched on for this mill'))
                         ->content(fn () => new HtmlString(collect(WeighModes::enabled(app(TenantContext::class)->entityId()))
                             ->map(fn (string $m) => '<div class="mb-1"><b>'.e(WeighModes::LABELS[$m]).'</b><br><span class="text-xs text-gray-500">'.e(WeighModes::HELP[$m]).'</span></div>')->implode('') ?: 'None — ask the SaaS owner.')),
-                    Radio::make('default')->label('New paddy vehicles start in')->options(fn () => WeighModes::options(app(TenantContext::class)->entityId()))
+                    Radio::make('default')->label(__('New paddy vehicles start in'))->options(fn () => WeighModes::options(app(TenantContext::class)->entityId()))
                         ->disabled(fn () => ! self::can('settings.manage'))->required(),
                 ])
                 ->modalSubmitAction(fn ($action) => self::can('settings.manage') ? $action : false)
                 ->action(function (array $data): void {
                     WeighModes::chooseDefault((string) app(TenantContext::class)->entityId(), (string) $data['default']);
-                    Notification::make()->success()->title('Default weighing mode saved.')->send();
+                    Notification::make()->success()->title(__('Default weighing mode saved.'))->send();
                 }),
-            PageAction::make('policy')->label('Weighing policy')->icon('heroicon-o-cog-6-tooth')->color('gray')
+            PageAction::make('policy')->label(__('Weighing policy'))->icon('heroicon-o-cog-6-tooth')->color('gray')
                 ->visible(fn () => self::can('settings.manage') && WeighModes::effective(app(TenantContext::class)->entityId())['level'] === 'default')
-                ->modalDescription('When is a paddy vehicle weighed? Unloading always waits for the lab, so rejected paddy never goes into a godown.')
+                ->modalDescription(__('When is a paddy vehicle weighed? Unloading always waits for the lab, so rejected paddy never goes into a godown.'))
                 ->fillForm(fn () => ['policy' => $this->weighFirst() ? 'weigh_first' : 'lab_first'])
                 ->form([
-                    Radio::make('policy')->label('Weighing')->required()->options([
-                        'weigh_first' => 'Weigh as soon as it arrives; add the lab test on its own page before unloading',
-                        'lab_first' => 'The lab accepts the lot first, then it is weighed',
+                    Radio::make('policy')->label(__('Weighing'))->required()->options([
+                        'weigh_first' => __('Weigh as soon as it arrives; add the lab test on its own page before unloading'),
+                        'lab_first' => __('The lab accepts the lot first, then it is weighed'),
                     ]),
                 ])
                 ->action(function (array $data): void {

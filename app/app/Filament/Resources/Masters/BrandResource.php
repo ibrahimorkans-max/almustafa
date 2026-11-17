@@ -17,7 +17,9 @@ use Filament\Tables\Table;
 
 class BrandResource extends Resource
 {
-    use MasterResourceHelpers;
+    use \App\Filament\Concerns\TranslatesResourceLabels, MasterResourceHelpers {
+        MasterResourceHelpers::getNavigationGroup insteadof \App\Filament\Concerns\TranslatesResourceLabels;
+    }
 
     protected static ?string $model = Brand::class;
 
@@ -30,7 +32,7 @@ class BrandResource extends Resource
         return $form->schema([
             static::codeInput('brands'),
             TextInput::make('name')->required()->maxLength(120),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')])->default('active')->required(),
         ]);
     }
 

@@ -34,6 +34,8 @@ use Illuminate\Support\Facades\DB;
  */
 class SenderIdentitiesPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-identification';
 
     protected static ?string $navigationGroup = 'Platform';
@@ -91,7 +93,7 @@ class SenderIdentitiesPage extends Page
 
     public function senderAction(): Action
     {
-        return Action::make('sender')->label('Set')->icon('heroicon-m-pencil-square')->size('xs')->color('gray')
+        return Action::make('sender')->label(__('Set'))->icon('heroicon-m-pencil-square')->size('xs')->color('gray')
             ->modalHeading(fn (array $arguments) => (SenderIdentities::CHANNELS[$arguments['channel'] ?? ''] ?? '').' sender')
             ->fillForm(function (array $arguments): array {
                 $row = app(TenantContext::class)->runAsSystem(fn () => DB::table('sender_identities')->where('channel', $arguments['channel'])
@@ -102,29 +104,29 @@ class SenderIdentitiesPage extends Page
             })
             ->form(fn (array $arguments) => [
                 Select::make('keep')->label(isset($arguments['mill']) ? 'This mill' : 'This company')->live()->required()
-                    ->options(['set' => 'Has this sender', 'remove' => isset($arguments['mill']) ? "Uses its company's sender (or none)" : 'No company sender']),
+                    ->options(['set' => __('Has this sender'), 'remove' => isset($arguments['mill']) ? "Uses its company's sender (or none)" : 'No company sender']),
                 Grid::make(2)->visible(fn (Get $get) => $get('keep') === 'set')->schema(array_values(array_filter([
-                    $arguments['channel'] === 'whatsapp' ? Toggle::make('platform_sender')->label("Send from the platform's one number (the name below goes in each message)")->default(true)->live()->columnSpanFull() : null,
-                    TextInput::make('display_name')->label('Company name shown in messages')->required()->maxLength(160),
+                    $arguments['channel'] === 'whatsapp' ? Toggle::make('platform_sender')->label(__("Send from the platform's one number (the name below goes in each message)"))->default(true)->live()->columnSpanFull() : null,
+                    TextInput::make('display_name')->label(__('Company name shown in messages'))->required()->maxLength(160),
                     TextInput::make('sender')->label(match ($arguments['channel']) {
                         'email' => 'E-mail address', 'sms' => 'SMS sender ID or number', default => 'WhatsApp number'
                     })
                         ->required(fn (Get $get) => ! $get('platform_sender'))->maxLength(160),
-                    $arguments['channel'] === 'whatsapp' ? TextInput::make('phone_number_id')->label('Phone number ID (WhatsApp Manager)')->regex('/^\d{6,30}$/')->hidden(fn (Get $get) => (bool) $get('platform_sender')) : null,
-                    $arguments['channel'] === 'whatsapp' ? TextInput::make('business_account_id')->label('Business account ID')->regex('/^\d{6,30}$/')->hidden(fn (Get $get) => (bool) $get('platform_sender')) : null,
-                    $arguments['channel'] === 'whatsapp' ? TextInput::make('access_token')->label('Its own access token (only if in another business account)')->password()->revealable(false)
-                        ->placeholder('Empty: the platform\'s token')->hidden(fn (Get $get) => (bool) $get('platform_sender')) : null,
+                    $arguments['channel'] === 'whatsapp' ? TextInput::make('phone_number_id')->label(__('Phone number ID (WhatsApp Manager)'))->regex('/^\d{6,30}$/')->hidden(fn (Get $get) => (bool) $get('platform_sender')) : null,
+                    $arguments['channel'] === 'whatsapp' ? TextInput::make('business_account_id')->label(__('Business account ID'))->regex('/^\d{6,30}$/')->hidden(fn (Get $get) => (bool) $get('platform_sender')) : null,
+                    $arguments['channel'] === 'whatsapp' ? TextInput::make('access_token')->label(__('Its own access token (only if in another business account)'))->password()->revealable(false)
+                        ->placeholder(__('Empty: the platform\'s token'))->hidden(fn (Get $get) => (bool) $get('platform_sender')) : null,
                     TextInput::make('provider')->required()->maxLength(60),
-                    Select::make('status')->options(SenderIdentities::STATUSES)->required(),
-                    TextInput::make('language')->label('Default language')->maxLength(10)->default('en'),
-                    $arguments['channel'] === 'whatsapp' ? TagsInput::make('templates')->label('Approved templates (first = default; empty: the platform\'s)')->columnSpanFull() : null,
+                    Select::make('status')->options(\App\Support\Locales::options(SenderIdentities::STATUSES))->required(),
+                    TextInput::make('language')->label(__('Default language'))->maxLength(10)->default('en'),
+                    $arguments['channel'] === 'whatsapp' ? TagsInput::make('templates')->label(__('Approved templates (first = default; empty: the platform\'s)'))->columnSpanFull() : null,
                 ]))),
             ])
             ->action(function (array $data, array $arguments): void {
                 try {
                     SenderIdentities::save((string) $arguments['channel'], $arguments['customer'] ?? null, $arguments['mill'] ?? null,
                         $data['keep'] === 'remove' ? null : array_diff_key($data, ['keep' => true]));
-                    Notification::make()->success()->title('Sender saved.')->send();
+                    Notification::make()->success()->title(__('Sender saved.'))->send();
                 } catch (BusinessRuleViolation $e) {
                     Notification::make()->danger()->title($e->getMessage())->send();
                 }

@@ -10,12 +10,14 @@ use Filament\Resources\Pages\ManageRecords;
 
 class ManageDailyWageGroups extends ManageRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = DailyWageGroupResource::class;
 
     protected ?string $subheading = 'Workers who come together under one leader (mukadam). Only the leader is noted; the workers are not registered.';
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('New labour group')];
+        return [CreateAction::make()->label(__('New labour group'))];
     }
 }

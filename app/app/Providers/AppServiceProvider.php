@@ -137,6 +137,12 @@ class AppServiceProvider extends ServiceProvider
         TextEntry::configureUsing(fn (TextEntry $entry) => $entry->timezone('Asia/Karachi'));
         // Every form field: plain text only, a sensible length, and e-mail / phone / CNIC formats by name.
         FieldRules::register();
+        // Every label (fields, columns, filters, buttons, record details) in the chosen language: the English text is
+        // the key in lang/<code>.json, and a label made from a field's name ("Registration no") is looked up too.
+        foreach ([\Filament\Forms\Components\Component::class, \Filament\Infolists\Components\Component::class, \Filament\Tables\Columns\Column::class,
+            \Filament\Tables\Filters\BaseFilter::class, \Filament\Actions\StaticAction::class] as $component) {
+            $component::configureUsing(fn ($c) => method_exists($c, 'translateLabel') ? $c->translateLabel() : null);
+        }
 
         $this->registerAuth();
         $this->registerRateLimits();

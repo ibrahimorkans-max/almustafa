@@ -10,10 +10,12 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListEmployees extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = EmployeeResource::class;
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('Add employee')];
+        return [CreateAction::make()->label(__('Add employee'))];
     }
 }

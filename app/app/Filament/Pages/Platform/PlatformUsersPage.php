@@ -39,6 +39,8 @@ use Illuminate\Validation\Rules\Password;
  */
 class PlatformUsersPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
 
     protected static ?string $navigationGroup = 'Platform';
@@ -135,19 +137,19 @@ class PlatformUsersPage extends Page
 
     public function addUserAction(): Action
     {
-        return Action::make('addUser')->label('Add a user')->icon('heroicon-o-user-plus')
+        return Action::make('addUser')->label(__('Add a user'))->icon('heroicon-o-user-plus')
             ->form([
                 Grid::make(2)->schema([
-                    Select::make('entity_id')->label('Mill')->required()->searchable()->live()
+                    Select::make('entity_id')->label(__('Mill'))->required()->searchable()->live()
                         ->options(fn () => $this->sys(fn () => Entity::query()->with('customer')->orderBy('name')->get()
                             ->mapWithKeys(fn (Entity $e) => [$e->id => $e->name.' — '.($e->customer?->name ?? '')])->all())),
-                    Select::make('role_id')->label('Role')->required()
+                    Select::make('role_id')->label(__('Role'))->required()
                         ->options(fn (Get $get) => $get('entity_id') ? $this->sys(fn () => Role::query()->where('entity_id', $get('entity_id'))->orderBy('name')->pluck('name', 'id')->all()) : []),
                     TextInput::make('full_name')->required()->maxLength(160),
                     TextInput::make('username')->required()->maxLength(60)->regex('/^[a-z0-9._-]{3,60}$/'),
                     TextInput::make('phone')->maxLength(20),
                     TextInput::make('email')->email()->maxLength(160),
-                    TextInput::make('password')->label('Temporary password (changed at first sign-in)')->password()->revealable()->required()
+                    TextInput::make('password')->label(__('Temporary password (changed at first sign-in)'))->password()->revealable()->required()
                         ->rule(Password::defaults())->default(fn () => Str::password(16)),
                 ]),
             ])
@@ -169,10 +171,10 @@ class PlatformUsersPage extends Page
 
     public function roleAction(): Action
     {
-        return Action::make('role')->label('Role')->icon('heroicon-m-identification')->size('xs')->color('gray')
+        return Action::make('role')->label(__('Role'))->icon('heroicon-m-identification')->size('xs')->color('gray')
             ->fillForm(fn (array $arguments) => ['role_id' => $this->account($arguments)->role_id])
             ->form(fn (array $arguments) => [
-                Select::make('role_id')->label('Role')->required()->options(fn () => $this->sys(fn () => Role::query()
+                Select::make('role_id')->label(__('Role'))->required()->options(fn () => $this->sys(fn () => Role::query()
                     ->where('entity_id', $this->account($arguments)->role?->getAttribute('entity_id'))->orderBy('name')->pluck('name', 'id')->all())),
                 Textarea::make('reason')->required()->minLength(5)->maxLength(500),
             ])
@@ -189,9 +191,9 @@ class PlatformUsersPage extends Page
 
     public function accessAction(): Action
     {
-        return Action::make('access')->label('Access')->icon('heroicon-m-lock-closed')->size('xs')->color('warning')
+        return Action::make('access')->label(__('Access'))->icon('heroicon-m-lock-closed')->size('xs')->color('warning')
             ->form([
-                Select::make('change')->required()->options(['suspend' => 'Suspend (can be reinstated)', 'revoke' => 'Revoke for good (the account stays, its records stay)', 'reinstate' => 'Reinstate']),
+                Select::make('change')->required()->options(['suspend' => __('Suspend (can be reinstated)'), 'revoke' => __('Revoke for good (the account stays, its records stay)'), 'reinstate' => __('Reinstate')]),
                 Textarea::make('reason')->required()->minLength(5)->maxLength(500),
             ])
             ->action(fn (array $data, array $arguments) => $this->done(fn () => app(AccountStatusService::class)->{$data['change']}($this->account($arguments), $data['reason']), 'Access changed.'));
@@ -199,9 +201,9 @@ class PlatformUsersPage extends Page
 
     public function passwordAction(): Action
     {
-        return Action::make('password')->label('Password')->icon('heroicon-m-key')->size('xs')->color('gray')
+        return Action::make('password')->label(__('Password'))->icon('heroicon-m-key')->size('xs')->color('gray')
             ->form([
-                TextInput::make('password')->label('New temporary password')->password()->revealable()->required()->rule(Password::defaults())->default(fn () => Str::password(16)),
+                TextInput::make('password')->label(__('New temporary password'))->password()->revealable()->required()->rule(Password::defaults())->default(fn () => Str::password(16)),
                 Textarea::make('reason')->required()->minLength(5)->maxLength(500),
             ])
             ->action(fn (array $data, array $arguments) => $this->done(function () use ($data, $arguments): void {
@@ -218,8 +220,8 @@ class PlatformUsersPage extends Page
 
     public function historyAction(): Action
     {
-        return Action::make('history')->label('Sign-ins & activity')->icon('heroicon-m-clock')->size('xs')->color('gray')
-            ->modalSubmitAction(false)->modalCancelActionLabel('Close')->modalWidth('4xl')
+        return Action::make('history')->label(__('Sign-ins & activity'))->icon('heroicon-m-clock')->size('xs')->color('gray')
+            ->modalSubmitAction(false)->modalCancelActionLabel(__('Close'))->modalWidth('4xl')
             ->form(fn (array $arguments) => [Placeholder::make('h')->hiddenLabel()->content(fn () => new HtmlString($this->sys(function () use ($arguments): string {
                 $a = $this->account($arguments);
                 $sessions = AuthSession::query()->where('login_account_id', $a->id)->latest('created_at')->limit(20)->get();

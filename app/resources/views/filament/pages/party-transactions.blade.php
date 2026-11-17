@@ -6,25 +6,25 @@
     @endphp
 
     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <label class="text-sm lg:col-span-2"><span class="text-gray-500">Party</span>
+        <label class="text-sm lg:col-span-2"><span class="text-gray-500">{{ __('Party') }}</span>
             <select wire:model.live="party" class="{{ $sel }}">
-                <option value="">Choose a party…</option>
+                <option value="">{{ __('Choose a party…') }}</option>
                 @foreach ($this->parties() as $id => $name)<option value="{{ $id }}">{{ $name }}</option>@endforeach
             </select></label>
-        <label class="text-sm"><span class="text-gray-500">Period</span>
+        <label class="text-sm"><span class="text-gray-500">{{ __('Period') }}</span>
             <select wire:model.live="period" class="{{ $sel }}">@foreach ($this->periods() as $k => $l)<option value="{{ $k }}">{{ $l }}</option>@endforeach</select></label>
-        <label class="text-sm"><span class="text-gray-500">Show</span>
-            <select wire:model.live="direction" class="{{ $sel }}"><option value="">All transactions</option><option value="out">Debits (money out / charged)</option><option value="in">Credits (money in / billed)</option></select></label>
-        <label class="text-sm"><span class="text-gray-500">Search</span>
-            <input type="search" wire:model.live.debounce.400ms="search" placeholder="Number, description…" class="{{ $sel }}"></label>
+        <label class="text-sm"><span class="text-gray-500">{{ __('Show') }}</span>
+            <select wire:model.live="direction" class="{{ $sel }}"><option value="">{{ __('All transactions') }}</option><option value="out">{{ __('Debits (money out / charged)') }}</option><option value="in">{{ __('Credits (money in / billed)') }}</option></select></label>
+        <label class="text-sm"><span class="text-gray-500">{{ __('Search') }}</span>
+            <input type="search" wire:model.live.debounce.400ms="search" placeholder="{{ __('Number, description…') }}" class="{{ $sel }}"></label>
         @if ($period === 'custom')
-            <label class="text-sm"><span class="text-gray-500">From</span><input type="date" wire:model.live="from" class="{{ $sel }}"></label>
-            <label class="text-sm"><span class="text-gray-500">To</span><input type="date" wire:model.live="to" class="{{ $sel }}"></label>
+            <label class="text-sm"><span class="text-gray-500">{{ __('From') }}</span><input type="date" wire:model.live="from" class="{{ $sel }}"></label>
+            <label class="text-sm"><span class="text-gray-500">{{ __('To') }}</span><input type="date" wire:model.live="to" class="{{ $sel }}"></label>
         @endif
     </div>
 
     @if ($a === null)
-        <x-filament::section><p class="text-sm text-gray-500">Choose a party to see every entry on its account, like a bank statement.</p></x-filament::section>
+        <x-filament::section><p class="text-sm text-gray-500">{{ __('Choose a party to see every entry on its account, like a bank statement.') }}</p></x-filament::section>
     @else
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             @foreach ([['Opening balance', $this->balance($a['opening']), 'heroicon-o-flag'], ['Total debits', $rs($a['total_dr']) ?: 'Rs 0', 'heroicon-o-arrow-up-right'],
@@ -45,8 +45,8 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-gray-200 text-left text-xs uppercase text-gray-500 dark:border-white/10">
-                            <th class="py-2 pr-3">Date</th><th class="pr-3">Number</th><th class="pr-3">Type</th><th class="pr-3">Description</th>
-                            <th class="pr-3 text-right">Debit</th><th class="pr-3 text-right">Credit</th><th class="text-right">Balance</th>
+                            <th class="py-2 pr-3">{{ __('Date') }}</th><th class="pr-3">{{ __('Number') }}</th><th class="pr-3">{{ __('Type') }}</th><th class="pr-3">{{ __('Description') }}</th>
+                            <th class="pr-3 text-right">{{ __('Debit') }}</th><th class="pr-3 text-right">{{ __('Credit') }}</th><th class="text-right">{{ __('Balance') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -67,7 +67,7 @@
                                 <td class="text-right font-mono whitespace-nowrap">{{ $this->balance((int) $l['balance']) }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="py-4 text-center text-gray-500">No transactions in this period.</td></tr>
+                            <tr><td colspan="7" class="py-4 text-center text-gray-500">{{ __('No transactions in this period.') }}</td></tr>
                         @endforelse
                     </tbody>
                     @if ($a['lines'] !== [])
@@ -81,7 +81,7 @@
                     @endif
                 </table>
             </div>
-            <p class="mt-2 text-xs text-gray-500">Newest first. The balance is after each entry, over all the party's entries. Click a number to open its voucher.</p>
+            <p class="mt-2 text-xs text-gray-500">{{ __('Newest first. The balance is after each entry, over all the party\'s entries. Click a number to open its voucher.') }}</p>
         </x-filament::section>
     @endif
     <x-filament-actions::modals />

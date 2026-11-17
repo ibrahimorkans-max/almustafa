@@ -20,7 +20,9 @@ use Illuminate\Validation\Rules\Unique;
 
 class TaxRateResource extends Resource
 {
-    use MasterResourceHelpers;
+    use \App\Filament\Concerns\TranslatesResourceLabels, MasterResourceHelpers {
+        MasterResourceHelpers::getNavigationGroup insteadof \App\Filament\Concerns\TranslatesResourceLabels;
+    }
 
     protected static ?string $model = TaxRate::class;
 
@@ -33,11 +35,11 @@ class TaxRateResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            TextInput::make('name')->required()->maxLength(60)->placeholder('Standard 18%')
+            TextInput::make('name')->required()->maxLength(60)->placeholder(__('Standard 18%'))
                 ->unique('tax_rates', 'name', ignoreRecord: true, modifyRuleUsing: fn (Unique $rule) => $rule->where('entity_id', app(TenantContext::class)->entityId())),
-            TextInput::make('sales_tax_rate_bp')->label('Rate (basis points, 1800 = 18%)')->required()->integer()->minValue(0)->maxValue(TaxRate::MAX_RATE_BP)->default(1800),
-            Toggle::make('exempt')->label('Exempt (Sixth Schedule)')->helperText('No tax is charged; the supply is reported as exempt rather than zero-rated.'),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
+            TextInput::make('sales_tax_rate_bp')->label(__('Rate (basis points, 1800 = 18%)'))->required()->integer()->minValue(0)->maxValue(TaxRate::MAX_RATE_BP)->default(1800),
+            Toggle::make('exempt')->label(__('Exempt (Sixth Schedule)'))->helperText(__('No tax is charged; the supply is reported as exempt rather than zero-rated.')),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')])->default('active')->required(),
         ]);
     }
 
@@ -46,7 +48,7 @@ class TaxRateResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('name')->searchable(),
-                TextColumn::make('rate')->label('Sales tax')->state(fn (TaxRate $record) => $record->percentLabel()),
+                TextColumn::make('rate')->label(__('Sales tax'))->state(fn (TaxRate $record) => $record->percentLabel()),
                 TextColumn::make('status')->badge(),
                 static::updatedColumn(),
             ])

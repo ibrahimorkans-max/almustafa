@@ -34,6 +34,8 @@ use Illuminate\Support\Facades\DB;
  */
 class BankAccountsPage extends Page implements HasTable
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-library';
@@ -79,44 +81,44 @@ class BankAccountsPage extends Page implements HasTable
     {
         return $table->query(fn (): Builder => LedgerAccount::query()->where('kind', 'bank')->orderBy('name'))
             ->columns([
-                TextColumn::make('name')->label('Account')->searchable()->description(fn (LedgerAccount $r) => $r->code),
-                TextColumn::make('bank_name')->label('Bank')->placeholder('—'),
-                TextColumn::make('bank_account_last4')->label('IBAN')->formatStateUsing(fn (?string $state) => $state ? '•••• '.$state : '—'),
-                TextColumn::make('balance')->label('Balance')->alignEnd()->fontFamily('mono')
+                TextColumn::make('name')->label(__('Account'))->searchable()->description(fn (LedgerAccount $r) => $r->code),
+                TextColumn::make('bank_name')->label(__('Bank'))->placeholder('—'),
+                TextColumn::make('bank_account_last4')->label(__('IBAN'))->formatStateUsing(fn (?string $state) => $state ? '•••• '.$state : '—'),
+                TextColumn::make('balance')->label(__('Balance'))->alignEnd()->fontFamily('mono')
                     ->state(fn (LedgerAccount $r) => self::balance($r))
                     ->formatStateUsing(fn (int $state) => ($state < 0 ? '− ' : '').Money::paise(abs($state))->format())
                     ->color(fn (int $state) => $state < 0 ? 'danger' : null),
                 TextColumn::make('status')->badge()->color(fn (string $state) => $state === 'active' ? 'success' : 'gray'),
             ])
             ->actions([
-                Action::make('edit')->label('Edit')->icon('heroicon-m-pencil-square')->visible(fn () => self::canAdd())
+                Action::make('edit')->label(__('Edit'))->icon('heroicon-m-pencil-square')->visible(fn () => self::canAdd())
                     ->fillForm(fn (LedgerAccount $r) => ['name' => $r->name, 'bank_name' => $r->bank_name, 'status' => $r->status])
                     ->form([
-                        TextInput::make('name')->label('Account title')->required()->maxLength(160),
-                        TextInput::make('bank_name')->label('Bank')->maxLength(120)->datalist(self::BANKS),
-                        Select::make('status')->options(['active' => 'In use', 'inactive' => 'Not used any more'])->required(),
+                        TextInput::make('name')->label(__('Account title'))->required()->maxLength(160),
+                        TextInput::make('bank_name')->label(__('Bank'))->maxLength(120)->datalist(self::BANKS),
+                        Select::make('status')->options(['active' => __('In use'), 'inactive' => __('Not used any more')])->required(),
                     ])
                     ->action(function (LedgerAccount $r, array $data): void {
                         $r->fill($data)->save();
-                        Notification::make()->success()->title('Saved.')->send();
+                        Notification::make()->success()->title(__('Saved.'))->send();
                     }),
             ])
-            ->emptyStateHeading('No bank account yet')
-            ->emptyStateDescription('Add the mill\'s bank accounts: payments are made from them and receipts paid into them.');
+            ->emptyStateHeading(__('No bank account yet'))
+            ->emptyStateDescription(__('Add the mill\'s bank accounts: payments are made from them and receipts paid into them.'));
     }
 
     public function addAction(): \Filament\Actions\Action
     {
-        return \Filament\Actions\Action::make('add')->label('Add bank account')->icon('heroicon-o-plus')
+        return \Filament\Actions\Action::make('add')->label(__('Add bank account'))->icon('heroicon-o-plus')
             ->visible(fn () => self::canAdd())
-            ->modalDescription('The mill\'s own account at a bank. The IBAN is kept encrypted; only its last four characters are shown.')
+            ->modalDescription(__('The mill\'s own account at a bank. The IBAN is kept encrypted; only its last four characters are shown.'))
             ->form([
-                TextInput::make('bank_name')->label('Bank')->required()->maxLength(120)->datalist(self::BANKS)->placeholder('Meezan Bank'),
-                TextInput::make('title')->label('Account title / purpose')->required()->maxLength(100)->placeholder('Current account – Lodhran branch'),
-                TextInput::make('iban')->label('IBAN')->required()->maxLength(34)->placeholder('PK36 MEZN 0000 0011 2345 6702')
+                TextInput::make('bank_name')->label(__('Bank'))->required()->maxLength(120)->datalist(self::BANKS)->placeholder(__('Meezan Bank')),
+                TextInput::make('title')->label(__('Account title / purpose'))->required()->maxLength(100)->placeholder(__('Current account – Lodhran branch')),
+                TextInput::make('iban')->label(__('IBAN'))->required()->maxLength(34)->placeholder(__('PK36 MEZN 0000 0011 2345 6702'))
                     ->rule(fn () => fn (string $a, mixed $v, Closure $fail) => $v && ! PakistanIds::isValidIban((string) PakistanIds::normalizeIban((string) $v))
                         ? $fail('The IBAN is not valid (PK and 22 characters; check it on the bank\'s cheque book or app).') : null),
-                TextInput::make('code')->label('Short code (optional)')->maxLength(40)->regex('/^[A-Za-z0-9._-]+$/')
+                TextInput::make('code')->label(__('Short code (optional)'))->maxLength(40)->regex('/^[A-Za-z0-9._-]+$/')
                     ->placeholder(fn (Get $get) => self::codeFor((string) $get('bank_name'))),
             ])
             ->action(function (array $data): void {
@@ -124,19 +126,19 @@ class BankAccountsPage extends Page implements HasTable
                 $group = AccountGroup::query()->where('code', 'BANK_ACCOUNTS')->where('entity_id', $entity)->first()
                     ?? AccountGroup::query()->where('code', 'BANK_ACCOUNTS')->first();
                 if ($group === null) {
-                    Notification::make()->danger()->title('This mill has no "Bank Accounts" group in its chart of accounts.')->send();
+                    Notification::make()->danger()->title(__('This mill has no "Bank Accounts" group in its chart of accounts.'))->send();
 
                     return;
                 }
                 $code = strtoupper(trim((string) ($data['code'] ?? ''))) ?: self::codeFor((string) $data['bank_name']);
                 if (LedgerAccount::query()->where('code', $code)->exists()) {
-                    Notification::make()->danger()->title("The code {$code} is taken; give another.")->send();
+                    Notification::make()->danger()->title(__('The code :code is taken; give another.', ['code' => $code]))->send();
 
                     return;
                 }
                 $iban = PakistanIds::normalizeIban((string) $data['iban']);
                 if (LedgerAccount::query()->where('kind', 'bank')->get()->contains(fn (LedgerAccount $l) => $l->bank_account_number === $iban)) {
-                    Notification::make()->danger()->title('This IBAN is already one of the mill\'s bank accounts.')->send();
+                    Notification::make()->danger()->title(__('This IBAN is already one of the mill\'s bank accounts.'))->send();
 
                     return;
                 }

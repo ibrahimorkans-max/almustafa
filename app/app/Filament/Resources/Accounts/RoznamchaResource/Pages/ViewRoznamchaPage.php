@@ -19,6 +19,8 @@ use Illuminate\Contracts\Support\Htmlable;
 
 class ViewRoznamchaPage extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = RoznamchaResource::class;
 
     /** The page's day against the roznamcha budget. */
@@ -36,22 +38,22 @@ class ViewRoznamchaPage extends ViewRecord
         $can = fn () => Filament::auth()->user()?->can('ledger.post') ?? false;
 
         return [
-            Action::make('lines')->label('Correct entries')->icon('heroicon-o-pencil-square')
+            Action::make('lines')->label(__('Correct entries'))->icon('heroicon-o-pencil-square')
                 ->visible(fn (RoznamchaPage $record) => $record->status === 'draft' && $can())
                 ->modalWidth('7xl')
-                ->modalDescription('Check each entry against the scan: the party or account, and cash received or paid.')
+                ->modalDescription(__('Check each entry against the scan: the party or account, and cash received or paid.'))
                 ->fillForm(fn (RoznamchaPage $record) => ['lines' => RoznamchaResource::linesForForm($record)])
                 ->form(RoznamchaResource::lineFields())
                 ->action(fn (RoznamchaPage $record, array $data) => $this->run(fn (Roznamcha $r) => $r->saveLines($record, array_values((array) ($data['lines'] ?? []))), 'Entries saved')),
-            Action::make('verify')->label('Mark checked')->icon('heroicon-o-check-badge')->color('info')
+            Action::make('verify')->label(__('Mark checked'))->icon('heroicon-o-check-badge')->color('info')
                 ->visible(fn (RoznamchaPage $record) => $record->status === 'draft' && $can())
-                ->requiresConfirmation()->modalDescription('You checked every entry against the scanned page.')
+                ->requiresConfirmation()->modalDescription(__('You checked every entry against the scanned page.'))
                 ->action(fn (RoznamchaPage $record) => $this->run(fn (Roznamcha $r) => $r->verify($record), 'Checked')),
-            Action::make('post')->label('Post to the books')->icon('heroicon-o-check')->color('success')
+            Action::make('post')->label(__('Post to the books'))->icon('heroicon-o-check')->color('success')
                 ->visible(fn (RoznamchaPage $record) => $record->status === 'verified' && $can())
                 ->requiresConfirmation()->modalDescription(fn (RoznamchaPage $record) => 'Each entry becomes a cash receipt or payment voucher. A posted page cannot be changed.'
                     .(self::over($record) ? ' This day is OVER its roznamcha budget: give the reason.' : ''))
-                ->form(fn (RoznamchaPage $record) => self::over($record) ? [Textarea::make('reason')->label('Why is more paid out than the budget?')->required()->minLength(5)->maxLength(300)] : [])
+                ->form(fn (RoznamchaPage $record) => self::over($record) ? [Textarea::make('reason')->label(__('Why is more paid out than the budget?'))->required()->minLength(5)->maxLength(300)] : [])
                 ->action(fn (RoznamchaPage $record, array $data) => $this->run(fn (Roznamcha $r) => $r->post($record, $data['reason'] ?? null), 'Posted')),
         ];
     }

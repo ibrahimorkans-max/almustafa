@@ -1,5 +1,7 @@
 import json
+import os
 import tempfile
+import time
 import tomllib
 import unittest
 from pathlib import Path
@@ -111,6 +113,18 @@ class PairingTest(unittest.TestCase):
 
         ApiClient("https://erp.mill.pk", Credentials("wb.wb1", "right", "agent-x", "s"), transport=server, refused_file=marker).login()
         self.assertEqual(sum(1 for r in server.requests if r[0].endswith("/auth/login")), 2)
+        self.assertFalse(marker.exists())
+
+    def test_a_refused_password_is_tried_again_after_30_minutes(self) -> None:
+        # The office unlocked the login: the agent recovers by itself, without anyone running check.
+        marker = Path(self.dir.name) / "sign-in-refused.txt"
+        server = FakeServer(password="right")
+        with self.assertRaises(ApiError):
+            ApiClient("https://erp.mill.pk", Credentials("wb.wb1", "right!", "agent-x", "s"), transport=server, refused_file=marker).login()
+        server.password = "right!"                                       # now accepted (unlocked)
+        old = time.time() - ApiClient.RETRY_REFUSED_S - 5
+        os.utime(marker, (old, old))
+        ApiClient("https://erp.mill.pk", Credentials("wb.wb1", "right!", "agent-x", "s"), transport=server, refused_file=marker).login()
         self.assertFalse(marker.exists())
 
     def test_helpers(self) -> None:

@@ -10,6 +10,8 @@ use Filament\Resources\Pages\ManageRecords;
 
 class ManagePaddyVarieties extends ManageRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PaddyVarietyResource::class;
 
     protected function getHeaderActions(): array

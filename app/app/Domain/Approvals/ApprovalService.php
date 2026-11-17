@@ -274,7 +274,7 @@ final class ApprovalService
         $n = Notification::make()
             ->title("Your request was {$request->status}: ".mb_substr($request->summary, 0, 120))
             ->body(trim(($by ? "Decided by {$by}. " : '').($request->decision_note ?? '').($request->error ? " Error: {$request->error}" : '')))
-            ->actions([NotificationAction::make('open')->label('Open')->url(ApprovalRequestResource::getUrl('view', ['record' => $request], panel: 'admin'))]);
+            ->actions([NotificationAction::make('open')->label(__('Open'))->url(ApprovalRequestResource::getUrl('view', ['record' => $request], panel: 'admin'))]);
         (in_array($request->status, [ApprovalRequest::STATUS_EXECUTED], true) ? $n->success() : $n->danger())->sendToDatabase($recipients);
     }
 

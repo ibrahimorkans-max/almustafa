@@ -21,6 +21,8 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewPayment extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use RunsDomainActions;
 
     protected static string $resource = PaymentResource::class;
@@ -31,12 +33,12 @@ class ViewPayment extends ViewRecord
 
         return [
             AttachmentsPanel::action(),
-            Action::make('approval')->label('Open approval')->icon('heroicon-o-shield-check')
+            Action::make('approval')->label(__('Open approval'))->icon('heroicon-o-shield-check')
                 ->visible(fn (Payment $p) => $p->isOpen() && $p->approval_request_id !== null)
                 ->url(fn (Payment $p) => ApprovalRequestResource::getUrl('view', ['record' => $p->approval_request_id])),
             PrintButton::dialog('printVoucher', 'Print payment voucher', fn (Payment $p) => [app(AccountsDocuments::class)->paymentVoucherPdf($p), str_replace('/', '-', $p->number).'.pdf'])
                 ->visible(fn (Payment $p) => $p->status === Payment::APPROVED),
-            Action::make('voucher')->label('Download voucher (PDF)')->icon('heroicon-o-arrow-down-tray')->color('gray')
+            Action::make('voucher')->label(__('Download voucher (PDF)'))->icon('heroicon-o-arrow-down-tray')->color('gray')
                 ->visible(fn (Payment $p) => $p->status === Payment::APPROVED)
                 ->action(fn (Payment $p) => response()->streamDownload(
                     fn () => print app(AccountsDocuments::class)->paymentVoucherPdf($p),
@@ -46,7 +48,7 @@ class ViewPayment extends ViewRecord
             WhatsAppFileButton::header('whatsappVoucher', fn (Payment $p) => ['party' => $p->party, 'document' => 'payment voucher',
                 'number' => $p->number, 'file' => str_replace('/', '-', $p->number).'.pdf', 'pdf' => fn () => app(AccountsDocuments::class)->paymentVoucherPdf($p)],
                 fn (Payment $p) => $p->status === Payment::APPROVED && $p->party_id !== null),
-            Action::make('reference')->label('Record transaction ID / cheque no.')->icon('heroicon-o-hashtag')
+            Action::make('reference')->label(__('Record transaction ID / cheque no.'))->icon('heroicon-o-hashtag')
                 ->visible(fn (Payment $p) => $p->status === Payment::APPROVED && $can('payment.create'))
                 ->form([TextInput::make('reference')->required()->maxLength(60)])
                 ->action(fn (Payment $p, array $data) => $this->runDomain(fn () => app(PaymentService::class)->recordReference($p, $data['reference']), 'Reference saved')),

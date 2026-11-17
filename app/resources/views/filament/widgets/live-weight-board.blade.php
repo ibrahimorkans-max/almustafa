@@ -23,7 +23,7 @@
             <x-filament::section>
                 @if (count($scales) > 1)
                     {{-- One clock: choose which weighbridge it shows. --}}
-                    <div class="mb-3 flex flex-wrap justify-center gap-2" role="tablist" aria-label="Weighbridge">
+                    <div class="mb-3 flex flex-wrap justify-center gap-2" role="tablist" aria-label="{{ __('Weighbridge') }}">
                         @foreach ($scales as $other)
                             <button type="button" role="tab" wire:click="showScale('{{ $other['scale_id'] }}')" aria-selected="{{ $other['scale_id'] === $sid ? 'true' : 'false' }}"
                                 @class([
@@ -52,17 +52,17 @@
                             <div class="space-y-3">
                                 <div class="grid gap-3 sm:grid-cols-2">
                                     <label class="block text-sm">
-                                        <span class="mb-1 block text-xs font-medium text-gray-500">Vehicle number</span>
-                                        <input type="text" list="weigh-vehicles" wire:model.blur="plate.{{ $sid }}" placeholder="MNA-21-1234"
+                                        <span class="mb-1 block text-xs font-medium text-gray-500">{{ __('Vehicle number') }}</span>
+                                        <input type="text" list="weigh-vehicles" wire:model.blur="plate.{{ $sid }}" placeholder="{{ __('MNA-21-1234') }}"
                                             class="{{ $input }} font-mono uppercase" autocomplete="off">
                                     </label>
                                     <label class="block text-sm">
-                                        <span class="mb-1 block text-xs font-medium text-gray-500">Party name</span>
-                                        <input type="text" list="weigh-parties" wire:model.blur="party.{{ $sid }}" placeholder="Supplier or buyer"
+                                        <span class="mb-1 block text-xs font-medium text-gray-500">{{ __('Party name') }}</span>
+                                        <input type="text" list="weigh-parties" wire:model.blur="party.{{ $sid }}" placeholder="{{ __('Supplier or buyer') }}"
                                             class="{{ $input }}" autocomplete="off">
                                     </label>
                                     <label class="block text-sm">
-                                        <span class="mb-1 block text-xs font-medium text-gray-500">Type</span>
+                                        <span class="mb-1 block text-xs font-medium text-gray-500">{{ __('Type') }}</span>
                                         <select wire:model.live="jack.{{ $sid }}" class="{{ $input }}">
                                             <option value="">—</option>
                                             @foreach (\App\Models\Gate\GateEntry::JACK_TYPES as $jk => $jl)
@@ -71,12 +71,12 @@
                                         </select>
                                     </label>
                                     <label class="block text-sm">
-                                        <span class="mb-1 block text-xs font-medium text-gray-500">Item / goods (what it carries)</span>
-                                        <input type="text" list="weigh-items" wire:model.blur="item.{{ $sid }}" placeholder="e.g. Paddy 1121, Rice, Husk 120 bags"
+                                        <span class="mb-1 block text-xs font-medium text-gray-500">{{ __('Item / goods (what it carries)') }}</span>
+                                        <input type="text" list="weigh-items" wire:model.blur="item.{{ $sid }}" placeholder="{{ __('e.g. Paddy 1121, Rice, Husk 120 bags') }}"
                                             class="{{ $input }}" autocomplete="off">
                                     </label>
                                 </div>
-                                <div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Inbound or outbound">
+                                <div class="flex flex-wrap gap-2" role="radiogroup" aria-label="{{ __('Inbound or outbound') }}">
                                     @foreach (\App\Domain\Gate\QuickWeigh::KINDS as $k => $label)
                                         @php($on = ($this->kind[$sid] ?? 'paddy') === $k)
                                         <button type="button" wire:click="$set('kind.{{ $sid }}', '{{ $k }}')" role="radio" aria-checked="{{ $on ? 'true' : 'false' }}"
@@ -90,7 +90,7 @@
 
                                 @php($modes = \App\Domain\Gate\WeighModes::options(app(\App\Domain\Tenancy\TenantContext::class)->entityId()))
                                 @if (($this->kind[$sid] ?? 'paddy') === 'paddy' && count($modes) > 1)
-                                    <label class="block text-sm"><span class="text-gray-600 dark:text-gray-300">Weighing mode</span>
+                                    <label class="block text-sm"><span class="text-gray-600 dark:text-gray-300">{{ __('Weighing mode') }}</span>
                                         <select wire:model.live="mode.{{ $sid }}" class="{{ $input }}">
                                             <option value="">Mill default — {{ $modes[\App\Domain\Gate\WeighModes::defaultMode(app(\App\Domain\Tenancy\TenantContext::class)->entityId())] ?? '' }}</option>
                                             @foreach ($modes as $m => $label)<option value="{{ $m }}">{{ $label }}</option>@endforeach
@@ -104,9 +104,9 @@
                                     <div class="rounded-lg bg-gray-50 p-3 text-sm dark:bg-white/5">
                                         <div class="font-medium">{{ $e->token_no !== null || $e->token_serial !== null ? 'Token '.$e->tokenLabel().' · ' : '' }}{{ $e->jack_type !== null ? $e->jackLabel().' · ' : '' }}{{ $e->vehicleLabel() }} · {{ $e->partyLabel() ?? '—' }} · {{ $e->itemLabel() }}</div>
                                         <div class="mt-1 grid grid-cols-3 gap-2 text-center">
-                                            <div><div class="text-xs text-gray-500">Loaded (gross)</div><div class="font-mono">{{ $st['gross']['kg'] !== null ? number_format((float) $st['gross']['kg'], 0) : '—' }}</div></div>
-                                            <div><div class="text-xs text-gray-500">Empty (tare)</div><div class="font-mono">{{ $st['tare']['kg'] !== null ? number_format((float) $st['tare']['kg'], 0) : '—' }}</div></div>
-                                            <div><div class="text-xs text-gray-500">Net</div><div class="font-mono font-semibold">{{ $st['net'] !== null ? number_format((float) $st['net'], 0) : '—' }}</div></div>
+                                            <div><div class="text-xs text-gray-500">{{ __('Loaded (gross)') }}</div><div class="font-mono">{{ $st['gross']['kg'] !== null ? number_format((float) $st['gross']['kg'], 0) : '—' }}</div></div>
+                                            <div><div class="text-xs text-gray-500">{{ __('Empty (tare)') }}</div><div class="font-mono">{{ $st['tare']['kg'] !== null ? number_format((float) $st['tare']['kg'], 0) : '—' }}</div></div>
+                                            <div><div class="text-xs text-gray-500">{{ __('Net') }}</div><div class="font-mono font-semibold">{{ $st['net'] !== null ? number_format((float) $st['net'], 0) : '—' }}</div></div>
                                         </div>
                                         <div class="mt-1 text-xs text-gray-500">
                                             {{ $st['next'] !== null ? 'Next: '.$this->nextLabel($e).'.' : $this->waitingReason($e) }}
@@ -114,9 +114,9 @@
                                     </div>
                                     @if ($st['unload'])
                                         <label class="block text-sm">
-                                            <span class="mb-1 block text-xs font-medium text-gray-500">Unloaded into (before the empty weight)</span>
+                                            <span class="mb-1 block text-xs font-medium text-gray-500">{{ __('Unloaded into (before the empty weight)') }}</span>
                                             <select wire:model.live="godown.{{ $sid }}" class="{{ $input }}">
-                                                <option value="">Choose the godown…</option>
+                                                <option value="">{{ __('Choose the godown…') }}</option>
                                                 @foreach ($this->getGodowns() as $gid => $gname)
                                                     <option value="{{ $gid }}">{{ $gname }}</option>
                                                 @endforeach
@@ -137,7 +137,7 @@
                                     @endif
                                 </div>
                                 @if ($this->canRecord())
-                                    <p class="text-xs text-gray-500">Press when the clock shows STABLE.</p>
+                                    <p class="text-xs text-gray-500">{{ __('Press when the clock shows STABLE.') }}</p>
                                 @endif
 
                                 {{-- Refreshes itself (new arrivals at the gate) without redrawing this form. --}}

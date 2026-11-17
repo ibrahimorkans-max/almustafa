@@ -28,6 +28,8 @@ use Livewire\Attributes\Url;
  */
 class NegotiationPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
 
     protected static ?string $navigationGroup = 'Gate & weighbridge';
@@ -131,7 +133,7 @@ class NegotiationPage extends Page
             // Each button acts on the vehicle chosen on this page.
             $action->record(fn () => $this->entry())->hidden(fn () => $this->entry() === null);
         }
-        $actions[] = Action::make('openVehicle')->label('Open vehicle page')->icon('heroicon-o-arrow-top-right-on-square')->color('gray')
+        $actions[] = Action::make('openVehicle')->label(__('Open vehicle page'))->icon('heroicon-o-arrow-top-right-on-square')->color('gray')
             ->hidden(fn () => $this->entry() === null)
             ->url(fn () => $this->entry() ? GateEntryResource::getUrl('view', ['record' => $this->entry()]) : null);
 

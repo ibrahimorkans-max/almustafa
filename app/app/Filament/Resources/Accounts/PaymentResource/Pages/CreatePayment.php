@@ -20,6 +20,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreatePayment extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PaymentResource::class;
 
     protected static ?string $title = 'Request payment';

@@ -15,13 +15,15 @@ use Illuminate\Support\Facades\Gate;
 
 class ListAuditLogs extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = AuditLogResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
             Action::make('verify')
-                ->label('Verify integrity')
+                ->label(__('Verify integrity'))
                 ->icon('heroicon-o-shield-check')
                 ->visible(fn () => Gate::allows('audit.verify'))
                 ->action(function (): void {
@@ -32,12 +34,12 @@ class ListAuditLogs extends ListRecords
 
                     $notification = Notification::make()->persistent();
                     if ($result->ok()) {
-                        $notification->success()->title('Audit log intact')
-                            ->body("{$result->rows} entries in {$result->chains} chain(s) verified.");
+                        $notification->success()->title(__('Audit log intact'))
+                            ->body(__(':rows entries in :chains chain(s) verified.', ['rows' => $result->rows, 'chains' => $result->chains]));
                     } else {
                         $first = $result->failures[0];
-                        $notification->danger()->title('Audit log verification FAILED')
-                            ->body("Chain {$first['chain']} at #{$first['seq']}: {$first['error']}");
+                        $notification->danger()->title(__('Audit log verification FAILED'))
+                            ->body(__('Chain :chain at #:seq: :error', ['chain' => $first['chain'], 'seq' => $first['seq'], 'error' => $first['error']]));
                     }
                     $notification->send();
                 }),

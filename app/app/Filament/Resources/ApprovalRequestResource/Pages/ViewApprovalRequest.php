@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Gate;
 
 class ViewApprovalRequest extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = ApprovalRequestResource::class;
 
     protected function getHeaderActions(): array
@@ -29,7 +31,7 @@ class ViewApprovalRequest extends ViewRecord
             AttachmentsPanel::action(),
             ApprovalRequestResource::approveAction(Action::make('approve'), $after),
             ApprovalRequestResource::rejectAction(Action::make('reject'), $after),
-            Action::make('cancel')->label('Withdraw')->color('gray')
+            Action::make('cancel')->label(__('Withdraw'))->color('gray')
                 ->visible(fn (ApprovalRequest $record) => Gate::allows('cancel', $record))
                 ->requiresConfirmation()
                 ->action(fn (ApprovalRequest $record) => ApprovalRequestResource::runDecision(

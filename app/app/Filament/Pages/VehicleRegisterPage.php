@@ -33,6 +33,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class VehicleRegisterPage extends Page implements HasTable
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-truck';
@@ -129,7 +131,7 @@ class VehicleRegisterPage extends Page implements HasTable
         abort_unless(static::canAccess(), 403);
         ExportGuard::assert();
         if (! $this->millChosen()) {
-            Notification::make()->title('Choose the mill first.')->warning()->send();
+            Notification::make()->title(__('Choose the mill first.'))->warning()->send();
 
             return null;
         }
@@ -154,31 +156,31 @@ class VehicleRegisterPage extends Page implements HasTable
             ->query(fn (): Builder => $register->query($this->date(), $this->direction()))
             ->defaultSort('arrived_at')
             ->columns([
-                TextColumn::make('number')->label('Entry')->searchable()->fontFamily('mono')
+                TextColumn::make('number')->label(__('Entry'))->searchable()->fontFamily('mono')
                     ->description(fn (GateEntry $e) => $e->direction === 'inbound' ? 'In' : 'Out'),
-                TextColumn::make('registration_no')->label('Vehicle')->searchable()->fontFamily('mono')->weight('bold')
+                TextColumn::make('registration_no')->label(__('Vehicle'))->searchable()->fontFamily('mono')->weight('bold')
                     ->description(fn (GateEntry $e) => $e->vehicle?->vehicle_type),
-                TextColumn::make('driver')->label('Driver')
+                TextColumn::make('driver')->label(__('Driver'))
                     ->state(fn (GateEntry $e) => $e->driver->name ?? $e->driver_name ?? '—')
                     ->description(fn (GateEntry $e) => $e->driver?->phone),
-                TextColumn::make('party.name')->label('Party')->placeholder('—')->wrap()
+                TextColumn::make('party.name')->label(__('Party'))->placeholder('—')->wrap()
                     ->description(fn (GateEntry $e) => trim(($e->product->name ?? '').($e->sauda ? ' · '.$e->sauda->number : ''), ' ·') ?: null),
-                TextColumn::make('bag_count')->label('Bags')->alignEnd()->placeholder('—'),
-                TextColumn::make('arrived_at')->label('In / out')->dateTime('d M H:i', 'Asia/Karachi')->sortable()
+                TextColumn::make('bag_count')->label(__('Bags'))->alignEnd()->placeholder('—'),
+                TextColumn::make('arrived_at')->label(__('In / out'))->dateTime('d M H:i', 'Asia/Karachi')->sortable()
                     ->description(fn (GateEntry $e) => $e->exited_at ? 'Left '.$e->exited_at->timezone('Asia/Karachi')->format('d M H:i') : ($e->status === 'cancelled' ? 'Cancelled' : 'Inside')),
-                TextColumn::make('gross_kg')->label('Gross kg')->formatStateUsing($kg)->alignEnd()->placeholder('—'),
-                TextColumn::make('tare_kg')->label('Tare kg')->formatStateUsing($kg)->alignEnd()->placeholder('—'),
-                TextColumn::make('net_kg')->label('Net kg')->formatStateUsing($kg)->alignEnd()->weight('bold')->placeholder('—'),
-                TextColumn::make('deduction_kg')->label('Deduction kg')->formatStateUsing($kg)->alignEnd()->placeholder('—')
+                TextColumn::make('gross_kg')->label(__('Gross kg'))->formatStateUsing($kg)->alignEnd()->placeholder('—'),
+                TextColumn::make('tare_kg')->label(__('Tare kg'))->formatStateUsing($kg)->alignEnd()->placeholder('—'),
+                TextColumn::make('net_kg')->label(__('Net kg'))->formatStateUsing($kg)->alignEnd()->weight('bold')->placeholder('—'),
+                TextColumn::make('deduction_kg')->label(__('Deduction kg'))->formatStateUsing($kg)->alignEnd()->placeholder('—')
                     ->description(fn (GateEntry $e) => $e->rate_cut_paise_per_maund ? 'cut '.Money::paise($e->rate_cut_paise_per_maund)->format().'/md' : null),
-                TextColumn::make('payable')->label('Payable / billed')->alignEnd()->weight('bold')
+                TextColumn::make('payable')->label(__('Payable / billed'))->alignEnd()->weight('bold')
                     ->state(function (GateEntry $e): string {
                         $kg = $e->direction === 'outbound' ? $e->net_kg : $e->payable_kg;
 
                         return $kg === null ? '—' : Weight::kg($kg)->in('maund', 2).' maund';
                     })
                     ->description(fn (GateEntry $e) => VehicleRegister::kg($e->direction === 'outbound' ? $e->net_kg : $e->payable_kg)),
-                TextColumn::make('amount')->label('Rate · amount')->alignEnd()
+                TextColumn::make('amount')->label(__('Rate · amount'))->alignEnd()
                     ->state(fn (GateEntry $e) => VehicleRegister::rs($price($e)['net_paise']))
                     ->description(function (GateEntry $e) use ($price): string {
                         $p = $price($e);
@@ -194,27 +196,27 @@ class VehicleRegisterPage extends Page implements HasTable
             ])
             ->recordAction('details')
             ->actions([
-                Action::make('details')->label('Details')->icon('heroicon-o-document-magnifying-glass')->button()->color('gray')->size('sm')
+                Action::make('details')->label(__('Details'))->icon('heroicon-o-document-magnifying-glass')->button()->color('gray')->size('sm')
                     ->modalHeading(fn (GateEntry $e) => 'Vehicle '.$e->registration_no.' · '.$e->number)
                     ->modalContent(fn (GateEntry $e) => view('filament.pages.vehicle-register-details', ['d' => $register->details($e)]))
                     ->slideOver()->modalWidth('4xl')
-                    ->modalSubmitAction(false)->modalCancelActionLabel('Close')
+                    ->modalSubmitAction(false)->modalCancelActionLabel(__('Close'))
                     ->extraModalFooterActions(fn (GateEntry $e): array => [
-                        Action::make('printThis')->label('Print this vehicle')->icon('heroicon-o-printer')
+                        Action::make('printThis')->label(__('Print this vehicle'))->icon('heroicon-o-printer')
                             ->url(route('filament.admin.vehicle-register.vehicle', ['id' => $e->id]), shouldOpenInNewTab: true),
                     ]),
-                Action::make('slip')->label('Print')->icon('heroicon-o-printer')->button()->size('sm')
+                Action::make('slip')->label(__('Print'))->icon('heroicon-o-printer')->button()->size('sm')
                     ->url(fn (GateEntry $e) => route('filament.admin.vehicle-register.vehicle', ['id' => $e->id]), shouldOpenInNewTab: true),
                 ActionGroup::make([
-                    Action::make('weighment')->label('Official weighment slip')->icon('heroicon-o-document-text')
+                    Action::make('weighment')->label(__('Official weighment slip'))->icon('heroicon-o-document-text')
                         ->visible(fn (GateEntry $e) => in_array($e->status, ['slip_issued', 'gate_pass_issued', 'exited'], true))
                         ->url(fn (GateEntry $e) => route('filament.admin.vehicle-register.weighment', ['id' => $e->id]), shouldOpenInNewTab: true),
-                    Action::make('open')->label('Open gate entry')->icon('heroicon-o-eye')
+                    Action::make('open')->label(__('Open gate entry'))->icon('heroicon-o-eye')
                         ->url(fn (GateEntry $e) => GateEntryResource::getUrl('view', ['record' => $e])),
                 ]),
             ])
-            ->emptyStateHeading('No vehicles on this day')
-            ->emptyStateDescription('Pick another day above, or record an arrival on the Gate entries screen.')
+            ->emptyStateHeading(__('No vehicles on this day'))
+            ->emptyStateDescription(__('Pick another day above, or record an arrival on the Gate entries screen.'))
             ->paginated([25, 50, 100, 'all'])
             ->poll('30s');
     }

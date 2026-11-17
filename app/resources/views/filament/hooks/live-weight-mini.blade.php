@@ -28,7 +28,7 @@
                 title="{{ $scale->name }}: live weight">
                 <span data-lw-mini="lamp" aria-hidden="true"></span>
                 <span data-lw-mini="code">{{ $scale->code }}</span>
-                <span data-lw-mini="kg">—</span><span>kg</span>
+                <span data-lw-mini="kg">—</span><span>{{ __('kg') }}</span>
                 <span data-lw-mini="state">…</span>
             </a>
         @endforeach

@@ -10,12 +10,14 @@ use Filament\Resources\Pages\ManageRecords;
 
 class ManageDailyWageCategories extends ManageRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = DailyWageCategoryResource::class;
 
     protected ?string $subheading = 'The kinds of casual work and their rate (per person per day or hour, or per bag, maund, ton, trip, piece). The rate is filled in on new wage sheets.';
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('New work category')];
+        return [CreateAction::make()->label(__('New work category'))];
     }
 }

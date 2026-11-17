@@ -46,6 +46,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class PaperRecordResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = PaperRecord::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-book-open';
@@ -81,13 +83,13 @@ class PaperRecordResource extends Resource
         $money = ['opening_party', 'opening_ledger', 'opening_stock', 'purchase', 'sale', 'payment', 'receipt', 'expense', 'journal'];
 
         return [
-            Select::make('kind')->label('What is it?')->options(PaperRecords::KINDS)->required()->live()->native(false),
-            Grid::make(3)->schema([
-                DatePicker::make('date')->label('Date on the paper')->required()->native(false)->displayFormat('d/m/Y')->maxDate(now('Asia/Karachi')),
-                TextInput::make('book_ref')->label('Register and page')->placeholder('Roznamcha 2024, page 37')->maxLength(160),
-                TextInput::make('paper_number')->label('Number on the paper')->placeholder('Bill / slip / receipt no.')->maxLength(60),
+            Select::make('kind')->label(__('What is it?'))->options(\App\Support\Locales::options(PaperRecords::KINDS))->required()->live()->native(false),
+            Grid::make(['default' => 1, 'sm' => 2, 'lg' => 3])->schema([
+                DatePicker::make('date')->label(__('Date on the paper'))->required()->native(false)->displayFormat('d/m/Y')->maxDate(now('Asia/Karachi')),
+                TextInput::make('book_ref')->label(__('Register and page'))->placeholder(__('Roznamcha 2024, page 37'))->maxLength(160),
+                TextInput::make('paper_number')->label(__('Number on the paper'))->placeholder(__('Bill / slip / receipt no.'))->maxLength(60),
             ]),
-            Select::make('party_id')->label('Party')->searchable()->native(false)
+            Select::make('party_id')->label(__('Party'))->searchable()->native(false)
                 ->visible(self::for([...PaperRecords::PARTY_KINDS, 'weighment', 'note']))
                 ->required(self::for(PaperRecords::PARTY_KINDS))
                 ->getSearchResultsUsing(fn (string $search) => Party::query()->where(fn (Builder $q) => $q->where('name', 'ilike', "%{$search}%")->orWhere('code', 'ilike', "%{$search}%"))
@@ -95,10 +97,10 @@ class PaperRecordResource extends Resource
                 ->getOptionLabelUsing(fn ($value) => Party::query()->withArchived()->whereKey($value)->value('name'))
                 ->createOptionForm([
                     TextInput::make('name')->required()->maxLength(150),
-                    Radio::make('type')->options(['supplier' => 'Supplier / farmer', 'customer' => 'Customer'])->default('supplier')->required()->inline(),
+                    Radio::make('type')->options(['supplier' => __('Supplier / farmer'), 'customer' => __('Customer')])->default('supplier')->required()->inline(),
                     Grid::make(2)->schema([
                         TextInput::make('phone')->tel()->maxLength(20),
-                        TextInput::make('cnic')->label('CNIC')->placeholder('36302-1234567-1')->maxLength(15),
+                        TextInput::make('cnic')->label(__('CNIC'))->placeholder('36302-1234567-1')->maxLength(15),
                         TextInput::make('address')->maxLength(300),
                         TextInput::make('city')->maxLength(80),
                     ]),
@@ -107,19 +109,19 @@ class PaperRecordResource extends Resource
                     'cnic' => $data['cnic'] ?? null, 'address' => $data['address'] ?? null, 'city' => $data['city'] ?? null,
                     'is_vendor' => $data['type'] === 'supplier', 'is_customer' => $data['type'] === 'customer'])->id)
                 ->live()
-                ->helperText('Not in the list? Add it with the + button.'),
+                ->helperText(__('Not in the list? Add it with the + button.')),
             Fieldset::make('Party details on the paper')
                 ->visible(fn (Get $get) => filled($get('party_id')))
-                ->columns(4)
+                ->columns(['default' => 1, 'sm' => 2, 'lg' => 4])
                 ->schema([
                     Placeholder::make('party_now')->hiddenLabel()->columnSpanFull()
                         ->content(fn (Get $get) => self::partySummary($get('party_id'))),
-                    TextInput::make('party_phone')->label('Phone')->tel()->maxLength(20),
-                    TextInput::make('party_cnic')->label('CNIC')->placeholder('36302-1234567-1')->maxLength(15),
-                    TextInput::make('party_address')->label('Address')->maxLength(300),
-                    TextInput::make('party_city')->label('City')->maxLength(80),
+                    TextInput::make('party_phone')->label(__('Phone'))->tel()->maxLength(20),
+                    TextInput::make('party_cnic')->label(__('CNIC'))->placeholder('36302-1234567-1')->maxLength(15),
+                    TextInput::make('party_address')->label(__('Address'))->maxLength(300),
+                    TextInput::make('party_city')->label(__('City'))->maxLength(80),
                 ]),
-            Radio::make('side')->label('Balance')->required()->inline()
+            Radio::make('side')->label(__('Balance'))->required()->inline()
                 ->visible(self::for(['opening_party', 'opening_ledger']))
                 ->options(fn (Get $get) => $get('kind') === 'opening_party'
                     ? ['receivable' => 'The party owed the mill (lena)', 'payable' => 'The mill owed the party (dena)']
@@ -136,67 +138,78 @@ class PaperRecordResource extends Resource
                     'opening_ledger' => array_diff_key(self::ledgers(), [LedgerAccount::query()->where('system_key', 'opening_balance')->value('id') => true]),
                     default => self::ledgers() + LedgerAccount::query()->whereNotNull('party_id')->orderBy('name')->pluck('name', 'id')->all(),
                 }),
-            Select::make('credit_account_id')->label('Account credited')->native(false)->searchable()->required(self::for(['journal']))
+            Select::make('credit_account_id')->label(__('Account credited'))->native(false)->searchable()->required(self::for(['journal']))
                 ->visible(self::for(['journal']))
                 ->options(fn () => self::ledgers() + LedgerAccount::query()->whereNotNull('party_id')->orderBy('name')->pluck('name', 'id')->all()),
             Select::make('cash_bank_id')->label(fn (Get $get) => $get('kind') === 'receipt' ? 'Received into' : 'Paid from')->native(false)
                 ->visible(self::for(['payment', 'receipt', 'expense']))
                 ->options(fn () => self::ledgers(null, ['cash', 'bank']))
                 ->default(fn () => LedgerAccount::query()->where('system_key', 'cash')->value('id'))
-                ->helperText('A bank not in the list: add it under Accounts → Bank accounts.'),
+                ->helperText(__('A bank not in the list: add it under Accounts → Bank accounts.')),
             Fieldset::make('Payment details')
                 ->visible(self::for(PaperRecords::PAYMENT_KINDS))
-                ->columns(3)
+                ->columns(['default' => 1, 'sm' => 2, 'lg' => 3])
                 ->schema([
-                    Select::make('payment_mode')->label('Paid by')->options(PaperRecords::PAYMENT_MODES)->default('cash')->native(false)->live(),
+                    Select::make('payment_mode')->label(__('Paid by'))->options(\App\Support\Locales::options(PaperRecords::PAYMENT_MODES))->default('cash')->native(false)->live(),
                     TextInput::make('reference')->maxLength(60)
                         ->label(fn (Get $get) => in_array($get('payment_mode'), ['cheque', 'pay_order'], true) ? 'Cheque / pay order no.' : 'Transaction ID / slip no.')
                         ->required(fn (Get $get) => in_array($get('payment_mode'), ['cheque', 'pay_order', 'ibft', 'rtgs', 'raast', 'mobile'], true)),
-                    DatePicker::make('cheque_date')->label('Cheque date')->native(false)->displayFormat('d/m/Y')
+                    DatePicker::make('cheque_date')->label(__('Cheque date'))->native(false)->displayFormat('d/m/Y')
                         ->visible(fn (Get $get) => in_array($get('payment_mode'), ['cheque', 'pay_order'], true)),
-                    TextInput::make('party_bank')->label("Party's bank / account")->placeholder('HBL Lodhran, a/c …1234')->maxLength(120)
+                    TextInput::make('party_bank')->label(__("Party's bank / account"))->placeholder(__('HBL Lodhran, a/c …1234'))->maxLength(120)
                         ->visible(self::for(['payment', 'receipt'])),
                     TextInput::make('handled_by')->maxLength(120)
                         ->label(fn (Get $get) => $get('kind') === 'receipt' ? 'Received by' : 'Paid by (person)'),
                 ]),
-            Grid::make(3)->visible(self::for(['opening_stock', 'purchase', 'sale', 'weighment']))->schema([
-                Select::make('product_id')->label('Product')->native(false)->searchable()
+            Grid::make(['default' => 1, 'sm' => 2, 'lg' => 3])->visible(self::for(['opening_stock', 'purchase', 'sale', 'weighment']))->schema([
+                Select::make('product_id')->label(__('Product'))->native(false)->searchable()
                     ->required(self::for(['opening_stock']))
                     ->options(fn () => Product::query()->orderBy('name')->pluck('name', 'id')->all()),
-                Select::make('godown_id')->label('Godown')->native(false)
+                Select::make('godown_id')->label(__('Godown'))->native(false)
                     ->visible(self::for(['opening_stock', 'purchase', 'sale']))
                     ->required(self::for(['opening_stock']))
                     ->options(fn () => Godown::query()->orderBy('name')->pluck('name', 'id')->all())
                     ->helperText(fn (Get $get) => $get('kind') === 'opening_stock' ? null : 'With a godown and weight, the stock moves too.'),
-                TextInput::make('quantity_kg')->label('Weight (kg)')->numeric()->minValue(0)
+                TextInput::make('quantity_kg')->label(__('Weight (kg)'))->numeric()->minValue(0)
                     ->visible(self::for(['opening_stock', 'purchase', 'sale']))->required(self::for(['opening_stock'])),
             ]),
-            TextInput::make('rate_per_maund')->label('Rate per maund (40 kg), Rs')->numeric()->minValue(0)
-                ->visible(self::for(['purchase', 'sale']))->helperText('With the weight, works out the amount when it is left blank.'),
-            TextInput::make('amount')->numeric()->minValue(0)->prefix('Rs')
+            TextInput::make('rate_per_maund')->label(__('Rate per maund (40 kg), Rs'))->numeric()->minValue(0)
+                ->visible(self::for(['purchase', 'sale']))->helperText(__('With the weight, works out the amount when it is left blank.')),
+            TextInput::make('amount')->numeric()->minValue(0)->prefix(__('Rs'))
                 ->label(fn (Get $get) => $get('kind') === 'opening_stock' ? 'Value of the stock (optional)' : 'Amount')
                 ->visible(self::for($money))
                 ->required(self::for(['opening_party', 'opening_ledger', 'payment', 'receipt', 'expense', 'journal'])),
-            Fieldset::make('Vehicle details')
+            // The vehicle the goods came or went in (or that the money was for): a vehicle not in the list is added.
+            \Filament\Forms\Components\Section::make(__('Vehicle details'))
+                ->description(__('Fill in if a vehicle is written on the paper. A new vehicle number is added to the Vehicles list.'))
+                ->icon('heroicon-o-truck')
                 ->visible(self::for(PaperRecords::VEHICLE_KINDS))
-                ->columns(3)
+                ->collapsible()
+                ->collapsed(fn (Get $get) => ! in_array($get('kind'), ['weighment', 'purchase', 'sale'], true))
+                ->columns(['default' => 1, 'sm' => 2, 'lg' => 3])
                 ->schema([
-                    TextInput::make('vehicle')->label('Vehicle number')->placeholder('MNA-21-1234')->required(self::for(['weighment']))->maxLength(30),
-                    Select::make('vehicle_type')->label('Type')->native(false)
-                        ->options(array_combine(Vehicle::TYPES, array_map(fn (string $t) => Vehicle::typeLabel($t), Vehicle::TYPES))),
-                    TextInput::make('bilty_no')->label('Bilty / gate pass no.')->maxLength(40),
-                    TextInput::make('driver_name')->label('Driver name')->maxLength(120),
-                    TextInput::make('driver_phone')->label('Driver phone')->tel()->maxLength(20),
-                    TextInput::make('bags')->label('Bags')->integer()->minValue(0),
+                    TextInput::make('vehicle')->label(__('Vehicle number'))->placeholder(__('MNA-21-1234'))->required(self::for(['weighment']))->maxLength(30),
+                    Select::make('vehicle_type')->label(__('Vehicle type'))->native(false)
+                        ->options(\App\Support\Locales::options(array_combine(Vehicle::TYPES, array_map(fn (string $t) => Vehicle::typeLabel($t), Vehicle::TYPES)))),
+                    TextInput::make('bilty_no')->label(__('Bilty / gate pass no.'))->maxLength(40),
+                    TextInput::make('driver_name')->label(__('Driver name'))->maxLength(120),
+                    TextInput::make('driver_phone')->label(__('Driver phone'))->tel()->placeholder('0300-1234567')->maxLength(20),
+                    TextInput::make('driver_cnic')->label(__('Driver CNIC'))->placeholder('36302-1234567-1')->maxLength(15)
+                        ->helperText(__('Only the last four digits are kept.')),
+                    TextInput::make('vehicle_owner')->label(__('Vehicle owner'))->maxLength(120),
+                    TextInput::make('from_place')->label(__('From (place)'))->maxLength(80),
+                    TextInput::make('to_place')->label(__('To (place)'))->maxLength(80),
+                    TextInput::make('freight')->label(__('Freight / kiraya (Rs)'))->numeric()->minValue(0)->prefix(__('Rs')),
+                    TextInput::make('bags')->label(__('Bags'))->integer()->minValue(0),
                 ]),
-            Grid::make(2)->visible(self::for(['weighment']))->schema([
-                TextInput::make('gross_kg')->label('Gross weight (kg)')->numeric()->minValue(0)->required(self::for(['weighment'])),
-                TextInput::make('tare_kg')->label('Tare weight (kg)')->numeric()->minValue(0)->required(self::for(['weighment'])),
+            Grid::make(['default' => 1, 'sm' => 2])->visible(self::for(['weighment']))->schema([
+                TextInput::make('gross_kg')->label(__('Gross weight (kg)'))->numeric()->minValue(0)->required(self::for(['weighment'])),
+                TextInput::make('tare_kg')->label(__('Tare weight (kg)'))->numeric()->minValue(0)->required(self::for(['weighment'])),
             ]),
             Textarea::make('description')->rows(2)->maxLength(5000)
                 ->label(fn (Get $get) => $get('kind') === 'note' ? 'What the register says' : 'Details (as written)')
                 ->required(self::for(['note', 'journal'])),
-            FileUpload::make('photo')->label('Photo of the page (optional)')->storeFiles(false)
+            FileUpload::make('photo')->label(__('Photo of the page (optional)'))->storeFiles(false)
                 ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480),
         ];
     }
@@ -207,45 +220,45 @@ class PaperRecordResource extends Resource
             ->defaultSort('record_date', 'desc')
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['party', 'voucher']))
             ->columns([
-                TextColumn::make('record_date')->label('Date')->date('d M Y')->sortable(),
-                TextColumn::make('kind')->badge()->formatStateUsing(fn (string $state) => PaperRecords::KINDS[$state] ?? $state)
+                TextColumn::make('record_date')->label(__('Date'))->date('d M Y')->sortable(),
+                TextColumn::make('kind')->badge()->wrap()->formatStateUsing(fn (string $state) => __(PaperRecords::KINDS[$state] ?? $state))
                     ->color(fn (string $state) => match (true) {
                         str_starts_with($state, 'opening') => 'info', in_array($state, PaperRecords::KEPT_KINDS, true) => 'gray', default => 'primary',
                     }),
-                TextColumn::make('paper_number')->label('Paper no.')->placeholder('—')->searchable(),
-                TextColumn::make('party.name')->label('Party')->placeholder('—')->searchable(),
-                TextColumn::make('amount_paise')->label('Amount')->alignEnd()->placeholder('—')
+                TextColumn::make('paper_number')->label(__('Paper no.'))->placeholder('—')->searchable()->visibleFrom('md'),
+                TextColumn::make('party.name')->label(__('Party'))->placeholder('—')->searchable(),
+                TextColumn::make('amount_paise')->label(__('Amount'))->alignEnd()->placeholder('—')
                     ->formatStateUsing(fn (?int $state) => $state === null ? null : Units::paiseToRupees($state)),
-                TextColumn::make('quantity_kg')->label('Kg')->alignEnd()->placeholder('—')->numeric(3),
-                TextColumn::make('vehicle')->label('Vehicle')->placeholder('—')
+                TextColumn::make('quantity_kg')->label(__('Kg'))->alignEnd()->placeholder('—')->numeric(3)->visibleFrom('md'),
+                TextColumn::make('vehicle')->label(__('Vehicle'))->placeholder('—')->visibleFrom('sm')
                     ->state(fn (PaperRecord $r) => $r->details['vehicle'] ?? null)
                     ->description(fn (PaperRecord $r) => $r->details['driver_name'] ?? null)
                     ->searchable(query: fn (Builder $query, string $search) => $query->where('details->vehicle', 'ilike', "%{$search}%")
                         ->orWhere('details->driver_name', 'ilike', "%{$search}%")),
-                TextColumn::make('payment_mode')->label('Paid by')->placeholder('—')->toggleable()
+                TextColumn::make('payment_mode')->label(__('Paid by'))->placeholder('—')->toggleable()->visibleFrom('lg')
                     ->state(fn (PaperRecord $r) => isset($r->details['payment_mode']) ? PaperRecords::PAYMENT_MODES[$r->details['payment_mode']] ?? null : null)
                     ->description(fn (PaperRecord $r) => $r->details['reference'] ?? null)
                     ->searchable(query: fn (Builder $query, string $search) => $query->where('details->reference', 'ilike', "%{$search}%")),
-                TextColumn::make('voucher.number')->label('Voucher')->placeholder('—'),
-                TextColumn::make('book_ref')->label('Register / page')->placeholder('—')->toggleable()->searchable(),
+                TextColumn::make('voucher.number')->label(__('Voucher'))->placeholder('—')->visibleFrom('lg'),
+                TextColumn::make('book_ref')->label(__('Register / page'))->placeholder('—')->toggleable()->searchable()->visibleFrom('xl'),
                 TextColumn::make('description')->limit(40)->placeholder('—')->toggleable(isToggledHiddenByDefault: true)->searchable(),
-                TextColumn::make('cancelled_at')->label('Status')->badge()
+                TextColumn::make('cancelled_at')->label(__('Status'))->badge()
                     ->state(fn (PaperRecord $r) => $r->isCancelled() ? 'Cancelled' : 'Entered')
                     ->color(fn (string $state) => $state === 'Cancelled' ? 'danger' : 'success'),
-                TextColumn::make('import_batch')->label('Import')->placeholder('—')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('import_batch')->label(__('Import'))->placeholder('—')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('kind')->options(PaperRecords::KINDS)->multiple(),
-                SelectFilter::make('party_id')->label('Party')->relationship('party', 'name')->searchable(),
-                TernaryFilter::make('cancelled')->label('Cancelled')->nullable()->attribute('cancelled_at')
-                    ->trueLabel('Cancelled only')->falseLabel('Entered only'),
+                SelectFilter::make('kind')->options(\App\Support\Locales::options(PaperRecords::KINDS))->multiple(),
+                SelectFilter::make('party_id')->label(__('Party'))->relationship('party', 'name')->searchable(),
+                TernaryFilter::make('cancelled')->label(__('Cancelled'))->nullable()->attribute('cancelled_at')
+                    ->trueLabel(__('Cancelled only'))->falseLabel(__('Entered only')),
                 Filter::make('dates')->form([
                     DatePicker::make('from')->native(false)->displayFormat('d/m/Y'),
                     DatePicker::make('until')->native(false)->displayFormat('d/m/Y'),
                 ])->query(fn (Builder $query, array $data) => $query
                     ->when($data['from'] ?? null, fn (Builder $q, $d) => $q->whereDate('record_date', '>=', $d))
                     ->when($data['until'] ?? null, fn (Builder $q, $d) => $q->whereDate('record_date', '<=', $d))),
-                SelectFilter::make('import_batch')->label('Import')
+                SelectFilter::make('import_batch')->label(__('Import'))
                     ->options(fn () => PaperRecord::query()->whereNotNull('import_batch')->distinct()->orderByDesc('import_batch')->limit(50)->pluck('import_batch', 'import_batch')->all()),
             ])
             ->actions([ViewAction::make()]);
@@ -254,29 +267,29 @@ class PaperRecordResource extends Resource
     public static function infolist(Infolist $infolist): Infolist
     {
         return $infolist->schema([
-            Section::make()->columns(4)->schema([
+            Section::make()->columns(['default' => 1, 'sm' => 2, 'lg' => 4])->schema([
                 TextEntry::make('kind')->formatStateUsing(fn (string $state) => PaperRecords::KINDS[$state] ?? $state)->badge(),
-                TextEntry::make('record_date')->label('Date on the paper')->date('d M Y'),
-                TextEntry::make('paper_number')->label('Number on the paper')->placeholder('—'),
-                TextEntry::make('book_ref')->label('Register and page')->placeholder('—'),
-                TextEntry::make('party.name')->label('Party')->placeholder('—'),
-                TextEntry::make('amount_paise')->label('Amount')->placeholder('—')->weight('bold')
+                TextEntry::make('record_date')->label(__('Date on the paper'))->date('d M Y'),
+                TextEntry::make('paper_number')->label(__('Number on the paper'))->placeholder('—'),
+                TextEntry::make('book_ref')->label(__('Register and page'))->placeholder('—'),
+                TextEntry::make('party.name')->label(__('Party'))->placeholder('—'),
+                TextEntry::make('amount_paise')->label(__('Amount'))->placeholder('—')->weight('bold')
                     ->formatStateUsing(fn (?int $state) => $state === null ? null : Units::paiseToRupees($state)),
-                TextEntry::make('quantity_kg')->label('Weight (kg)')->placeholder('—')->numeric(3),
-                TextEntry::make('voucher.number')->label('Posted as voucher')->placeholder('Not posted (kept as written)'),
-                TextEntry::make('description')->label('Details')->placeholder('—')->columnSpanFull(),
-                TextEntry::make('details')->label('Entries in the books')->columnSpanFull()->placeholder('—')->html()
+                TextEntry::make('quantity_kg')->label(__('Weight (kg)'))->placeholder('—')->numeric(3),
+                TextEntry::make('voucher.number')->label(__('Posted as voucher'))->placeholder(__('Not posted (kept as written)')),
+                TextEntry::make('description')->label(__('Details'))->placeholder('—')->columnSpanFull(),
+                TextEntry::make('details')->label(__('Entries in the books'))->columnSpanFull()->placeholder('—')->html()
                     ->state(fn (PaperRecord $r) => self::detailsHtml($r, 'other')),
-                TextEntry::make('party_details')->label('Party details')->columnSpanFull()->html()
+                TextEntry::make('party_details')->label(__('Party details'))->columnSpanFull()->html()
                     ->visible(fn (PaperRecord $r) => filled($r->details['party'] ?? null))->state(fn (PaperRecord $r) => self::detailsHtml($r, 'party')),
-                TextEntry::make('vehicle_details')->label('Vehicle details')->columnSpanFull()->html()
+                TextEntry::make('vehicle_details')->label(__('Vehicle details'))->columnSpanFull()->html()
                     ->visible(fn (PaperRecord $r) => self::detailsHtml($r, 'vehicle') !== null)->state(fn (PaperRecord $r) => self::detailsHtml($r, 'vehicle')),
-                TextEntry::make('payment_details')->label('Payment details')->columnSpanFull()->html()
+                TextEntry::make('payment_details')->label(__('Payment details'))->columnSpanFull()->html()
                     ->visible(fn (PaperRecord $r) => self::detailsHtml($r, 'payment') !== null)->state(fn (PaperRecord $r) => self::detailsHtml($r, 'payment')),
-                TextEntry::make('enteredBy.username')->label('Entered by')->placeholder('—'),
-                TextEntry::make('created_at')->label('Entered on')->dateTime('d M Y H:i', 'Asia/Karachi'),
-                TextEntry::make('import_batch')->label('Import')->placeholder('Entered by hand'),
-                TextEntry::make('cancelled_at')->label('Cancelled')->placeholder('—')->color('danger')
+                TextEntry::make('enteredBy.username')->label(__('Entered by'))->placeholder('—'),
+                TextEntry::make('created_at')->label(__('Entered on'))->dateTime('d M Y H:i', 'Asia/Karachi'),
+                TextEntry::make('import_batch')->label(__('Import'))->placeholder(__('Entered by hand')),
+                TextEntry::make('cancelled_at')->label(__('Cancelled'))->placeholder('—')->color('danger')
                     ->formatStateUsing(fn (PaperRecord $r) => $r->cancelled_at?->timezone('Asia/Karachi')->format('d M Y H:i').' — '.$r->cancel_reason),
             ]),
             AttachmentsPanel::section(),
@@ -301,7 +314,8 @@ class PaperRecordResource extends Resource
         $d = $r->details ?? [];
         $groups = [
             'party' => ['name' => 'Name', 'code' => 'Code', 'phone' => 'Phone', 'cnic' => 'CNIC', 'address' => 'Address', 'city' => 'City'],
-            'vehicle' => ['vehicle' => 'Vehicle', 'vehicle_type' => 'Type', 'driver_name' => 'Driver', 'driver_phone' => 'Driver phone', 'bags' => 'Bags',
+            'vehicle' => ['vehicle' => 'Vehicle', 'vehicle_type' => 'Type', 'driver_name' => 'Driver', 'driver_phone' => 'Driver phone', 'driver_cnic' => 'Driver CNIC',
+                'vehicle_owner' => 'Vehicle owner', 'from_place' => 'From', 'to_place' => 'To', 'freight' => 'Freight (Rs)', 'bags' => 'Bags',
                 'bilty_no' => 'Bilty / gate pass', 'gross_kg' => 'Gross (kg)', 'tare_kg' => 'Tare (kg)', 'net_kg' => 'Net (kg)', 'product' => 'Product'],
             'payment' => ['payment_mode' => 'Paid by', 'reference' => 'Cheque / transaction no.', 'cheque_date' => 'Cheque date', 'party_bank' => "Party's bank",
                 'handled_by' => 'Paid / received by'],
@@ -319,7 +333,7 @@ class PaperRecordResource extends Resource
                     'cheque_date' => CarbonImmutable::parse($source[$key])->format('d M Y'),
                     default => (string) $source[$key],
                 };
-                $parts[] = '<b>'.e($label).':</b> '.e($value);
+                $parts[] = '<b>'.e(__($label)).':</b> '.e($value);
             }
         }
         if ($group === 'other') {

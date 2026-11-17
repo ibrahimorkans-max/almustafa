@@ -65,7 +65,7 @@ final class PartyLogin
             ->title(($result['new'] ? 'Party login made' : 'New password given').': '.$result['username'])
             ->body('Password: '.$result['password'].' (shown only now; the party chooses its own at the first sign-in). '.$how);
         if ($message !== null && $message->status !== PartyMessage::SENT && $message->recipient !== '') {
-            $notification->actions([NotificationAction::make('whatsapp')->label('Send on WhatsApp')->button()
+            $notification->actions([NotificationAction::make('whatsapp')->label(__('Send on WhatsApp'))->button()
                 ->url(PartyMessenger::whatsappLink($message->recipient, $result['text']), shouldOpenInNewTab: true)]);
         }
         $notification->send();

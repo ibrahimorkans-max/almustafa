@@ -27,6 +27,8 @@ use Illuminate\Support\Facades\Gate;
  */
 class AuthSessionResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = AuthSession::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-computer-desktop';
@@ -62,14 +64,14 @@ class AuthSessionResource extends Resource
 
         return $table
             ->columns([
-                TextColumn::make('loginAccount.username')->label('User')->searchable(),
-                TextColumn::make('browser')->label('Device')
+                TextColumn::make('loginAccount.username')->label(__('User'))->searchable(),
+                TextColumn::make('browser')->label(__('Device'))
                     ->state(fn (AuthSession $r) => trim(($r->browser ?? ucfirst($r->channel)).($r->os !== null ? ' on '.$r->os : '')))
                     ->description(fn (AuthSession $r) => $r->id === $current ? 'This session' : ($r->device?->isTrusted() ? 'Approved device' : null)),
-                TextColumn::make('sign_in_method')->label('By')->badge()->placeholder('password')
+                TextColumn::make('sign_in_method')->label(__('By'))->badge()->placeholder('password')
                     ->color(fn (?string $state) => $state === 'passkey' ? 'success' : 'gray'),
-                TextColumn::make('ip')->label('IP')->searchable(),
-                TextColumn::make('city')->label('Location (area, city, region, country)')->wrap()->searchable(['area', 'city', 'region', 'country_name', 'ip_city'])
+                TextColumn::make('ip')->label(__('IP'))->searchable(),
+                TextColumn::make('city')->label(__('Location (area, city, region, country)'))->wrap()->searchable(['area', 'city', 'region', 'country_name', 'ip_city'])
                     ->state(fn (AuthSession $r) => $r->placeLabel()
                         ?? ($r->location_source === 'browser' ? sprintf('%.5F, %.5F', $r->latitude, $r->longitude) : 'Unknown'))
                     ->icon(fn (AuthSession $r) => $r->mapUrl() !== null ? 'heroicon-o-map-pin' : null)
@@ -82,11 +84,11 @@ class AuthSessionResource extends Resource
                     ])) ?: null)
                     ->tooltip(fn (AuthSession $r) => $r->address)
                     ->url(fn (AuthSession $r) => $r->mapUrl(), shouldOpenInNewTab: true),
-                TextColumn::make('address')->label('Full address')->wrap()->placeholder('—')->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('latitude')->label('Coordinates')->toggleable(isToggledHiddenByDefault: true)
+                TextColumn::make('address')->label(__('Full address'))->wrap()->placeholder('—')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('latitude')->label(__('Coordinates'))->toggleable(isToggledHiddenByDefault: true)
                     ->state(fn (AuthSession $r) => $r->latitude !== null ? sprintf('%.6F, %.6F', $r->latitude, $r->longitude) : null)->placeholder('—'),
-                TextColumn::make('created_at')->label('Signed in')->formatStateUsing(fn ($state, AuthSession $r) => $pkt($r->created_at))->sortable(),
-                TextColumn::make('last_seen_at')->label('Last active')->formatStateUsing(fn ($state, AuthSession $r) => $pkt($r->last_seen_at))->sortable(),
+                TextColumn::make('created_at')->label(__('Signed in'))->formatStateUsing(fn ($state, AuthSession $r) => $pkt($r->created_at))->sortable(),
+                TextColumn::make('last_seen_at')->label(__('Last active'))->formatStateUsing(fn ($state, AuthSession $r) => $pkt($r->last_seen_at))->sortable(),
                 TextColumn::make('status')->badge()
                     ->state(fn (AuthSession $r) => match (true) {
                         self::isOpen($r) => 'open', $r->revoked_at !== null => 'signed out', default => 'expired',
@@ -96,14 +98,14 @@ class AuthSessionResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
-                SelectFilter::make('state')->label('Show')->default('open')
-                    ->options(['open' => 'Open sessions', 'all' => 'All, including ended (history)'])
+                SelectFilter::make('state')->label(__('Show'))->default('open')
+                    ->options(['open' => __('Open sessions'), 'all' => __('All, including ended (history)')])
                     ->query(fn (Builder $query, array $data) => ($data['value'] ?? 'open') === 'open'
                         ? $query->whereNull('revoked_at')->where('expires_at', '>', now()) : $query),
-                SelectFilter::make('sign_in_method')->label('Signed in by')->options(['password' => 'Password', 'passkey' => 'Passkey']),
+                SelectFilter::make('sign_in_method')->label(__('Signed in by'))->options(['password' => __('Password'), 'passkey' => __('Passkey')]),
             ])
             ->actions([
-                Action::make('revoke')->label('Sign out')->icon('heroicon-o-arrow-right-start-on-rectangle')->color('danger')
+                Action::make('revoke')->label(__('Sign out'))->icon('heroicon-o-arrow-right-start-on-rectangle')->color('danger')
                     ->visible(fn (AuthSession $r) => $r->id !== $current && self::isOpen($r) && Gate::allows('revoke', $r))
                     ->requiresConfirmation()
                     ->action(function (AuthSession $r): void {

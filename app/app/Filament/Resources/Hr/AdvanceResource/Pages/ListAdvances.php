@@ -10,10 +10,12 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListAdvances extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = AdvanceResource::class;
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('Request advance or loan')];
+        return [CreateAction::make()->label(__('Request advance or loan'))];
     }
 }

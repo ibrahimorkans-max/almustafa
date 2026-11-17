@@ -54,7 +54,7 @@
     <rect x="{{ $c - 46 }}" y="150" width="92" height="30" rx="5" style="fill: #111827;"/>
     <text data-lw="figure" x="{{ $c + 28 }}" y="171.5" text-anchor="end"
         style="font: 700 18px ui-monospace, Menlo, Consolas, monospace; fill: {{ $live ? '#4ade80' : '#6b7280' }};">{{ $figure }}</text>
-    <text x="{{ $c + 42 }}" y="171" text-anchor="end" style="font: 600 9px sans-serif; fill: #9ca3af;">kg</text>
+    <text x="{{ $c + 42 }}" y="171" text-anchor="end" style="font: 600 9px sans-serif; fill: #9ca3af;">{{ __('kg') }}</text>
     <text data-lw="maund" x="{{ $c }}" y="194" text-anchor="middle" style="font: 600 10px sans-serif; fill: #4b5563;">{{ $kg !== null ? number_format((float) $kg / 40, 2).' maund' : 'no reading yet' }}</text>
 
     {{-- Needle: glides to the reading --}}

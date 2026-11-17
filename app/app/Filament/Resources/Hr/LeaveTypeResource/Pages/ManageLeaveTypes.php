@@ -10,6 +10,8 @@ use Filament\Resources\Pages\ManageRecords;
 
 class ManageLeaveTypes extends ManageRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = LeaveTypeResource::class;
 
     protected function getHeaderActions(): array

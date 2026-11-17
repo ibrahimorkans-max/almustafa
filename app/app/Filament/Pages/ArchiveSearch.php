@@ -29,6 +29,8 @@ use Filament\Pages\Page;
  */
 class ArchiveSearch extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-briefcase';
 
     protected static ?string $navigationGroup = 'Administration';
@@ -124,7 +126,7 @@ class ArchiveSearch extends Page
             $settings->put(SettingsService::ARCHIVE_RETENTION, $this->retention, $mill);
         }
         app(AuditLogger::class)->record('settings.archive_retention_changed', null, ['months' => $before], ['months' => $this->retention]);
-        Notification::make()->title("Saved: closed records move here {$this->retention} months after closing, from the next monthly run.")->success()->send();
+        Notification::make()->title(__('Saved: closed records move here :retention months after closing, from the next monthly run.', ['retention' => $this->retention]))->success()->send();
     }
 
     /**
@@ -134,19 +136,19 @@ class ArchiveSearch extends Page
      */
     public function panicAction(): Action
     {
-        return Action::make('panic')->label('Panic: device lost or stolen')->color('danger')->icon('heroicon-o-shield-exclamation')
+        return Action::make('panic')->label(__('Panic: device lost or stolen'))->color('danger')->icon('heroicon-o-shield-exclamation')
             ->visible(function (): bool {
                 $user = Filament::auth()->user();
 
                 return $user instanceof LoginAccount && ! $user->isOwner();
             })
             ->requiresConfirmation()
-            ->modalHeading('Lock this account everywhere?')
+            ->modalHeading(__('Lock this account everywhere?'))
             ->modalDescription('Use this if a phone or computer signed in to this account is lost or stolen. You are signed out here and on every '
                 .'other device at once, phones and the app have their stored data wiped when they next connect, and this account is locked '
                 .'until an administrator unlocks it. Nothing in the records is changed.')
-            ->modalSubmitActionLabel('Yes, lock everything now')
-            ->form([Textarea::make('note')->label('What happened (optional)')->maxLength(500)])
+            ->modalSubmitActionLabel(__('Yes, lock everything now'))
+            ->form([Textarea::make('note')->label(__('What happened (optional)'))->maxLength(500)])
             ->action(function (array $data): void {
                 $user = Filament::auth()->user();
                 abort_unless($user instanceof LoginAccount && ! $user->isOwner(), 403);
@@ -167,10 +169,10 @@ class ArchiveSearch extends Page
 
     public function viewAction(): Action
     {
-        return Action::make('view')->label('View')->icon('heroicon-o-eye')->color('gray')->link()
+        return Action::make('view')->label(__('View'))->icon('heroicon-o-eye')->color('gray')->link()
             ->modalHeading(fn (array $arguments) => 'Record')
             ->modalWidth('4xl')->slideOver()
-            ->modalSubmitAction(false)->modalCancelActionLabel('Close')
+            ->modalSubmitAction(false)->modalCancelActionLabel(__('Close'))
             ->modalContent(function (array $arguments) {
                 try {
                     $shown = app(ArchiveService::class)->show((string) $arguments['type'], (string) $arguments['id']);
@@ -187,7 +189,7 @@ class ArchiveSearch extends Page
     {
         return Action::make('restore')->color('warning')->icon('heroicon-o-arrow-uturn-up')->link()
             ->visible(fn () => $this->canRestore())
-            ->modalDescription('The record returns to the working screens and reports. The reason is kept in the audit log.')
+            ->modalDescription(__('The record returns to the working screens and reports. The reason is kept in the audit log.'))
             ->form([Textarea::make('reason')->required()->minLength(10)->maxLength(1000)])
             ->action(function (array $data, array $arguments): void {
                 try {
@@ -197,14 +199,14 @@ class ArchiveSearch extends Page
 
                     return;
                 }
-                Notification::make()->title('Restored')->success()->send();
+                Notification::make()->title(__('Restored'))->success()->send();
                 $this->search();
             });
     }
 
     public function restorePeriodAction(): Action
     {
-        return Action::make('restorePeriod')->label('Restore all in this period')->color('warning')->icon('heroicon-o-arrow-uturn-up')
+        return Action::make('restorePeriod')->label(__('Restore all in this period'))->color('warning')->icon('heroicon-o-arrow-uturn-up')
             ->visible(fn () => $this->canRestore() && $this->searched && $this->results !== [])
             ->requiresConfirmation()
             ->modalHeading(fn () => 'Restore '.count($this->results).' record(s)?')

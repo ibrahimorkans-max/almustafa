@@ -40,6 +40,8 @@ use Illuminate\Support\HtmlString;
 /** Expenses and other income against categories; drafts (typed in or from recurring templates) are posted by accounts. */
 class ExpenseResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = Expense::class;
 
     protected static ?string $recordTitleAttribute = 'number';
@@ -115,27 +117,27 @@ class ExpenseResource extends Resource
         $today = fn () => now('Asia/Karachi');
 
         return $form->columns(2)->schema([
-            Select::make('expense_category_id')->label('Category')->required()->searchable()->live()
+            Select::make('expense_category_id')->label(__('Category'))->required()->searchable()->live()
                 ->options(fn () => ExpenseCategory::query()->where('status', 'active')->orderBy('kind')->orderBy('name')->get()
                     ->mapWithKeys(fn (ExpenseCategory $c) => [$c->id => ($c->kind === 'income' ? 'Income: ' : '').$c->name])->all()),
-            DatePicker::make('entry_date')->label('Date')->required()->default($today)->maxDate($today),
-            TextInput::make('amount')->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2),
+            DatePicker::make('entry_date')->label(__('Date'))->required()->default($today)->maxDate($today),
+            TextInput::make('amount')->label(__('Amount (Rs)'))->required()->regex(Units::DECIMAL_2),
             TextInput::make('description')->required()->minLength(3)->maxLength(300),
             Radio::make('via')->label(fn (Get $get) => self::isIncome($get('expense_category_id')) ? 'Received in' : 'Paid from')->inline()->required()->default('cash')->live()
-                ->options(self::VIA)->afterStateUpdated(fn (Set $set) => $set('cash_ledger_id', null)),
+                ->options(\App\Support\Locales::options(self::VIA))->afterStateUpdated(fn (Set $set) => $set('cash_ledger_id', null)),
             self::ledgerSelect('cash_ledger_id'),
-            Select::make('party_id')->label('Party')->searchable()->options(fn () => self::parties())
+            Select::make('party_id')->label(__('Party'))->searchable()->options(fn () => self::parties())
                 ->visible(fn (Get $get) => $get('via') === 'party')->required(fn (Get $get) => $get('via') === 'party'),
-            Select::make('gate_entry_id')->label('For vehicle (optional)')->searchable()->live()
-                ->helperText('Freight, unloading or handling of one paddy vehicle.')
+            Select::make('gate_entry_id')->label(__('For vehicle (optional)'))->searchable()->live()
+                ->helperText(__('Freight, unloading or handling of one paddy vehicle.'))
                 ->options(fn () => GateEntry::query()->where('direction', 'inbound')->whereNull('archived_at')
                     ->where('arrived_at', '>=', now()->subDays(60))->orderByDesc('arrived_at')->limit(200)->get()
                     ->mapWithKeys(fn (GateEntry $e) => [$e->id => $e->registration_no.' · '.$e->number])->all()),
-            Toggle::make('capitalize_to_stock')->label('Add to this lot\'s stock cost (landed cost)')
-                ->helperText('For costs of bringing the paddy in (freight, unloading). Its stock value includes it.')
+            Toggle::make('capitalize_to_stock')->label(__('Add to this lot\'s stock cost (landed cost)'))
+                ->helperText(__('For costs of bringing the paddy in (freight, unloading). Its stock value includes it.'))
                 ->visible(fn (Get $get) => filled($get('gate_entry_id')) && ! self::isIncome($get('expense_category_id'))),
-            FileUpload::make('receipt')->label('Receipt or bill')->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480),
-            Toggle::make('post')->label('Post it to the books now')->default(true)->helperText('Off: keep it as a draft to post later.'),
+            FileUpload::make('receipt')->label(__('Receipt or bill'))->storeFiles(false)->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480),
+            Toggle::make('post')->label(__('Post it to the books now'))->default(true)->helperText(__('Off: keep it as a draft to post later.')),
             ...EntryLocation::fields(),
         ]);
     }
@@ -163,15 +165,15 @@ class ExpenseResource extends Resource
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['category', 'cashLedger', 'party', 'voucher']))
             ->columns([
                 TextColumn::make('number')->searchable(),
-                TextColumn::make('entry_date')->label('Date')->date('d M Y')->sortable(),
-                TextColumn::make('category.name')->label('Category')
+                TextColumn::make('entry_date')->label(__('Date'))->date('d M Y')->sortable(),
+                TextColumn::make('category.name')->label(__('Category'))
                     ->description(fn (Expense $r) => $r->kind === 'income' ? 'Income' : null),
                 TextColumn::make('description')->limit(40)->searchable(),
-                TextColumn::make('via')->label('Paid / received')
+                TextColumn::make('via')->label(__('Paid / received'))
                     ->state(fn (Expense $r) => $r->cashLedger->name ?? ($r->party !== null ? 'On credit: '.$r->party->name : '—')),
-                TextColumn::make('amount_paise')->label('Amount')->alignEnd()->formatStateUsing($rs),
-                TextColumn::make('voucher.number')->label('Voucher')->placeholder('—'),
-                TextColumn::make('captured_location')->label('Entered at')->toggleable(isToggledHiddenByDefault: true)->placeholder('—')
+                TextColumn::make('amount_paise')->label(__('Amount'))->alignEnd()->formatStateUsing($rs),
+                TextColumn::make('voucher.number')->label(__('Voucher'))->placeholder('—'),
+                TextColumn::make('captured_location')->label(__('Entered at'))->toggleable(isToggledHiddenByDefault: true)->placeholder('—')
                     ->state(fn (Expense $r) => EntryLocation::label($r->captured_location))->url(fn (Expense $r) => EntryLocation::mapUrl($r->captured_location), shouldOpenInNewTab: true),
                 TextColumn::make('status')->badge()->formatStateUsing(fn (string $state) => Expense::STATUSES[$state] ?? $state)
                     ->color(fn (string $state) => match ($state) {
@@ -180,13 +182,13 @@ class ExpenseResource extends Resource
             ])
             ->defaultSort('entry_date', 'desc')
             ->filters([
-                SelectFilter::make('status')->options(Expense::STATUSES),
-                SelectFilter::make('kind')->options(['expense' => 'Expenses', 'income' => 'Income']),
-                SelectFilter::make('expense_category_id')->label('Category')->options(fn () => ExpenseCategory::query()->orderBy('name')->pluck('name', 'id')),
+                SelectFilter::make('status')->options(\App\Support\Locales::options(Expense::STATUSES)),
+                SelectFilter::make('kind')->options(['expense' => __('Expenses'), 'income' => __('Income')]),
+                SelectFilter::make('expense_category_id')->label(__('Category'))->options(fn () => ExpenseCategory::query()->orderBy('name')->pluck('name', 'id')),
             ])
             ->actions([
                 PrintButton::row('expense', fn (Expense $r) => $r->status === Expense::POSTED),
-                Action::make('receipt')->icon('heroicon-o-paper-clip')->color('gray')->iconButton()->tooltip('Receipt')
+                Action::make('receipt')->icon('heroicon-o-paper-clip')->color('gray')->iconButton()->tooltip(__('Receipt'))
                     ->visible(fn (Expense $r) => $r->receipt_file_id !== null)
                     ->action(function (Expense $record) {
                         $file = $record->receipt;
@@ -196,15 +198,15 @@ class ExpenseResource extends Resource
                     }),
                 Action::make('post')->icon('heroicon-o-check')->color('success')
                     ->visible(fn (Expense $r) => $r->status === Expense::DRAFT && $can())
-                    ->modalDescription('Check the amount and how it was paid; posting makes the voucher.')
+                    ->modalDescription(__('Check the amount and how it was paid; posting makes the voucher.'))
                     ->fillForm(fn (Expense $record) => ['amount' => bcdiv((string) $record->amount_paise, '100', 2), 'via' => self::viaFor($record->cash_ledger_id, $record->party_id),
                         'cash_ledger_id' => $record->cash_ledger_id, 'party_id' => $record->party_id])
                     ->form([
-                        TextInput::make('amount')->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2),
-                        Radio::make('via')->label('Paid / received')->inline()->required()->live()->options(self::VIA)
+                        TextInput::make('amount')->label(__('Amount (Rs)'))->required()->regex(Units::DECIMAL_2),
+                        Radio::make('via')->label(__('Paid / received'))->inline()->required()->live()->options(\App\Support\Locales::options(self::VIA))
                             ->afterStateUpdated(fn (Set $set) => $set('cash_ledger_id', null)),
                         self::ledgerSelect('cash_ledger_id'),
-                        Select::make('party_id')->label('Party')->searchable()->options(fn () => self::parties())
+                        Select::make('party_id')->label(__('Party'))->searchable()->options(fn () => self::parties())
                             ->visible(fn (Get $get) => $get('via') === 'party')->required(fn (Get $get) => $get('via') === 'party'),
                     ])
                     ->action($run(fn (Expense $r, array $d) => $svc()->post($r, Units::rupeesToPaise((string) $d['amount']),

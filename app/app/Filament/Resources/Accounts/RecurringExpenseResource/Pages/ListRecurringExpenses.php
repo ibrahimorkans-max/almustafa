@@ -10,6 +10,8 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListRecurringExpenses extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = RecurringExpenseResource::class;
 
     protected function getHeaderActions(): array

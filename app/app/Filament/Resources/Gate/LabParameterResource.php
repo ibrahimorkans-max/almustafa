@@ -29,6 +29,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class LabParameterResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = LabParameter::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-beaker';
@@ -53,19 +55,19 @@ class LabParameterResource extends Resource
     {
         return $form->columns(2)->schema([
             TextInput::make('code')->required()->maxLength(30)->regex('/^[a-z][a-z0-9_]*$/')
-                ->helperText('Short code in small letters, e.g. moisture. Not changed once results use it.')
+                ->helperText(__('Short code in small letters, e.g. moisture. Not changed once results use it.'))
                 ->disabledOn('edit'),
-            Select::make('product_id')->label('Product / variety (empty: every product)')->preload()->searchable()
+            Select::make('product_id')->label(__('Product / variety (empty: every product)'))->preload()->searchable()
                 ->relationship('product', 'name', fn (Builder $query) => $query->where('category', 'paddy'))
                 ->getOptionLabelFromRecordUsing(fn (Product $p) => $p->name.($p->variety ? ' ('.$p->variety.')' : ''))
-                ->helperText('A test set for a product replaces the general test with the same code for that product.'),
-            TextInput::make('name_en')->label('Name (English)')->required()->maxLength(80),
-            TextInput::make('name_ur')->label('Name (Urdu)')->required()->maxLength(80)->extraInputAttributes(['dir' => 'rtl']),
-            TextInput::make('standard')->label('Standard limit (%)')->required()->regex('/^\d{1,3}(\.\d{1,2})?$/')
-                ->helperText('Up to this the result is within standard.')
+                ->helperText(__('A test set for a product replaces the general test with the same code for that product.')),
+            TextInput::make('name_en')->label(__('Name (English)'))->required()->maxLength(80),
+            TextInput::make('name_ur')->label(__('Name (Urdu)'))->required()->maxLength(80)->extraInputAttributes(['dir' => 'rtl']),
+            TextInput::make('standard')->label(__('Standard limit (%)'))->required()->regex('/^\d{1,3}(\.\d{1,2})?$/')
+                ->helperText(__('Up to this the result is within standard.'))
                 ->afterStateHydrated(fn (TextInput $component, ?LabParameter $record) => $component->state($record ? rtrim(rtrim(number_format($record->standard_bp / 100, 2, '.', ''), '0'), '.') : null)),
-            TextInput::make('grace')->label('Grace limit (%)')->required()->regex('/^\d{1,3}(\.\d{1,2})?$/')
-                ->helperText('Above the standard and up to this: grace warning. Above this the lot is rejected automatically.')
+            TextInput::make('grace')->label(__('Grace limit (%)'))->required()->regex('/^\d{1,3}(\.\d{1,2})?$/')
+                ->helperText(__('Above the standard and up to this: grace warning. Above this the lot is rejected automatically.'))
                 ->rule(fn (Get $get) => function (string $attribute, $value, \Closure $fail) use ($get): void {
                     if (is_numeric($value) && is_numeric($get('standard')) && (float) $value < (float) $get('standard')) {
                         $fail('The grace limit cannot be below the standard limit.');
@@ -73,18 +75,18 @@ class LabParameterResource extends Resource
                 })
                 ->afterStateHydrated(fn (TextInput $component, ?LabParameter $record) => $component->state($record ? rtrim(rtrim(number_format($record->grace_bp / 100, 2, '.', ''), '0'), '.') : null)),
             TextInput::make('unit')->default('%')->required()->maxLength(10),
-            TextInput::make('sort')->label('Order on the lab form')->integer()->minValue(0)->default(100),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Not used'])->default('active')->required(),
-            TextInput::make('min')->label('Minimum acceptable (%) — below: grace')->regex('/^\d{1,3}(\.\d{1,2})?$/')
+            TextInput::make('sort')->label(__('Order on the lab form'))->integer()->minValue(0)->default(100),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Not used')])->default('active')->required(),
+            TextInput::make('min')->label(__('Minimum acceptable (%) — below: grace'))->regex('/^\d{1,3}(\.\d{1,2})?$/')
                 ->afterStateHydrated(fn (TextInput $component, ?LabParameter $record) => $component->state($record?->min_bp !== null ? rtrim(rtrim(number_format($record->min_bp / 100, 2, '.', ''), '0'), '.') : null)),
-            TextInput::make('max')->label('Maximum acceptable (%) — above: rejected')->regex('/^\d{1,3}(\.\d{1,2})?$/')
+            TextInput::make('max')->label(__('Maximum acceptable (%) — above: rejected'))->regex('/^\d{1,3}(\.\d{1,2})?$/')
                 ->afterStateHydrated(fn (TextInput $component, ?LabParameter $record) => $component->state($record?->max_bp !== null ? rtrim(rtrim(number_format($record->max_bp / 100, 2, '.', ''), '0'), '.') : null)),
-            TextInput::make('tolerance')->label('Tolerance above standard (%)')->regex('/^\d{1,3}(\.\d{1,2})?$/')->default('0')
+            TextInput::make('tolerance')->label(__('Tolerance above standard (%)'))->regex('/^\d{1,3}(\.\d{1,2})?$/')->default('0')
                 ->afterStateHydrated(fn (TextInput $component, ?LabParameter $record) => $component->state($record ? rtrim(rtrim(number_format((int) $record->tolerance_bp / 100, 2, '.', ''), '0'), '.') : '0')),
-            Toggle::make('mandatory')->label('Mandatory (a lot is accepted only with this result)'),
-            Toggle::make('needs_approval')->label('A result in its grace band needs a supervisor to accept'),
-            Toggle::make('affects_weight')->label('May change the payable weight (its deduction rules apply)')->default(true)
-                ->helperText('The deduction % and how it is worked out are the Deduction rules of this test.'),
+            Toggle::make('mandatory')->label(__('Mandatory (a lot is accepted only with this result)')),
+            Toggle::make('needs_approval')->label(__('A result in its grace band needs a supervisor to accept')),
+            Toggle::make('affects_weight')->label(__('May change the payable weight (its deduction rules apply)'))->default(true)
+                ->helperText(__('The deduction % and how it is worked out are the Deduction rules of this test.')),
         ]);
     }
 
@@ -114,16 +116,16 @@ class LabParameterResource extends Resource
         return $table
             ->defaultSort('sort')
             ->columns([
-                TextColumn::make('name_en')->label('Test')->description(fn (LabParameter $r) => $r->name_ur)->searchable(),
+                TextColumn::make('name_en')->label(__('Test'))->description(fn (LabParameter $r) => $r->name_ur)->searchable(),
                 TextColumn::make('code')->fontFamily('mono'),
-                TextColumn::make('product.name')->label('Product / variety')->placeholder('Every product')
+                TextColumn::make('product.name')->label(__('Product / variety'))->placeholder(__('Every product'))
                     ->description(fn (LabParameter $r) => $r->product?->variety),
-                TextColumn::make('standard_bp')->label('Standard up to')->formatStateUsing($pct),
-                TextColumn::make('grace_bp')->label('Grace up to')->formatStateUsing($pct)->description('Above: rejected automatically'),
+                TextColumn::make('standard_bp')->label(__('Standard up to'))->formatStateUsing($pct),
+                TextColumn::make('grace_bp')->label(__('Grace up to'))->formatStateUsing($pct)->description(__('Above: rejected automatically')),
                 TextColumn::make('status')->badge()->color(fn (string $state) => $state === 'active' ? 'success' : 'gray'),
             ])
             ->filters([
-                SelectFilter::make('product_id')->label('Product / variety')
+                SelectFilter::make('product_id')->label(__('Product / variety'))
                     ->options(fn () => Product::query()->where('category', 'paddy')->orderBy('name')->get()
                         ->mapWithKeys(fn (Product $p) => [$p->id => $p->name.($p->variety ? ' ('.$p->variety.')' : '')])->all()),
             ])

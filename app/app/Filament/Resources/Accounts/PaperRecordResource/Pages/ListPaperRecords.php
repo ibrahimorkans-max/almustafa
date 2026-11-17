@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Accounts\PaperRecordResource\Pages;
 
 use App\Domain\Accounts\PaperRecords;
+use App\Domain\Accounts\PaperRecordSheet;
 use App\Domain\Files\Attachments;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
@@ -22,6 +23,8 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class ListPaperRecords extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PaperRecordResource::class;
 
     protected ?string $subheading = 'Everything from the paper registers before the software: opening balances, opening stock, past purchases, sales, payments, receipts, expenses, old weighbridge slips and any other entry. Each is posted on its paper date; parties are not sent messages about them.';
@@ -46,25 +49,30 @@ class ListPaperRecords extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('template')->label('Spreadsheet template')->icon('heroicon-o-arrow-down-tray')->color('gray')
-                ->action(fn () => response()->streamDownload(fn () => print PaperRecords::template(), 'old-records-template.csv', ['Content-Type' => 'text/csv'])),
+            Action::make('template')->label(__('Excel template'))->icon('heroicon-o-arrow-down-tray')->color('gray')
+                ->action(fn () => response()->streamDownload(fn () => print PaperRecordSheet::template(), 'old-records.xlsx',
+                    ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])),
 
-            Action::make('import')->label('Import from spreadsheet')->icon('heroicon-o-arrow-up-tray')->color('gray')
+            Action::make('import')->label(__('Import from Excel'))->icon('heroicon-o-arrow-up-tray')->color('gray')
                 ->visible(fn () => self::canEnter())
-                ->modalHeading('Import old records from a spreadsheet')
-                ->modalDescription('Fill the template in Excel (one row per entry, any kinds mixed), save it as "CSV", and choose it here. Each row is entered on its own; rows with a mistake are listed and left out, so fix them and import those rows again.')
+                ->modalHeading(__('Import old records from a spreadsheet'))
+                ->modalDescription(__('Download the Excel template, write one row for each entry on the paper and choose it here.'))
                 ->form([
-                    Placeholder::make('columns')->label('Columns')->content(new HtmlString('<span class="text-sm">'
-                        .e(implode(', ', PaperRecords::COLUMNS)).'.<br>Kinds: '.e(implode(', ', array_keys(PaperRecords::KINDS)))
-                        .'.<br>Side: <b>receivable</b> / <b>payable</b> for a party\'s opening balance, <b>dr</b> / <b>cr</b> for an account. Dates as 31/12/2024. Parties, accounts, products and godowns by name or code; a party not yet in the system is added.</span>')),
-                    FileUpload::make('file')->label('CSV file')->required()->storeFiles(false)->maxSize(10240)
-                        ->acceptedFileTypes(['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel']),
+                    Placeholder::make('steps')->hiddenLabel()->content(new HtmlString('<ol class="list-decimal space-y-1 ps-5 text-sm">'
+                        .'<li>'.e(__('Press "Excel template" and open the file in Excel.')).'</li>'
+                        .'<li>'.e(__('On the "Old records" sheet, write one row per entry. Choose Record type, Who owes, Paid by and Vehicle type from the drop-down lists.')).'</li>'
+                        .'<li>'.e(__('The "How to fill" sheet says what each column needs; the "Examples" sheet shows a filled row of each type.')).'</li>'
+                        .'<li>'.e(__('Save the file and choose it below. Rows with a mistake are listed and left out: fix them and import those rows again.')).'</li>'
+                        .'</ol>')),
+                    FileUpload::make('file')->label(__('Excel or CSV file'))->required()->storeFiles(false)->maxSize(10240)
+                        ->acceptedFileTypes(['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'text/plain', 'application/csv',
+                            'application/vnd.ms-excel', 'application/octet-stream', 'application/zip']),
                 ])
                 ->action(function (array $data): void {
                     $file = self::file($data['file'] ?? null);
                     try {
                         if ($file === null) {
-                            throw new BusinessRuleViolation('Choose the CSV file.');
+                            throw new BusinessRuleViolation('Choose the Excel or CSV file.');
                         }
                         $result = app(PaperRecords::class)->import((string) $file->get());
                     } catch (BusinessRuleViolation $e) {
@@ -79,11 +87,11 @@ class ListPaperRecords extends ListRecords
                         ->body($body)->{$errors === [] ? 'success' : 'warning'}()->persistent()->send();
                 }),
 
-            Action::make('add')->label('Add old record')->icon('heroicon-o-plus')
+            Action::make('add')->label(__('Add old record'))->icon('heroicon-o-plus')
                 ->visible(fn () => self::canEnter())
-                ->modalHeading('Add a record from the paper registers')->modalWidth('3xl')
+                ->modalHeading(__('Add a record from the paper registers'))->modalWidth('4xl')
                 ->form(PaperRecordResource::entryForm())
-                ->extraModalFooterActions(fn (Action $action) => [$action->makeModalSubmitAction('addAnother', ['another' => true])->label('Save and add another')])
+                ->extraModalFooterActions(fn (Action $action) => [$action->makeModalSubmitAction('addAnother', ['another' => true])->label(__('Save and add another'))])
                 ->action(function (array $data, array $arguments, Action $action, Form $form): void {
                     $photo = self::file($data['photo'] ?? null);
                     unset($data['photo']);

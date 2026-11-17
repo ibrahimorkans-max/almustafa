@@ -7,7 +7,7 @@
     <x-filament::section>
         <div class="flex flex-wrap items-end gap-3">
             <label>
-                <span class="text-sm font-medium">Report</span>
+                <span class="text-sm font-medium">{{ __('Report') }}</span>
                 <x-filament::input.wrapper>
                     <x-filament::input.select wire:model.live="report">
                         @foreach (\App\Domain\Reports\OperationalReports::REPORTS as $key => $label)
@@ -16,8 +16,8 @@
                     </x-filament::input.select>
                 </x-filament::input.wrapper>
             </label>
-            <label><span class="text-sm font-medium">From</span><x-filament::input.wrapper><x-filament::input type="date" wire:model.live="from" /></x-filament::input.wrapper></label>
-            <label><span class="text-sm font-medium">To</span><x-filament::input.wrapper><x-filament::input type="date" wire:model.live="to" /></x-filament::input.wrapper></label>
+            <label><span class="text-sm font-medium">{{ __('From') }}</span><x-filament::input.wrapper><x-filament::input type="date" wire:model.live="from" /></x-filament::input.wrapper></label>
+            <label><span class="text-sm font-medium">{{ __('To') }}</span><x-filament::input.wrapper><x-filament::input type="date" wire:model.live="to" /></x-filament::input.wrapper></label>
             <span class="text-sm text-gray-500">{{ count($rows) }} rows</span>
         </div>
     </x-filament::section>
@@ -30,7 +30,7 @@
                     @forelse (array_slice($rows, 0, 500) as $row)
                         <tr class="border-t border-gray-100 dark:border-white/5">@foreach ($row as $v)<td class="{{ $td }}">{{ $v }}</td>@endforeach</tr>
                     @empty
-                        <tr><td class="{{ $td }} text-gray-500" colspan="{{ count($columns) }}">Nothing in this period.</td></tr>
+                        <tr><td class="{{ $td }} text-gray-500" colspan="{{ count($columns) }}">{{ __('Nothing in this period.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

@@ -23,6 +23,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class SignInAttempts extends Page implements HasTable
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-shield-exclamation';
@@ -64,14 +66,14 @@ class SignInAttempts extends Page implements HasTable
         return $table
             ->query(AuditLog::query()->whereIn('action', ['auth.login.failed', 'auth.login.blocked']))
             ->columns([
-                TextColumn::make('occurred_at')->label('When')->dateTime('d M Y H:i:s', 'Asia/Karachi')->sortable(),
-                TextColumn::make('username')->label('Username')
+                TextColumn::make('occurred_at')->label(__('When'))->dateTime('d M Y H:i:s', 'Asia/Karachi')->sortable(),
+                TextColumn::make('username')->label(__('Username'))
                     ->state(fn (AuditLog $r) => (string) ($r->meta['username'] ?? ($r->subject_type !== null ? LoginAccount::query()->whereKey($r->subject_id)->value('username') : '—'))),
-                TextColumn::make('reason')->label('What happened')->badge()
+                TextColumn::make('reason')->label(__('What happened'))->badge()
                     ->state(fn (AuditLog $r) => self::REASONS[$r->meta['reason'] ?? ''] ?? str_replace('_', ' ', (string) ($r->meta['reason'] ?? $r->action)))
                     ->color(fn (AuditLog $r) => $r->action === 'auth.login.blocked' ? 'warning' : 'danger'),
-                TextColumn::make('ip')->label('IP')->state(fn (AuditLog $r) => $r->ip ?? ($r->meta['ip'] ?? '—'))->searchable(),
-                TextColumn::make('place')->label('Location')
+                TextColumn::make('ip')->label(__('IP'))->state(fn (AuditLog $r) => $r->ip ?? ($r->meta['ip'] ?? '—'))->searchable(),
+                TextColumn::make('place')->label(__('Location'))
                     ->state(function (AuditLog $r) use ($geo): string {
                         $g = $geo->lookup($r->ip ?? ($r->meta['ip'] ?? null));
                         if ($g === null) {
@@ -80,11 +82,11 @@ class SignInAttempts extends Page implements HasTable
 
                         return $g['source'] === 'local' ? 'Mill network' : (implode(', ', array_filter([$g['city'], $g['country']])) ?: '—');
                     }),
-                TextColumn::make('user_agent')->label('Browser')->limit(40)->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('user_agent')->label(__('Browser'))->limit(40)->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('occurred_at', 'desc')
             ->filters([
-                SelectFilter::make('action')->label('Kind')->options(['auth.login.failed' => 'Failed (wrong details)', 'auth.login.blocked' => 'Blocked (rules)']),
+                SelectFilter::make('action')->label(__('Kind'))->options(['auth.login.failed' => __('Failed (wrong details)'), 'auth.login.blocked' => __('Blocked (rules)')]),
             ])
             ->modifyQueryUsing(fn (Builder $query) => $query->where('occurred_at', '>=', now()->subDays(90)));
     }

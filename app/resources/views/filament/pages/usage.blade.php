@@ -9,22 +9,22 @@
     @endphp
 
     <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <label class="text-sm"><span class="text-gray-500">Period</span>
+        <label class="text-sm"><span class="text-gray-500">{{ __('Period') }}</span>
             <select wire:model.live="period" class="{{ $sel }}">@foreach (\App\Domain\Usage\UsageReport::PERIODS as $k => $l)<option value="{{ $k }}">{{ $l }}</option>@endforeach</select></label>
         @if ($period === 'custom')
-            <label class="text-sm"><span class="text-gray-500">From</span><input type="date" wire:model.live="from" class="{{ $sel }}"></label>
-            <label class="text-sm"><span class="text-gray-500">To</span><input type="date" wire:model.live="to" class="{{ $sel }}"></label>
+            <label class="text-sm"><span class="text-gray-500">{{ __('From') }}</span><input type="date" wire:model.live="from" class="{{ $sel }}"></label>
+            <label class="text-sm"><span class="text-gray-500">{{ __('To') }}</span><input type="date" wire:model.live="to" class="{{ $sel }}"></label>
         @endif
-        <label class="text-sm"><span class="text-gray-500">Channel</span>
-            <select wire:model.live="channel" class="{{ $sel }}"><option value="">All</option>@foreach ($channels as $k => $l)<option value="{{ $k }}">{{ $l }}</option>@endforeach</select></label>
+        <label class="text-sm"><span class="text-gray-500">{{ __('Channel') }}</span>
+            <select wire:model.live="channel" class="{{ $sel }}"><option value="">{{ __('All') }}</option>@foreach ($channels as $k => $l)<option value="{{ $k }}">{{ $l }}</option>@endforeach</select></label>
         @if ($platform)
-            <label class="text-sm"><span class="text-gray-500">Company</span>
-                <select wire:model.live="customer" class="{{ $sel }}"><option value="">All companies</option>
+            <label class="text-sm"><span class="text-gray-500">{{ __('Company') }}</span>
+                <select wire:model.live="customer" class="{{ $sel }}"><option value="">{{ __('All companies') }}</option>
                     @foreach (app(\App\Domain\Tenancy\TenantContext::class)->runAsSystem(fn () => \App\Models\Customer::query()->whereNotIn('id', \App\Domain\Saas\PlatformCompany::customerIds())->orderBy('name')->pluck('name', 'id')) as $id => $name)<option value="{{ $id }}">{{ $name }}</option>@endforeach
                 </select></label>
         @endif
-        <label class="text-sm"><span class="text-gray-500">Mill</span>
-            <select wire:model.live="entity" class="{{ $sel }}"><option value="">All mills</option>@foreach ($this->millOptions() as $id => $name)<option value="{{ $id }}">{{ $name }}</option>@endforeach</select></label>
+        <label class="text-sm"><span class="text-gray-500">{{ __('Mill') }}</span>
+            <select wire:model.live="entity" class="{{ $sel }}"><option value="">{{ __('All mills') }}</option>@foreach ($this->millOptions() as $id => $name)<option value="{{ $id }}">{{ $name }}</option>@endforeach</select></label>
     </div>
 
     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -53,7 +53,7 @@
             <x-filament::section :heading="$heading" collapsible compact>
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
-                        <thead><tr class="text-left text-xs text-gray-500"><th class="py-1 pr-2">Name</th><th class="pr-2 text-right">API</th><th class="pr-2 text-right">SMS</th><th class="pr-2 text-right">WhatsApp</th><th class="pr-2 text-right">E-mail</th><th class="pr-2 text-right">Failed</th><th class="pr-2 text-right">Estimated</th><th class="text-right">Charged</th></tr></thead>
+                        <thead><tr class="text-left text-xs text-gray-500"><th class="py-1 pr-2">{{ __('Name') }}</th><th class="pr-2 text-right">{{ __('API') }}</th><th class="pr-2 text-right">{{ __('SMS') }}</th><th class="pr-2 text-right">{{ __('WhatsApp') }}</th><th class="pr-2 text-right">{{ __('E-mail') }}</th><th class="pr-2 text-right">{{ __('Failed') }}</th><th class="pr-2 text-right">{{ __('Estimated') }}</th><th class="text-right">{{ __('Charged') }}</th></tr></thead>
                         <tbody>
                             @forelse ($r->by($g) as $row)
                                 <tr class="border-t border-gray-100 dark:border-white/5">
@@ -69,7 +69,7 @@
                                     <td class="pr-2 text-right">{{ $n($row['estimated']) }}</td><td class="text-right">{{ $n($row['charged']) }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="8" class="py-2 text-gray-500">No usage in this period.</td></tr>
+                                <tr><td colspan="8" class="py-2 text-gray-500">{{ __('No usage in this period.') }}</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -81,7 +81,7 @@
     <x-filament::section heading="Usage records" description="Each use of an outside service, newest first (the latest 200; the export has them all)." collapsible>
         <div class="overflow-x-auto">
             <table class="w-full text-xs">
-                <thead><tr class="text-left text-gray-500"><th class="py-1 pr-2">Usage ID</th><th class="pr-2">When (PKT)</th><th class="pr-2">Mill</th><th class="pr-2">Service</th><th class="pr-2">Module · action</th><th class="pr-2">Why</th><th class="pr-2">By</th><th class="pr-2">To</th><th class="pr-2 text-right">Qty</th><th class="pr-2 text-right">Cost</th><th class="pr-2">Status</th><th>Billing</th></tr></thead>
+                <thead><tr class="text-left text-gray-500"><th class="py-1 pr-2">{{ __('Usage ID') }}</th><th class="pr-2">{{ __('When (PKT)') }}</th><th class="pr-2">{{ __('Mill') }}</th><th class="pr-2">{{ __('Service') }}</th><th class="pr-2">{{ __('Module · action') }}</th><th class="pr-2">{{ __('Why') }}</th><th class="pr-2">{{ __('By') }}</th><th class="pr-2">{{ __('To') }}</th><th class="pr-2 text-right">{{ __('Qty') }}</th><th class="pr-2 text-right">{{ __('Cost') }}</th><th class="pr-2">{{ __('Status') }}</th><th>{{ __('Billing') }}</th></tr></thead>
                 <tbody>
                     @forelse ($r->records() as $u)
                         <tr class="border-t border-gray-100 align-top dark:border-white/5">
@@ -99,7 +99,7 @@
                             <td>{{ $u->billing_status }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="12" class="py-2 text-gray-500">No usage in this period.</td></tr>
+                        <tr><td colspan="12" class="py-2 text-gray-500">{{ __('No usage in this period.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

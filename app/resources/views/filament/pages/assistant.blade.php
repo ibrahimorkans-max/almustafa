@@ -5,7 +5,7 @@
                 {{ $this->aiEnabled() ? 'AI mode: normal sentences in English or Roman Urdu.' : 'Command mode (offline). Add an AI API key to ask in normal sentences.' }}
                 Anything that changes data is shown first and runs only when you press Confirm.
             </span>
-            <x-filament::link tag="button" size="sm" color="gray" wire:click="clearChat" icon="heroicon-o-plus">New chat</x-filament::link>
+            <x-filament::link tag="button" size="sm" color="gray" wire:click="clearChat" icon="heroicon-o-plus">{{ __('New chat') }}</x-filament::link>
         </div>
 
         <div style="max-width: 32rem;">@include('filament.partials.assistant-tabs')</div>

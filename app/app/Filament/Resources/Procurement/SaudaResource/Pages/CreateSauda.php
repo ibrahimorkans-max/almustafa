@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class CreateSauda extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use OffersPrintAfterCreate;
 
     protected string $printType = 'sauda';

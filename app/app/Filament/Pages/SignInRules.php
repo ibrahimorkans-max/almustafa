@@ -33,6 +33,8 @@ use Filament\Pages\Page;
  */
 class SignInRules extends Page implements HasForms
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-lock-closed';
@@ -93,29 +95,29 @@ class SignInRules extends Page implements HasForms
     public function form(Form $form): Form
     {
         return $form->statePath('data')->schema([
-            Radio::make('trusted_devices')->label('New phones and computers')->required()
+            Radio::make('trusted_devices')->label(__('New phones and computers'))->required()
                 ->options([
-                    'everyone' => 'Everyone: a device used for the first time must be approved before it can sign in',
-                    'selected' => 'Selected accounts only (switched on per account under Users)',
-                    'off' => 'Off: any device with the right password, code or passkey',
+                    'everyone' => __('Everyone: a device used for the first time must be approved before it can sign in'),
+                    'selected' => __('Selected accounts only (switched on per account under Users)'),
+                    'off' => __('Off: any device with the right password, code or passkey'),
                 ])
                 ->descriptions([
-                    'everyone' => 'Strictest. Attendance-only employee logins are left out: HR already approves their phone under Attendance devices.',
-                    'selected' => 'For example only the Super Admin, accountant and HR.',
-                    'off' => 'Not recommended once the mill is live.',
+                    'everyone' => __('Strictest. Attendance-only employee logins are left out: HR already approves their phone under Attendance devices.'),
+                    'selected' => __('For example only the Super Admin, accountant and HR.'),
+                    'off' => __('Not recommended once the mill is live.'),
                 ]),
-            Toggle::make('sign_in_area')->label('Only inside the mill')
+            Toggle::make('sign_in_area')->label(__('Only inside the mill'))
                 ->helperText(fn () => 'Nobody of this mill can sign in, or stay signed in, unless their phone or computer is inside one of the mill\'s sites (HR → Sites: '
                     .$this->siteSummary().'). Location must be allowed in the browser and the app. A session that leaves the mill is ended.'),
-            Select::make('max_devices')->label('Devices per person')->required()
-                ->options(array_combine(SettingsService::MAX_DEVICES_CHOICES, array_map(fn (int $n) => $n === 0 ? 'No limit' : $n.($n === 1 ? ' device' : ' devices'), SettingsService::MAX_DEVICES_CHOICES)))
-                ->helperText('A new phone or computer is refused once the person already uses this many. They can remove an old one under Security → My devices. Gate computers are not counted.'),
-            Toggle::make('record_location')->label('Record location with entries')
-                ->helperText('Gate entries, paddy stock entries, expenses and roznamcha pages keep where the phone or computer was, when its browser is allowed to share it. Nothing is recorded when location is refused.'),
-            Select::make('retention')->label('Closed records leave the working screens after')->visible(fn () => self::ownsRetention())
+            Select::make('max_devices')->label(__('Devices per person'))->required()
+                ->options(\App\Support\Locales::options(array_combine(SettingsService::MAX_DEVICES_CHOICES, array_map(fn (int $n) => $n === 0 ? 'No limit' : $n.($n === 1 ? ' device' : ' devices'), SettingsService::MAX_DEVICES_CHOICES))))
+                ->helperText(__('A new phone or computer is refused once the person already uses this many. They can remove an old one under Security → My devices. Gate computers are not counted.')),
+            Toggle::make('record_location')->label(__('Record location with entries'))
+                ->helperText(__('Gate entries, paddy stock entries, expenses and roznamcha pages keep where the phone or computer was, when its browser is allowed to share it. Nothing is recorded when location is refused.')),
+            Select::make('retention')->label(__('Closed records leave the working screens after'))->visible(fn () => self::ownsRetention())
                 ->in(SettingsService::ARCHIVE_RETENTION_CHOICES)
-                ->options(array_combine(SettingsService::ARCHIVE_RETENTION_CHOICES, array_map(fn (int $m) => $m.' months', SettingsService::ARCHIVE_RETENTION_CHOICES)))
-                ->helperText('For all your mills. They go to the Office Coordinator\'s Office Desk at the next monthly run, where they can be read and restored.'),
+                ->options(\App\Support\Locales::options(array_combine(SettingsService::ARCHIVE_RETENTION_CHOICES, array_map(fn (int $m) => $m.' months', SettingsService::ARCHIVE_RETENTION_CHOICES))))
+                ->helperText(__('For all your mills. They go to the Office Coordinator\'s Office Desk at the next monthly run, where they can be read and restored.')),
         ]);
     }
 
@@ -180,6 +182,6 @@ class SignInRules extends Page implements HasForms
         app(AuditLogger::class)->record('security.sign_in_rules_changed', null, meta: ['trusted_devices' => ['from' => $before, 'to' => $mode],
             'only_inside_the_mill' => ['from' => $areaBefore, 'to' => $areaOn],
             'max_devices' => ['from' => $devicesBefore, 'to' => (int) $state['max_devices']], 'record_location' => (bool) ($state['record_location'] ?? false)]);
-        Notification::make()->title('Sign-in rules saved. They apply from the next sign-in.')->success()->send();
+        Notification::make()->title(__('Sign-in rules saved. They apply from the next sign-in.'))->success()->send();
     }
 }

@@ -44,6 +44,8 @@ use Illuminate\Database\Eloquent\Builder;
 /** Labour contractor bills built from the workers' attendance or piece work, approved by a second person. */
 class ContractorBillResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = ContractorBill::class;
 
     protected static ?string $recordTitleAttribute = 'number';
@@ -121,31 +123,31 @@ class ContractorBillResource extends Resource
         $yesterday = fn () => now('Asia/Karachi')->subDay();
 
         return $form->columns(3)->schema([
-            Select::make('party_id')->label('Contractor')->required()->searchable()->options(fn () => self::contractors())
-                ->helperText('A vendor party; link its workers with "Assign workers" on the list.'),
-            DatePicker::make('period_from')->label('From')->required()->live()->maxDate(fn (Get $get) => $get('basis') === 'vehicles' ? now('Asia/Karachi') : $yesterday()),
-            DatePicker::make('period_to')->label('To')->required()->live()->afterOrEqual('period_from')
+            Select::make('party_id')->label(__('Contractor'))->required()->searchable()->options(fn () => self::contractors())
+                ->helperText(__('A vendor party; link its workers with "Assign workers" on the list.')),
+            DatePicker::make('period_from')->label(__('From'))->required()->live()->maxDate(fn (Get $get) => $get('basis') === 'vehicles' ? now('Asia/Karachi') : $yesterday()),
+            DatePicker::make('period_to')->label(__('To'))->required()->live()->afterOrEqual('period_from')
                 ->maxDate(fn (Get $get) => $get('basis') === 'vehicles' ? now('Asia/Karachi') : $yesterday())
                 ->helperText(fn (Get $get) => $get('basis') === 'vehicles' ? 'Up to today: tokens with their final weight.' : 'Days already over.'),
-            Select::make('basis')->options(ContractorBill::BASES)->default('vehicles')->required()->live(),
-            Placeholder::make('vehicles_preview')->label('Vehicles to bill')->columnSpan(2)
+            Select::make('basis')->options(\App\Support\Locales::options(ContractorBill::BASES))->default('vehicles')->required()->live(),
+            Placeholder::make('vehicles_preview')->label(__('Vehicles to bill'))->columnSpan(2)
                 ->visible(fn (Get $get) => $get('basis') === 'vehicles')
                 ->content(fn (Get $get) => self::vehiclesPreview($get('party_id'), $get('period_from'), $get('period_to'))),
-            TextInput::make('rate')->label('Rate per man-day (Rs)')->regex(Units::DECIMAL_2)
+            TextInput::make('rate')->label(__('Rate per man-day (Rs)'))->regex(Units::DECIMAL_2)
                 ->visible(fn (Get $get) => $get('basis') === 'man_days')->required(fn (Get $get) => $get('basis') === 'man_days'),
-            Repeater::make('rates')->label('Rates per unit')->columns(2)->defaultItems(1)->columnSpan(2)
+            Repeater::make('rates')->label(__('Rates per unit'))->columns(2)->defaultItems(1)->columnSpan(2)
                 ->visible(fn (Get $get) => $get('basis') === 'piece')->required(fn (Get $get) => $get('basis') === 'piece')
                 ->schema([
-                    Select::make('unit')->options(PieceWorkEntry::UNITS)->required()->distinct(),
-                    TextInput::make('rate')->label('Rate (Rs)')->required()->regex(Units::DECIMAL_2),
+                    Select::make('unit')->options(\App\Support\Locales::options(PieceWorkEntry::UNITS))->required()->distinct(),
+                    TextInput::make('rate')->label(__('Rate (Rs)'))->required()->regex(Units::DECIMAL_2),
                 ]),
-            TextInput::make('sales_tax')->label('Sales tax on services (%)')->default('0')->regex('/^\d{1,2}(\.\d{1,2})?$/')
-                ->helperText('Provincial (PRA) when the contractor charges it'),
-            TextInput::make('wht')->label('Income tax withheld (%)')->default('0')->regex('/^\d{1,2}(\.\d{1,2})?$/')
-                ->helperText('s. 153(1)(b), on the amount before sales tax')->visible(fn () => IncomeTax::enabled()),
-            TextInput::make('deduction')->label('Deductions (Rs)')->default('0')->regex(Units::DECIMAL_2)->live(onBlur: true)
-                ->helperText('Shortage, damage, advance recovered … taken off what is paid'),
-            TextInput::make('deduction_note')->label('Deduction for')->maxLength(300)->columnSpan(2)
+            TextInput::make('sales_tax')->label(__('Sales tax on services (%)'))->default('0')->regex('/^\d{1,2}(\.\d{1,2})?$/')
+                ->helperText(__('Provincial (PRA) when the contractor charges it')),
+            TextInput::make('wht')->label(__('Income tax withheld (%)'))->default('0')->regex('/^\d{1,2}(\.\d{1,2})?$/')
+                ->helperText(__('s. 153(1)(b), on the amount before sales tax'))->visible(fn () => IncomeTax::enabled()),
+            TextInput::make('deduction')->label(__('Deductions (Rs)'))->default('0')->regex(Units::DECIMAL_2)->live(onBlur: true)
+                ->helperText(__('Shortage, damage, advance recovered … taken off what is paid')),
+            TextInput::make('deduction_note')->label(__('Deduction for'))->maxLength(300)->columnSpan(2)
                 ->required(fn (Get $get) => filled($get('deduction')) && bccomp((string) $get('deduction'), '0', 2) > 0),
             Textarea::make('note')->maxLength(500)->columnSpanFull(),
         ]);
@@ -169,15 +171,15 @@ class ContractorBillResource extends Resource
             ->modifyQueryUsing(fn (Builder $query) => $query->with('party'))
             ->columns([
                 TextColumn::make('number')->searchable(),
-                TextColumn::make('party.name')->label('Contractor')->searchable(),
-                TextColumn::make('period')->label('Period')
+                TextColumn::make('party.name')->label(__('Contractor'))->searchable(),
+                TextColumn::make('period')->label(__('Period'))
                     ->state(fn (ContractorBill $r) => $r->period_from->format('d M').' – '.$r->period_to->format('d M Y')),
                 TextColumn::make('basis')->formatStateUsing(fn (string $state) => ContractorBill::BASES[$state] ?? $state),
-                TextColumn::make('gross_paise')->label('Gross')->alignEnd()->formatStateUsing($rs),
-                TextColumn::make('wht_paise')->label('Tax withheld')->alignEnd()->formatStateUsing($rs),
-                TextColumn::make('payable_paise')->label('Payable')->alignEnd()->formatStateUsing($rs),
-                TextColumn::make('paid_paise')->label('Paid')->alignEnd()->formatStateUsing($rs)->toggleable(),
-                TextColumn::make('balance')->label('Balance')->alignEnd()->state(fn (ContractorBill $r) => $r->status === 'approved' ? $rs($r->balancePaise()) : null)->placeholder('—')
+                TextColumn::make('gross_paise')->label(__('Gross'))->alignEnd()->formatStateUsing($rs),
+                TextColumn::make('wht_paise')->label(__('Tax withheld'))->alignEnd()->formatStateUsing($rs),
+                TextColumn::make('payable_paise')->label(__('Payable'))->alignEnd()->formatStateUsing($rs),
+                TextColumn::make('paid_paise')->label(__('Paid'))->alignEnd()->formatStateUsing($rs)->toggleable(),
+                TextColumn::make('balance')->label(__('Balance'))->alignEnd()->state(fn (ContractorBill $r) => $r->status === 'approved' ? $rs($r->balancePaise()) : null)->placeholder('—')
                     ->description(fn (ContractorBill $r) => $r->status === 'approved' ? ContractorBill::PAYMENT_STATUSES[$r->paymentStatus()] : null),
                 TextColumn::make('status')->badge()->formatStateUsing(fn (string $state) => self::STATUSES[$state] ?? $state)
                     ->color(fn (string $state) => match ($state) {
@@ -186,9 +188,9 @@ class ContractorBillResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
-                SelectFilter::make('status')->options(self::STATUSES),
-                SelectFilter::make('party_id')->label('Contractor')->options(fn () => self::contractors()),
-                SelectFilter::make('payment')->label('Payment')->options(ContractorBill::PAYMENT_STATUSES)
+                SelectFilter::make('status')->options(\App\Support\Locales::options(self::STATUSES)),
+                SelectFilter::make('party_id')->label(__('Contractor'))->options(fn () => self::contractors()),
+                SelectFilter::make('payment')->label(__('Payment'))->options(\App\Support\Locales::options(ContractorBill::PAYMENT_STATUSES))
                     ->query(fn (Builder $query, array $data) => match ($data['value'] ?? null) {
                         'unpaid' => $query->where('status', 'approved')->where('paid_paise', 0),
                         'partial' => $query->where('status', 'approved')->where('paid_paise', '>', 0)->whereColumn('paid_paise', '<', 'payable_paise'),
@@ -204,23 +206,23 @@ class ContractorBillResource extends Resource
                     ->action(fn (ContractorBill $record, array $data) => DocumentActions::run('contractor_bill', $record->id, $data)),
                 Action::make('approve')->icon('heroicon-o-check')->color('success')
                     ->visible(fn (ContractorBill $r) => $r->status === 'draft' && $can('hr.payroll.approve'))
-                    ->modalDescription('Posts the labour cost against the contractor and the tax withheld; pay it through Payments.')
+                    ->modalDescription(__('Posts the labour cost against the contractor and the tax withheld; pay it through Payments.'))
                     ->form([Textarea::make('note')->maxLength(500)])
                     ->action($run(fn (ContractorBill $r, array $d) => $svc()->approve($r, $d['note'] ?? null), 'Bill approved and posted.')),
-                Action::make('pay')->label('Pay')->icon('heroicon-o-banknotes')->color('primary')
+                Action::make('pay')->label(__('Pay'))->icon('heroicon-o-banknotes')->color('primary')
                     ->visible(fn (ContractorBill $r) => $r->status === 'approved' && $r->balancePaise() > 0 && $can('payment.create'))
                     ->modalDescription(fn (ContractorBill $r) => 'Still due: '.$rs($r->balancePaise()).'. Pay all or part of it.')
                     ->form(fn (ContractorBill $record) => [
-                        TextInput::make('amount')->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2)->default(bcdiv((string) $record->balancePaise(), '100', 2)),
-                        Select::make('account_id')->label('Paid from')->required()->options(fn () => ExpenseResource::cashLedgers()),
-                        DatePicker::make('paid_on')->label('Date')->required()->default(now('Asia/Karachi')->toDateString())->maxDate(now('Asia/Karachi')),
-                        TextInput::make('reference')->label('Cheque / transfer reference')->maxLength(120),
+                        TextInput::make('amount')->label(__('Amount (Rs)'))->required()->regex(Units::DECIMAL_2)->default(bcdiv((string) $record->balancePaise(), '100', 2)),
+                        Select::make('account_id')->label(__('Paid from'))->required()->options(fn () => ExpenseResource::cashLedgers()),
+                        DatePicker::make('paid_on')->label(__('Date'))->required()->default(now('Asia/Karachi')->toDateString())->maxDate(now('Asia/Karachi')),
+                        TextInput::make('reference')->label(__('Cheque / transfer reference'))->maxLength(120),
                     ])
                     ->action($run(fn (ContractorBill $r, array $d) => $svc()->pay($r, Units::rupeesToPaise((string) $d['amount']),
                         LedgerAccount::query()->findOrFail($d['account_id']), CarbonImmutable::parse($d['paid_on'], 'Asia/Karachi'), $d['reference'] ?? null), 'Payment recorded and posted.')),
-                Action::make('statement')->label('Statement')->icon('heroicon-o-document-text')->color('gray')
+                Action::make('statement')->label(__('Statement'))->icon('heroicon-o-document-text')->color('gray')
                     ->url(fn (ContractorBill $r) => PartyStatementPage::getUrl(['party' => $r->party_id, 'show' => 'contractor'])),
-                Action::make('reject')->label('Refuse')->icon('heroicon-o-x-mark')->color('danger')
+                Action::make('reject')->label(__('Refuse'))->icon('heroicon-o-x-mark')->color('danger')
                     ->visible(fn (ContractorBill $r) => $r->status === 'draft' && $can('hr.payroll.approve'))
                     ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(500)])
                     ->action($run(fn (ContractorBill $r, array $d) => $svc()->reject($r, (string) $d['reason']), 'Bill refused.')),
@@ -234,39 +236,39 @@ class ContractorBillResource extends Resource
         return $infolist->schema([
             Section::make()->columns(4)->schema([
                 TextEntry::make('number'),
-                TextEntry::make('party.name')->label('Contractor'),
+                TextEntry::make('party.name')->label(__('Contractor')),
                 TextEntry::make('period')->state(fn (ContractorBill $r) => $r->period_from->format('d M Y').' – '.$r->period_to->format('d M Y')),
                 TextEntry::make('status')->badge()->formatStateUsing(fn (string $state) => self::STATUSES[$state] ?? $state),
-                TextEntry::make('gross_paise')->label('Gross')->formatStateUsing($rs),
-                TextEntry::make('sales_tax_paise')->label('Sales tax')
+                TextEntry::make('gross_paise')->label(__('Gross'))->formatStateUsing($rs),
+                TextEntry::make('sales_tax_paise')->label(__('Sales tax'))
                     ->formatStateUsing(fn (ContractorBill $record) => $rs($record->sales_tax_paise).' ('.Units::bpToPercent($record->sales_tax_bp).')'),
-                TextEntry::make('wht_paise')->label('Income tax withheld')
+                TextEntry::make('wht_paise')->label(__('Income tax withheld'))
                     ->formatStateUsing(fn (ContractorBill $record) => $rs($record->wht_paise).' ('.Units::bpToPercent($record->wht_bp).')'),
-                TextEntry::make('deduction_paise')->label('Deductions')
+                TextEntry::make('deduction_paise')->label(__('Deductions'))
                     ->formatStateUsing(fn (ContractorBill $record) => $rs($record->deduction_paise).($record->deduction_note ? " ({$record->deduction_note})" : '')),
-                TextEntry::make('payable_paise')->label('Payable to the contractor')->formatStateUsing($rs),
-                TextEntry::make('paid_paise')->label('Paid')->formatStateUsing($rs),
-                TextEntry::make('balance')->label('Balance')->state(fn (ContractorBill $record) => $rs($record->balancePaise()).' · '.ContractorBill::PAYMENT_STATUSES[$record->paymentStatus()]),
+                TextEntry::make('payable_paise')->label(__('Payable to the contractor'))->formatStateUsing($rs),
+                TextEntry::make('paid_paise')->label(__('Paid'))->formatStateUsing($rs),
+                TextEntry::make('balance')->label(__('Balance'))->state(fn (ContractorBill $record) => $rs($record->balancePaise()).' · '.ContractorBill::PAYMENT_STATUSES[$record->paymentStatus()]),
                 TextEntry::make('note')->placeholder('—')->columnSpan(2),
-                TextEntry::make('decision_note')->label('Decision note')->placeholder('—')->columnSpan(2),
+                TextEntry::make('decision_note')->label(__('Decision note'))->placeholder('—')->columnSpan(2),
             ]),
-            Section::make('Payments')->visible(fn (ContractorBill $record) => $record->payments()->exists())->schema([
+            Section::make(__('Payments'))->visible(fn (ContractorBill $record) => $record->payments()->exists())->schema([
                 RepeatableEntry::make('payments')->hiddenLabel()->columns(4)->schema([
-                    TextEntry::make('paid_on')->label('Date')->date('d M Y'),
-                    TextEntry::make('amount_paise')->label('Amount')->formatStateUsing($rs),
-                    TextEntry::make('account.name')->label('From'),
+                    TextEntry::make('paid_on')->label(__('Date'))->date('d M Y'),
+                    TextEntry::make('amount_paise')->label(__('Amount'))->formatStateUsing($rs),
+                    TextEntry::make('account.name')->label(__('From')),
                     TextEntry::make('reference')->placeholder('—'),
                 ]),
             ]),
-            Section::make('Lines')->schema([
+            Section::make(__('Lines'))->schema([
                 RepeatableEntry::make('lines')->hiddenLabel()->columns(5)->schema([
                     TextEntry::make('description')->columnSpan(2)
                         ->helperText(fn ($record) => isset($record->source['billable_kg']) ? sprintf('Gross %s · tare %s · net %s · billable %s kg · %s %s',
                             $record->source['gross_kg'] ?? '—', $record->source['tare_kg'] ?? '—', $record->source['net_kg'] ?? '—', $record->source['billable_kg'],
                             $record->source['rate_code'] ?? '', $record->source['basis_label'] ?? '') : null),
                     TextEntry::make('quantity')->formatStateUsing(fn ($record) => rtrim(rtrim((string) $record->quantity, '0'), '.').' '.$record->unit),
-                    TextEntry::make('rate_paise')->label('Rate')->formatStateUsing($rs),
-                    TextEntry::make('amount_paise')->label('Amount')->formatStateUsing($rs),
+                    TextEntry::make('rate_paise')->label(__('Rate'))->formatStateUsing($rs),
+                    TextEntry::make('amount_paise')->label(__('Amount'))->formatStateUsing($rs),
                 ]),
             ]),
         ]);

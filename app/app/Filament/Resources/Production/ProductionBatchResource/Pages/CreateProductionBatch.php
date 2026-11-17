@@ -18,6 +18,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreateProductionBatch extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use OffersPrintAfterCreate;
 
     protected string $printType = 'batch';

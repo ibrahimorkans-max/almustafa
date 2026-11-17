@@ -67,19 +67,19 @@ class SalesSaudaResource extends SaudaResource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Section::make('Buyer & product')->columns(3)->schema([
-                Select::make('party_id')->label('Buyer')->required()->searchable()->preload()
+            Section::make(__('Buyer & product'))->columns(3)->schema([
+                Select::make('party_id')->label(__('Buyer'))->required()->searchable()->preload()
                     ->relationship('party', 'name', fn (Builder $query) => $query->where('is_customer', true)),
-                Select::make('broker_party_id')->label('Broker / agent')->searchable()->preload()
+                Select::make('broker_party_id')->label(__('Broker / agent'))->searchable()->preload()
                     ->relationship('broker', 'name', fn (Builder $query) => $query->where('is_broker', true)),
                 ProductSelect::make('product_id', ['rice', 'by_product'])->required(),
             ]),
-            Section::make('Terms')->columns(3)->schema([
-                TextInput::make('quantity_maund')->label('Quantity (maund)')->required()->regex(Units::DECIMAL_3),
-                TextInput::make('rate_rupees')->label('Rate (Rs per maund, before sales tax)')->required()->regex(Units::DECIMAL_2),
-                TextInput::make('tolerance_percent')->label('Delivery tolerance (± %)')->default('5')->regex(Units::DECIMAL_2),
-                TextInput::make('brokerage_rupees')->label('Brokerage (Rs per maund)')->default('0')->regex(Units::DECIMAL_2),
-                TextInput::make('payment_days')->label('Credit days')->integer()->minValue(0)->maxValue(365)->default(0),
+            Section::make(__('Terms'))->columns(3)->schema([
+                TextInput::make('quantity_maund')->label(__('Quantity (maund)'))->required()->regex(Units::DECIMAL_3),
+                TextInput::make('rate_rupees')->label(__('Rate (Rs per maund, before sales tax)'))->required()->regex(Units::DECIMAL_2),
+                TextInput::make('tolerance_percent')->label(__('Delivery tolerance (± %)'))->default('5')->regex(Units::DECIMAL_2),
+                TextInput::make('brokerage_rupees')->label(__('Brokerage (Rs per maund)'))->default('0')->regex(Units::DECIMAL_2),
+                TextInput::make('payment_days')->label(__('Credit days'))->integer()->minValue(0)->maxValue(365)->default(0),
                 DatePicker::make('delivery_from')->required(),
                 DatePicker::make('delivery_to')->required()->afterOrEqual('delivery_from'),
             ]),
@@ -93,9 +93,9 @@ class SalesSaudaResource extends SaudaResource
         return $infolist->schema([
             ...$base,
             InfoSection::make('Price list')->columns(2)->schema([
-                TextEntry::make('list_rate')->label('List rate / maund today')
+                TextEntry::make('list_rate')->label(__('List rate / maund today'))
                     ->state(fn (Sauda $r) => Units::paiseToRupees(app(PricingService::class)->listRate($r->product)) ?: '—'),
-                TextEntry::make('vs_list')->label('Deal vs list')
+                TextEntry::make('vs_list')->label(__('Deal vs list'))
                     ->state(function (Sauda $r): string {
                         $list = app(PricingService::class)->listRate($r->product);
 

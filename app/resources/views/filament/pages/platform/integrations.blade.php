@@ -7,7 +7,7 @@
             @if ($s['whatsapp_saved'])
                 <p>{{ $s['whatsapp_saved']['business_number'] ?? '' }} · phone number ID {{ $s['whatsapp_saved']['phone_number_id'] }} · template "{{ $s['whatsapp_saved']['template'] ?? '' }}"</p>
             @endif
-            <p class="text-gray-500">Every mill uses this number unless it connects its own under Administration → Integrations.</p>
+            <p class="text-gray-500">{{ __('Every mill uses this number unless it connects its own under Administration → Integrations.') }}</p>
         </div>
     </x-filament::section>
     <x-filament::section heading="Firebase (notifications on party phones and browsers)">
@@ -16,7 +16,7 @@
             @if ($s['firebase_project'])
                 <p>Project {{ $s['firebase_project'] }} · browser notifications {{ $s['firebase_web'] ? 'ready' : 'need the web app settings and the Web Push key' }}</p>
             @endif
-            <p class="text-gray-500">The service account key is kept encrypted in the server's private storage and never shown again.</p>
+            <p class="text-gray-500">{{ __('The service account key is kept encrypted in the server\'s private storage and never shown again.') }}</p>
         </div>
     </x-filament::section>
 </x-filament-panels::page>

@@ -22,13 +22,13 @@
         @media print { .mnx-assistant { display: none !important; } }
     </style>
 
-    <div class="mnx-assistant-panel" x-show="open" x-cloak x-transition.opacity.duration.150ms role="dialog" aria-label="Assistant">
+    <div class="mnx-assistant-panel" x-show="open" x-cloak x-transition.opacity.duration.150ms role="dialog" aria-label="{{ __('Assistant') }}">
         <div class="mnx-assistant-head">
-            <strong style="font-size:.9rem;">Assistant</strong>
+            <strong style="font-size:.9rem;">{{ __('Assistant') }}</strong>
             <span style="display:flex; gap:.75rem; align-items:center;">
-                <button type="button" wire:click="clearChat">New chat</button>
-                <a href="{{ $fullUrl }}">Full screen</a>
-                <button type="button" x-on:click="open = false" aria-label="Close" style="font-size:1.1rem; line-height:1;">✕</button>
+                <button type="button" wire:click="clearChat">{{ __('New chat') }}</button>
+                <a href="{{ $fullUrl }}">{{ __('Full screen') }}</a>
+                <button type="button" x-on:click="open = false" aria-label="{{ __('Close') }}" style="font-size:1.1rem; line-height:1;">✕</button>
             </span>
         </div>
         <div style="padding: .5rem .75rem 0;">@include('filament.partials.assistant-tabs')</div>

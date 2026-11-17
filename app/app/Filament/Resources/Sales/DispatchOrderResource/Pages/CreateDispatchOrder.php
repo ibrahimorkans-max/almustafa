@@ -19,6 +19,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreateDispatchOrder extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use OffersPrintAfterCreate;
 
     protected string $printType = 'dispatch';
@@ -41,8 +43,8 @@ class CreateDispatchOrder extends CreateRecord
             throw ValidationException::withMessages(['data.quantity_kg' => $e->getMessage()]);
         }
         if ($order->status === DispatchOrder::PENDING_CREDIT) {
-            Notification::make()->warning()->title('Over the buyer\'s credit limit')
-                ->body('The order waits for a credit override by a second person.')->persistent()->send();
+            Notification::make()->warning()->title(__('Over the buyer\'s credit limit'))
+                ->body(__('The order waits for a credit override by a second person.'))->persistent()->send();
         }
 
         return $order;

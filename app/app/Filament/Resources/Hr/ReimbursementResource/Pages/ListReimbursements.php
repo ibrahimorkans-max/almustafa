@@ -10,10 +10,12 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListReimbursements extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = ReimbursementResource::class;
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('New claim')];
+        return [CreateAction::make()->label(__('New claim'))];
     }
 }

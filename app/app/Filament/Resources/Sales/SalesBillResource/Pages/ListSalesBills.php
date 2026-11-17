@@ -9,5 +9,7 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListSalesBills extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = SalesBillResource::class;
 }

@@ -15,24 +15,25 @@ use ZipArchive;
  */
 final class XlsxWorkbook
 {
-    /** @var list<array{name: string, rows: list<list<string|int|float|null>>, money: list<int>, widths: list<int>}> */
+    /** @var list<array{name: string, rows: list<list<string|int|float|null>>, money: list<int>, widths: list<int>, validations: array<int, string>}> */
     private array $sheets = [];
 
     /**
      * @param  list<string>  $header
      * @param  list<list<string|int|float|null>>  $rows
      * @param  list<int>  $moneyColumns  0-based columns whose values are rupees
+     * @param  array<int, string>  $validations  0-based column => a drop-down list for its cells below the header, e.g. 'Lists!$A$2:$A$9'
      */
-    public function addSheet(string $name, array $header, array $rows, array $moneyColumns = []): self
+    public function addSheet(string $name, array $header, array $rows, array $moneyColumns = [], array $validations = [], int $minWidth = 8): self
     {
         $all = array_merge([$header], $rows);
         $widths = [];
         foreach ($all as $row) {
             foreach (array_values($row) as $i => $cell) {
-                $widths[$i] = min(60, max($widths[$i] ?? 8, mb_strlen((string) $cell) + 2));
+                $widths[$i] = min(60, max($widths[$i] ?? $minWidth, mb_strlen((string) $cell) + 2));
             }
         }
-        $this->sheets[] = ['name' => $this->sheetName($name), 'rows' => $all, 'money' => $moneyColumns, 'widths' => $widths];
+        $this->sheets[] = ['name' => $this->sheetName($name), 'rows' => $all, 'money' => $moneyColumns, 'widths' => $widths, 'validations' => $validations];
 
         return $this;
     }
@@ -121,7 +122,7 @@ final class XlsxWorkbook
             .'</styleSheet>';
     }
 
-    /** @param  array{name: string, rows: list<list<string|int|float|null>>, money: list<int>, widths: list<int>}  $sheet */
+    /** @param  array{name: string, rows: list<list<string|int|float|null>>, money: list<int>, widths: list<int>, validations: array<int, string>}  $sheet */
     private function sheetXml(array $sheet): string
     {
         $cols = '';
@@ -153,7 +154,22 @@ final class XlsxWorkbook
             .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
             .'<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
             .($cols !== '' ? '<cols>'.$cols.'</cols>' : '')
-            .'<sheetData>'.$rows.'</sheetData></worksheet>';
+            .'<sheetData>'.$rows.'</sheetData>'.$this->validationsXml($sheet['validations']).'</worksheet>';
+    }
+
+    /** @param  array<int, string>  $validations  drop-down lists, for the first 5000 rows under the header */
+    private function validationsXml(array $validations): string
+    {
+        if ($validations === []) {
+            return '';
+        }
+        $xml = '';
+        foreach ($validations as $c => $formula) {
+            $col = $this->column($c);
+            $xml .= '<dataValidation type="list" allowBlank="1" showErrorMessage="1" sqref="'.$col.'2:'.$col.'5001"><formula1>'.$this->x($formula).'</formula1></dataValidation>';
+        }
+
+        return '<dataValidations count="'.count($validations).'">'.$xml.'</dataValidations>';
     }
 
     private function column(int $index): string

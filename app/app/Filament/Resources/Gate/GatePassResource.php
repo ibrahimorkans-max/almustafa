@@ -32,6 +32,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class GatePassResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = GatePass::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-ticket';
@@ -83,9 +85,9 @@ class GatePassResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            ToggleButtons::make('purpose')->label('For')->options(['sale' => 'Sale', 'other' => 'Other'])->default('other')->inline()->required()
-                ->helperText('Sale: printed with the logo for selling. Other: with the mill\'s logo (Print & branding).'),
-            Select::make('gate_entry_id')->label('Vehicle at the gate (optional: fills in the details)')->searchable()->live()
+            ToggleButtons::make('purpose')->label(__('For'))->options(['sale' => __('Sale'), 'other' => __('Other')])->default('other')->inline()->required()
+                ->helperText(__('Sale: printed with the logo for selling. Other: with the mill\'s logo (Print & branding).')),
+            Select::make('gate_entry_id')->label(__('Vehicle at the gate (optional: fills in the details)'))->searchable()->live()
                 ->options(fn () => GateEntry::query()->with('party')->whereNotIn('status', ['exited', 'cancelled'])->orderByDesc('arrived_at')->limit(100)->get()
                     ->mapWithKeys(fn (GateEntry $e) => [$e->id => trim(($e->token_serial !== null || $e->token_no !== null ? 'Token '.$e->tokenLabel().' · ' : '')
                         .$e->vehicleLabel().($e->partyLabel() !== null ? ' · '.$e->partyLabel() : ''))]))
@@ -103,22 +105,22 @@ class GatePassResource extends Resource
                     $set('goods', $e->itemLabel() !== '—' ? $e->itemLabel() : null);
                 }),
             Grid::make(2)->schema([
-                Select::make('party_id')->label('Party (registered)')->searchable()->live()
+                Select::make('party_id')->label(__('Party (registered)'))->searchable()->live()
                     ->getSearchResultsUsing(fn (string $search) => Party::query()->where('status', 'active')
                         ->where(fn ($q) => $q->whereRaw('LOWER(name) LIKE ?', ['%'.mb_strtolower($search).'%'])->orWhereRaw('LOWER(code) LIKE ?', ['%'.mb_strtolower($search).'%']))
                         ->orderBy('name')->limit(30)->pluck('name', 'id')->all())
                     ->getOptionLabelUsing(fn ($value) => Party::query()->find($value)?->name)
                     ->afterStateUpdated(fn (?string $state, Set $set) => $state !== null ? $set('party_name', Party::query()->find($state)?->name) : null),
-                TextInput::make('party_name')->label('Party name (as printed)')->required()->maxLength(160)
-                    ->helperText('Filled in from the party; or type any name.'),
-                TextInput::make('vehicle_no')->label('Vehicle number')->required()->maxLength(30)->placeholder('MNA-21-1234')
+                TextInput::make('party_name')->label(__('Party name (as printed)'))->required()->maxLength(160)
+                    ->helperText(__('Filled in from the party; or type any name.')),
+                TextInput::make('vehicle_no')->label(__('Vehicle number'))->required()->maxLength(30)->placeholder(__('MNA-21-1234'))
                     ->extraInputAttributes(['style' => 'text-transform: uppercase']),
-                TextInput::make('goods')->label('Goods (optional)')->maxLength(160)->placeholder('Rice, husk, bran…'),
-                TextInput::make('bag_count')->label('Number of bags')->required()->integer()->minValue(1)->maxValue(100000)->live(onBlur: true),
-                TextInput::make('kg_per_bag')->label('Weight per bag (kg)')->required()->regex('/^\d{1,6}(\.\d{1,3})?$/')
+                TextInput::make('goods')->label(__('Goods (optional)'))->maxLength(160)->placeholder(__('Rice, husk, bran…')),
+                TextInput::make('bag_count')->label(__('Number of bags'))->required()->integer()->minValue(1)->maxValue(100000)->live(onBlur: true),
+                TextInput::make('kg_per_bag')->label(__('Weight per bag (kg)'))->required()->regex('/^\d{1,6}(\.\d{1,3})?$/')
                     ->validationMessages(['regex' => 'Type the kg, e.g. 50 or 25.5'])->suffix('kg')->live(onBlur: true),
             ]),
-            Placeholder::make('total')->label('Total weight')
+            Placeholder::make('total')->label(__('Total weight'))
                 ->content(function (Get $get): string {
                     $bags = (int) $get('bag_count');
                     $per = (string) $get('kg_per_bag');
@@ -129,7 +131,7 @@ class GatePassResource extends Resource
 
                     return number_format($bags).' × '.rtrim(rtrim($per, '0'), '.').' kg = '.number_format($total, 2).' kg ('.number_format($total / 40, 2).' maund)';
                 }),
-            TextInput::make('remarks')->label('Remarks (optional)')->maxLength(300),
+            TextInput::make('remarks')->label(__('Remarks (optional)'))->maxLength(300),
         ]);
     }
 
@@ -138,21 +140,21 @@ class GatePassResource extends Resource
         return $table
             ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('serial')->label('Serial no.')->fontFamily('mono')->searchable()->weight('bold'),
-                TextColumn::make('created_at')->label('Issued')->dateTime('d M Y H:i', 'Asia/Karachi')->sortable(),
-                TextColumn::make('party_name')->label('Party')->searchable(),
-                TextColumn::make('vehicle_no')->label('Vehicle')->fontFamily('mono')->searchable(),
-                TextColumn::make('bag_count')->label('Bags')->numeric()->alignEnd(),
-                TextColumn::make('kg_per_bag')->label('Kg per bag')->alignEnd()->formatStateUsing(fn ($state) => rtrim(rtrim((string) $state, '0'), '.')),
-                TextColumn::make('total_kg')->label('Total kg')->numeric(2)->alignEnd(),
-                TextColumn::make('purpose')->label('For')->badge()->formatStateUsing(fn (string $state) => $state === 'sale' ? 'Sale' : 'Other')
+                TextColumn::make('serial')->label(__('Serial no.'))->fontFamily('mono')->searchable()->weight('bold'),
+                TextColumn::make('created_at')->label(__('Issued'))->dateTime('d M Y H:i', 'Asia/Karachi')->sortable(),
+                TextColumn::make('party_name')->label(__('Party'))->searchable(),
+                TextColumn::make('vehicle_no')->label(__('Vehicle'))->fontFamily('mono')->searchable(),
+                TextColumn::make('bag_count')->label(__('Bags'))->numeric()->alignEnd(),
+                TextColumn::make('kg_per_bag')->label(__('Kg per bag'))->alignEnd()->formatStateUsing(fn ($state) => rtrim(rtrim((string) $state, '0'), '.')),
+                TextColumn::make('total_kg')->label(__('Total kg'))->numeric(2)->alignEnd(),
+                TextColumn::make('purpose')->label(__('For'))->badge()->formatStateUsing(fn (string $state) => $state === 'sale' ? 'Sale' : 'Other')
                     ->color(fn (string $state) => $state === 'sale' ? 'info' : 'gray'),
-                TextColumn::make('cancellation.reason')->label('Status')->badge()->default('Valid')
+                TextColumn::make('cancellation.reason')->label(__('Status'))->badge()->default('Valid')
                     ->formatStateUsing(fn (GatePass $r) => $r->cancellation === null ? 'Valid' : 'Cancelled: '.$r->cancellation->reason)
                     ->color(fn (GatePass $r) => $r->cancellation === null ? 'success' : 'danger'),
             ])
             ->filters([
-                SelectFilter::make('purpose')->label('For')->options(['sale' => 'Sale', 'other' => 'Other']),
+                SelectFilter::make('purpose')->label(__('For'))->options(['sale' => __('Sale'), 'other' => __('Other')]),
             ])
             ->actions(ManageGatePasses::rowActions());
     }

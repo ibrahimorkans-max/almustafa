@@ -1,10 +1,10 @@
 <x-filament-panels::page>
     <x-filament::section>
-        <x-slot name="heading">Lockdown</x-slot>
+        <x-slot name="heading">{{ __('Lockdown') }}</x-slot>
         <x-slot name="description">While locked, only Owners can sign in (with 2FA). Gate agents show the lock and keep their readings queued; nothing is lost.</x-slot>
         @php($locks = $this->locks())
         @if ($locks === [])
-            <p class="text-sm text-gray-600 dark:text-gray-300">No lockdown is active.</p>
+            <p class="text-sm text-gray-600 dark:text-gray-300">{{ __('No lockdown is active.') }}</p>
         @else
             <ul class="space-y-2">
                 @foreach ($locks as $lock)
@@ -18,11 +18,11 @@
         @endif
     </x-filament::section>
     <x-filament::section>
-        <x-slot name="heading">Maintenance</x-slot>
+        <x-slot name="heading">{{ __('Maintenance') }}</x-slot>
         <x-slot name="description">Scheduled or running windows. People see the message and the expected end time; health checks and document verification stay available.</x-slot>
         @php($windows = $this->maintenanceWindows())
         @if ($windows === [])
-            <p class="text-sm text-gray-600 dark:text-gray-300">No maintenance is scheduled.</p>
+            <p class="text-sm text-gray-600 dark:text-gray-300">{{ __('No maintenance is scheduled.') }}</p>
         @else
             <ul class="space-y-2">
                 @foreach ($windows as $w)

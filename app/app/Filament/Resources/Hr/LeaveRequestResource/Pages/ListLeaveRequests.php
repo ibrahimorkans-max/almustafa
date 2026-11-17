@@ -10,10 +10,12 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListLeaveRequests extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = LeaveRequestResource::class;
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('Enter leave')];
+        return [CreateAction::make()->label(__('Enter leave'))];
     }
 }

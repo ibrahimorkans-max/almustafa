@@ -10,6 +10,8 @@ use Filament\Resources\Pages\ManageRecords;
 
 class ManageDepartments extends ManageRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = DepartmentResource::class;
 
     protected function getHeaderActions(): array

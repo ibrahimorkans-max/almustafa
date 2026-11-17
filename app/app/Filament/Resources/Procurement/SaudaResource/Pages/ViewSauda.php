@@ -17,6 +17,8 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewSauda extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = SaudaResource::class;
 
     protected function getHeaderActions(): array
@@ -26,7 +28,7 @@ class ViewSauda extends ViewRecord
 
         return [
             PrintButton::header('sauda'),
-            Action::make('submit')->label('Send for approval')->icon('heroicon-o-paper-airplane')
+            Action::make('submit')->label(__('Send for approval'))->icon('heroicon-o-paper-airplane')
                 ->visible(fn (Sauda $record) => $record->status === Sauda::STATUS_DRAFT && $can($record->direction === 'sale' ? 'sales.order' : 'deal.create'))
                 ->requiresConfirmation()
                 ->action(fn (Sauda $record) => $this->run(fn (SaudaService $s) => $s->submit($record), 'Sent for approval')),
@@ -34,7 +36,7 @@ class ViewSauda extends ViewRecord
                 ->visible(fn (Sauda $record) => $record->status === Sauda::STATUS_PENDING && $can('deal.approve'))
                 ->form([Textarea::make('note')->maxLength(1000)])
                 ->requiresConfirmation()
-                ->modalDescription('Approving freezes quantity, rate and all terms of this deal.')
+                ->modalDescription(__('Approving freezes quantity, rate and all terms of this deal.'))
                 ->action(fn (Sauda $record, array $data) => $this->run(fn (SaudaService $s) => $s->approve($record, $data['note'] ?? null), 'Sauda confirmed')),
             Action::make('reject')->color('danger')->icon('heroicon-o-x-mark')
                 ->visible(fn (Sauda $record) => $record->status === Sauda::STATUS_PENDING && $can('deal.approve'))

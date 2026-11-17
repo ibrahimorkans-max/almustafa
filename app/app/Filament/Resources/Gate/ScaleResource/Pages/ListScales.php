@@ -10,6 +10,8 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListScales extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = ScaleResource::class;
 
     protected function getHeaderActions(): array

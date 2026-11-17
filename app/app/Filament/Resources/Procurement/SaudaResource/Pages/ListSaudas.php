@@ -10,6 +10,8 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListSaudas extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = SaudaResource::class;
 
     protected function getHeaderActions(): array

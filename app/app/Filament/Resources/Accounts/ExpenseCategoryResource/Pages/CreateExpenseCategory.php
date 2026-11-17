@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreateExpenseCategory extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = ExpenseCategoryResource::class;
 
     /** @param  array<string, mixed>  $data */

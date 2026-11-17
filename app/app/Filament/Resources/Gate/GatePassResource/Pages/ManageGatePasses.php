@@ -21,6 +21,8 @@ use Livewire\Component;
 
 class ManageGatePasses extends ManageRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = GatePassResource::class;
 
     protected ?string $subheading = 'What leaves on a vehicle: party, vehicle number, bags and weight per bag. Each pass has a serial number and a verification code the gate can check by scanning it.';
@@ -28,8 +30,8 @@ class ManageGatePasses extends ManageRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->label('New gate pass')->icon('heroicon-o-plus')->modalHeading('New gate pass')
-                ->modalSubmitActionLabel('Issue and print')->createAnother(false)
+            CreateAction::make()->label(__('New gate pass'))->icon('heroicon-o-plus')->modalHeading(__('New gate pass'))
+                ->modalSubmitActionLabel(__('Issue and print'))->createAnother(false)
                 ->using(function (array $data, CreateAction $action): GatePass {
                     try {
                         return app(GatePasses::class)->issue($data);
@@ -48,22 +50,22 @@ class ManageGatePasses extends ManageRecords
     public static function rowActions(): array
     {
         return [
-            Action::make('print')->label('Print')->icon('heroicon-o-printer')->color('gray')
+            Action::make('print')->label(__('Print'))->icon('heroicon-o-printer')->color('gray')
                 ->action(fn (GatePass $record, Component $livewire) => PrintDelivery::toPrinter($livewire, app(GatePasses::class)->pdf($record), self::fileName($record))),
-            Action::make('pdf')->label('PDF')->icon('heroicon-o-arrow-down-tray')->color('gray')
+            Action::make('pdf')->label(__('PDF'))->icon('heroicon-o-arrow-down-tray')->color('gray')
                 ->action(fn (GatePass $record) => response()->streamDownload(fn () => print app(GatePasses::class)->pdf($record), self::fileName($record))),
             WhatsAppFileButton::row('whatsapp', fn (GatePass $record) => ['party' => $record->party, 'name' => $record->party_name, 'document' => 'gate pass',
                 'number' => $record->serial, 'file' => self::fileName($record), 'pdf' => fn () => app(GatePasses::class)->pdf($record)],
-                fn (?GatePass $record) => $record === null || $record->cancellation === null)->label('WhatsApp'),
-            Action::make('cancel')->label('Cancel')->icon('heroicon-o-x-mark')->color('danger')
+                fn (?GatePass $record) => $record === null || $record->cancellation === null)->label(__('WhatsApp')),
+            Action::make('cancel')->label(__('Cancel'))->icon('heroicon-o-x-mark')->color('danger')
                 ->visible(function (GatePass $record): bool {
                     $me = Filament::auth()->user();
 
                     return $record->cancellation === null && $me instanceof LoginAccount && $me->hasPermission('gatepass.issue');
                 })
                 ->modalHeading(fn (GatePass $record) => 'Cancel gate pass '.$record->serial)
-                ->modalDescription('The pass stays on the list marked cancelled, and the check page says it is not valid. Issue a new one if the vehicle still needs a pass.')
-                ->form([Textarea::make('reason')->label('Why is it cancelled?')->required()->minLength(5)->maxLength(300)])
+                ->modalDescription(__('The pass stays on the list marked cancelled, and the check page says it is not valid. Issue a new one if the vehicle still needs a pass.'))
+                ->form([Textarea::make('reason')->label(__('Why is it cancelled?'))->required()->minLength(5)->maxLength(300)])
                 ->action(function (GatePass $record, array $data): void {
                     try {
                         app(GatePasses::class)->cancel($record, (string) $data['reason']);

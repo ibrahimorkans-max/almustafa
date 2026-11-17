@@ -23,6 +23,8 @@ use Filament\Tables\Table;
 /** Allowances paid by rule (conveyance, medical, meal per day, attendance allowance …). */
 class AllowanceRuleResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = AllowanceRule::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-plus-circle';
@@ -36,23 +38,23 @@ class AllowanceRuleResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            TextInput::make('code')->required()->maxLength(20)->regex('/^[A-Z][A-Z0-9_]{1,19}$/')->helperText('Shown on the payslip, e.g. CONV, MEAL'),
+            TextInput::make('code')->required()->maxLength(20)->regex('/^[A-Z][A-Z0-9_]{1,19}$/')->helperText(__('Shown on the payslip, e.g. CONV, MEAL')),
             TextInput::make('name')->required()->maxLength(120),
-            Select::make('method')->options(AllowanceRule::METHODS)->required()->live(),
-            TextInput::make('amount_rupees')->label('Amount (Rs)')->regex(Units::DECIMAL_2)
+            Select::make('method')->options(\App\Support\Locales::options(AllowanceRule::METHODS))->required()->live(),
+            TextInput::make('amount_rupees')->label(__('Amount (Rs)'))->regex(Units::DECIMAL_2)
                 ->visible(fn (Get $get) => $get('method') !== 'pct_basic')
                 ->afterStateHydrated(fn (TextInput $component, ?AllowanceRule $record) => $component->state($record ? bcdiv((string) $record->amount_paise, '100', 2) : null)),
-            TextInput::make('rate_percent')->label('Percent of Basic')->numeric()->minValue(0)->maxValue(500)
+            TextInput::make('rate_percent')->label(__('Percent of Basic'))->numeric()->minValue(0)->maxValue(500)
                 ->visible(fn (Get $get) => $get('method') === 'pct_basic')
                 ->afterStateHydrated(fn (TextInput $component, ?AllowanceRule $record) => $component->state($record ? $record->rate_bp / 100 : null)),
-            Toggle::make('prorate')->label('Prorate by paid days')->default(true)->visible(fn (Get $get) => $get('method') === 'fixed'),
-            TextInput::make('max_absent_days')->label('Most absences allowed')->integer()->minValue(0)->visible(fn (Get $get) => $get('method') === 'attendance'),
-            TextInput::make('max_late_days')->label('Most late days allowed')->integer()->minValue(0)->visible(fn (Get $get) => $get('method') === 'attendance'),
-            Select::make('departments')->multiple()->options(fn () => Department::query()->orderBy('name')->pluck('name', 'id'))->helperText('Empty = everyone'),
-            Select::make('employment_types')->multiple()->options(Employee::TYPES)->helperText('Empty = everyone'),
+            Toggle::make('prorate')->label(__('Prorate by paid days'))->default(true)->visible(fn (Get $get) => $get('method') === 'fixed'),
+            TextInput::make('max_absent_days')->label(__('Most absences allowed'))->integer()->minValue(0)->visible(fn (Get $get) => $get('method') === 'attendance'),
+            TextInput::make('max_late_days')->label(__('Most late days allowed'))->integer()->minValue(0)->visible(fn (Get $get) => $get('method') === 'attendance'),
+            Select::make('departments')->multiple()->options(fn () => Department::query()->orderBy('name')->pluck('name', 'id'))->helperText(__('Empty = everyone')),
+            Select::make('employment_types')->multiple()->options(\App\Support\Locales::options(Employee::TYPES))->helperText(__('Empty = everyone')),
             DatePicker::make('effective_from')->required()->default(now('Asia/Karachi')->startOfMonth()),
             DatePicker::make('effective_to')->afterOrEqual('effective_from'),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Stopped'])->default('active')->required(),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Stopped')])->default('active')->required(),
         ]);
     }
 
@@ -79,10 +81,10 @@ class AllowanceRuleResource extends Resource
                 TextColumn::make('code')->searchable(),
                 TextColumn::make('name'),
                 TextColumn::make('method')->formatStateUsing(fn (string $state) => AllowanceRule::METHODS[$state] ?? $state),
-                TextColumn::make('value')->label('Amount / rate')->state(fn (AllowanceRule $r) => $r->method === 'pct_basic'
+                TextColumn::make('value')->label(__('Amount / rate'))->state(fn (AllowanceRule $r) => $r->method === 'pct_basic'
                     ? Units::bpToPercent($r->rate_bp) : Units::paiseToRupees($r->amount_paise)),
-                TextColumn::make('effective_from')->date('d M Y')->label('From'),
-                TextColumn::make('effective_to')->date('d M Y')->label('To')->placeholder('—'),
+                TextColumn::make('effective_from')->date('d M Y')->label(__('From')),
+                TextColumn::make('effective_to')->date('d M Y')->label(__('To'))->placeholder('—'),
                 TextColumn::make('status')->badge()->color(fn (string $state) => $state === 'active' ? 'success' : 'gray'),
             ])
             ->defaultSort('code')

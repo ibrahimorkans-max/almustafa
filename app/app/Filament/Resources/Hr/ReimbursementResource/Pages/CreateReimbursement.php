@@ -18,6 +18,8 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 /** HR enters a claim for an employee, with a receipt per line; a supervisor checks it next. */
 class CreateReimbursement extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = ReimbursementResource::class;
 
     protected static ?string $title = 'New staff claim';

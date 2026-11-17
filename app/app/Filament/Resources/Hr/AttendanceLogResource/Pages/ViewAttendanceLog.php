@@ -18,6 +18,8 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewAttendanceLog extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = AttendanceLogResource::class;
 
     protected function getHeaderActions(): array
@@ -40,12 +42,12 @@ class ViewAttendanceLog extends ViewRecord
         };
 
         return [
-            Action::make('accept')->label('Accept')->color('success')->icon('heroicon-o-check')->visible($visible)
-                ->modalDescription('The punch counts as attendance. Say what you checked (photo, place, the employee\'s explanation).')
-                ->form([Textarea::make('reason')->label('What you checked')->required()->minLength(5)->maxLength(1000)])
+            Action::make('accept')->label(__('Accept'))->color('success')->icon('heroicon-o-check')->visible($visible)
+                ->modalDescription(__('The punch counts as attendance. Say what you checked (photo, place, the employee\'s explanation).'))
+                ->form([Textarea::make('reason')->label(__('What you checked'))->required()->minLength(5)->maxLength(1000)])
                 ->action($decide(AttendanceReview::ACCEPT)),
-            Action::make('reject')->label('Reject')->color('danger')->icon('heroicon-o-x-mark')->visible($visible)
-                ->modalDescription('The punch does not count. The employee\'s correct time, if any, is entered as manual attendance.')
+            Action::make('reject')->label(__('Reject'))->color('danger')->icon('heroicon-o-x-mark')->visible($visible)
+                ->modalDescription(__('The punch does not count. The employee\'s correct time, if any, is entered as manual attendance.'))
                 ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(1000)])
                 ->action($decide(AttendanceReview::REJECT)),
         ];

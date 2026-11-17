@@ -24,6 +24,8 @@ use Filament\Tables\Table;
 /** Employee self-service: my payslips, receipts and certificates, and nobody else's. */
 class MyDocumentsPage extends Page implements HasTable
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
@@ -59,12 +61,12 @@ class MyDocumentsPage extends Page implements HasTable
             ->query(GeneratedDocument::query()->where('employee_id', $mine ?? '00000000-0000-0000-0000-000000000000')
                 ->whereNotIn('id', GeneratedDocument::query()->whereNotNull('supersedes_id')->select('supersedes_id')))
             ->defaultSort('created_at', 'desc')
-            ->emptyStateHeading('No documents yet')
-            ->emptyStateDescription('Payslips appear here once the month\'s payroll is finalized.')
+            ->emptyStateHeading(__('No documents yet'))
+            ->emptyStateDescription(__('Payslips appear here once the month\'s payroll is finalized.'))
             ->columns([
-                TextColumn::make('created_at')->label('Issued')->dateTime('d M Y', 'Asia/Karachi'),
-                TextColumn::make('doc_type')->label('Document')->formatStateUsing(fn (string $state) => DocumentTypes::options()[$state] ?? $state),
-                TextColumn::make('period')->label('Month')->state(fn (GeneratedDocument $r) => isset($r->payload['period']) ? CarbonImmutable::createFromFormat('!Y-m', (string) $r->payload['period'])->format('F Y') : '—'),
+                TextColumn::make('created_at')->label(__('Issued'))->dateTime('d M Y', 'Asia/Karachi'),
+                TextColumn::make('doc_type')->label(__('Document'))->formatStateUsing(fn (string $state) => DocumentTypes::options()[$state] ?? $state),
+                TextColumn::make('period')->label(__('Month'))->state(fn (GeneratedDocument $r) => isset($r->payload['period']) ? CarbonImmutable::createFromFormat('!Y-m', (string) $r->payload['period'])->format('F Y') : '—'),
                 TextColumn::make('number')->formatStateUsing(fn (GeneratedDocument $record) => $record->displayNumber()),
             ])
             ->actions([

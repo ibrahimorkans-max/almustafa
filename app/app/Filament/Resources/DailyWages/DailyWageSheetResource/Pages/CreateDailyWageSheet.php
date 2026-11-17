@@ -17,6 +17,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreateDailyWageSheet extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use OffersPrintAfterCreate;
 
     protected string $printType = 'daily_wage';

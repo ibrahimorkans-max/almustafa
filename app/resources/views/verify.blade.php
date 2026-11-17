@@ -30,30 +30,30 @@
         <img src="{{ asset($brand['logo']) }}" alt="{{ $brand['name'] }}">
         <div class="contact">{{ $brand['tagline'] }}</div>
     </header>
-    <h1>Verify a document</h1>
+    <h1>{{ __('Verify a document') }}</h1>
     <div class="ur" lang="ur" dir="rtl">دستاویز کی تصدیق</div>
-    <p>Enter the number and the verification code printed on a weighment slip, invoice, gate pass, purchase bill or payment voucher — or scan the QR code on it.</p>
+    <p>{{ __('Enter the number and the verification code printed on a weighment slip, invoice, gate pass, purchase bill or payment voucher — or scan the QR code on it.') }}</p>
     <form method="get" action="{{ url('/verify') }}">
-        <label for="doc">Document number</label>
+        <label for="doc">{{ __('Document number') }}</label>
         <input id="doc" name="doc" value="{{ $doc }}" maxlength="60" required>
-        <label for="code">Verification code</label>
-        <input id="code" name="code" value="{{ $code }}" maxlength="20" placeholder="XXXX-XXXX-XXXX" required>
-        <button type="submit">Verify</button>
+        <label for="code">{{ __('Verification code') }}</label>
+        <input id="code" name="code" value="{{ $code }}" maxlength="20" placeholder="{{ __('XXXX-XXXX-XXXX') }}" required>
+        <button type="submit">{{ __('Verify') }}</button>
     </form>
 
     @if ($asked)
         @if ($result)
             <div class="ok">
-                <strong>Genuine {{ strtolower($result['type']) }}.</strong> These are the figures on record:
+                <strong>Genuine {{ strtolower($result['type']) }}.</strong> {{ __('These are the figures on record:') }}
                 <dl>
                     @foreach ($result['facts'] as $label => $value)
                         <dt>{{ $label }}</dt><dd>{{ $value }}</dd>
                     @endforeach
                 </dl>
-                If your printout shows different figures, it has been altered.
+                {{ __('If your printout shows different figures, it has been altered.') }}
             </div>
         @else
-            <div class="bad"><strong>Not verified.</strong> No document with this number and code exists. Check both, or treat the printout as suspect and call the company that issued it.</div>
+            <div class="bad"><strong>{{ __('Not verified.') }}</strong> {{ __('No document with this number and code exists. Check both, or treat the printout as suspect and call the company that issued it.') }}</div>
         @endif
     @endif
     <footer>Document check by {{ $brand['name'] }} · {{ $brand['tagline'] }}</footer>

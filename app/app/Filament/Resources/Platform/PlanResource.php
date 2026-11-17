@@ -29,6 +29,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class PlanResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = Plan::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
@@ -71,28 +73,28 @@ class PlanResource extends Resource
     public static function form(Form $form): Form
     {
         $limit = fn (string $name, string $label) => TextInput::make($name)->label($label)->integer()->minValue(1)
-            ->placeholder('Unlimited')->helperText('Empty: unlimited');
+            ->placeholder(__('Unlimited'))->helperText(__('Empty: unlimited'));
 
         return $form->columns(2)->schema([
-            Section::make('Plan')->columns(3)->schema([
+            Section::make(__('Plan'))->columns(3)->schema([
                 TextInput::make('code')->required()->maxLength(20)->regex('/^[a-z0-9_-]+$/')->unique(ignoreRecord: true)->disabledOn('edit'),
                 TextInput::make('name')->required()->maxLength(80),
-                TextInput::make('price')->label('Price a month (Rs)')->required()->regex(Units::DECIMAL_2)
+                TextInput::make('price')->label(__('Price a month (Rs)'))->required()->regex(Units::DECIMAL_2)
                     ->afterStateHydrated(fn (TextInput $component, ?Plan $record) => $component->state($record ? number_format($record->price_paise_monthly / 100, 2, '.', '') : null)),
-                TextInput::make('lifetime_price')->label('Lifetime price, paid once (Rs)')->regex(Units::DECIMAL_2)->helperText('Empty: lifetime access is not offered on this plan.')
+                TextInput::make('lifetime_price')->label(__('Lifetime price, paid once (Rs)'))->regex(Units::DECIMAL_2)->helperText(__('Empty: lifetime access is not offered on this plan.'))
                     ->afterStateHydrated(fn (TextInput $component, ?Plan $record) => $component->state($record?->price_paise_lifetime ? number_format($record->price_paise_lifetime / 100, 2, '.', '') : null)),
                 Textarea::make('description')->maxLength(500)->columnSpanFull(),
-                TextInput::make('sort')->label('Order')->integer()->default(100),
-                Toggle::make('active')->label('Offered to customers')->default(true),
+                TextInput::make('sort')->label(__('Order'))->integer()->default(100),
+                Toggle::make('active')->label(__('Offered to customers'))->default(true),
             ]),
-            Section::make('Limits')->columns(3)->schema([
+            Section::make(__('Limits'))->columns(3)->schema([
                 $limit('max_mills', 'Mills'),
                 $limit('max_users', 'Staff users'),
                 $limit('max_vehicles_month', 'Vehicles a month'),
             ]),
-            Section::make('Modules')->schema([
-                CheckboxList::make('modules')->hiddenLabel()->options(Modules::labels())->columns(2)->required()
-                    ->helperText('Masters, administration, security, dashboard and reports and the Office Desk are in every plan.'),
+            Section::make(__('Modules'))->schema([
+                CheckboxList::make('modules')->hiddenLabel()->options(\App\Support\Locales::options(Modules::labels()))->columns(2)->required()
+                    ->helperText(__('Masters, administration, security, dashboard and reports and the Office Desk are in every plan.')),
             ]),
         ]);
     }
@@ -118,13 +120,13 @@ class PlanResource extends Resource
             ->defaultSort('sort')
             ->columns([
                 TextColumn::make('name')->description(fn (Plan $r) => $r->code)->searchable(),
-                TextColumn::make('price_paise_monthly')->label('Price / month')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
-                TextColumn::make('price_paise_lifetime')->label('Lifetime (once)')->placeholder('Not offered')->formatStateUsing(fn (?int $state) => $state ? Units::paiseToRupees($state) : null),
-                TextColumn::make('max_mills')->label('Mills')->placeholder('Unlimited'),
-                TextColumn::make('max_users')->label('Users')->placeholder('Unlimited'),
-                TextColumn::make('max_vehicles_month')->label('Vehicles / month')->placeholder('Unlimited'),
+                TextColumn::make('price_paise_monthly')->label(__('Price / month'))->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
+                TextColumn::make('price_paise_lifetime')->label(__('Lifetime (once)'))->placeholder(__('Not offered'))->formatStateUsing(fn (?int $state) => $state ? Units::paiseToRupees($state) : null),
+                TextColumn::make('max_mills')->label(__('Mills'))->placeholder(__('Unlimited')),
+                TextColumn::make('max_users')->label(__('Users'))->placeholder(__('Unlimited')),
+                TextColumn::make('max_vehicles_month')->label(__('Vehicles / month'))->placeholder(__('Unlimited')),
                 TextColumn::make('modules')->badge()->formatStateUsing(fn (string $state) => Modules::labels()[$state] ?? $state),
-                TextColumn::make('customers')->label('Customers')->state(fn (Plan $r) => Customer::query()->where('plan_id', $r->id)->count()),
+                TextColumn::make('customers')->label(__('Customers'))->state(fn (Plan $r) => Customer::query()->where('plan_id', $r->id)->count()),
                 TextColumn::make('active')->badge()->formatStateUsing(fn (bool $state) => $state ? 'offered' : 'not offered')
                     ->color(fn (bool $state) => $state ? 'success' : 'gray'),
             ])

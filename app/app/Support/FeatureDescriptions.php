@@ -1,0 +1,167 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Support;
+
+/**
+ * What each screen is for, in one sentence: shown under the screen's title and on the Features guide page.
+ * Keyed by the resource's or page's class name; the English text is translated like every other text.
+ */
+final class FeatureDescriptions
+{
+    public const ALL = [
+        // Gate & weighbridge
+        'GateEntryResource' => 'Record every vehicle that comes to the gate and follow it through lab, weighing and slip until it leaves.',
+        'LiveWeightPage' => 'Watch the weighbridge reading live, as the indicator shows it, from any screen in the mill.',
+        'ManualWeighingPage' => 'Take a weight by hand when the weighbridge indicator cannot be read; every typed weight is flagged and checked.',
+        'LabQueuePage' => 'See the paddy vehicles waiting for their lab test and enter the results.',
+        'NegotiationPage' => 'Agree a new price or deduction for a lot the lab rejected or questioned.',
+        'VehicleRegisterPage' => 'Print or read the day-by-day register of every vehicle in and out.',
+        'ScaleResource' => 'Set up the weighbridges (scales) and their certificates.',
+        'ConnectWeighbridge' => 'Connect the weighbridge PC to the ERP with a one-time pairing code.',
+        'LabParameterResource' => 'Decide which lab tests are done on paddy and their accepted limits.',
+        'DeductionRuleResource' => 'Set how much weight or price is cut when a lab result is above its limit.',
+        'WeighmentCheckResource' => 'Review weights that look wrong (typed by hand, unusual tare, no photo) before they are trusted.',
+        'GatePassResource' => 'Issue the gate pass a loaded vehicle needs before it may leave the mill.',
+        // Procurement
+        'SaudaResource' => 'Record paddy purchase deals (saudas): party, quantity, rate and quality terms.',
+        'QuoteResource' => 'Collect price quotes from sellers and negotiate before making a sauda.',
+        'PaddyRequirementResource' => 'Plan how much paddy of each variety the mill needs to buy.',
+        // Stock & production
+        'PaddyStockEntryResource' => 'Receive paddy into a godown, adding its accepted weight to stock.',
+        'StockEntryResource' => 'See every stock movement in and out of each godown.',
+        'StockBalanceResource' => 'See how much of each product is in each godown right now.',
+        'StockCountResource' => 'Count stock physically and correct the books after a second person approves.',
+        'RequisitionResource' => 'Ask the stores for paddy or items for production; issued only after approval.',
+        'ProductionBatchResource' => 'Record each milling run: paddy fed, rice and by-products made, and the loss.',
+        'OutturnStandardResource' => 'Set the expected rice and by-product yield of each paddy variety.',
+        'AlertResource' => 'See warnings the system raises (stock, yield, weights, payments) that need attention.',
+        // Sales & dispatch
+        'DispatchOrderResource' => 'Plan rice dispatches to buyers: product, quantity, godown and vehicle.',
+        'SalesBillResource' => 'Make sales tax invoices for buyers and post them to the books.',
+        // Claims & pricing
+        'ClaimResource' => 'Record and settle quality or weight claims with buyers and suppliers.',
+        'PriceListResource' => 'Keep the selling prices of each product and their dates.',
+        'MarkupSettingResource' => 'Set the profit margin added to cost when prices are suggested.',
+        // Accounts
+        'VoucherResource' => 'See and post every accounting voucher (payments, receipts, journals).',
+        'PaymentResource' => 'Pay parties and receive money from them, by cash, cheque or bank transfer.',
+        'PurchaseBillResource' => 'Make and post the purchase bill of each paddy vehicle bought.',
+        'ExpenseResource' => 'Record the mill\'s day-to-day expenses and other income.',
+        'ExpenseCategoryResource' => 'Set the kinds of expenses and the accounts they post to.',
+        'RecurringExpenseResource' => 'Set expenses that repeat (rent, salaries, bills) so they are drafted each month.',
+        'LedgerAccountResource' => 'Keep the chart of accounts: every ledger and its balance.',
+        'RoznamchaResource' => 'Enter the daily cash register (roznamcha) page by page, with a photo of the page.',
+        'PaperRecordResource' => 'Enter old records from paper registers (balances, stock, purchases, sales, payments, vehicles) once, so the books start complete.',
+        'PartyTransactionsPage' => 'See every transaction of one party, like a bank statement.',
+        'BankAccountsPage' => 'Keep the mill\'s own bank accounts used for payments and receipts.',
+        'EmailConnectionResource' => 'Connect the mailbox where the bank sends transaction alerts.',
+        'BankEmailTransactionResource' => 'Check bank alerts read from e-mail and match them with the books.',
+        'BankFileResource' => 'Make bulk bank transfer files for salaries and payments.',
+        'BankStatementLineResource' => 'Match the bank statement with the books (bank reconciliation).',
+        'PeriodLockResource' => 'Lock a closed month so nothing can be posted into it.',
+        // HR, payroll, daily wages
+        'EmployeeResource' => 'Keep each employee\'s details, job, salary and documents.',
+        'DepartmentResource' => 'Set the mill\'s departments for staff and costs.',
+        'DesignationResource' => 'Set job titles (designations) for employees.',
+        'ShiftResource' => 'Set working shifts and their times for attendance.',
+        'HolidayResource' => 'Set public and mill holidays for attendance and pay.',
+        'LeaveTypeResource' => 'Set the kinds of leave and how many days each allows.',
+        'LeaveRequestResource' => 'Apply for and approve employee leave.',
+        'AttendanceLogResource' => 'See attendance punches and correct missing ones with approval.',
+        'AttendanceRegisterPage' => 'See the month\'s attendance of all staff on one sheet.',
+        'EmployeeDeviceResource' => 'Approve the phones employees use to mark attendance.',
+        'SiteResource' => 'Set the places (with GPS area) where attendance may be marked.',
+        'SalaryComponentResource' => 'Set the pay heads (allowances and deductions) used in salaries.',
+        'AllowanceRuleResource' => 'Set rules for automatic allowances such as attendance bonus.',
+        'PayAdjustmentResource' => 'Add one-time bonuses, fines or other pay changes for a month.',
+        'AdvanceResource' => 'Give salary advances and loans and recover them from pay.',
+        'PayrollRunResource' => 'Calculate, approve and pay the monthly salaries.',
+        'PayrollSettingsPage' => 'Set payroll rules and statutory rates (tax, EOBI, social security).',
+        'ReimbursementResource' => 'Repay staff for expenses they paid for the mill.',
+        'PieceWorkEntryResource' => 'Record work paid per piece (bags, maunds) and its pay.',
+        'ContractorRateResource' => 'Set the rates paid to labour contractors per unit of work.',
+        'ContractorBillResource' => 'Make the bill of a labour contractor from the work recorded.',
+        'DocumentTemplateResource' => 'Design the HR documents (payslip, letters, certificates) the system prints.',
+        'DocumentBatchResource' => 'Make many HR documents at once, e.g. all payslips of a month.',
+        'GeneratedDocumentResource' => 'See, print and share every HR document made.',
+        'MyDocumentsPage' => 'See your own payslips and letters.',
+        'DailyWageSheetResource' => 'Enter daily wage work and pay labour by the day.',
+        'DailyWageGroupResource' => 'Keep the labour groups (with their leader) paid by daily wage.',
+        'DailyWageCategoryResource' => 'Set the kinds of daily work and their rates.',
+        // Masters
+        'PartyResource' => 'Keep the suppliers, farmers, buyers and brokers the mill deals with.',
+        'ProductResource' => 'Keep the products the mill buys, makes and sells.',
+        'PaddyVarietyResource' => 'Keep the paddy varieties (1121, Super Basmati …) the mill buys.',
+        'GodownResource' => 'Keep the godowns and silos where stock is held.',
+        'VehicleResource' => 'Keep the vehicles that come to the mill, with owner and usual driver.',
+        'DriverResource' => 'Keep the drivers who bring and take goods.',
+        'BrandResource' => 'Keep the rice brands the mill sells under.',
+        'TaxRateResource' => 'Keep the sales tax rates used on invoices.',
+        'CodeDirectoryPage' => 'Look up any code the system made and open its record.',
+        'PartyMessagesPage' => 'Choose which messages parties get and see what was sent.',
+        'ChatsPage' => 'Read and answer WhatsApp messages from parties.',
+        'SyncConflictResource' => 'Resolve entries made offline on two devices that disagree.',
+        // Reports
+        'AccountsReports' => 'Day book, cash book, ledgers, trial balance and other books.',
+        'FinancialReportsPage' => 'Profit and loss, balance sheet and management reports.',
+        'OperationalReportsPage' => 'Reports on vehicles, weights, stock, production and lab.',
+        'BusinessReportPage' => 'One complete report of the whole business for a period.',
+        'AllReportsPage' => 'Print every report of a period in one click.',
+        'PartyStatementPage' => 'Make and send a party\'s account statement.',
+        'StatutoryReportsPage' => 'Payroll returns for government (EOBI, social security, tax).',
+        'SalesTaxReturnsPage' => 'Sales tax and withholding registers for filing with FBR.',
+        // Administration
+        'LoginAccountResource' => 'Create user logins, give them roles and reset passwords.',
+        'RoleResource' => 'Decide what each role may see and do.',
+        'ApprovalRequestResource' => 'Approve or refuse changes that need a second person.',
+        'EntityResource' => 'Keep the firms and mills in this account.',
+        'BrandingPage' => 'Set the mill\'s name, logo and details printed on paper.',
+        'IntegrationsPage' => 'See the services (WhatsApp, AI, notifications) the mill is connected to.',
+        'SecurityCentre' => 'See the mill\'s security at a glance and act on risks.',
+        'AccessReviewPage' => 'Review who can do what, and remove access no longer needed.',
+        'ArchiveSearch' => 'Find and restore closed records moved off the working screens.',
+        'SubscriptionPage' => 'See your plan, invoices and how to pay.',
+        'ServiceUsagePage' => 'See the use of messages, AI and other paid services.',
+        'AiIntegrationPage' => 'Connect the AI assistant with an API key.',
+        'AssistantPage' => 'Ask the assistant in plain English or Urdu to find things or prepare changes.',
+        'SearchResultsPage' => 'Search every module at once.',
+        'WhatsAppWebhookPage' => 'Set up the mill\'s own WhatsApp number to receive messages.',
+        // Security
+        'DeviceResource' => 'Approve, revoke or wipe the phones and computers that use the ERP.',
+        'AuthSessionResource' => 'See who is signed in where, and sign sessions out.',
+        'AuditLogResource' => 'See who changed what and when; the log cannot be altered.',
+        'SignInAttempts' => 'See failed and blocked sign-ins and the real reason for each.',
+        'SignInRules' => 'Decide which new devices need approval and where people may sign in.',
+        'ScreenProtection' => 'Hide sensitive screens from screenshots and screen sharing.',
+        'MyDevicesPage' => 'See the devices signed in to your account and remove old ones.',
+        'FirstSignInPage' => 'Confirm your e-mail and details the first time you sign in.',
+        // Platform (SaaS owner)
+        'PlatformOverview' => 'See all customers, income and usage of the platform.',
+        'CustomerResource' => 'Manage the companies using the platform.',
+        'PlanResource' => 'Set the subscription plans, their prices and limits.',
+        'SaasInvoiceResource' => 'Issue and track the invoices of customers.',
+        'PaymentMethodResource' => 'Set the ways customers can pay.',
+        'DataVisibilityRuleResource' => 'Limit how far back a customer can see its records.',
+        'BankEmailTemplateResource' => 'Teach the system to read each bank\'s alert e-mails.',
+        'PlatformUsersPage' => 'See and manage users of every company and mill.',
+        'PlatformIntegrationsPage' => 'Connect WhatsApp, AI and push notifications for every mill.',
+        'EmailIntegrationPage' => 'Set up Gmail and Outlook sign-in for bank e-mail import.',
+        'SenderIdentitiesPage' => 'Set the name each mill sends its messages under.',
+        'ServicePricesPage' => 'Set the price of each paid service and bill customers for use.',
+        'UsageCostsPage' => 'See the cost of API calls, SMS, WhatsApp and e-mail.',
+        'SecuritySettings' => 'Platform-wide security rules for every mill.',
+        'WeighmentModesPage' => 'Choose which weighing and lab modes each mill may use.',
+        'Dashboard' => 'Today at a glance: vehicles, stock, money and alerts.',
+        'PartyPortalPage' => 'See your vehicles, bills, payments and balance with the mill.',
+    ];
+
+    /** The description of a resource or page class (by its class name), in the chosen language. */
+    public static function for(string $class): ?string
+    {
+        $text = self::ALL[class_basename($class)] ?? null;
+
+        return $text === null ? null : Locales::word($text);
+    }
+}

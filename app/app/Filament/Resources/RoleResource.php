@@ -19,6 +19,8 @@ use Filament\Tables\Table;
 
 class RoleResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = Role::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-identification';
@@ -53,10 +55,10 @@ class RoleResource extends Resource
             ->columns([
                 TextColumn::make('name')->searchable(),
                 TextColumn::make('code'),
-                TextColumn::make('entity.code')->label('Entity')->placeholder('Global'),
-                IconColumn::make('mfa_required')->label('2FA required')->boolean(),
-                TextColumn::make('session_max_minutes')->label('Max session (min)'),
-                TextColumn::make('permissions_count')->label('Permissions')->counts('permissions'),
+                TextColumn::make('entity.code')->label(__('Entity'))->placeholder(__('Global')),
+                IconColumn::make('mfa_required')->label(__('2FA required'))->boolean(),
+                TextColumn::make('session_max_minutes')->label(__('Max session (min)')),
+                TextColumn::make('permissions_count')->label(__('Permissions'))->counts('permissions'),
             ])
             ->defaultSort('name')
             ->actions([ViewAction::make()])
@@ -69,10 +71,10 @@ class RoleResource extends Resource
             Section::make()->columns(4)->schema([
                 TextEntry::make('name'),
                 TextEntry::make('code'),
-                TextEntry::make('mfa_required')->label('2FA required')->formatStateUsing(fn (bool $state) => $state ? 'Yes' : 'No'),
-                TextEntry::make('session_max_minutes')->label('Max session (minutes)'),
+                TextEntry::make('mfa_required')->label(__('2FA required'))->formatStateUsing(fn (bool $state) => $state ? 'Yes' : 'No'),
+                TextEntry::make('session_max_minutes')->label(__('Max session (minutes)')),
             ]),
-            Section::make('Granted permissions')->schema(
+            Section::make(__('Granted permissions'))->schema(
                 collect(static::permissionOptionsByModule())->map(fn (array $options, string $module) => TextEntry::make('perm_'.$module)
                     ->label($module)
                     ->state(fn (Role $record) => array_values(array_intersect_key($options, array_flip($record->permissionCodes()))) ?: ['—'])

@@ -17,20 +17,22 @@ use RuntimeException;
 
 class ViewSyncConflict extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = SyncConflictResource::class;
 
     protected function getHeaderActions(): array
     {
-        $note = [Textarea::make('note')->label('Reason for your decision')->required()->maxLength(1000)];
+        $note = [Textarea::make('note')->label(__('Reason for your decision'))->required()->maxLength(1000)];
 
         return [
-            Action::make('apply')->label('Apply device data')->color('warning')
+            Action::make('apply')->label(__('Apply device data'))->color('warning')
                 ->visible(fn (SyncConflict $record) => Gate::allows('resolve', $record))
                 ->requiresConfirmation()
-                ->modalDescription('The device values overwrite the current record (audited).')
+                ->modalDescription(__('The device values overwrite the current record (audited).'))
                 ->form($note)
                 ->action(fn (SyncConflict $record, array $data) => $this->resolve(fn (ConflictResolver $r) => $r->applyClient($record, $data['note']))),
-            Action::make('dismiss')->label('Keep server data')->color('gray')
+            Action::make('dismiss')->label(__('Keep server data'))->color('gray')
                 ->visible(fn (SyncConflict $record) => Gate::allows('resolve', $record))
                 ->form($note)
                 ->action(fn (SyncConflict $record, array $data) => $this->resolve(fn (ConflictResolver $r) => $r->dismiss($record, $data['note']))),
@@ -44,12 +46,12 @@ class ViewSyncConflict extends ViewRecord
             $callback(app(ConflictResolver::class));
         } catch (RuntimeException|ValidationException $e) {
             $message = $e instanceof ValidationException ? implode(' ', $e->validator->errors()->all()) : $e->getMessage();
-            Notification::make()->title('Not resolved')->body($message)->danger()->send();
+            Notification::make()->title(__('Not resolved'))->body($message)->danger()->send();
 
             return;
         }
 
-        Notification::make()->title('Review recorded')->success()->send();
+        Notification::make()->title(__('Review recorded'))->success()->send();
         $this->record->refresh();
     }
 }

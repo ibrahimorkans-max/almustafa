@@ -4,7 +4,7 @@
     @else
         <form wire:submit="save" class="space-y-4">
             {{ $this->form }}
-            <x-filament::button type="submit" icon="heroicon-o-check">Save</x-filament::button>
+            <x-filament::button type="submit" icon="heroicon-o-check">{{ __('Save') }}</x-filament::button>
         </form>
     @endif
 </x-filament-panels::page>

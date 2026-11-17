@@ -27,6 +27,8 @@ use Illuminate\Support\Facades\Storage;
 /** Every punch exactly as received, with the verdict and its reasons. Read-only. */
 class AttendanceLogResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = AttendanceLog::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-finger-print';
@@ -58,29 +60,29 @@ class AttendanceLogResource extends Resource
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['employee.person', 'site', 'reviews']))
             ->columns([
-                TextColumn::make('occurred_at')->label('Time (PKT)')->dateTime('d M Y H:i', 'Asia/Karachi')->sortable(),
-                TextColumn::make('employee.code')->label('Employee')->searchable(),
-                TextColumn::make('employee.person.full_name')->label('Name'),
+                TextColumn::make('occurred_at')->label(__('Time (PKT)'))->dateTime('d M Y H:i', 'Asia/Karachi')->sortable(),
+                TextColumn::make('employee.code')->label(__('Employee'))->searchable(),
+                TextColumn::make('employee.person.full_name')->label(__('Name')),
                 TextColumn::make('kind')->badge()->color(fn (string $state) => $state === 'in' ? 'info' : 'gray'),
-                TextColumn::make('status')->label('Server verdict')->badge()->color(fn (string $state) => static::statusColor($state)),
-                TextColumn::make('final')->label('Final')->badge()
+                TextColumn::make('status')->label(__('Server verdict'))->badge()->color(fn (string $state) => static::statusColor($state)),
+                TextColumn::make('final')->label(__('Final'))->badge()
                     ->state(fn (AttendanceLog $r) => $r->status === AttendanceLog::FLAGGED && $r->reviews->isEmpty() ? 'awaiting review' : $r->finalStatus())
                     ->color(fn (string $state) => $state === 'awaiting review' ? 'warning' : static::statusColor($state)),
-                TextColumn::make('reasons')->label('Why')->wrap()
+                TextColumn::make('reasons')->label(__('Why'))->wrap()
                     ->formatStateUsing(fn ($state, AttendanceLog $r) => implode('; ', $r->reasonTexts()) ?: '—'),
-                TextColumn::make('site.name')->label('Site')->placeholder('—'),
-                TextColumn::make('distance_m')->label('Distance')->suffix(' m')->placeholder('—'),
+                TextColumn::make('site.name')->label(__('Site'))->placeholder('—'),
+                TextColumn::make('distance_m')->label(__('Distance'))->suffix(' m')->placeholder('—'),
             ])
             ->defaultSort('occurred_at', 'desc')
             ->filters([
-                SelectFilter::make('status')->label('Server verdict')->options(['valid' => 'Valid', 'flagged' => 'Flagged', 'rejected' => 'Rejected']),
-                Filter::make('awaiting')->label('Awaiting review')->toggle()
+                SelectFilter::make('status')->label(__('Server verdict'))->options(['valid' => __('Valid'), 'flagged' => __('Flagged'), 'rejected' => __('Rejected')]),
+                Filter::make('awaiting')->label(__('Awaiting review'))->toggle()
                     ->query(fn (Builder $query) => AttendanceLog::whereAwaitingReview($query)),
-                SelectFilter::make('kind')->options(['in' => 'In', 'out' => 'Out']),
-                SelectFilter::make('employee_id')->label('Employee')->searchable()
+                SelectFilter::make('kind')->options(['in' => __('In'), 'out' => __('Out')]),
+                SelectFilter::make('employee_id')->label(__('Employee'))->searchable()
                     ->options(fn () => Employee::query()->with('person')->orderBy('code')->get()
                         ->mapWithKeys(fn (Employee $e) => [$e->id => "{$e->code} {$e->name()}"])->all()),
-                Filter::make('day')->form([DatePicker::make('day')->label('Day')])
+                Filter::make('day')->form([DatePicker::make('day')->label(__('Day'))])
                     ->query(fn (Builder $query, array $data) => $query->when($data['day'] ?? null, function (Builder $q, string $day) {
                         // PKT day → UTC bounds (storage is UTC).
                         $start = CarbonImmutable::parse($day, 'Asia/Karachi')->startOfDay();
@@ -94,41 +96,41 @@ class AttendanceLogResource extends Resource
     {
         return $infolist->schema([
             Section::make()->columns(4)->schema([
-                TextEntry::make('employee.code')->label('Employee'),
-                TextEntry::make('employee.person.full_name')->label('Name'),
+                TextEntry::make('employee.code')->label(__('Employee')),
+                TextEntry::make('employee.person.full_name')->label(__('Name')),
                 TextEntry::make('kind')->badge(),
                 TextEntry::make('status')->badge()->color(fn (string $state) => static::statusColor($state)),
-                TextEntry::make('reasons_text')->label('Why')->columnSpanFull()->listWithLineBreaks()
+                TextEntry::make('reasons_text')->label(__('Why'))->columnSpanFull()->listWithLineBreaks()
                     ->state(fn (AttendanceLog $r) => $r->reasonTexts() ?: ['No issues found']),
             ]),
-            Section::make('Time')->columns(4)->schema([
-                TextEntry::make('occurred_at')->label('Phone time (PKT)')->dateTime('d M Y H:i:s', 'Asia/Karachi'),
-                TextEntry::make('estimated_at')->label('Time worked out by the server')->dateTime('d M Y H:i:s', 'Asia/Karachi')->placeholder('not possible'),
-                TextEntry::make('received_at')->label('Uploaded')->dateTime('d M Y H:i:s', 'Asia/Karachi'),
+            Section::make(__('Time'))->columns(4)->schema([
+                TextEntry::make('occurred_at')->label(__('Phone time (PKT)'))->dateTime('d M Y H:i:s', 'Asia/Karachi'),
+                TextEntry::make('estimated_at')->label(__('Time worked out by the server'))->dateTime('d M Y H:i:s', 'Asia/Karachi')->placeholder(__('not possible')),
+                TextEntry::make('received_at')->label(__('Uploaded'))->dateTime('d M Y H:i:s', 'Asia/Karachi'),
                 TextEntry::make('time_check')->badge(),
             ]),
-            Section::make('Place')->columns(4)->schema([
-                TextEntry::make('position')->label('Location')->placeholder('none')
+            Section::make(__('Place'))->columns(4)->schema([
+                TextEntry::make('position')->label(__('Location'))->placeholder('none')
                     ->state(fn (AttendanceLog $r) => $r->latitude !== null ? "{$r->latitude}, {$r->longitude}" : null)
                     ->url(fn (AttendanceLog $r) => $r->latitude !== null
                         ? "https://www.openstreetmap.org/?mlat={$r->latitude}&mlon={$r->longitude}#map=18/{$r->latitude}/{$r->longitude}" : null, true),
-                TextEntry::make('accuracy_m')->label('Accuracy')->suffix(' m')->placeholder('—'),
-                TextEntry::make('site.name')->label('Nearest site')->placeholder('—'),
-                TextEntry::make('distance_m')->label('Distance from its centre')->suffix(' m')->placeholder('—'),
+                TextEntry::make('accuracy_m')->label(__('Accuracy'))->suffix(' m')->placeholder('—'),
+                TextEntry::make('site.name')->label(__('Nearest site'))->placeholder('—'),
+                TextEntry::make('distance_m')->label(__('Distance from its centre'))->suffix(' m')->placeholder('—'),
             ]),
-            Section::make('Photo and phone')->columns(3)->schema([
-                ImageEntry::make('selfie')->label('Photo')->height(220)
-                    ->state(fn (AttendanceLog $r) => static::selfieDataUri($r))->placeholder('no photo'),
+            Section::make(__('Photo and phone'))->columns(3)->schema([
+                ImageEntry::make('selfie')->label(__('Photo'))->height(220)
+                    ->state(fn (AttendanceLog $r) => static::selfieDataUri($r))->placeholder(__('no photo')),
                 TextEntry::make('source'),
-                TextEntry::make('signals')->label('Phone integrity signals')->placeholder('none sent (browser)')
+                TextEntry::make('signals')->label(__('Phone integrity signals'))->placeholder(__('none sent (browser)'))
                     ->state(fn (AttendanceLog $r) => $r->signals ? json_encode($r->signals, JSON_UNESCAPED_SLASHES) : null),
-                TextEntry::make('ip')->label('Uploaded from IP')->placeholder('—'),
+                TextEntry::make('ip')->label(__('Uploaded from IP'))->placeholder('—'),
             ]),
-            Section::make('Review')->visible(fn (AttendanceLog $r) => $r->status === AttendanceLog::FLAGGED || $r->reviews()->exists())->schema([
-                TextEntry::make('final')->label('Final status')->badge()
+            Section::make(__('Review'))->visible(fn (AttendanceLog $r) => $r->status === AttendanceLog::FLAGGED || $r->reviews()->exists())->schema([
+                TextEntry::make('final')->label(__('Final status'))->badge()
                     ->state(fn (AttendanceLog $r) => $r->status === AttendanceLog::FLAGGED && ! $r->reviews()->exists() ? 'awaiting review' : $r->finalStatus())
                     ->color(fn (string $state) => $state === 'awaiting review' ? 'warning' : static::statusColor($state)),
-                TextEntry::make('review_history')->label('Decisions (latest counts)')->listWithLineBreaks()->placeholder('none yet')
+                TextEntry::make('review_history')->label(__('Decisions (latest counts)'))->listWithLineBreaks()->placeholder(__('none yet'))
                     ->state(fn (AttendanceLog $r) => $r->reviews()->with('reviewer')->get()->map(fn (AttendanceReview $v) => sprintf('%s PKT · %s · %s — %s',
                         $v->reviewed_at->timezone('Asia/Karachi')->format('d M Y H:i'), $v->decision === 'accept' ? 'accepted' : 'rejected',
                         $v->reviewer->username ?? '?', $v->reason))->all()),

@@ -19,6 +19,8 @@ use Illuminate\Validation\ValidationException;
 
 class ListEmailConnections extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = EmailConnectionResource::class;
 
     public function getSubheading(): string|Htmlable|null
@@ -31,7 +33,7 @@ class ListEmailConnections extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->label('Connect a mailbox')->modalHeading('Connect a mailbox')
+            CreateAction::make()->label(__('Connect a mailbox'))->modalHeading(__('Connect a mailbox'))
                 ->form(EmailConnectionResource::fields(true))
                 ->using(function (array $data): EmailConnection {
                     if (EmailConnection::query()->where('provider', $data['provider'])->where('email', mb_strtolower($data['email']))->exists()) {
@@ -56,7 +58,7 @@ class ListEmailConnections extends ListRecords
                         // Read at once, so a wrong server or password shows now.
                         $run = app(BankEmailImport::class)->sync($record, 'manual');
                         $run->error === null
-                            ? Notification::make()->success()->title("Connected: {$run->fetched} e-mail(s) read.")->send()
+                            ? Notification::make()->success()->title(__('Connected: :fetched e-mail(s) read.', ['fetched' => $run->fetched]))->send()
                             : Notification::make()->danger()->title('Saved, but reading failed: '.$run->error)->persistent()->send();
 
                         return;

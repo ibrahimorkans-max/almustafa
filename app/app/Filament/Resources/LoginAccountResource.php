@@ -39,6 +39,8 @@ use Illuminate\Validation\Rules\Password;
 
 class LoginAccountResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = LoginAccount::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-users';
@@ -84,15 +86,15 @@ class LoginAccountResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Section::make('Person')->columns(3)->visibleOn('create')->schema([
+            Section::make(__('Person'))->columns(3)->visibleOn('create')->schema([
                 TextInput::make('full_name')->required()->maxLength(255),
                 TextInput::make('phone')->tel()->maxLength(20),
                 TextInput::make('email')->email()->maxLength(255),
             ]),
-            Section::make('Login account')->columns(2)->schema([
+            Section::make(__('Login account'))->columns(2)->schema([
                 TextInput::make('username')->required()->maxLength(64)
                     ->regex('/^[a-z0-9._-]{3,64}$/')
-                    ->helperText('Lower-case letters, digits, dot, dash, underscore. Unique across all entities.')
+                    ->helperText(__('Lower-case letters, digits, dot, dash, underscore. Unique across all entities.'))
                     // Usernames are unique across ALL entities, so check outside the tenant scope.
                     ->rule(fn (?LoginAccount $record) => function (string $attribute, mixed $value, \Closure $fail) use ($record): void {
                         $taken = app(TenantContext::class)->runAsSystem(fn () => LoginAccount::query()
@@ -104,14 +106,14 @@ class LoginAccountResource extends Resource
                         }
                     })
                     ->disabledOn('edit'),
-                Select::make('role_id')->label('Role')->required()
+                Select::make('role_id')->label(__('Role'))->required()
                     ->options(fn () => static::assignableRoles())
                     ->in(fn () => array_keys(static::assignableRoles())),
-                TextInput::make('password')->label('Temporary password')->password()->revealable()
+                TextInput::make('password')->label(__('Temporary password'))->password()->revealable()
                     ->required()->rule(Password::defaults())->visibleOn('create')
-                    ->helperText('The user must change it at first sign-in.'),
-                Toggle::make('require_trusted_device')->label('Only from approved devices')
-                    ->helperText('A new phone or computer must first be approved by the Super Admin or the Owner. Applies when Security → Sign-in rules is set to "selected accounts"; with "everyone" it applies to all accounts anyway.')
+                    ->helperText(__('The user must change it at first sign-in.')),
+                Toggle::make('require_trusted_device')->label(__('Only from approved devices'))
+                    ->helperText(__('A new phone or computer must first be approved by the Super Admin or the Owner. Applies when Security → Sign-in rules is set to "selected accounts"; with "everyone" it applies to all accounts anyway.'))
                     ->disabled(fn (?LoginAccount $record) => $record !== null && $record->person_id === auth()->user()?->person_id)
                     ->columnSpanFull(),
             ]),
@@ -122,34 +124,45 @@ class LoginAccountResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('person.full_name')->label('Name')->searchable(),
+                TextColumn::make('person.full_name')->label(__('Name'))->searchable(),
                 TextColumn::make('username')->searchable()->sortable(),
-                TextColumn::make('role.name')->label('Role')->sortable(),
+                TextColumn::make('role.name')->label(__('Role'))->sortable(),
                 TextColumn::make('status')->badge()->color(fn (string $state) => $state === 'active' ? 'success' : 'gray'),
-                IconColumn::make('mfa_confirmed_at')->label('2FA')->boolean()
+                IconColumn::make('mfa_confirmed_at')->label(__('2FA'))->boolean()
                     ->getStateUsing(fn (LoginAccount $r) => $r->mfa_confirmed_at !== null),
-                TextColumn::make('locked_until')->label('Locked until')->dateTime()->placeholder('—'),
-                TextColumn::make('duress_flagged_at')->label('Duress alert')->dateTime()->color('danger')->placeholder('—')
+                TextColumn::make('locked_until')->label(__('Locked until'))->dateTime()->placeholder('—'),
+                TextColumn::make('duress_flagged_at')->label(__('Duress alert'))->dateTime()->color('danger')->placeholder('—')
                     ->toggleable(),
                 TextColumn::make('last_login_at')->dateTime()->sortable()->placeholder('never'),
+                // The first sign-in: done, or waiting for the e-mail / details; where it came from below.
+                TextColumn::make('first_sign_in_completed_at')->label(__('First sign-in'))->badge()->toggleable()
+                    ->state(fn (LoginAccount $r) => match (true) {
+                        $r->first_sign_in_completed_at !== null => __('Done'),
+                        $r->first_sign_in_at === null => __('Not signed in yet'),
+                        $r->email_verified_at === null => __('Waiting for e-mail'),
+                        default => __('Waiting for details'),
+                    })
+                    ->color(fn (LoginAccount $r) => $r->first_sign_in_completed_at !== null ? 'success' : 'warning')
+                    ->description(fn (LoginAccount $r) => implode(' · ', array_filter([$r->first_sign_in['ip'] ?? null,
+                        $r->first_sign_in['city'] ?? null, $r->first_sign_in['browser'] ?? null, $r->email]))),
             ])
             ->defaultSort('username')
             ->filters([
-                SelectFilter::make('status')->options(['active' => 'Active', 'suspended' => 'Suspended', 'revoked' => 'Revoked']),
-                SelectFilter::make('role_id')->label('Role')->relationship('role', 'name'),
+                SelectFilter::make('status')->options(['active' => __('Active'), 'suspended' => __('Suspended'), 'revoked' => __('Revoked')]),
+                SelectFilter::make('role_id')->label(__('Role'))->relationship('role', 'name'),
             ])
             ->actions([
                 EditAction::make(),
                 ActionGroup::make([
                     Action::make('suspend')->icon('heroicon-o-pause-circle')->color('warning')
                         ->visible(fn (LoginAccount $r) => $r->isActive() && static::canManageSecurity($r))
-                        ->modalDescription('Signs the user out everywhere at once (browser, phone, gate PC). They see "Access disabled, contact your administrator" until reinstated.')
+                        ->modalDescription(__('Signs the user out everywhere at once (browser, phone, gate PC). They see "Access disabled, contact your administrator" until reinstated.'))
                         ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(500)])
                         ->requiresConfirmation()
                         ->action(fn (LoginAccount $r, array $data) => static::changeAccess($r, 'suspend', $data['reason'])),
-                    Action::make('revoke')->label('Revoke for good')->icon('heroicon-o-no-symbol')->color('danger')
+                    Action::make('revoke')->label(__('Revoke for good'))->icon('heroicon-o-no-symbol')->color('danger')
                         ->visible(fn (LoginAccount $r) => $r->status !== LoginAccount::STATUS_REVOKED && static::canManageSecurity($r))
-                        ->modalDescription('Permanent: the account can never be used again (history is kept). Use when the person has left.')
+                        ->modalDescription(__('Permanent: the account can never be used again (history is kept). Use when the person has left.'))
                         ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(500)])
                         ->requiresConfirmation()
                         ->action(fn (LoginAccount $r, array $data) => static::changeAccess($r, 'revoke', $data['reason'])),
@@ -168,18 +181,18 @@ class LoginAccountResource extends Resource
                             LoginService::clearAddressLocks($r);   // and every address it was locked out from
                             app(AuditLogger::class)->record('auth.account.unlocked', $r);
                         }),
-                    Action::make('clearDuress')->label('Clear duress alert')->icon('heroicon-o-exclamation-triangle')->color('danger')
+                    Action::make('clearDuress')->label(__('Clear duress alert'))->icon('heroicon-o-exclamation-triangle')->color('danger')
                         ->visible(fn (LoginAccount $r) => $r->duress_flagged_at !== null && static::canManageSecurity($r))
-                        ->modalDescription('Only after you have spoken to the person (by phone or in person) and re-verified who they are. Reinstate the account separately if it was suspended.')
-                        ->form([Textarea::make('note')->label('How the person was reached and verified')->required()->minLength(10)->maxLength(1000)])
+                        ->modalDescription(__('Only after you have spoken to the person (by phone or in person) and re-verified who they are. Reinstate the account separately if it was suspended.'))
+                        ->form([Textarea::make('note')->label(__('How the person was reached and verified'))->required()->minLength(10)->maxLength(1000)])
                         ->action(function (LoginAccount $r, array $data): void {
                             app(DuressService::class)->clearFlag($r, $data['note']);
-                            Notification::make()->title('Duress alert cleared.')->success()->send();
+                            Notification::make()->title(__('Duress alert cleared.'))->success()->send();
                         }),
-                    Action::make('resetPassword')->label('Reset password')->icon('heroicon-o-key')
+                    Action::make('resetPassword')->label(__('Reset password'))->icon('heroicon-o-key')
                         ->visible(fn (LoginAccount $r) => static::canManageSecurity($r))
                         ->form([
-                            TextInput::make('password')->label('New temporary password')->password()->revealable()
+                            TextInput::make('password')->label(__('New temporary password'))->password()->revealable()
                                 ->required()->rule(Password::defaults())
                                 ->default(fn () => Str::password(16)),
                             Textarea::make('reason')->required()->maxLength(500),
@@ -192,9 +205,9 @@ class LoginAccountResource extends Resource
                                 app(SessionService::class)->revokeAllFor($r, 'password_reset_by_admin');
                                 app(AuditLogger::class)->record('auth.password.reset_by_admin', $r, meta: ['reason' => $data['reason']]);
                             });
-                            Notification::make()->title('Password reset. All sessions of this user were signed out.')->success()->send();
+                            Notification::make()->title(__('Password reset. All sessions of this user were signed out.'))->success()->send();
                         }),
-                    Action::make('resetMfa')->label('Reset 2FA')->icon('heroicon-o-shield-exclamation')->color('danger')
+                    Action::make('resetMfa')->label(__('Reset 2FA'))->icon('heroicon-o-shield-exclamation')->color('danger')
                         ->visible(fn (LoginAccount $r) => $r->hasMfa() && static::canManageSecurity($r))
                         ->form([Textarea::make('reason')->required()->maxLength(500)])
                         ->requiresConfirmation()
@@ -222,7 +235,7 @@ class LoginAccountResource extends Resource
 
             return;
         }
-        Notification::make()->title("{$account->username} is now {$account->status}.")
+        Notification::make()->title(__(':username is now :status.', ['username' => $account->username, 'status' => $account->status]))
             ->body($account->isActive() ? null : 'All of their sessions and devices were signed out.')->success()->send();
     }
 

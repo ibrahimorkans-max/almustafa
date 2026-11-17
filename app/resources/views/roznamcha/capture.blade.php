@@ -23,23 +23,23 @@
 <body>
 <main>
     <div class="card">
-        <h1>Roznamcha page photo</h1>
+        <h1>{{ __('Roznamcha page photo') }}</h1>
         @if ($expired)
-            <p class="err">This link has expired. Make a new one on the computer.</p>
+            <p class="err">{{ __('This link has expired. Make a new one on the computer.') }}</p>
         @elseif ($sent)
-            <p class="ok">Photo sent. Go back to the computer: it is on the form now.</p>
+            <p class="ok">{{ __('Photo sent. Go back to the computer: it is on the form now.') }}</p>
         @else
             @if (! empty($error))
                 <p class="err">{{ $error }}</p>
             @endif
-            <p>Lay the page flat in good light, fill the frame with it, and keep the phone straight above it.</p>
+            <p>{{ __('Lay the page flat in good light, fill the frame with it, and keep the phone straight above it.') }}</p>
             <form method="post" action="{{ $action }}" enctype="multipart/form-data" id="f">
                 @csrf
-                <label class="btn" for="photo">Open the camera</label>
+                <label class="btn" for="photo">{{ __('Open the camera') }}</label>
                 <input id="photo" name="photo" type="file" accept="image/*" capture="environment" required>
-                <img id="preview" alt="The photo">
-                <button class="btn" type="submit" id="send" style="display:none">Send this photo</button>
-                <label class="btn secondary" for="photo" id="again" style="display:none">Take it again</label>
+                <img id="preview" alt="{{ __('The photo') }}">
+                <button class="btn" type="submit" id="send" style="display:none">{{ __('Send this photo') }}</button>
+                <label class="btn secondary" for="photo" id="again" style="display:none">{{ __('Take it again') }}</label>
             </form>
             <p id="status" style="display:none"></p>
             <script>

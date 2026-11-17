@@ -12,12 +12,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class ManageMarkupSettings extends ManageRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = MarkupSettingResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->label('Set markup')
+            CreateAction::make()->label(__('Set markup'))
                 ->using(fn (array $data): Model => app(PricingService::class)->setMarkup((string) $data['category'], (int) $data['markup_bp'])),
         ];
     }

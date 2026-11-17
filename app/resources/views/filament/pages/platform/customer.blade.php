@@ -14,21 +14,21 @@
 <x-filament-panels::page>
     <div class="grid gap-6 lg:grid-cols-3">
         <x-filament::section>
-            <x-slot name="heading">Company</x-slot>
+            <x-slot name="heading">{{ __('Company') }}</x-slot>
             <dl class="space-y-1 text-sm">
-                @if ($customer->alias)<div><dt class="inline text-gray-500">Alias (only you):</dt> <dd class="inline font-semibold text-primary-600">{{ $customer->alias }}</dd></div>@endif
-                <div><dt class="inline text-gray-500">Contact:</dt> <dd class="inline">{{ $customer->contact_name ?? '—' }}</dd></div>
-                <div><dt class="inline text-gray-500">Phone:</dt> <dd class="inline">{{ $customer->phone ?? '—' }}</dd></div>
-                <div><dt class="inline text-gray-500">Email:</dt> <dd class="inline">{{ $customer->email ?? '—' }}</dd></div>
-                @if ($customer->address)<div><dt class="inline text-gray-500">Address:</dt> <dd class="inline">{{ $customer->address }}</dd></div>@endif
-                <div><dt class="inline text-gray-500">Came by:</dt> <dd class="inline">{{ match ($customer->source) { 'signup' => 'public sign-up', 'platform' => 'added by the platform', default => 'first installation' } }}</dd></div>
-                <div><dt class="inline text-gray-500">Since:</dt> <dd class="inline">{{ $pk($customer->created_at) }}</dd></div>
+                @if ($customer->alias)<div><dt class="inline text-gray-500">{{ __('Alias (only you):') }}</dt> <dd class="inline font-semibold text-primary-600">{{ $customer->alias }}</dd></div>@endif
+                <div><dt class="inline text-gray-500">{{ __('Contact:') }}</dt> <dd class="inline">{{ $customer->contact_name ?? '—' }}</dd></div>
+                <div><dt class="inline text-gray-500">{{ __('Phone:') }}</dt> <dd class="inline">{{ $customer->phone ?? '—' }}</dd></div>
+                <div><dt class="inline text-gray-500">{{ __('Email:') }}</dt> <dd class="inline">{{ $customer->email ?? '—' }}</dd></div>
+                @if ($customer->address)<div><dt class="inline text-gray-500">{{ __('Address:') }}</dt> <dd class="inline">{{ $customer->address }}</dd></div>@endif
+                <div><dt class="inline text-gray-500">{{ __('Came by:') }}</dt> <dd class="inline">{{ match ($customer->source) { 'signup' => 'public sign-up', 'platform' => 'added by the platform', default => 'first installation' } }}</dd></div>
+                <div><dt class="inline text-gray-500">{{ __('Since:') }}</dt> <dd class="inline">{{ $pk($customer->created_at) }}</dd></div>
                 @if ($customer->notes)<div class="pt-2 text-gray-600 dark:text-gray-300">{{ $customer->notes }}</div>@endif
             </dl>
         </x-filament::section>
 
         <x-filament::section>
-            <x-slot name="heading">Subscription</x-slot>
+            <x-slot name="heading">{{ __('Subscription') }}</x-slot>
             <div class="text-xl font-bold">{{ $plan?->name ?? 'No plan: everything' }}</div>
             @if ($customer->isLifetime())
                 <div class="mt-1 inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
@@ -45,14 +45,14 @@
                 @endif
             </div>
             <dl class="mt-3 space-y-1 text-sm">
-                <div><dt class="inline text-gray-500">Billed in all:</dt> <dd class="inline">{{ $rs($p['billed_paise']) }}</dd></div>
-                <div><dt class="inline text-gray-500">Paid:</dt> <dd class="inline">{{ $rs($p['paid_paise']) }}</dd></div>
-                <div><dt class="inline text-gray-500">Open:</dt> <dd @class(['inline font-semibold', 'text-danger-600 dark:text-danger-400' => $p['open_paise'] > 0])>{{ $rs($p['open_paise']) }}</dd></div>
+                <div><dt class="inline text-gray-500">{{ __('Billed in all:') }}</dt> <dd class="inline">{{ $rs($p['billed_paise']) }}</dd></div>
+                <div><dt class="inline text-gray-500">{{ __('Paid:') }}</dt> <dd class="inline">{{ $rs($p['paid_paise']) }}</dd></div>
+                <div><dt class="inline text-gray-500">{{ __('Open:') }}</dt> <dd @class(['inline font-semibold', 'text-danger-600 dark:text-danger-400' => $p['open_paise'] > 0])>{{ $rs($p['open_paise']) }}</dd></div>
             </dl>
         </x-filament::section>
 
         <x-filament::section>
-            <x-slot name="heading">Usage</x-slot>
+            <x-slot name="heading">{{ __('Usage') }}</x-slot>
             <div class="space-y-3">
                 @foreach ($limits as [$label, $used, $max])
                     @php($pct = $max ? min(100, (int) round($used * 100 / max(1, $max))) : 0)
@@ -71,23 +71,23 @@
 
     <div class="grid gap-6 lg:grid-cols-2">
         <x-filament::section>
-            <x-slot name="heading">Mills</x-slot>
+            <x-slot name="heading">{{ __('Mills') }}</x-slot>
             <table class="w-full text-sm">
-                <thead><tr class="border-b text-left text-gray-500 dark:border-white/10"><th class="py-1 pr-2">Code</th><th class="py-1 pr-2">Name</th><th class="py-1 pr-2">City</th><th class="py-1 text-right">Active logins</th></tr></thead>
+                <thead><tr class="border-b text-left text-gray-500 dark:border-white/10"><th class="py-1 pr-2">{{ __('Code') }}</th><th class="py-1 pr-2">{{ __('Name') }}</th><th class="py-1 pr-2">{{ __('City') }}</th><th class="py-1 text-right">{{ __('Active logins') }}</th></tr></thead>
                 <tbody>
                     @forelse ($p['mills'] as $mill)
                         <tr class="border-b dark:border-white/5"><td class="py-1 pr-2 font-medium">{{ $mill->code }}</td><td class="py-1 pr-2">{{ $mill->name }}</td><td class="py-1 pr-2">{{ $mill->city ?? '—' }}</td><td class="py-1 text-right">{{ $mill->staff_count }}</td></tr>
                     @empty
-                        <tr><td colspan="4" class="py-2 text-gray-500">No mills.</td></tr>
+                        <tr><td colspan="4" class="py-2 text-gray-500">{{ __('No mills.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </x-filament::section>
 
         <x-filament::section>
-            <x-slot name="heading">Owners</x-slot>
+            <x-slot name="heading">{{ __('Owners') }}</x-slot>
             <table class="w-full text-sm">
-                <thead><tr class="border-b text-left text-gray-500 dark:border-white/10"><th class="py-1 pr-2">Username</th><th class="py-1 pr-2">Name</th><th class="py-1 pr-2">State</th><th class="py-1 text-right">Last sign-in</th></tr></thead>
+                <thead><tr class="border-b text-left text-gray-500 dark:border-white/10"><th class="py-1 pr-2">{{ __('Username') }}</th><th class="py-1 pr-2">{{ __('Name') }}</th><th class="py-1 pr-2">{{ __('State') }}</th><th class="py-1 text-right">{{ __('Last sign-in') }}</th></tr></thead>
                 <tbody>
                     @forelse ($p['owners'] as $o)
                         <tr class="border-b dark:border-white/5">
@@ -96,7 +96,7 @@
                             <td class="py-1 text-right">{{ $pk($o->last_login_at, 'd M Y H:i') }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="4" class="py-2 text-gray-500">No Owner.</td></tr>
+                        <tr><td colspan="4" class="py-2 text-gray-500">{{ __('No Owner.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -104,9 +104,9 @@
     </div>
 
     <x-filament::section>
-        <x-slot name="heading">Invoices</x-slot>
+        <x-slot name="heading">{{ __('Invoices') }}</x-slot>
         <table class="w-full text-sm">
-            <thead><tr class="border-b text-left text-gray-500 dark:border-white/10"><th class="py-1 pr-2">Number</th><th class="py-1 pr-2">For</th><th class="py-1 pr-2 text-right">Amount</th><th class="py-1 pr-2">Due</th><th class="py-1 pr-2">State</th><th class="py-1"></th></tr></thead>
+            <thead><tr class="border-b text-left text-gray-500 dark:border-white/10"><th class="py-1 pr-2">{{ __('Number') }}</th><th class="py-1 pr-2">{{ __('For') }}</th><th class="py-1 pr-2 text-right">{{ __('Amount') }}</th><th class="py-1 pr-2">{{ __('Due') }}</th><th class="py-1 pr-2">{{ __('State') }}</th><th class="py-1"></th></tr></thead>
             <tbody>
                 @forelse ($p['invoices'] as $inv)
                     @php($st = $inv->standing())
@@ -115,25 +115,25 @@
                         <td class="py-1 pr-2 text-right">{{ $rs($inv->amount_paise) }}</td><td class="py-1 pr-2">{{ $pk($inv->due_at) }}</td>
                         <td class="py-1 pr-2">
                             <x-filament::badge :color="match ($st) { 'paid' => 'success', 'overdue' => 'danger', 'void' => 'gray', default => 'warning' }">{{ match ($st) { 'paid' => 'Paid', 'overdue' => 'Overdue', 'void' => 'Cancelled', default => 'Open' } }}</x-filament::badge>
-                            @if ($inv->status === 'open' && $inv->reported_at)<span class="text-xs text-gray-500">payment reported</span>@endif
+                            @if ($inv->status === 'open' && $inv->reported_at)<span class="text-xs text-gray-500">{{ __('payment reported') }}</span>@endif
                         </td>
-                        <td class="py-1 text-right"><a href="{{ route('filament.admin.saas.invoice', ['id' => $inv->id]) }}" target="_blank" class="text-primary-600 hover:underline dark:text-primary-400">PDF</a></td>
+                        <td class="py-1 text-right"><a href="{{ route('filament.admin.saas.invoice', ['id' => $inv->id]) }}" target="_blank" class="text-primary-600 hover:underline dark:text-primary-400">{{ __('PDF') }}</a></td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="py-2 text-gray-500">No invoices yet.</td></tr>
+                    <tr><td colspan="6" class="py-2 text-gray-500">{{ __('No invoices yet.') }}</td></tr>
                 @endforelse
             </tbody>
         </table>
-        <p class="mt-2 text-xs text-gray-500">Mark paid or cancel under <a class="underline" href="{{ \App\Filament\Resources\Platform\SaasInvoiceResource::getUrl('index', ['tableFilters' => ['customer_id' => ['value' => $customer->id]]]) }}">Platform → Invoices</a>.</p>
+        <p class="mt-2 text-xs text-gray-500">{{ __('Mark paid or cancel under') }} <a class="underline" href="{{ \App\Filament\Resources\Platform\SaasInvoiceResource::getUrl('index', ['tableFilters' => ['customer_id' => ['value' => $customer->id]]]) }}">{{ __('Platform → Invoices') }}</a>.</p>
     </x-filament::section>
 
     <x-filament::section collapsible collapsed>
-        <x-slot name="heading">History</x-slot>
+        <x-slot name="heading">{{ __('History') }}</x-slot>
         <ul class="space-y-1 text-sm">
             @forelse ($p['history'] as $h)
                 <li><span class="text-gray-500">{{ $pk($h->occurred_at, 'd M Y H:i') }}</span> · {{ $h->action }}@if (! empty($h->meta['reason'])) — {{ $h->meta['reason'] }}@endif</li>
             @empty
-                <li class="text-gray-500">Nothing recorded.</li>
+                <li class="text-gray-500">{{ __('Nothing recorded.') }}</li>
             @endforelse
         </ul>
     </x-filament::section>

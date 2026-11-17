@@ -10,6 +10,8 @@ use Filament\Resources\Pages\ManageRecords;
 
 class ManageVehicles extends ManageRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = VehicleResource::class;
 
     protected function getHeaderActions(): array

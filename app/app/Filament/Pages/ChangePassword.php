@@ -25,6 +25,8 @@ use Illuminate\Validation\ValidationException;
  */
 class ChangePassword extends Page implements HasForms
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithForms;
 
     protected static ?string $slug = 'change-password';
@@ -47,9 +49,9 @@ class ChangePassword extends Page implements HasForms
     {
         return $form->schema([
             TextInput::make('current_password')->password()->required()->autocomplete('current-password'),
-            TextInput::make('password')->label('New password')->password()->revealable()->required()
+            TextInput::make('password')->label(__('New password'))->password()->revealable()->required()
                 ->rule(Password::defaults())->confirmed()->different('current_password')->autocomplete('new-password'),
-            TextInput::make('password_confirmation')->label('Repeat new password')->password()->required(),
+            TextInput::make('password_confirmation')->label(__('Repeat new password'))->password()->required(),
         ])->statePath('data');
     }
 
@@ -84,7 +86,7 @@ class ChangePassword extends Page implements HasForms
         session()->put('password_hash_'.Filament::getAuthGuard(), $account->getAuthPassword());
 
         $this->form->fill();
-        Notification::make()->title('Password changed. Other sessions were signed out.')->success()->send();
+        Notification::make()->title(__('Password changed. Other sessions were signed out.'))->success()->send();
         $this->redirect(Filament::getUrl());
     }
 

@@ -34,10 +34,10 @@ class DocumentsRelationManager extends RelationManager
                 TextColumn::make('valid_until')->date('d M Y')->placeholder('—')
                     ->color(fn (EmployeeDocument $r) => $r->valid_until !== null && $r->valid_until->isPast() ? 'danger' : null),
                 TextColumn::make('status')->badge()->color(fn (string $state) => $state === 'active' ? 'success' : 'gray'),
-                TextColumn::make('created_at')->label('Uploaded')->dateTime('d M Y H:i'),
+                TextColumn::make('created_at')->label(__('Uploaded'))->dateTime('d M Y H:i'),
             ])
             ->defaultSort('created_at', 'desc')
-            ->filters([SelectFilter::make('status')->options(['active' => 'Active', 'superseded' => 'Superseded'])->default('active')])
+            ->filters([SelectFilter::make('status')->options(['active' => __('Active'), 'superseded' => __('Superseded')])->default('active')])
             ->actions([
                 Action::make('download')->icon('heroicon-o-arrow-down-tray')
                     ->visible(fn (EmployeeDocument $r) => app(EmployeeDocuments::class)->mayOpen($r))

@@ -52,6 +52,12 @@ return [
         // Idle timeout for web sessions (minutes); the absolute limit is the role's session_max_minutes.
         'web_idle_minutes' => (int) env('RICEMILL_WEB_IDLE_MINUTES', 30),
 
+        // A new user's first sign-in: its IP, place and device are kept, an e-mail address is confirmed by a link
+        // sent to it and the user fills in their own details before any screen opens. Needs mail to be set up (MAIL_*).
+        'first_sign_in_check' => (bool) env('RICEMILL_FIRST_SIGN_IN_CHECK', true),
+        // How long the link in the verification e-mail works (minutes).
+        'email_verify_minutes' => (int) env('RICEMILL_EMAIL_VERIFY_MINUTES', 60),
+
         'recovery_codes' => 10,
         'password_min_length' => 12,
         'mfa_issuer' => env('RICEMILL_MFA_ISSUER', env('APP_NAME', 'Al Mustafa Rice Mills')),

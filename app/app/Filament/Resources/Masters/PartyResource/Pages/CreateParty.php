@@ -11,6 +11,8 @@ use Filament\Resources\Pages\CreateRecord;
 
 class CreateParty extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PartyResource::class;
 
     /** @param  array<string, mixed>  $data */

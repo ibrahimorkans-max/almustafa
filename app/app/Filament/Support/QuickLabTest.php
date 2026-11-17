@@ -40,11 +40,11 @@ final class QuickLabTest
 
     public static function make(): Action
     {
-        return Action::make('quickLabTest')->label('Lab test')->icon('heroicon-o-beaker')->color('info')
+        return Action::make('quickLabTest')->label(__('Lab test'))->icon('heroicon-o-beaker')->color('info')
             ->visible(fn () => self::can('lab.test'))
-            ->modalHeading('Lab test')
-            ->modalDescription('Choose the vehicle, type the results, and check the result below before saving.')
-            ->modalSubmitActionLabel('Save lab result')
+            ->modalHeading(__('Lab test'))
+            ->modalDescription(__('Choose the vehicle, type the results, and check the result below before saving.'))
+            ->modalSubmitActionLabel(__('Save lab result'))
             ->form(self::schema(true))
             ->action(function (array $data, Action $action): void {
                 try {
@@ -70,17 +70,17 @@ final class QuickLabTest
     {
         return [
             $chooseVehicle
-                ? Select::make('entry')->label('Vehicle (token)')->required()->searchable()->live()
+                ? Select::make('entry')->label(__('Vehicle (token)'))->required()->searchable()->live()
                     ->options(fn () => self::waiting())
-                    ->noSearchResultsMessage('No vehicle is waiting for the lab.')
+                    ->noSearchResultsMessage(__('No vehicle is waiting for the lab.'))
                     ->afterStateUpdated(fn (callable $set) => $set('decision', 'later'))
                 : Hidden::make('entry')->required(),
             Grid::make(2)->visible(fn (Get $get) => self::entry($get('entry')) !== null)
                 ->schema(fn (Get $get): array => self::resultFields(self::entry($get('entry')))),
-            Placeholder::make('outcome')->label('Result by the rules')
+            Placeholder::make('outcome')->label(__('Result by the rules'))
                 ->visible(fn (Get $get) => self::entry($get('entry')) !== null)
                 ->content(fn (Get $get) => self::outcome($get)),
-            Radio::make('decision')->label('Decision')->default('later')->live()
+            Radio::make('decision')->label(__('Decision'))->default('later')->live()
                 ->visible(fn (Get $get) => self::can('lab.decide') && self::entry($get('entry')) !== null)
                 ->options(fn (Get $get) => self::over($get) !== []
                     ? ['later' => 'Rejected automatically (a result is above its grace limit)']
@@ -203,8 +203,8 @@ final class QuickLabTest
             $over !== [] => Notification::make()->danger()->title($who.': rejected automatically')
                 ->body(implode("\n", array_map(fn (array $r) => LabStandards::describe($r), $over))."\nIt can come in only through negotiation (Gate → Negotiation)."),
             $entry->status === 'lab_accepted' => Notification::make()->success()->title($who.': accepted')->body($entry->gross_kg !== null ? 'It can be unloaded now, then weighed empty.' : 'It can go on the weighbridge now.'),
-            $entry->status === 'lab_rejected' => Notification::make()->danger()->title($who.': rejected')->body('It can come in only through negotiation (Gate → Negotiation).'),
-            default => Notification::make()->info()->title($who.': lab result saved')->body('Waiting for the Lab Supervisor to accept or reject it.'),
+            $entry->status === 'lab_rejected' => Notification::make()->danger()->title($who.': rejected')->body(__('It can come in only through negotiation (Gate → Negotiation).')),
+            default => Notification::make()->info()->title($who.': lab result saved')->body(__('Waiting for the Lab Supervisor to accept or reject it.')),
         };
         $note->duration(10000)->send();
     }

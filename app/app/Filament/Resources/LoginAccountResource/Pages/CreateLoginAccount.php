@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 class CreateLoginAccount extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = LoginAccountResource::class;
 
     /** @param  array<string, mixed>  $data */

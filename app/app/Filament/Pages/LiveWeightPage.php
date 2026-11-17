@@ -11,6 +11,8 @@ use Filament\Pages\Page;
 /** Full-screen view of every weighbridge's live reading, for the gate office or a wall screen. */
 class LiveWeightPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-scale';
 
     protected static ?string $navigationGroup = 'Gate & weighbridge';

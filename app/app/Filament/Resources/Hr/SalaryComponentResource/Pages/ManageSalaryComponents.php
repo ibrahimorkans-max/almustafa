@@ -10,6 +10,8 @@ use Filament\Resources\Pages\ManageRecords;
 
 class ManageSalaryComponents extends ManageRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = SalaryComponentResource::class;
 
     protected function getHeaderActions(): array

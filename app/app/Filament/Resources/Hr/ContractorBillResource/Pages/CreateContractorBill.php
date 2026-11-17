@@ -19,6 +19,8 @@ use Illuminate\Validation\ValidationException;
 /** Payroll prepares a bill from the records; someone with hr.payroll.approve approves it. */
 class CreateContractorBill extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = ContractorBillResource::class;
 
     protected static ?string $title = 'Prepare contractor bill';
@@ -45,7 +47,7 @@ class CreateContractorBill extends CreateRecord
             );
         } catch (BusinessRuleViolation $e) {
             // Said plainly at the top as well as under the field: the bill was not made, and why.
-            Notification::make()->danger()->persistent()->title('The bill was not prepared')->body($e->getMessage())->send();
+            Notification::make()->danger()->persistent()->title(__('The bill was not prepared'))->body($e->getMessage())->send();
             throw ValidationException::withMessages(['data.party_id' => $e->getMessage()]);
         }
         if ($svc->skipped !== []) {

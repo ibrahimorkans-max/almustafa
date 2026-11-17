@@ -18,19 +18,21 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class ListBankStatementLines extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = BankStatementLineResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('import')->label('Import statement')->icon('heroicon-o-arrow-up-tray')
+            Action::make('import')->label(__('Import statement'))->icon('heroicon-o-arrow-up-tray')
                 ->visible(fn () => Filament::auth()->user()?->can('ledger.post') ?? false)
-                ->modalDescription('CSV with a header row: date, description, reference (optional), debit, credit. Re-importing the same rows is safe.')
+                ->modalDescription(__('CSV with a header row: date, description, reference (optional), debit, credit. Re-importing the same rows is safe.'))
                 ->form([
-                    Select::make('bank')->label('Mill bank account')->required()
+                    Select::make('bank')->label(__('Mill bank account'))->required()
                         ->options(fn () => LedgerAccount::query()->where('kind', 'bank')->where('status', 'active')->get()
                             ->mapWithKeys(fn (LedgerAccount $l) => [$l->id => $l->displayName()])),
-                    FileUpload::make('file')->label('Statement (CSV)')->required()->storeFiles(false)
+                    FileUpload::make('file')->label(__('Statement (CSV)'))->required()->storeFiles(false)
                         ->acceptedFileTypes(['text/csv', 'text/plain', 'application/vnd.ms-excel'])->maxSize(2048),
                 ])
                 ->action(function (array $data): void {

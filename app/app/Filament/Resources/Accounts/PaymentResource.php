@@ -37,6 +37,8 @@ use Filament\Tables\Table;
  */
 class PaymentResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = Payment::class;
 
     protected static ?string $recordTitleAttribute = 'number';
@@ -94,29 +96,29 @@ class PaymentResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            Select::make('party_id')->label('Pay to')->required()->searchable()->live()
+            Select::make('party_id')->label(__('Pay to'))->required()->searchable()->live()
                 ->options(fn () => Party::query()->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
-            Select::make('mode')->options(Payment::MODES)->default('ibft')->required()->live(),
-            Select::make('from_ledger_id')->label('From')->required()
+            Select::make('mode')->options(\App\Support\Locales::options(Payment::MODES))->default('ibft')->required()->live(),
+            Select::make('from_ledger_id')->label(__('From'))->required()
                 ->options(fn (Get $get) => LedgerAccount::query()->where('status', 'active')
                     ->where('kind', $get('mode') === 'cash' ? 'cash' : 'bank')->orderBy('name')->get()
                     ->mapWithKeys(fn (LedgerAccount $l) => [$l->id => $l->displayName()])),
-            DatePicker::make('payment_date')->label('Date')->default(now())->required(),
-            TextInput::make('amount')->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2),
-            CheckboxList::make('bills')->label('Against bills (settled oldest first; any remainder is on account)')
+            DatePicker::make('payment_date')->label(__('Date'))->default(now())->required(),
+            TextInput::make('amount')->label(__('Amount (Rs)'))->required()->regex(Units::DECIMAL_2),
+            CheckboxList::make('bills')->label(__('Against bills (settled oldest first; any remainder is on account)'))
                 ->options(fn (Get $get) => self::billOptions($get('party_id')))->columnSpanFull(),
-            Placeholder::make('payee')->label('Paid into')->columnSpanFull()
+            Placeholder::make('payee')->label(__('Paid into'))->columnSpanFull()
                 ->visible(fn (Get $get) => in_array($get('mode'), Payment::BANK_MODES, true) && self::hasApprovedAccount($get('party_id')))
-                ->content('The party\'s approved bank account, unless you type another one below. The details are frozen with this request.'),
+                ->content(__('The party\'s approved bank account, unless you type another one below. The details are frozen with this request.')),
             // Any account: typed in with the request (shown on its approval before the money is released).
-            TextInput::make('account_holder')->label('Account holder')->maxLength(120)
+            TextInput::make('account_holder')->label(__('Account holder'))->maxLength(120)
                 ->visible(fn (Get $get) => in_array($get('mode'), Payment::BANK_MODES, true))
                 ->required(fn (Get $get) => in_array($get('mode'), Payment::BANK_MODES, true) && ! self::hasApprovedAccount($get('party_id')))
                 ->helperText(fn (Get $get) => self::hasApprovedAccount($get('party_id')) ? 'Leave empty to pay into the party\'s approved account.' : 'The party has no approved account: type the account to pay into.'),
-            TextInput::make('account_number')->label('Account number or IBAN')->maxLength(40)
+            TextInput::make('account_number')->label(__('Account number or IBAN'))->maxLength(40)
                 ->visible(fn (Get $get) => in_array($get('mode'), Payment::BANK_MODES, true))
                 ->required(fn (Get $get) => in_array($get('mode'), Payment::BANK_MODES, true) && ! self::hasApprovedAccount($get('party_id'))),
-            TextInput::make('bank_name')->label('Bank')->maxLength(80)
+            TextInput::make('bank_name')->label(__('Bank'))->maxLength(80)
                 ->visible(fn (Get $get) => in_array($get('mode'), Payment::BANK_MODES, true)),
             Textarea::make('narration')->maxLength(500)->columnSpanFull(),
         ]);
@@ -128,17 +130,17 @@ class PaymentResource extends Resource
             ->modifyQueryUsing(fn ($query) => $query->with(['party', 'fromLedger']))
             ->columns([
                 TextColumn::make('number')->searchable(),
-                TextColumn::make('payment_date')->label('Date')->date('d M Y')->sortable(),
-                TextColumn::make('party.name')->label('Party')->searchable(),
+                TextColumn::make('payment_date')->label(__('Date'))->date('d M Y')->sortable(),
+                TextColumn::make('party.name')->label(__('Party'))->searchable(),
                 TextColumn::make('mode')->formatStateUsing(fn (string $state) => Payment::MODES[$state] ?? $state),
-                TextColumn::make('amount_paise')->label('Amount')->alignEnd()->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
-                TextColumn::make('payee')->label('Into')->state(fn (Payment $r) => $r->payee ? "{$r->payee['bank_code']} …{$r->payee['last4']}" : '—'),
+                TextColumn::make('amount_paise')->label(__('Amount'))->alignEnd()->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
+                TextColumn::make('payee')->label(__('Into'))->state(fn (Payment $r) => $r->payee ? "{$r->payee['bank_code']} …{$r->payee['last4']}" : '—'),
                 TextColumn::make('status')->badge()->color(fn (string $state) => self::statusColor($state))
                     ->formatStateUsing(fn (string $state) => self::STATUS_LABELS[$state] ?? $state),
-                TextColumn::make('reference')->label('Transaction / cheque')->placeholder('—'),
+                TextColumn::make('reference')->label(__('Transaction / cheque'))->placeholder('—'),
             ])
             ->defaultSort('created_at', 'desc')
-            ->filters([SelectFilter::make('status')->options(self::STATUS_LABELS)])
+            ->filters([SelectFilter::make('status')->options(\App\Support\Locales::options(self::STATUS_LABELS))])
             ->actions([ViewAction::make()]);
     }
 
@@ -149,20 +151,20 @@ class PaymentResource extends Resource
                 TextEntry::make('number'),
                 TextEntry::make('status')->badge()->color(fn (string $state) => self::statusColor($state))
                     ->formatStateUsing(fn (string $state) => self::STATUS_LABELS[$state] ?? $state),
-                TextEntry::make('party.name')->label('Party'),
-                TextEntry::make('amount_paise')->label('Amount')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state))->weight('bold'),
+                TextEntry::make('party.name')->label(__('Party')),
+                TextEntry::make('amount_paise')->label(__('Amount'))->formatStateUsing(fn (int $state) => Units::paiseToRupees($state))->weight('bold'),
                 TextEntry::make('mode')->formatStateUsing(fn (string $state) => Payment::MODES[$state] ?? $state),
-                TextEntry::make('fromLedger.name')->label('From'),
+                TextEntry::make('fromLedger.name')->label(__('From')),
                 TextEntry::make('payment_date')->date('d M Y'),
-                TextEntry::make('reference')->label('Transaction ID / cheque')->placeholder('—'),
-                TextEntry::make('payee_view')->label('Paid into (frozen)')->columnSpanFull()
+                TextEntry::make('reference')->label(__('Transaction ID / cheque'))->placeholder('—'),
+                TextEntry::make('payee_view')->label(__('Paid into (frozen)'))->columnSpanFull()
                     ->state(fn (Payment $r) => $r->payee ? "{$r->payee['holder']} · {$r->payee['bank_name']} · {$r->payee['bank_code']} · a/c …{$r->payee['last4']}" : 'Cash'),
                 TextEntry::make('narration')->placeholder('—')->columnSpanFull(),
             ]),
-            Section::make('Against bills')->schema([
+            Section::make(__('Against bills'))->schema([
                 RepeatableEntry::make('allocations')->hiddenLabel()->columns(2)->schema([
-                    TextEntry::make('bill.number')->label('Bill'),
-                    TextEntry::make('amount_paise')->label('Amount')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
+                    TextEntry::make('bill.number')->label(__('Bill')),
+                    TextEntry::make('amount_paise')->label(__('Amount'))->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
                 ]),
             ]),
             AttachmentsPanel::section(),

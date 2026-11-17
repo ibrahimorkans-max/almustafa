@@ -22,6 +22,8 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListDocumentBatches extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = DocumentBatchResource::class;
 
     public const KINDS = [
@@ -34,22 +36,22 @@ class ListDocumentBatches extends ListRecords
         $monthly = fn (Get $get) => in_array($get('doc_type'), ['payslip', 'attendance_summary'], true);
 
         return [
-            Action::make('start')->label('New bulk generation')->icon('heroicon-o-plus')
+            Action::make('start')->label(__('New bulk generation'))->icon('heroicon-o-plus')
                 ->visible(fn () => DocumentActions::allowed())
                 ->form([
-                    Select::make('doc_type')->label('Documents')->options(self::KINDS)->default('payslip')->required()->live(),
-                    Select::make('run')->label('Month (finalized payroll)')->required($monthly)->visible($monthly)
+                    Select::make('doc_type')->label(__('Documents'))->options(\App\Support\Locales::options(self::KINDS))->default('payslip')->required()->live(),
+                    Select::make('run')->label(__('Month (finalized payroll)'))->required($monthly)->visible($monthly)
                         ->options(fn () => PayrollRun::query()->where('status', PayrollRun::FINALIZED)->orderByDesc('month')->pluck('month', 'id')),
-                    Select::make('department')->label('Department (empty = all)')
+                    Select::make('department')->label(__('Department (empty = all)'))
                         ->options(fn () => Department::query()->orderBy('name')->pluck('name', 'id')),
-                    Select::make('language')->options(DocumentPresenter::LANGUAGES)->default('bilingual')->required(),
-                    Select::make('paper')->options(DocumentRenderer::PAPERS)->default('half_a4')->required(),
+                    Select::make('language')->options(\App\Support\Locales::options(DocumentPresenter::LANGUAGES))->default('bilingual')->required(),
+                    Select::make('paper')->options(\App\Support\Locales::options(DocumentRenderer::PAPERS))->default('half_a4')->required(),
                 ])
                 ->action(function (array $data): void {
                     try {
                         [$ids, $label] = $this->sources($data);
                         $batch = app(DocumentBatches::class)->start($data['doc_type'], $ids, $label, ['language' => $data['language'], 'paper' => $data['paper']]);
-                        Notification::make()->title("Started: {$batch->total} documents. The list shows the progress.")->success()->send();
+                        Notification::make()->title(__('Started: :total documents. The list shows the progress.', ['total' => $batch->total]))->success()->send();
                     } catch (BusinessRuleViolation $e) {
                         Notification::make()->title($e->getMessage())->danger()->send();
                     }

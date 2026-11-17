@@ -16,6 +16,8 @@ use Filament\Tables\Table;
 /** Physical counts and their adjustments (each difference goes through maker-checker). */
 class StockCountResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = StockCount::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
@@ -40,20 +42,20 @@ class StockCountResource extends Resource
         return $table
             ->modifyQueryUsing(fn ($query) => $query->with(['product', 'godown']))
             ->columns([
-                TextColumn::make('count_date')->label('Date')->date('d M Y')->sortable(),
-                TextColumn::make('product.name')->label('Product'),
-                TextColumn::make('godown.name')->label('Godown'),
-                TextColumn::make('system_kg')->label('Books (kg)')->alignEnd()->fontFamily('mono'),
-                TextColumn::make('counted_kg')->label('Counted (kg)')->alignEnd()->fontFamily('mono'),
-                TextColumn::make('difference_kg')->label('Difference (kg)')->alignEnd()->fontFamily('mono')
+                TextColumn::make('count_date')->label(__('Date'))->date('d M Y')->sortable(),
+                TextColumn::make('product.name')->label(__('Product')),
+                TextColumn::make('godown.name')->label(__('Godown')),
+                TextColumn::make('system_kg')->label(__('Books (kg)'))->alignEnd()->fontFamily('mono'),
+                TextColumn::make('counted_kg')->label(__('Counted (kg)'))->alignEnd()->fontFamily('mono'),
+                TextColumn::make('difference_kg')->label(__('Difference (kg)'))->alignEnd()->fontFamily('mono')
                     ->color(fn (string $state) => bccomp($state, '0', 3) < 0 ? 'danger' : (bccomp($state, '0', 3) > 0 ? 'warning' : 'success')),
                 TextColumn::make('status')->badge()->color(fn (string $state) => self::statusColor($state))
                     ->formatStateUsing(fn (string $state) => $state === 'pending' ? 'Waiting for approval' : ucfirst($state)),
             ])
             ->defaultSort('created_at', 'desc')
-            ->filters([SelectFilter::make('status')->options(['pending' => 'Waiting for approval', 'applied' => 'Applied', 'rejected' => 'Rejected'])])
+            ->filters([SelectFilter::make('status')->options(['pending' => __('Waiting for approval'), 'applied' => __('Applied'), 'rejected' => __('Rejected')])])
             ->actions([
-                Action::make('approval')->label('Approval')->icon('heroicon-o-shield-check')->color('gray')
+                Action::make('approval')->label(__('Approval'))->icon('heroicon-o-shield-check')->color('gray')
                     ->visible(fn (StockCount $record) => $record->approval_request_id !== null)
                     ->url(fn (StockCount $record) => ApprovalRequestResource::getUrl('view', ['record' => $record->approval_request_id])),
             ]);

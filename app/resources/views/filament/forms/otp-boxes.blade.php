@@ -55,6 +55,6 @@
             >
         @endforeach
     </div>
-    <p class="text-center text-xs text-gray-500 dark:text-gray-400" x-show="! sending">The code is checked as soon as the sixth digit is typed.</p>
-    <p class="text-center text-xs font-medium text-primary-600 dark:text-primary-400" x-show="sending" x-cloak>Checking…</p>
+    <p class="text-center text-xs text-gray-500 dark:text-gray-400" x-show="! sending">{{ __('The code is checked as soon as the sixth digit is typed.') }}</p>
+    <p class="text-center text-xs font-medium text-primary-600 dark:text-primary-400" x-show="sending" x-cloak>{{ __('Checking…') }}</p>
 </div>

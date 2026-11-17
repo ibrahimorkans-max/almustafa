@@ -9,5 +9,7 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListPieceWorkEntries extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PieceWorkEntryResource::class;
 }

@@ -30,6 +30,8 @@ use Illuminate\Support\Facades\DB;
  */
 class WeighmentModesPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-adjustments-vertical';
 
     protected static ?string $navigationGroup = 'Platform';
@@ -91,25 +93,25 @@ class WeighmentModesPage extends Page
 
     public function companyAction(): Action
     {
-        return Action::make('company')->label('Set modes')->icon('heroicon-m-pencil-square')->size('sm')
+        return Action::make('company')->label(__('Set modes'))->icon('heroicon-m-pencil-square')->size('sm')
             ->modalHeading(fn (array $arguments) => 'Company defaults — '.($this->getNames()[$arguments['customer'] ?? ''] ?? ''))
-            ->modalDescription('Every mill of this company uses these, unless it has its own setting. Vehicles already registered keep their mode.')
+            ->modalDescription(__('Every mill of this company uses these, unless it has its own setting. Vehicles already registered keep their mode.'))
             ->fillForm(fn (array $arguments) => ['modes' => app(TenantContext::class)->runAsSystem(
                 fn () => WeighmentModeConfig::query()->where('customer_id', $arguments['customer'] ?? '')->first()?->enabled() ?? [])])
             ->form([
-                CheckboxList::make('modes')->label('Switched on')->options(WeighModes::LABELS)->descriptions(WeighModes::HELP),
-                Textarea::make('reason')->label('Why (kept in the history)')->rows(2)->maxLength(500),
+                CheckboxList::make('modes')->label(__('Switched on'))->options(\App\Support\Locales::options(WeighModes::LABELS))->descriptions(\App\Support\Locales::options(WeighModes::HELP)),
+                Textarea::make('reason')->label(__('Why (kept in the history)'))->rows(2)->maxLength(500),
             ])
             ->action(function (array $data, array $arguments): void {
                 WeighModes::configure((string) $arguments['customer'], null, array_values((array) ($data['modes'] ?? [])), $data['reason'] ?? null);
-                Notification::make()->success()->title('Company modes saved.')->send();
+                Notification::make()->success()->title(__('Company modes saved.'))->send();
             });
     }
 
     /** The lab features a company (its defaults) or one mill may use: own tests, deductions, time grace, negotiation. */
     public function labAction(): Action
     {
-        return Action::make('lab')->label('Lab features')->icon('heroicon-m-beaker')->size('sm')->color('gray')
+        return Action::make('lab')->label(__('Lab features'))->icon('heroicon-m-beaker')->size('sm')->color('gray')
             ->modalHeading(fn (array $arguments) => 'Lab features — '.($this->getNames()[$arguments['mill'] ?? $arguments['customer'] ?? ''] ?? ''))
             ->fillForm(function (array $arguments): array {
                 $row = app(TenantContext::class)->runAsSystem(fn () => DB::table('lab_feature_configs')
@@ -120,19 +122,19 @@ class WeighmentModesPage extends Page
             })
             ->form(fn (array $arguments) => [
                 Radio::make('follow')->label(isset($arguments['mill']) ? 'This mill' : 'This company')->required()->live()
-                    ->options(isset($arguments['mill']) ? ['default' => "Follows its company's lab features", 'own' => 'Has its own'] : ['default' => 'Every lab feature allowed', 'own' => 'Only those chosen']),
-                CheckboxList::make('features')->label('Allowed')->options(LabSetup::FEATURES)->visible(fn (Get $get) => $get('follow') === 'own'),
+                    ->options(\App\Support\Locales::options(isset($arguments['mill']) ? ['default' => "Follows its company's lab features", 'own' => 'Has its own'] : ['default' => 'Every lab feature allowed', 'own' => 'Only those chosen'])),
+                CheckboxList::make('features')->label(__('Allowed'))->options(\App\Support\Locales::options(LabSetup::FEATURES))->visible(fn (Get $get) => $get('follow') === 'own'),
             ])
             ->action(function (array $data, array $arguments): void {
                 $features = $data['follow'] === 'own' ? array_map(fn (string $f) => in_array($f, (array) ($data['features'] ?? []), true), array_combine(array_keys(LabSetup::FEATURES), array_keys(LabSetup::FEATURES))) : null;
                 LabSetup::configure(isset($arguments['mill']) ? null : ($arguments['customer'] ?? null), $arguments['mill'] ?? null, $features);
-                Notification::make()->success()->title('Lab features saved.')->send();
+                Notification::make()->success()->title(__('Lab features saved.'))->send();
             });
     }
 
     public function millAction(): Action
     {
-        return Action::make('mill')->label('Mill setting')->icon('heroicon-m-building-office')->size('sm')->color('gray')
+        return Action::make('mill')->label(__('Mill setting'))->icon('heroicon-m-building-office')->size('sm')->color('gray')
             ->modalHeading(fn (array $arguments) => 'Modes of '.($this->getNames()[$arguments['mill'] ?? ''] ?? 'the mill'))
             ->fillForm(function (array $arguments): array {
                 $own = app(TenantContext::class)->runAsSystem(fn () => WeighmentModeConfig::query()->where('entity_id', $arguments['mill'] ?? '')->first());
@@ -140,14 +142,14 @@ class WeighmentModesPage extends Page
                 return ['follow' => $own === null ? 'company' : 'own', 'modes' => $own?->enabled() ?? WeighModes::enabled($arguments['mill'] ?? null)];
             })
             ->form([
-                Radio::make('follow')->label('This mill')->options(['company' => "Follows its company's defaults", 'own' => 'Has its own setting'])->live()->required(),
-                CheckboxList::make('modes')->label('Switched on for this mill')->options(WeighModes::LABELS)->descriptions(WeighModes::HELP)
+                Radio::make('follow')->label(__('This mill'))->options(['company' => __("Follows its company's defaults"), 'own' => __('Has its own setting')])->live()->required(),
+                CheckboxList::make('modes')->label(__('Switched on for this mill'))->options(\App\Support\Locales::options(WeighModes::LABELS))->descriptions(\App\Support\Locales::options(WeighModes::HELP))
                     ->visible(fn (Get $get) => $get('follow') === 'own'),
-                Textarea::make('reason')->label('Why (kept in the history)')->rows(2)->maxLength(500),
+                Textarea::make('reason')->label(__('Why (kept in the history)'))->rows(2)->maxLength(500),
             ])
             ->action(function (array $data, array $arguments): void {
                 WeighModes::configure(null, (string) $arguments['mill'], $data['follow'] === 'own' ? array_values((array) ($data['modes'] ?? [])) : null, $data['reason'] ?? null);
-                Notification::make()->success()->title('Mill modes saved.')->send();
+                Notification::make()->success()->title(__('Mill modes saved.'))->send();
             });
     }
 }

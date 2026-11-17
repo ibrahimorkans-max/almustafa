@@ -27,6 +27,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class PartyTransactionsPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-queue-list';
 
     protected static ?string $navigationGroup = 'Accounts';
@@ -132,7 +134,7 @@ class PartyTransactionsPage extends Page
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('excel')->label('Excel')->icon('heroicon-o-table-cells')->color('gray')
+            Action::make('excel')->label(__('Excel'))->icon('heroicon-o-table-cells')->color('gray')
                 ->visible(fn () => $this->party !== null && ExportGuard::allowed())
                 ->action(function (): ?StreamedResponse {
                     $a = $this->account();
@@ -147,7 +149,7 @@ class PartyTransactionsPage extends Page
                     return response()->streamDownload(fn () => print $bytes, 'transactions-'.$a['party']->code.'-'.$a['from']->toDateString().'-'.$a['to']->toDateString().'.xlsx',
                         ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
                 }),
-            Action::make('statement')->label('Statement (PDF / share)')->icon('heroicon-o-document-text')->color('gray')
+            Action::make('statement')->label(__('Statement (PDF / share)'))->icon('heroicon-o-document-text')->color('gray')
                 ->visible(fn () => $this->party !== null && PartyStatementPage::canAccess())
                 ->url(fn () => PartyStatementPage::getUrl().'?party='.$this->party),
         ];

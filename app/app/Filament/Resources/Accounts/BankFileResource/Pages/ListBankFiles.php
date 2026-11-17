@@ -16,16 +16,18 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListBankFiles extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = BankFileResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('create')->label('Create bank file')->icon('heroicon-o-plus')
+            Action::make('create')->label(__('Create bank file'))->icon('heroicon-o-plus')
                 ->visible(fn () => Filament::auth()->user()?->can('payment.approve') ?? false)
-                ->modalDescription('Collects all released IBFT / RTGS / Raast payments from this account that are not in a file yet.')
+                ->modalDescription(__('Collects all released IBFT / RTGS / Raast payments from this account that are not in a file yet.'))
                 ->form([
-                    Select::make('bank')->label('Mill bank account')->required()
+                    Select::make('bank')->label(__('Mill bank account'))->required()
                         ->options(fn () => LedgerAccount::query()->where('kind', 'bank')->where('status', 'active')->get()
                             ->mapWithKeys(fn (LedgerAccount $l) => [$l->id => $l->displayName()])),
                 ])
@@ -37,7 +39,7 @@ class ListBankFiles extends ListRecords
 
                         return;
                     }
-                    Notification::make()->title("{$file->number}: {$file->payment_count} payments")->success()->send();
+                    Notification::make()->title(__(':number: :payment_count payments', ['number' => $file->number, 'payment_count' => $file->payment_count]))->success()->send();
                 }),
         ];
     }

@@ -14,12 +14,12 @@
             </div>
             <div class="text-right">
                 @if ($s['customer']->isLifetime())
-                    <div class="text-xl font-semibold text-success-600 dark:text-success-400">Lifetime access</div>
+                    <div class="text-xl font-semibold text-success-600 dark:text-success-400">{{ __('Lifetime access') }}</div>
                     <div class="text-sm text-gray-500">No payments due, ever{{ $s['customer']->lifetime_paid_paise ? ' · paid once: '.\App\Filament\Support\Units::paiseToRupees($s['customer']->lifetime_paid_paise) : '' }}</div>
                 @elseif ($plan)
-                    <div class="text-xl font-semibold">{{ \App\Filament\Support\Units::paiseToRupees($plan->price_paise_monthly) }} <span class="text-sm font-normal text-gray-500">/ month</span></div>
+                    <div class="text-xl font-semibold">{{ \App\Filament\Support\Units::paiseToRupees($plan->price_paise_monthly) }} <span class="text-sm font-normal text-gray-500">{{ __('/ month') }}</span></div>
                     @if ($plan->price_paise_lifetime)
-                        <div class="text-sm text-gray-600 dark:text-gray-300">or <strong>{{ \App\Filament\Support\Units::paiseToRupees($plan->price_paise_lifetime) }}</strong> once, for lifetime access</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-300">{{ __('or') }} <strong>{{ \App\Filament\Support\Units::paiseToRupees($plan->price_paise_lifetime) }}</strong> {{ __('once, for lifetime access') }}</div>
                     @endif
                 @endif
                 <x-filament::badge :color="match ($s['customer']->status) { 'active' => 'success', 'trial' => 'info', 'past_due' => 'warning', default => 'danger' }">
@@ -34,7 +34,7 @@
 
     <div class="grid gap-6 md:grid-cols-2">
         <x-filament::section>
-            <x-slot name="heading">Usage</x-slot>
+            <x-slot name="heading">{{ __('Usage') }}</x-slot>
             <div class="space-y-4">
                 @foreach ($s['limits'] as $l)
                     @php($pct = $l['max'] ? min(100, (int) round($l['used'] * 100 / max(1, $l['max']))) : 0)
@@ -54,7 +54,7 @@
         </x-filament::section>
 
         <x-filament::section>
-            <x-slot name="heading">Modules</x-slot>
+            <x-slot name="heading">{{ __('Modules') }}</x-slot>
             <ul class="space-y-1 text-sm">
                 @foreach ($s['modules'] as $label => $on)
                     <li class="flex items-center gap-2">
@@ -62,27 +62,27 @@
                         <span @class(['text-gray-400 line-through' => ! $on])>{{ $label }}</span>
                     </li>
                 @endforeach
-                <li class="pt-2 text-xs text-gray-500">Masters, administration, security, dashboard and reports and the Office Desk are in every plan.</li>
+                <li class="pt-2 text-xs text-gray-500">{{ __('Masters, administration, security, dashboard and reports and the Office Desk are in every plan.') }}</li>
             </ul>
-            <p class="mt-4 text-sm text-gray-500">To change your plan, contact us.</p>
+            <p class="mt-4 text-sm text-gray-500">{{ __('To change your plan, contact us.') }}</p>
         </x-filament::section>
     </div>
 
     @if (! $s['customer']->isLifetime())
         <x-filament::section>
-            <x-slot name="heading">Invoices</x-slot>
+            <x-slot name="heading">{{ __('Invoices') }}</x-slot>
             @include('filament.partials.invoice-table', ['invoices' => $this->invoices()])
         </x-filament::section>
 
         @if ($plan?->price_paise_lifetime)
             <x-filament::section>
-                <x-slot name="heading">Lifetime access</x-slot>
-                <p class="text-sm">Pay <strong>{{ \App\Filament\Support\Units::paiseToRupees($plan->price_paise_lifetime) }}</strong> once and use {{ $plan->name }} for good: no more monthly invoices. Pay with one of the ways below and tell us; your account is then given lifetime access.</p>
+                <x-slot name="heading">{{ __('Lifetime access') }}</x-slot>
+                <p class="text-sm">{{ __('Pay') }} <strong>{{ \App\Filament\Support\Units::paiseToRupees($plan->price_paise_lifetime) }}</strong> once and use {{ $plan->name }} for good: no more monthly invoices. Pay with one of the ways below and tell us; your account is then given lifetime access.</p>
             </x-filament::section>
         @endif
 
         <x-filament::section>
-            <x-slot name="heading">Ways to pay</x-slot>
+            <x-slot name="heading">{{ __('Ways to pay') }}</x-slot>
             @include('filament.partials.payment-methods')
         </x-filament::section>
     @endif

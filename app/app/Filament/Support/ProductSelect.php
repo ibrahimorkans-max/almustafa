@@ -20,7 +20,7 @@ final class ProductSelect
     /** @param  list<string>|null  $categories  null = every category */
     public static function make(string $name = 'product_id', ?array $categories = null, bool $stockItemsOnly = false): Select
     {
-        return Select::make($name)->label('Product')->searchable()
+        return Select::make($name)->label(__('Product'))->searchable()
             ->options(fn () => self::options($categories, $stockItemsOnly))
             ->getOptionLabelUsing(fn ($value) => self::label($value))
             ->helperText(fn () => self::options($categories, $stockItemsOnly) === [] ? self::emptyHint($categories) : null);

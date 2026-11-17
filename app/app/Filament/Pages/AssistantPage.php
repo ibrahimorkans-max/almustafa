@@ -16,6 +16,8 @@ use Filament\Pages\Page;
  */
 class AssistantPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use TalksToAssistant;
 
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';

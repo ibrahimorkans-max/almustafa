@@ -21,38 +21,40 @@ use Illuminate\Support\Str;
 
 class ListDevices extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = DeviceResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('pairAgent')->label('Pair a weighbridge PC')->icon('heroicon-o-qr-code')
+            Action::make('pairAgent')->label(__('Pair a weighbridge PC'))->icon('heroicon-o-qr-code')
                 ->visible(fn () => Filament::auth()->user()?->can('device.manage') ?? false)
-                ->modalHeading('Pair a weighbridge PC')->modalSubmitActionLabel('Make pairing code')
-                ->modalDescription('Gives a one-time code. On the PC run the set-up (or: ricemill-agent pair), type the ERP address and this code: the PC receives its login, device and weighbridge by itself. Nothing else to copy.')
+                ->modalHeading(__('Pair a weighbridge PC'))->modalSubmitActionLabel(__('Make pairing code'))
+                ->modalDescription(__('Gives a one-time code. On the PC run the set-up (or: ricemill-agent pair), type the ERP address and this code: the PC receives its login, device and weighbridge by itself. Nothing else to copy.'))
                 ->form([
-                    Select::make('scale_id')->label('Weighbridge')->required()
+                    Select::make('scale_id')->label(__('Weighbridge'))->required()
                         ->options(fn () => Scale::query()->orderBy('code')->get()->mapWithKeys(fn (Scale $s) => [$s->id => "{$s->code} - {$s->name}"]))
                         ->default(fn () => Scale::query()->count() === 1 ? Scale::query()->value('id') : null),
-                    Select::make('login_account_id')->label('PC login')->placeholder('Make a new login just for this PC (recommended)')
+                    Select::make('login_account_id')->label(__('PC login'))->placeholder(__('Make a new login just for this PC (recommended)'))
                         ->options(fn () => LoginAccount::query()->with('role')->where('is_machine', true)->get()
                             ->filter(fn (LoginAccount $a) => $a->role->code === RoleTemplates::GATE_OPERATOR)
                             ->mapWithKeys(fn (LoginAccount $a) => [$a->id => $a->username]))
-                        ->helperText('Leave empty for a new PC. To pair the same PC again, choose its login: it gets a new password that only the PC knows. People\'s logins are never listed.'),
-                    TextInput::make('name')->label('PC name')->required()->default('Weighbridge PC')->maxLength(120),
+                        ->helperText(__('Leave empty for a new PC. To pair the same PC again, choose its login: it gets a new password that only the PC knows. People\'s logins are never listed.')),
+                    TextInput::make('name')->label(__('PC name'))->required()->default('Weighbridge PC')->maxLength(120),
                 ])
                 ->action(function (array $data, Action $action): void {
                     try {
                         $r = app(AgentPairing::class)->issue($data['scale_id'], $data['login_account_id'] ?? null, $data['name']);
                     } catch (BusinessRuleViolation $e) {
-                        Notification::make()->title('No code made')->body(e($e->getMessage()))->danger()->persistent()->send();
+                        Notification::make()->title(__('No code made'))->body(e($e->getMessage()))->danger()->persistent()->send();
                         $action->halt();
 
                         return;
                     } catch (\Throwable $e) {
                         // Never a silent failure: the office sees that it did not work, the details go to the log.
                         report($e);
-                        Notification::make()->title('No code made')->body('Something went wrong on the ERP; it is written in the log. Try again, or tell your provider.')
+                        Notification::make()->title(__('No code made'))->body(__('Something went wrong on the ERP; it is written in the log. Try again, or tell your provider.'))
                             ->danger()->persistent()->send();
                         $action->halt();
 
@@ -67,23 +69,24 @@ class ListDevices extends ListRecords
                             .'. PC login: '.e($r['username']).($r['new_login'] ? ' (new)' : '').'.')
                         ->persistent()->success()->send();
                 }),
-            Action::make('registerAgent')->label('Register by hand')->color('gray')->icon('heroicon-o-cpu-chip')
+            Action::make('registerAgent')->label(__('Register by hand'))->color('gray')->icon('heroicon-o-cpu-chip')
                 ->visible(fn () => Filament::auth()->user()?->can('device.manage') ?? false)
-                ->modalDescription('Creates a device for the weighbridge PC and shows its signing secret ONCE. Put it in the agent\'s config file; it cannot be shown again.')
+                ->modalDescription(__('Creates a device for the weighbridge PC and shows its signing secret ONCE. Put it in the agent\'s config file; it cannot be shown again.'))
                 ->form([
-                    Select::make('login_account_id')->label('Agent login account')->required()
+                    Select::make('login_account_id')->label(__('Agent login account'))->required()
                         ->options(fn () => LoginAccount::query()->with('role')->where('status', 'active')->get()
                             ->filter(fn (LoginAccount $a) => $a->role->code === 'GATE_OPERATOR')
                             ->mapWithKeys(fn (LoginAccount $a) => [$a->id => $a->username])),
-                    TextInput::make('name')->label('PC name')->required()->default('Weighbridge PC')->maxLength(120),
+                    TextInput::make('name')->label(__('PC name'))->required()->default('Weighbridge PC')->maxLength(120),
                 ])
                 ->action(function (array $data): void {
                     $account = LoginAccount::query()->findOrFail($data['login_account_id']);
                     $uid = 'agent-'.Str::lower(Str::random(24));
                     ['secret' => $secret] = app(DeviceService::class)->registerAgent($account, $uid, $data['name']);
 
-                    Notification::make()->title('Gate agent registered — copy these now')
-                        ->body("device_uid: {$uid}\nsigning_secret: {$secret}")
+                    Notification::make()->title(__('Gate agent registered — copy these now'))
+                        ->body(__('device_uid: :uid
+signing_secret: :secret', ['uid' => $uid, 'secret' => $secret]))
                         ->persistent()->warning()->send();
                 }),
         ];

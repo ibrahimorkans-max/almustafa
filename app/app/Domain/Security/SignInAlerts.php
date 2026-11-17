@@ -46,8 +46,8 @@ final class SignInAlerts
             }
             $when = now('Asia/Karachi')->format('d M Y H:i');
             $detail = implode(' and ', $what).", IP {$session->ip}, at {$when} PKT";
-            Notification::make()->warning()->title('New sign-in to your account')
-                ->body("Your account signed in from {$detail}. If this was not you, sign it out under Security → Sessions and change your password.")
+            Notification::make()->warning()->title(__('New sign-in to your account'))
+                ->body(__('Your account signed in from :detail. If this was not you, sign it out under Security → Sessions and change your password.', ['detail' => $detail]))
                 ->sendToDatabase($account);
             if (! $account->isOwner() && $account->role?->code !== 'SUPER_ADMIN') {
                 $this->notifier->owners($account->entity_id, "New sign-in: {$account->username}", "{$account->username} signed in from {$detail}.", includeOwners: false);

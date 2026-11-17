@@ -23,6 +23,8 @@ use Illuminate\Validation\Rules\Unique;
 
 class ScaleResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = Scale::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-scale';
@@ -41,10 +43,10 @@ class ScaleResource extends Resource
             TextInput::make('code')->required()->maxLength(20)
                 ->unique('scales', 'code', ignoreRecord: true, modifyRuleUsing: fn (Unique $rule) => $rule->where('entity_id', app(TenantContext::class)->entityId())),
             TextInput::make('name')->required()->maxLength(120),
-            TextInput::make('capacity_kg')->label('Capacity (kg)')->required()->regex(Units::DECIMAL_3),
-            TextInput::make('resolution_kg')->label('Smallest step (kg)')->required()->default('10')->regex(Units::DECIMAL_3),
+            TextInput::make('capacity_kg')->label(__('Capacity (kg)'))->required()->regex(Units::DECIMAL_3),
+            TextInput::make('resolution_kg')->label(__('Smallest step (kg)'))->required()->default('10')->regex(Units::DECIMAL_3),
             TextInput::make('location')->maxLength(120),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')])->default('active')->required(),
         ]);
     }
 
@@ -54,17 +56,17 @@ class ScaleResource extends Resource
             ->columns([
                 TextColumn::make('code'),
                 TextColumn::make('name'),
-                TextColumn::make('capacity_kg')->label('Capacity (t)')->formatStateUsing(fn (string $state) => Weight::kg($state)->in('ton')),
-                TextColumn::make('resolution_kg')->label('Step (kg)'),
-                TextColumn::make('certificates.valid_until')->label('Certificate valid until')->date()
+                TextColumn::make('capacity_kg')->label(__('Capacity (t)'))->formatStateUsing(fn (string $state) => Weight::kg($state)->in('ton')),
+                TextColumn::make('resolution_kg')->label(__('Step (kg)')),
+                TextColumn::make('certificates.valid_until')->label(__('Certificate valid until'))->date()
                     ->state(fn (Scale $r) => $r->certificates()->where('type', 'stamping')->max('valid_until'))
                     ->color(fn ($state) => $state === null || now()->gt($state) ? 'danger' : (now()->addDays(30)->gt($state) ? 'warning' : 'success')),
                 TextColumn::make('status')->badge(),
-                TextColumn::make('id')->label('Weighbridge id (for the gate agent)')->fontFamily('mono')->size('xs')
+                TextColumn::make('id')->label(__('Weighbridge id (for the gate agent)'))->fontFamily('mono')->size('xs')
                     ->copyable()->copyMessage('Weighbridge id copied'),
             ])
             ->actions([
-                Action::make('connect')->label('Connection details')->icon('heroicon-o-link')->color('gray')
+                Action::make('connect')->label(__('Connection details'))->icon('heroicon-o-link')->color('gray')
                     ->url(fn () => ConnectWeighbridge::getUrl()),
                 EditAction::make(),
             ]);

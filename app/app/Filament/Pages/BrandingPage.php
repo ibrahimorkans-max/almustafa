@@ -41,6 +41,8 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
  */
 class BrandingPage extends Page implements HasForms
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-paint-brush';
@@ -104,56 +106,56 @@ class BrandingPage extends Page implements HasForms
         $hex = ['regex:/^#[0-9a-fA-F]{6}$/'];
 
         return $form->statePath('data')->schema([
-            Section::make('Name and contacts')->columns(2)->schema([
-                TextInput::make('legal_name')->label('Name on documents')->required()->maxLength(160),
-                TextInput::make('name_ur')->label('Name in Urdu')->maxLength(160)->extraInputAttributes(['dir' => 'rtl']),
-                TextInput::make('tagline')->label('Tagline')->maxLength(160)->placeholder('Quality rice since 1985'),
+            Section::make(__('Name and contacts'))->columns(2)->schema([
+                TextInput::make('legal_name')->label(__('Name on documents'))->required()->maxLength(160),
+                TextInput::make('name_ur')->label(__('Name in Urdu'))->maxLength(160)->extraInputAttributes(['dir' => 'rtl']),
+                TextInput::make('tagline')->label(__('Tagline'))->maxLength(160)->placeholder(__('Quality rice since 1985')),
                 TextInput::make('phone')->tel()->maxLength(40),
                 TextInput::make('email')->email()->maxLength(160),
                 TextInput::make('website')->maxLength(160)->placeholder('www.example.com'),
                 Textarea::make('address')->maxLength(300)->rows(2),
                 TextInput::make('city')->maxLength(80),
                 TextInput::make('province')->maxLength(40),
-                TextInput::make('ntn')->label('NTN')->maxLength(20),
-                TextInput::make('strn')->label('STRN (only if registered for sales tax)')->maxLength(20),
+                TextInput::make('ntn')->label(__('NTN'))->maxLength(20),
+                TextInput::make('strn')->label(__('STRN (only if registered for sales tax)'))->maxLength(20),
             ]),
-            Section::make('Logo and colours')->columns(2)->schema([
-                Placeholder::make('logo_now')->label('Logo now')->content(fn () => $this->preview($this->mill()?->logo_path, '64px')),
-                Placeholder::make('emblem_now')->label('Small emblem now')->content(fn () => $this->preview($this->mill()?->emblem_path, '48px')),
-                FileUpload::make('logo')->label('New logo (wide, for A4 letterheads)')->storeFiles(false)
-                    ->acceptedFileTypes(self::IMAGE_TYPES)->maxSize(20480)->helperText('PNG or JPG (a photo from a phone is made smaller first). A clear background prints best.'),
-                FileUpload::make('emblem')->label('New small emblem (square, for slips and receipts)')->storeFiles(false)
-                    ->acceptedFileTypes(self::IMAGE_TYPES)->maxSize(20480)->helperText('Empty: the logo is used.'),
-                Toggle::make('remove_logo')->label('Remove the logo'),
-                Toggle::make('remove_emblem')->label('Remove the emblem'),
-                Placeholder::make('sales_logo_now')->label('Logo for selling now')->content(fn () => $this->preview($this->mill()?->sales_logo_path, '64px')),
-                FileUpload::make('sales_logo')->label('New logo for selling (sales invoices, gate passes for sales, dispatch orders, sale saudas)')->storeFiles(false)
-                    ->acceptedFileTypes(self::IMAGE_TYPES)->maxSize(20480)->helperText('Empty: the logo above is used on selling documents too. Every other document uses the logo above.'),
-                Toggle::make('remove_sales_logo')->label('Remove the logo for selling'),
-                ColorPicker::make('color_primary')->label('Main colour')->rules($hex)->helperText('Title bars, names and totals'),
-                ColorPicker::make('color_accent')->label('Second colour')->rules($hex)->helperText('Lines and highlights'),
+            Section::make(__('Logo and colours'))->columns(2)->schema([
+                Placeholder::make('logo_now')->label(__('Logo now'))->content(fn () => $this->preview($this->mill()?->logo_path, '64px')),
+                Placeholder::make('emblem_now')->label(__('Small emblem now'))->content(fn () => $this->preview($this->mill()?->emblem_path, '48px')),
+                FileUpload::make('logo')->label(__('New logo (wide, for A4 letterheads)'))->storeFiles(false)
+                    ->acceptedFileTypes(self::IMAGE_TYPES)->maxSize(20480)->helperText(__('PNG or JPG (a photo from a phone is made smaller first). A clear background prints best.')),
+                FileUpload::make('emblem')->label(__('New small emblem (square, for slips and receipts)'))->storeFiles(false)
+                    ->acceptedFileTypes(self::IMAGE_TYPES)->maxSize(20480)->helperText(__('Empty: the logo is used.')),
+                Toggle::make('remove_logo')->label(__('Remove the logo')),
+                Toggle::make('remove_emblem')->label(__('Remove the emblem')),
+                Placeholder::make('sales_logo_now')->label(__('Logo for selling now'))->content(fn () => $this->preview($this->mill()?->sales_logo_path, '64px')),
+                FileUpload::make('sales_logo')->label(__('New logo for selling (sales invoices, gate passes for sales, dispatch orders, sale saudas)'))->storeFiles(false)
+                    ->acceptedFileTypes(self::IMAGE_TYPES)->maxSize(20480)->helperText(__('Empty: the logo above is used on selling documents too. Every other document uses the logo above.')),
+                Toggle::make('remove_sales_logo')->label(__('Remove the logo for selling')),
+                ColorPicker::make('color_primary')->label(__('Main colour'))->rules($hex)->helperText(__('Title bars, names and totals')),
+                ColorPicker::make('color_accent')->label(__('Second colour'))->rules($hex)->helperText(__('Lines and highlights')),
             ]),
-            Section::make('Text on documents')->schema([
-                Textarea::make('invoice_terms')->label('Terms on sales invoices')->maxLength(1500)->rows(3)
-                    ->helperText('Empty: the standard terms (payment days, weights from the weighbridge slip).'),
-                TextInput::make('slip_note')->label('Note on weighment and vehicle slips')->maxLength(300)
-                    ->placeholder('Keep this slip until payment. Complaints within 24 hours.'),
-                TextInput::make('footer_note')->label('Footer line on every document')->maxLength(200)
-                    ->placeholder('Thank you for your business'),
+            Section::make(__('Text on documents'))->schema([
+                Textarea::make('invoice_terms')->label(__('Terms on sales invoices'))->maxLength(1500)->rows(3)
+                    ->helperText(__('Empty: the standard terms (payment days, weights from the weighbridge slip).')),
+                TextInput::make('slip_note')->label(__('Note on weighment and vehicle slips'))->maxLength(300)
+                    ->placeholder(__('Keep this slip until payment. Complaints within 24 hours.')),
+                TextInput::make('footer_note')->label(__('Footer line on every document'))->maxLength(200)
+                    ->placeholder(__('Thank you for your business')),
             ]),
-            Section::make('Paper per document')->columns(3)
-                ->description('Each kind of document prints on its own paper on every computer. Empty: the paper chosen on that computer (top bar), else the document\'s own size.')
+            Section::make(__('Paper per document'))->columns(3)
+                ->description(__('Each kind of document prints on its own paper on every computer. Empty: the paper chosen on that computer (top bar), else the document\'s own size.'))
                 ->schema([
-                    ...array_map(fn (string $kind, string $label) => Select::make('paper_'.$kind)->label($label)->options(PaperSize::OPTIONS)->placeholder('As chosen on the computer'),
+                    ...array_map(fn (string $kind, string $label) => Select::make('paper_'.$kind)->label($label)->options(\App\Support\Locales::options(PaperSize::OPTIONS))->placeholder(__('As chosen on the computer')),
                         array_keys(PaperSize::KINDS), PaperSize::KINDS),
-                    TextInput::make('custom_width')->label('Custom paper width (mm)')->integer()->minValue(40)->maxValue(420),
-                    TextInput::make('custom_height')->label('Custom paper height (mm)')->integer()->minValue(40)->maxValue(1200),
+                    TextInput::make('custom_width')->label(__('Custom paper width (mm)'))->integer()->minValue(40)->maxValue(420),
+                    TextInput::make('custom_height')->label(__('Custom paper height (mm)'))->integer()->minValue(40)->maxValue(1200),
                 ]),
-            Section::make('Bank account on sales invoices')->columns(2)->schema([
-                TextInput::make('bank_title')->label('Account title')->maxLength(120),
-                TextInput::make('bank_name')->label('Bank and branch')->maxLength(120),
-                TextInput::make('bank_account')->label('Account number')->maxLength(40),
-                TextInput::make('bank_iban')->label('IBAN')->maxLength(40)->regex('/^[A-Za-z0-9 ]*$/'),
+            Section::make(__('Bank account on sales invoices'))->columns(2)->schema([
+                TextInput::make('bank_title')->label(__('Account title'))->maxLength(120),
+                TextInput::make('bank_name')->label(__('Bank and branch'))->maxLength(120),
+                TextInput::make('bank_account')->label(__('Account number'))->maxLength(40),
+                TextInput::make('bank_iban')->label(__('IBAN'))->maxLength(40)->regex('/^[A-Za-z0-9 ]*$/'),
             ]),
         ]);
     }
@@ -206,13 +208,13 @@ class BrandingPage extends Page implements HasForms
         }
         app(AuditLogger::class)->record('entity.branding.updated', $mill, null, null, ['files' => array_keys($files)]);
         $this->mount();   // the form again, with the files and remove switches cleared
-        Notification::make()->success()->title('Saved. Every document printed from now on uses these details.')->send();
+        Notification::make()->success()->title(__('Saved. Every document printed from now on uses these details.'))->send();
     }
 
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('preview')->label('Preview a document')->icon('heroicon-o-eye')->color('gray')
+            Action::make('preview')->label(__('Preview a document'))->icon('heroicon-o-eye')->color('gray')
                 ->visible(fn () => $this->mill() !== null)
                 ->url(fn () => route('filament.admin.branding.preview'), shouldOpenInNewTab: true),
         ];

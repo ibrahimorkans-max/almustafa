@@ -23,7 +23,9 @@ use Illuminate\Validation\ValidationException;
 /** Paddy varieties: Masters → Paddy varieties, and "add a variety" on the sauda and stock entry forms. */
 class PaddyVarietyResource extends Resource
 {
-    use MasterResourceHelpers;
+    use \App\Filament\Concerns\TranslatesResourceLabels, MasterResourceHelpers {
+        MasterResourceHelpers::getNavigationGroup insteadof \App\Filament\Concerns\TranslatesResourceLabels;
+    }
 
     protected static ?string $model = PaddyVariety::class;
 
@@ -49,14 +51,14 @@ class PaddyVarietyResource extends Resource
     public static function fields(): array
     {
         return [
-            TextInput::make('code')->label('Code')->disabled()->dehydrated(false)->placeholder('Made automatically (PV-…)')
-                ->helperText('Permanent: it stays when the variety is renamed.'),
-            TextInput::make('name')->label('Variety name')->required()->maxLength(120)->placeholder('Super Basmati, 1121, IRRI-6 …'),
-            Select::make('category')->label('Paddy category / type')->options(PaddyVariety::CATEGORIES)->default('basmati')->required(),
-            Select::make('unit')->label('Unit of measurement')->options(PaddyVariety::UNITS)->default('kg')->required()
-                ->helperText('Stock is always kept in kilograms; this is the unit people deal in.'),
+            TextInput::make('code')->label(__('Code'))->disabled()->dehydrated(false)->placeholder(__('Made automatically (PV-…)'))
+                ->helperText(__('Permanent: it stays when the variety is renamed.')),
+            TextInput::make('name')->label(__('Variety name'))->required()->maxLength(120)->placeholder(__('Super Basmati, 1121, IRRI-6 …')),
+            Select::make('category')->label(__('Paddy category / type'))->options(\App\Support\Locales::options(PaddyVariety::CATEGORIES))->default('basmati')->required(),
+            Select::make('unit')->label(__('Unit of measurement'))->options(\App\Support\Locales::options(PaddyVariety::UNITS))->default('kg')->required()
+                ->helperText(__('Stock is always kept in kilograms; this is the unit people deal in.')),
             Textarea::make('description')->maxLength(1000)->columnSpanFull(),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')])->default('active')->required(),
         ];
     }
 
@@ -95,8 +97,8 @@ class PaddyVarietyResource extends Resource
             ])
             ->defaultSort('name')
             ->filters([
-                SelectFilter::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive']),
-                SelectFilter::make('category')->options(PaddyVariety::CATEGORIES),
+                SelectFilter::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')]),
+                SelectFilter::make('category')->options(\App\Support\Locales::options(PaddyVariety::CATEGORIES)),
             ])
             ->actions([EditAction::make()->using(fn (PaddyVariety $record, array $data) => self::store($data, $record, 'mountedTableActionsData.0.name'))]);
     }

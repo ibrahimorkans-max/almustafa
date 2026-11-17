@@ -19,6 +19,8 @@ use Filament\Pages\Page;
  */
 class ScreenProtection extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-eye-slash';
 
     protected static ?string $navigationGroup = 'Security';
@@ -84,7 +86,7 @@ class ScreenProtection extends Page
         $before = $this->state()['all'];
         app(SettingsService::class)->put(SettingsService::SCREEN_GUARD, $this->all, null);
         app(AuditLogger::class)->record('security.screen_guard_changed', null, meta: ['scope' => 'all', 'from' => $before, 'to' => $this->all]);
-        Notification::make()->title('Saved for all mills. It applies from the next page opened.')->success()->send();
+        Notification::make()->title(__('Saved for all mills. It applies from the next page opened.'))->success()->send();
     }
 
     public function saveMill(): void
@@ -93,7 +95,7 @@ class ScreenProtection extends Page
         $this->validate(['mill' => ['required', 'in:inherit,on,off']]);
         $state = $this->state();
         if ($state['enforced'] && $this->mill === 'off') {
-            Notification::make()->title('The Owner has made screen protection compulsory for every mill.')->danger()->send();
+            Notification::make()->title(__('The Owner has made screen protection compulsory for every mill.'))->danger()->send();
 
             return;
         }
@@ -102,6 +104,6 @@ class ScreenProtection extends Page
             ? $settings->forget(SettingsService::SCREEN_GUARD, (string) $this->millId())
             : $settings->put(SettingsService::SCREEN_GUARD, $this->mill, $this->millId());
         app(AuditLogger::class)->record('security.screen_guard_changed', null, meta: ['scope' => 'mill', 'from' => $state['mill'] ?? 'inherit', 'to' => $this->mill]);
-        Notification::make()->title('Saved for this mill. It applies from the next page opened.')->success()->send();
+        Notification::make()->title(__('Saved for this mill. It applies from the next page opened.'))->success()->send();
     }
 }

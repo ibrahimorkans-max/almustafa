@@ -9,5 +9,7 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListAlerts extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = AlertResource::class;
 }

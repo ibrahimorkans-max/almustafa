@@ -17,6 +17,8 @@ use Filament\Resources\Pages\ManageRecords;
 
 class ManageDocumentTemplates extends ManageRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = DocumentTemplateResource::class;
 
     public function mount(): void
@@ -31,17 +33,17 @@ class ManageDocumentTemplates extends ManageRecords
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('create')->label('New template')->icon('heroicon-o-plus')
+            Action::make('create')->label(__('New template'))->icon('heroicon-o-plus')
                 ->form([
-                    Select::make('doc_type')->label('Document')->options(DocumentTypes::options())->required(),
+                    Select::make('doc_type')->label(__('Document'))->options(\App\Support\Locales::options(DocumentTypes::options()))->required(),
                     TextInput::make('name')->required()->maxLength(80),
-                    Select::make('layout')->options(DocumentTemplate::LAYOUTS)->required()->default('classic'),
+                    Select::make('layout')->options(\App\Support\Locales::options(DocumentTemplate::LAYOUTS))->required()->default('classic'),
                     ...DocumentTemplateResource::settingsForm(),
                 ])
                 ->action(function (array $data): void {
                     try {
                         app(TemplateRepository::class)->create($data['doc_type'], $data['name'], $data['layout'], DocumentTemplateResource::settings($data), (string) $data['note']);
-                        Notification::make()->title('Template created.')->success()->send();
+                        Notification::make()->title(__('Template created.'))->success()->send();
                     } catch (BusinessRuleViolation $e) {
                         Notification::make()->title($e->getMessage())->danger()->send();
                     }

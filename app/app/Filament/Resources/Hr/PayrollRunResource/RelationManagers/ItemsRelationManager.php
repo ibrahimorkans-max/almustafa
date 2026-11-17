@@ -66,16 +66,16 @@ class ItemsRelationManager extends RelationManager
             ->defaultSort('employee->code')
             ->emptyStateHeading($run->calculation_no > 0 ? 'Nobody in this calculation' : 'Not calculated yet')
             ->columns([
-                TextColumn::make('employee.code')->label('Code')->searchable(query: fn (Builder $query, string $search) => $query->where('employee->code', 'like', "%{$search}%")),
-                TextColumn::make('employee.name')->label('Name'),
-                TextColumn::make('employee.department')->label('Department')->toggleable(),
-                TextColumn::make('result.pay_basis')->label('Basis')->toggleable(),
-                TextColumn::make('result.info.paid_days')->label('Paid days')->alignEnd(),
-                TextColumn::make('gross_paise')->label('Gross')->alignEnd()->formatStateUsing($rs),
-                TextColumn::make('deductions_paise')->label('Deductions')->alignEnd()->formatStateUsing($rs),
-                TextColumn::make('net_paise')->label('Net')->alignEnd()->weight('bold')->formatStateUsing($rs),
-                TextColumn::make('warning_count')->label('Warnings')->alignEnd()->color(fn (int $state) => $state > 0 ? 'warning' : null),
-                TextColumn::make('paid')->label('Paid')->visible($finalized)->badge()
+                TextColumn::make('employee.code')->label(__('Code'))->searchable(query: fn (Builder $query, string $search) => $query->where('employee->code', 'like', "%{$search}%")),
+                TextColumn::make('employee.name')->label(__('Name')),
+                TextColumn::make('employee.department')->label(__('Department'))->toggleable(),
+                TextColumn::make('result.pay_basis')->label(__('Basis'))->toggleable(),
+                TextColumn::make('result.info.paid_days')->label(__('Paid days'))->alignEnd(),
+                TextColumn::make('gross_paise')->label(__('Gross'))->alignEnd()->formatStateUsing($rs),
+                TextColumn::make('deductions_paise')->label(__('Deductions'))->alignEnd()->formatStateUsing($rs),
+                TextColumn::make('net_paise')->label(__('Net'))->alignEnd()->weight('bold')->formatStateUsing($rs),
+                TextColumn::make('warning_count')->label(__('Warnings'))->alignEnd()->color(fn (int $state) => $state > 0 ? 'warning' : null),
+                TextColumn::make('paid')->label(__('Paid'))->visible($finalized)->badge()
                     ->state(fn (PayrollItem $r) => match (true) {
                         $r->net_paise <= 0 => 'nothing due',
                         (int) $r->getAttribute('payments_sum_amount_paise') >= $r->net_paise => 'paid',
@@ -85,50 +85,50 @@ class ItemsRelationManager extends RelationManager
                     ->color(fn (string $state) => match ($state) {
                         'paid' => 'success', 'part paid' => 'warning', 'unpaid' => 'danger', default => 'gray',
                     }),
-                TextColumn::make('payslip.number')->label('Payslip')->placeholder('—')->visible($finalized),
+                TextColumn::make('payslip.number')->label(__('Payslip'))->placeholder('—')->visible($finalized),
             ])
-            ->filters([Filter::make('warnings')->label('With warnings')->query(fn (Builder $query) => $query->where('warning_count', '>', 0))])
+            ->filters([Filter::make('warnings')->label(__('With warnings'))->query(fn (Builder $query) => $query->where('warning_count', '>', 0))])
             ->actions([
-                Action::make('lines')->label('Details')->icon('heroicon-o-list-bullet')->color('gray')
+                Action::make('lines')->label(__('Details'))->icon('heroicon-o-list-bullet')->color('gray')
                     ->modalHeading(fn (PayrollItem $r) => "{$r->employee['code']} {$r->employee['name']}")
                     ->modalContent(fn (PayrollItem $record) => view('filament.payroll.item-lines', ['item' => $record]))
-                    ->modalSubmitAction(false)->modalCancelActionLabel('Close'),
+                    ->modalSubmitAction(false)->modalCancelActionLabel(__('Close')),
                 Action::make('payslip')->icon('heroicon-o-document-text')->color('gray')->visible(fn () => DocumentActions::allowed())
                     ->form(DocumentActions::form('payslip'))
                     ->action(fn (PayrollItem $record, array $data) => DocumentActions::run('payslip', $record->id, $data)),
                 ActionGroup::make([
-                    Action::make('attendanceSlip')->label('Attendance summary')->icon('heroicon-o-calendar-days')->visible(fn () => DocumentActions::allowed())
+                    Action::make('attendanceSlip')->label(__('Attendance summary'))->icon('heroicon-o-calendar-days')->visible(fn () => DocumentActions::allowed())
                         ->form(DocumentActions::form('attendance_summary'))
                         ->action(fn (PayrollItem $record, array $data) => ($snap = PayrollRunAttendance::query()->where('payroll_run_id', $record->payroll_run_id)
                             ->where('employee_id', $record->employee_id)->orderByDesc('lock_no')->first()) !== null
                             ? DocumentActions::run('attendance_summary', $snap->id, $data) : null),
-                    Action::make('receipt')->label('Payment receipt')->icon('heroicon-o-receipt-percent')
+                    Action::make('receipt')->label(__('Payment receipt'))->icon('heroicon-o-receipt-percent')
                         ->visible(fn (PayrollItem $r) => $finalized() && DocumentActions::allowed() && PayrollPayment::query()->where('payroll_item_id', $r->id)->whereIn('mode', ['cash', 'cheque'])->exists())
                         ->form(DocumentActions::form('cash_receipt'))
                         ->action(fn (PayrollItem $record, array $data) => DocumentActions::run('cash_receipt', (string) PayrollPayment::query()->where('payroll_item_id', $record->id)
                             ->whereIn('mode', ['cash', 'cheque'])->orderByDesc('created_at')->value('id'), $data)),
-                    Action::make('payCash')->label('Pay cash')->icon('heroicon-o-banknotes')->visible($due)
+                    Action::make('payCash')->label(__('Pay cash'))->icon('heroicon-o-banknotes')->visible($due)
                         ->modalDescription(fn (PayrollItem $r) => 'Due: '.Units::paiseToRupees($pay()->due($r)).'. Above the cash limit, salary must go through the bank (s. 21(m)).')
                         ->form([
-                            Select::make('cash')->label('Paid from')->required()
+                            Select::make('cash')->label(__('Paid from'))->required()
                                 ->options(fn () => LedgerAccount::query()->where('kind', 'cash')->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
                             $date(),
                         ])
                         ->action($try(fn (PayrollItem $r, array $d) => $pay()->payCash($r, LedgerAccount::query()->findOrFail($d['cash']), CarbonImmutable::parse($d['date'], 'Asia/Karachi')),
                             'Cash payment posted — get the signature or thumb.')),
-                    Action::make('payCheque')->label('Pay by cheque')->icon('heroicon-o-document-text')->visible($due)
+                    Action::make('payCheque')->label(__('Pay by cheque'))->icon('heroicon-o-document-text')->visible($due)
                         ->form([
-                            Select::make('bank')->label('Bank account')->required()
+                            Select::make('bank')->label(__('Bank account'))->required()
                                 ->options(fn () => LedgerAccount::query()->where('kind', 'bank')->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
-                            TextInput::make('cheque')->label('Cheque number')->required()->maxLength(30),
+                            TextInput::make('cheque')->label(__('Cheque number'))->required()->maxLength(30),
                             $date(),
                         ])
                         ->action($try(fn (PayrollItem $r, array $d) => $pay()->payCheque($r, LedgerAccount::query()->findOrFail($d['bank']), $d['cheque'],
                             CarbonImmutable::parse($d['date'], 'Asia/Karachi')), 'Cheque payment posted.')),
-                    Action::make('acknowledge')->label('Receipt signature / thumb')->icon('heroicon-o-finger-print')
+                    Action::make('acknowledge')->label(__('Receipt signature / thumb'))->icon('heroicon-o-finger-print')
                         ->visible(fn (PayrollItem $r) => $finalized() && PayrollRunResource::allows('hr.payroll.run') && $this->unacknowledged($r) !== null)
                         ->form([
-                            Radio::make('method')->options(['signature' => 'Signature', 'thumb' => 'Thumb impression'])->default('thumb')->required()->inline(),
+                            Radio::make('method')->options(['signature' => __('Signature'), 'thumb' => __('Thumb impression')])->default('thumb')->required()->inline(),
                             FileUpload::make('photo')->required()->storeFiles(false)->image()->acceptedFileTypes(['image/jpeg', 'image/png'])->maxSize(20480),
                         ])
                         ->action($try(function (PayrollItem $r, array $d) use ($pay): void {

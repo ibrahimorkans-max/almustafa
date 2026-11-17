@@ -10,10 +10,12 @@ use Filament\Resources\Pages\ManageRecords;
 
 class ManagePaymentMethods extends ManageRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PaymentMethodResource::class;
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('New payment method')->mutateFormDataUsing(fn (array $data) => PaymentMethodResource::withQr($data))];
+        return [CreateAction::make()->label(__('New payment method'))->mutateFormDataUsing(fn (array $data) => PaymentMethodResource::withQr($data))];
     }
 }

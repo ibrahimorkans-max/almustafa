@@ -13,13 +13,13 @@
         @switch($this->data['report'] ?? 'trial_balance')
             @case('ledger')
                 @if (! $r['account'])
-                    <p class="text-sm text-gray-500">Choose a ledger.</p>
+                    <p class="text-sm text-gray-500">{{ __('Choose a ledger.') }}</p>
                 @else
                     <h3 class="mb-2 font-semibold">{{ $r['account']->displayName() }}</h3>
                     <table class="w-full">
-                        <thead><tr><th class="{{ $th }}">Date</th><th class="{{ $th }}">Voucher</th><th class="{{ $th }}">Particulars</th><th class="{{ $th }} text-right">Debit</th><th class="{{ $th }} text-right">Credit</th><th class="{{ $th }} text-right">Balance</th></tr></thead>
+                        <thead><tr><th class="{{ $th }}">{{ __('Date') }}</th><th class="{{ $th }}">{{ __('Voucher') }}</th><th class="{{ $th }}">{{ __('Particulars') }}</th><th class="{{ $th }} text-right">{{ __('Debit') }}</th><th class="{{ $th }} text-right">{{ __('Credit') }}</th><th class="{{ $th }} text-right">{{ __('Balance') }}</th></tr></thead>
                         <tbody>
-                            <tr><td class="{{ $td }}" colspan="5">Opening balance</td><td class="{{ $td }} text-right">{{ $bal($r['statement']['opening']) }}</td></tr>
+                            <tr><td class="{{ $td }}" colspan="5">{{ __('Opening balance') }}</td><td class="{{ $td }} text-right">{{ $bal($r['statement']['opening']) }}</td></tr>
                             @foreach ($r['statement']['lines'] as $l)
                                 <tr class="border-t border-gray-100 dark:border-white/5">
                                     <td class="{{ $td }}">{{ \Carbon\Carbon::parse($l['date'])->format('d M Y') }}</td>
@@ -30,7 +30,7 @@
                                     <td class="{{ $td }} text-right">{{ $bal($l['balance']) }}</td>
                                 </tr>
                             @endforeach
-                            <tr class="border-t font-semibold"><td class="{{ $td }}" colspan="5">Closing balance</td><td class="{{ $td }} text-right">{{ $bal($r['statement']['closing']) }}</td></tr>
+                            <tr class="border-t font-semibold"><td class="{{ $td }}" colspan="5">{{ __('Closing balance') }}</td><td class="{{ $td }} text-right">{{ $bal($r['statement']['closing']) }}</td></tr>
                         </tbody>
                     </table>
                 @endif
@@ -70,13 +70,13 @@
                         </table>
                     </div>
                 @empty
-                    <p class="text-sm text-gray-500">No vouchers on this day.</p>
+                    <p class="text-sm text-gray-500">{{ __('No vouchers on this day.') }}</p>
                 @endforelse
                 @break
 
             @case('ageing')
                 <table class="w-full">
-                    <thead><tr><th class="{{ $th }}">Bill</th><th class="{{ $th }}">Party</th><th class="{{ $th }}">Due</th><th class="{{ $th }}">Age</th><th class="{{ $th }} text-right">Bill amount</th><th class="{{ $th }} text-right">Paid</th><th class="{{ $th }} text-right">Awaiting approval</th><th class="{{ $th }} text-right">Outstanding</th></tr></thead>
+                    <thead><tr><th class="{{ $th }}">{{ __('Bill') }}</th><th class="{{ $th }}">{{ __('Party') }}</th><th class="{{ $th }}">{{ __('Due') }}</th><th class="{{ $th }}">{{ __('Age') }}</th><th class="{{ $th }} text-right">{{ __('Bill amount') }}</th><th class="{{ $th }} text-right">{{ __('Paid') }}</th><th class="{{ $th }} text-right">{{ __('Awaiting approval') }}</th><th class="{{ $th }} text-right">{{ __('Outstanding') }}</th></tr></thead>
                     <tbody>
                         @forelse ($r['rows'] as $row)
                             <tr class="border-t border-gray-100 dark:border-white/5">
@@ -86,7 +86,7 @@
                                 <td class="{{ $td }} text-right">{{ $money($row['requested']) }}</td><td class="{{ $td }} text-right font-semibold">{{ $money($row['outstanding']) }}</td>
                             </tr>
                         @empty
-                            <tr><td class="{{ $td }} text-gray-500" colspan="8">Nothing outstanding.</td></tr>
+                            <tr><td class="{{ $td }} text-gray-500" colspan="8">{{ __('Nothing outstanding.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -94,7 +94,7 @@
 
             @case('receivables')
                 <table class="w-full">
-                    <thead><tr><th class="{{ $th }}">Invoice</th><th class="{{ $th }}">Buyer</th><th class="{{ $th }}">Due</th><th class="{{ $th }}">Age</th><th class="{{ $th }} text-right">Invoice total</th><th class="{{ $th }} text-right">Received</th><th class="{{ $th }} text-right">Outstanding</th></tr></thead>
+                    <thead><tr><th class="{{ $th }}">{{ __('Invoice') }}</th><th class="{{ $th }}">{{ __('Buyer') }}</th><th class="{{ $th }}">{{ __('Due') }}</th><th class="{{ $th }}">{{ __('Age') }}</th><th class="{{ $th }} text-right">{{ __('Invoice total') }}</th><th class="{{ $th }} text-right">{{ __('Received') }}</th><th class="{{ $th }} text-right">{{ __('Outstanding') }}</th></tr></thead>
                     <tbody>
                         @forelse ($r['rows'] as $row)
                             <tr class="border-t border-gray-100 dark:border-white/5">
@@ -104,7 +104,7 @@
                                 <td class="{{ $td }} text-right font-semibold">{{ $money($row['outstanding']) }}</td>
                             </tr>
                         @empty
-                            <tr><td class="{{ $td }} text-gray-500" colspan="7">Nothing outstanding.</td></tr>
+                            <tr><td class="{{ $td }} text-gray-500" colspan="7">{{ __('Nothing outstanding.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -112,7 +112,7 @@
 
             @case('stock_value')
                 <table class="w-full">
-                    <thead><tr><th class="{{ $th }}">Product</th><th class="{{ $th }}">Godown</th><th class="{{ $th }} text-right">kg</th><th class="{{ $th }} text-right">Avg cost / kg</th><th class="{{ $th }} text-right">Value</th></tr></thead>
+                    <thead><tr><th class="{{ $th }}">{{ __('Product') }}</th><th class="{{ $th }}">{{ __('Godown') }}</th><th class="{{ $th }} text-right">{{ __('kg') }}</th><th class="{{ $th }} text-right">{{ __('Avg cost / kg') }}</th><th class="{{ $th }} text-right">{{ __('Value') }}</th></tr></thead>
                     <tbody>
                         @foreach ($r['rows'] as $row)
                             <tr class="border-t border-gray-100 dark:border-white/5">
@@ -122,14 +122,14 @@
                                 <td class="{{ $td }} text-right">{{ $money($row['value_paise']) }}</td>
                             </tr>
                         @endforeach
-                        <tr class="border-t font-semibold"><td class="{{ $td }}" colspan="4">Total</td><td class="{{ $td }} text-right">{{ $money(array_sum(array_column($r['rows'], 'value_paise'))) }}</td></tr>
+                        <tr class="border-t font-semibold"><td class="{{ $td }}" colspan="4">{{ __('Total') }}</td><td class="{{ $td }} text-right">{{ $money(array_sum(array_column($r['rows'], 'value_paise'))) }}</td></tr>
                     </tbody>
                 </table>
                 @break
 
             @default
                 <table class="w-full">
-                    <thead><tr><th class="{{ $th }}">Ledger</th><th class="{{ $th }}">Group</th><th class="{{ $th }} text-right">Debit</th><th class="{{ $th }} text-right">Credit</th></tr></thead>
+                    <thead><tr><th class="{{ $th }}">{{ __('Ledger') }}</th><th class="{{ $th }}">{{ __('Group') }}</th><th class="{{ $th }} text-right">{{ __('Debit') }}</th><th class="{{ $th }} text-right">{{ __('Credit') }}</th></tr></thead>
                     <tbody>
                         @foreach ($r['tb']['rows'] as $row)
                             <tr class="border-t border-gray-100 dark:border-white/5">
@@ -137,7 +137,7 @@
                                 <td class="{{ $td }} text-right">{{ $row['dr'] ? $money($row['dr']) : '' }}</td><td class="{{ $td }} text-right">{{ $row['cr'] ? $money($row['cr']) : '' }}</td>
                             </tr>
                         @endforeach
-                        <tr class="border-t font-semibold"><td class="{{ $td }}" colspan="2">Total</td><td class="{{ $td }} text-right">{{ $money($r['tb']['total_dr']) }}</td><td class="{{ $td }} text-right">{{ $money($r['tb']['total_cr']) }}</td></tr>
+                        <tr class="border-t font-semibold"><td class="{{ $td }}" colspan="2">{{ __('Total') }}</td><td class="{{ $td }} text-right">{{ $money($r['tb']['total_dr']) }}</td><td class="{{ $td }} text-right">{{ $money($r['tb']['total_cr']) }}</td></tr>
                     </tbody>
                 </table>
         @endswitch

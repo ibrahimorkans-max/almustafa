@@ -20,9 +20,9 @@ final class ApprovalNotice
         $open = $link ? [NotificationAction::make('open')->url(ApprovalRequestResource::getUrl('view', ['record' => $request]))] : [];
 
         match ($request->status) {
-            ApprovalRequest::STATUS_EXECUTED => Notification::make()->success()->title('Done: applied at once')
-                ->body('No second approval needed for the Owner or the mill\'s Super Admin. It is recorded in the history.')->actions($open)->send(),
-            ApprovalRequest::STATUS_FAILED => Notification::make()->danger()->title('Could not be applied')->body($request->error)->actions($open)->send(),
+            ApprovalRequest::STATUS_EXECUTED => Notification::make()->success()->title(__('Done: applied at once'))
+                ->body(__('No second approval needed for the Owner or the mill\'s Super Admin. It is recorded in the history.'))->actions($open)->send(),
+            ApprovalRequest::STATUS_FAILED => Notification::make()->danger()->title(__('Could not be applied'))->body($request->error)->actions($open)->send(),
             default => Notification::make()->success()->title($pendingTitle)->body($pendingBody)->actions($open)->send(),
         };
     }

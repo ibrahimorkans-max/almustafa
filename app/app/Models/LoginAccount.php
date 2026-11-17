@@ -33,6 +33,13 @@ use Spatie\LaravelPasskeys\Models\Concerns\InteractsWithPasskeys;
  * @property string $entity_id
  * @property bool $is_platform_admin the provider's account (never set from a form)
  * @property bool $is_machine a weighbridge PC's login made by pairing (not a staff user; never set from a form)
+ * @property string|null $email the address confirmed at the first sign-in
+ * @property \Illuminate\Support\Carbon|null $email_verified_at
+ * @property string|null $email_verify_token_hash
+ * @property \Illuminate\Support\Carbon|null $email_verify_sent_at
+ * @property \Illuminate\Support\Carbon|null $first_sign_in_at
+ * @property array<string, mixed>|null $first_sign_in where the first sign-in came from (IP, place, device)
+ * @property \Illuminate\Support\Carbon|null $first_sign_in_completed_at
  * @property string $person_id
  * @property string $role_id
  * @property string $username
@@ -124,6 +131,11 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
             'last_lockout_at' => 'datetime',
             'needs_admin_unlock' => 'boolean',
             'version' => 'integer',
+            'email_verified_at' => 'datetime',
+            'email_verify_sent_at' => 'datetime',
+            'first_sign_in_at' => 'datetime',
+            'first_sign_in' => 'array',
+            'first_sign_in_completed_at' => 'datetime',
         ];
     }
 
@@ -258,10 +270,23 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
         return app(CustomerAccess::class)->readOnly($this) ? CustomerAccess::viewOnly($codes) : $codes;
     }
 
-    /** Pending 2FA enrollment or a forced password change: the account holds no permissions yet. */
+    /** Pending 2FA enrollment, a forced password change or the first sign-in check: the account holds no permissions yet. */
     public function hasPendingSecuritySetup(): bool
     {
-        return ($this->mfaRequired() && ! $this->hasMfa()) || $this->must_change_password;
+        return ($this->mfaRequired() && ! $this->hasMfa()) || $this->must_change_password || $this->needsFirstSignIn();
+    }
+
+    /**
+     * A new person's login that has not finished its first sign-in (e-mail confirmed, own details given). Not for a
+     * weighbridge PC's login or a party's portal login (parties sign in with their mobile number).
+     */
+    public function needsFirstSignIn(): bool
+    {
+        return (bool) config('ricemill.auth.first_sign_in_check')
+            && array_key_exists('first_sign_in_completed_at', $this->getAttributes())
+            && $this->first_sign_in_completed_at === null
+            && ! $this->is_machine
+            && $this->role?->code !== RoleTemplates::PARTY;
     }
 
     public function hasPermission(string $code): bool

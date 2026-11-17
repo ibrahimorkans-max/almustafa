@@ -10,6 +10,8 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditParty extends EditRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PartyResource::class;
 
     protected function getHeaderActions(): array
@@ -17,7 +19,7 @@ class EditParty extends EditRecord
         return [
             PartyLogin::action(),
             // Every entry on the party's account, like a bank statement.
-            \Filament\Actions\Action::make('transactions')->label('Transactions')->icon('heroicon-o-queue-list')->color('gray')
+            \Filament\Actions\Action::make('transactions')->label(__('Transactions'))->icon('heroicon-o-queue-list')->color('gray')
                 ->visible(fn () => \App\Filament\Pages\PartyTransactionsPage::canAccess())
                 ->url(fn () => \App\Filament\Pages\PartyTransactionsPage::getUrl().'?party='.$this->record->getKey()),
         ];

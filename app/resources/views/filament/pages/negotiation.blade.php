@@ -9,8 +9,8 @@
 
     <div class="grid gap-6 lg:grid-cols-3">
         <x-filament::section class="lg:col-span-1">
-            <x-slot name="heading">Vehicles in negotiation</x-slot>
-            <x-slot name="description">In token order. Choose one to see its timeline.</x-slot>
+            <x-slot name="heading">{{ __('Vehicles in negotiation') }}</x-slot>
+            <x-slot name="description">{{ __('In token order. Choose one to see its timeline.') }}</x-slot>
             @forelse ($vehicles as $v)
                 <button type="button" wire:click="choose('{{ $v['id'] }}')"
                     @class([
@@ -25,23 +25,23 @@
                     <div class="text-xs text-gray-500">{{ $v['party'] }} — {{ $v['stage'] }}</div>
                 </button>
             @empty
-                <p class="text-sm text-gray-500">No vehicle is being negotiated now.</p>
+                <p class="text-sm text-gray-500">{{ __('No vehicle is being negotiated now.') }}</p>
             @endforelse
         </x-filament::section>
 
         <div class="space-y-6 lg:col-span-2">
             @if ($entry === null)
-                <x-filament::section><p class="text-sm text-gray-500">Choose a vehicle on the left.</p></x-filament::section>
+                <x-filament::section><p class="text-sm text-gray-500">{{ __('Choose a vehicle on the left.') }}</p></x-filament::section>
             @else
                 @php($lab = $this->labReport())
                 <x-filament::section>
                     <x-slot name="heading">{{ $entry->token_no !== null || $entry->token_serial !== null ? 'Token '.$entry->tokenLabel().' · ' : '' }}{{ $entry->vehicleLabel() }}</x-slot>
                     <x-slot name="description">{{ $entry->number }} · {{ $entry->party->name ?? '—' }} · {{ $entry->product->name ?? '—' }} · sauda {{ $entry->sauda->number ?? '—' }}</x-slot>
                     <dl class="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-                        <div><dt class="text-xs text-gray-500">Loaded (gross)</dt><dd class="font-mono">{{ $entry->gross_kg !== null ? number_format((float) $entry->gross_kg, 0).' kg' : '—' }}</dd></div>
-                        <div><dt class="text-xs text-gray-500">Empty (tare)</dt><dd class="font-mono">{{ $entry->tare_kg !== null ? number_format((float) $entry->tare_kg, 0).' kg' : '—' }}</dd></div>
-                        <div><dt class="text-xs text-gray-500">Net</dt><dd class="font-mono font-semibold">{{ $entry->net_kg !== null ? number_format((float) $entry->net_kg, 0).' kg' : '—' }}</dd></div>
-                        <div><dt class="text-xs text-gray-500">Payable</dt><dd class="font-mono font-semibold">{{ $entry->payable_kg !== null ? number_format((float) $entry->payable_kg, 0).' kg' : '—' }}</dd></div>
+                        <div><dt class="text-xs text-gray-500">{{ __('Loaded (gross)') }}</dt><dd class="font-mono">{{ $entry->gross_kg !== null ? number_format((float) $entry->gross_kg, 0).' kg' : '—' }}</dd></div>
+                        <div><dt class="text-xs text-gray-500">{{ __('Empty (tare)') }}</dt><dd class="font-mono">{{ $entry->tare_kg !== null ? number_format((float) $entry->tare_kg, 0).' kg' : '—' }}</dd></div>
+                        <div><dt class="text-xs text-gray-500">{{ __('Net') }}</dt><dd class="font-mono font-semibold">{{ $entry->net_kg !== null ? number_format((float) $entry->net_kg, 0).' kg' : '—' }}</dd></div>
+                        <div><dt class="text-xs text-gray-500">{{ __('Payable') }}</dt><dd class="font-mono font-semibold">{{ $entry->payable_kg !== null ? number_format((float) $entry->payable_kg, 0).' kg' : '—' }}</dd></div>
                     </dl>
                     @if ($lab['test'] !== null)
                         <div class="mt-4 border-t border-gray-200 pt-3 text-sm dark:border-white/10">
@@ -52,14 +52,14 @@
                                 @endforeach
                             </ul>
                             @if ($lab['rejected_reason'])
-                                <div class="mt-2 rounded-lg bg-danger-50 p-2 text-danger-700 dark:bg-danger-500/10 dark:text-danger-400"><strong>Rejected because:</strong> {{ $lab['rejected_reason'] }}</div>
+                                <div class="mt-2 rounded-lg bg-danger-50 p-2 text-danger-700 dark:bg-danger-500/10 dark:text-danger-400"><strong>{{ __('Rejected because:') }}</strong> {{ $lab['rejected_reason'] }}</div>
                             @endif
                         </div>
                     @endif
                 </x-filament::section>
 
                 <x-filament::section>
-                    <x-slot name="heading">Timeline</x-slot>
+                    <x-slot name="heading">{{ __('Timeline') }}</x-slot>
                     <x-slot name="description">Every price and Caat proposal and decision, with when, who and why. Nothing is changed afterwards; each step is its own record.</x-slot>
                     @php($timeline = $this->timeline())
                     @if ($timeline === [])

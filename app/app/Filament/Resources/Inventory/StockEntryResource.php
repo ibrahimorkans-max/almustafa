@@ -16,6 +16,8 @@ use Filament\Tables\Table;
 /** The stock ledger: every movement ever, append-only. Corrections show as reversal rows. */
 class StockEntryResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = StockEntry::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-queue-list';
@@ -42,22 +44,22 @@ class StockEntryResource extends Resource
         return $table
             ->modifyQueryUsing(fn ($query) => $query->with(['product', 'godown']))
             ->columns([
-                TextColumn::make('occurred_at')->label('When')->dateTime('d M Y H:i')->sortable(),
-                TextColumn::make('product.name')->label('Product'),
-                TextColumn::make('godown.name')->label('Godown'),
+                TextColumn::make('occurred_at')->label(__('When'))->dateTime('d M Y H:i')->sortable(),
+                TextColumn::make('product.name')->label(__('Product')),
+                TextColumn::make('godown.name')->label(__('Godown')),
                 TextColumn::make('movement')->badge()->formatStateUsing(fn (string $state) => self::MOVEMENTS[$state] ?? $state)
                     ->color(fn (string $state) => match ($state) {
                         'reversal', 'adjustment' => 'warning', 'receipt', 'production_output', 'transfer_in' => 'success', default => 'gray',
                     }),
                 TextColumn::make('quantity_kg')->label('kg')->alignEnd()->fontFamily('mono')
                     ->color(fn (string $state) => str_starts_with($state, '-') ? 'danger' : 'success'),
-                TextColumn::make('note')->label('Reference')->limit(40)->placeholder('—'),
+                TextColumn::make('note')->label(__('Reference'))->limit(40)->placeholder('—'),
             ])
             ->defaultSort('occurred_at', 'desc')
             ->filters([
-                SelectFilter::make('product_id')->label('Product')->searchable()->options(fn () => Product::query()->orderBy('name')->pluck('name', 'id')),
-                SelectFilter::make('godown_id')->label('Godown')->options(fn () => Godown::query()->orderBy('code')->pluck('name', 'id')),
-                SelectFilter::make('movement')->options(self::MOVEMENTS),
+                SelectFilter::make('product_id')->label(__('Product'))->searchable()->options(fn () => Product::query()->orderBy('name')->pluck('name', 'id')),
+                SelectFilter::make('godown_id')->label(__('Godown'))->options(fn () => Godown::query()->orderBy('code')->pluck('name', 'id')),
+                SelectFilter::make('movement')->options(\App\Support\Locales::options(self::MOVEMENTS)),
             ]);
     }
 

@@ -22,10 +22,10 @@
         <source srcset="{{ asset(config('ricemill.product.logo_dark')) }}" media="(prefers-color-scheme: dark)">
         <img src="{{ asset(config('ricemill.product.logo')) }}" alt="{{ config('ricemill.product.name') }}" style="height:48px;width:auto">
     </picture>
-    <h1>Under maintenance</h1>
+    <h1>{{ __('Under maintenance') }}</h1>
     <p>{{ $message }}</p>
     <p><strong>Expected back at {{ $back->format('g:i A') }} PKT{{ $back->isToday() ? '' : ' on '.$back->format('d M Y') }}.</strong></p>
-    <p class="muted">Phones, tablets and the weighbridge keep recording offline and will sync automatically afterwards. Nothing is lost.</p>
+    <p class="muted">{{ __('Phones, tablets and the weighbridge keep recording offline and will sync automatically afterwards. Nothing is lost.') }}</p>
 </main>
 </body>
 </html>

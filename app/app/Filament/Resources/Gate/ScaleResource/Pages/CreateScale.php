@@ -9,5 +9,7 @@ use Filament\Resources\Pages\CreateRecord;
 
 class CreateScale extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = ScaleResource::class;
 }

@@ -9,6 +9,8 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListWeighmentChecks extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = WeighmentCheckResource::class;
 
     protected ?string $subheading = 'Every recorded weight, how it was taken and its evidence. Mark each one OK, or query it with a note. Nobody checks a weight they recorded.';

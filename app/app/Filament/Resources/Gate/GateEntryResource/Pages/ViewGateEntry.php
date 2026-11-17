@@ -53,6 +53,8 @@ use Illuminate\Validation\ValidationException;
  */
 class ViewGateEntry extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = GateEntryResource::class;
 
     protected function getHeaderActions(): array
@@ -90,7 +92,7 @@ class ViewGateEntry extends ViewRecord
                     return $fill;
                 })
                 ->form(fn (GateEntry $e): array => [
-                    Textarea::make('correction_reason')->label('Why is the result corrected?')->maxLength(500)
+                    Textarea::make('correction_reason')->label(__('Why is the result corrected?'))->maxLength(500)
                         ->visible(fn () => LabTest::query()->where('gate_entry_id', $e->id)->exists())
                         ->required(fn () => GateEvent::query()->where('gate_entry_id', $e->id)->whereIn('event', ['lab_accepted', 'lab_rejected'])->exists()),
                     TextInput::make('sample_code')->maxLength(40),
@@ -111,56 +113,56 @@ class ViewGateEntry extends ViewRecord
                     }
                     $this->run(fn (GateService $g) => $g->recordLabTest($e, $values), filled($data['correction_reason'] ?? null) ? 'Lab result corrected' : 'Lab test recorded');
                 }),
-            Action::make('accept')->label('Lab: accept')->color('success')->icon('heroicon-o-check')
+            Action::make('accept')->label(__('Lab: accept'))->color('success')->icon('heroicon-o-check')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $can('lab.decide') && GatePolicy::labOpen($e) && LabTest::query()->where('gate_entry_id', $e->id)->exists()
                     && app(LabStandards::class)->overGrace($e) === [])
-                ->form([Textarea::make('note')->label('Note (required if above a reject limit)')->maxLength(1000)])
+                ->form([Textarea::make('note')->label(__('Note (required if above a reject limit)'))->maxLength(1000)])
                 ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->decideLab($e, true, $data['note'] ?? null), 'Lot accepted')),
-            Action::make('reject')->label('Lab: reject')->color('danger')->icon('heroicon-o-x-mark')
+            Action::make('reject')->label(__('Lab: reject'))->color('danger')->icon('heroicon-o-x-mark')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $can('lab.decide') && GatePolicy::labOpen($e) && LabTest::query()->where('gate_entry_id', $e->id)->exists()
                     && $latestDecision($e) !== 'lab_rejected')
                 ->form([Textarea::make('note')->required()->maxLength(1000)])
                 ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->decideLab($e, false, $data['note']), 'Lot rejected')),
             // Negotiation: the lab sends the lot to the Owner / purchase approver, who approves (it goes to the weighbridge) or not.
-            Action::make('negotiate')->label('Lab: negotiation')->color('warning')->icon('heroicon-o-scale')
+            Action::make('negotiate')->label(__('Lab: negotiation'))->color('warning')->icon('heroicon-o-scale')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $can('lab.decide') && GatePolicy::labOpen($e) && LabTest::query()->where('gate_entry_id', $e->id)->exists()
                     && ! in_array($e->labOutcome(), ['negotiation_pending', 'accepted', 'negotiation_approved'], true))
-                ->form([Textarea::make('note')->label('What is to be negotiated (results, proposed rate or deduction)')->required()->minLength(5)->maxLength(1000)])
+                ->form([Textarea::make('note')->label(__('What is to be negotiated (results, proposed rate or deduction)'))->required()->minLength(5)->maxLength(1000)])
                 ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->openNegotiation($e, $data['note']), 'Sent to negotiation')),
-            Action::make('negotiationApproved')->label('Negotiation approved')->color('success')->icon('heroicon-o-hand-thumb-up')
+            Action::make('negotiationApproved')->label(__('Negotiation approved'))->color('success')->icon('heroicon-o-hand-thumb-up')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $can('purchase.approve') && $e->labOutcome() === 'negotiation_pending')
-                ->modalDescription('The lot is taken in on the terms agreed (propose and accept the price first if it changes) and goes to the weighbridge.')
-                ->form([Textarea::make('note')->label('Terms agreed (rate, deductions)')->required()->minLength(5)->maxLength(1000)])
+                ->modalDescription(__('The lot is taken in on the terms agreed (propose and accept the price first if it changes) and goes to the weighbridge.'))
+                ->form([Textarea::make('note')->label(__('Terms agreed (rate, deductions)'))->required()->minLength(5)->maxLength(1000)])
                 ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->closeNegotiation($e, true, $data['note']), 'Negotiation approved')),
-            Action::make('negotiationFailed')->label('Negotiation failed')->color('danger')->icon('heroicon-o-hand-thumb-down')
+            Action::make('negotiationFailed')->label(__('Negotiation failed'))->color('danger')->icon('heroicon-o-hand-thumb-down')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $can('purchase.approve') && $e->labOutcome() === 'negotiation_pending')
-                ->form([Textarea::make('note')->label('Why it failed')->required()->minLength(5)->maxLength(1000)])
+                ->form([Textarea::make('note')->label(__('Why it failed'))->required()->minLength(5)->maxLength(1000)])
                 ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->closeNegotiation($e, false, $data['note']), 'Negotiation failed: lot rejected')),
-            Action::make('overrideWeigh')->label('Weigh without lab acceptance')->color('danger')->icon('heroicon-o-shield-exclamation')
+            Action::make('overrideWeigh')->label(__('Weigh without lab acceptance'))->color('danger')->icon('heroicon-o-shield-exclamation')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $can('weighment.override') && WeighModes::of($e) === WeighModes::LAB_FIRST && $e->gross_kg === null
                     && in_array($e->labOutcome(), ['rejected', 'negotiation_pending', 'negotiation_failed'], true) && ! $has($e, 'weigh_override'))
-                ->modalDescription('Recorded with your name and reason; the lot may then be weighed loaded. It is still not unloaded unless the lab accepts it.')
+                ->modalDescription(__('Recorded with your name and reason; the lot may then be weighed loaded. It is still not unloaded unless the lab accepts it.'))
                 ->form([Textarea::make('reason')->required()->minLength(10)->maxLength(1000)])
                 ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->overrideWeighing($e, $data['reason']), 'Override recorded')),
             ...NegotiationActions::prices(fn (callable $step, string $ok) => $this->run($step, $ok)),
-            Action::make('unloaded')->label('Mark unloaded')->icon('heroicon-o-arrow-down-tray')
+            Action::make('unloaded')->label(__('Mark unloaded'))->icon('heroicon-o-arrow-down-tray')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $e->direction === 'inbound' && $can('gate.entry') && ! $has($e, 'unloaded'))
-                ->modalDescription('The slip will book the net weight into this godown. Rejected bags go back on the vehicle: its empty weight then carries them, so only the paddy unloaded is accepted.')
+                ->modalDescription(__('The slip will book the net weight into this godown. Rejected bags go back on the vehicle: its empty weight then carries them, so only the paddy unloaded is accepted.'))
                 ->form([
-                    Select::make('godown_id')->label('Unloaded into')->required()
+                    Select::make('godown_id')->label(__('Unloaded into'))->required()
                         ->options(fn () => Godown::query()->where('status', 'active')->orderBy('code')->get()->mapWithKeys(fn (Godown $g) => [$g->id => "{$g->code} — {$g->name}"])),
-                    Select::make('contractor_party_id')->label('Unloaded by (labour contractor)')->searchable()
-                        ->options(fn () => ContractorBillResource::contractors())->helperText('Paid at the contractor\'s rate (HR → Contractor rates).'),
-                    Toggle::make('rejected')->label('Some paddy rejected while unloading')->live(),
-                    TextInput::make('rejected_kg')->label('Rejected weight (kg)')->regex(Units::DECIMAL_3)
+                    Select::make('contractor_party_id')->label(__('Unloaded by (labour contractor)'))->searchable()
+                        ->options(fn () => ContractorBillResource::contractors())->helperText(__('Paid at the contractor\'s rate (HR → Contractor rates).')),
+                    Toggle::make('rejected')->label(__('Some paddy rejected while unloading'))->live(),
+                    TextInput::make('rejected_kg')->label(__('Rejected weight (kg)'))->regex(Units::DECIMAL_3)
                         ->visible(fn (Get $get) => (bool) $get('rejected'))
                         ->required(fn (Get $get) => (bool) $get('rejected') && ($get('rejected_where') === 'off' || blank($get('rejected_bags')))),
-                    TextInput::make('rejected_bags')->label('Rejected bags (if counted)')->integer()->minValue(1)
+                    TextInput::make('rejected_bags')->label(__('Rejected bags (if counted)'))->integer()->minValue(1)
                         ->visible(fn (Get $get) => (bool) $get('rejected')),
-                    Radio::make('rejected_where')->label('At the empty weighing, the rejected paddy is')->default('on')->live()
-                        ->options(['on' => 'Still on the vehicle (net comes out as the paddy unloaded by itself)', 'off' => 'Taken off and kept aside (its weight is subtracted from net)'])
+                    Radio::make('rejected_where')->label(__('At the empty weighing, the rejected paddy is'))->default('on')->live()
+                        ->options(['on' => __('Still on the vehicle (net comes out as the paddy unloaded by itself)'), 'off' => __('Taken off and kept aside (its weight is subtracted from net)')])
                         ->visible(fn (Get $get) => (bool) $get('rejected'))->required(fn (Get $get) => (bool) $get('rejected')),
-                    Textarea::make('rejection_reason')->label('Why')->minLength(5)->maxLength(300)
+                    Textarea::make('rejection_reason')->label(__('Why'))->minLength(5)->maxLength(300)
                         ->visible(fn (Get $get) => (bool) $get('rejected'))->required(fn (Get $get) => (bool) $get('rejected')),
                 ])
                 ->action(fn (GateEntry $e, array $data) => $this->run(
@@ -173,48 +175,48 @@ class ViewGateEntry extends ViewRecord
                     'Marked unloaded',
                 )),
             // A vehicle belongs to one contractor: linked once, never moved to another.
-            Action::make('contractor')->label('Link contractor')->icon('heroicon-o-user-group')->color('gray')
+            Action::make('contractor')->label(__('Link contractor'))->icon('heroicon-o-user-group')->color('gray')
                 ->visible(fn (GateEntry $e) => $can('gate.entry') && $e->contractor_party_id === null && $e->status !== 'cancelled' && ($has($e, 'unloaded') || $has($e, 'loaded')))
                 ->fillForm(fn (GateEntry $e) => ['work' => $e->direction === 'outbound' ? 'loading' : 'unloading'])
                 ->form([
-                    Select::make('contractor_party_id')->label('Contractor')->required()->searchable()->options(fn () => ContractorBillResource::contractors())
-                        ->helperText('Once linked, the vehicle stays with this contractor.'),
-                    Select::make('work')->options(ContractorRate::WORK)->required(),
+                    Select::make('contractor_party_id')->label(__('Contractor'))->required()->searchable()->options(fn () => ContractorBillResource::contractors())
+                        ->helperText(__('Once linked, the vehicle stays with this contractor.')),
+                    Select::make('work')->options(\App\Support\Locales::options(ContractorRate::WORK))->required(),
                 ])
                 ->action(fn (GateEntry $e, array $data) => $this->run(fn () => app(ContractorVehicles::class)->assign([$e],
                     Party::query()->findOrFail($data['contractor_party_id']), (string) $data['work']), 'Contractor linked')),
-            Action::make('unlinkContractor')->label('Take off contractor')->icon('heroicon-o-user-minus')->color('danger')
+            Action::make('unlinkContractor')->label(__('Take off contractor'))->icon('heroicon-o-user-minus')->color('danger')
                 ->visible(fn (GateEntry $e) => $e->contractor_party_id !== null && $e->contractor_bill_id === null && SelfApproval::allowed($this->me()))
-                ->requiresConfirmation()->modalDescription('Only for a link made by mistake (before the contractor is billed). It is kept in the audit log.')
+                ->requiresConfirmation()->modalDescription(__('Only for a link made by mistake (before the contractor is billed). It is kept in the audit log.'))
                 ->action(fn (GateEntry $e) => $this->run(fn () => app(ContractorVehicles::class)->assign([$e], null), 'Contractor taken off')),
-            Action::make('correctVehicle')->label('Correct vehicle number')->icon('heroicon-o-pencil-square')->color('gray')
+            Action::make('correctVehicle')->label(__('Correct vehicle number'))->icon('heroicon-o-pencil-square')->color('gray')
                 ->visible(fn (GateEntry $e) => $can('gate.entry') && $e->status !== 'cancelled')
-                ->modalDescription('For a number typed wrong at the gate. The weights stay; the correction is kept in the timeline and the audit log.')
+                ->modalDescription(__('For a number typed wrong at the gate. The weights stay; the correction is kept in the timeline and the audit log.'))
                 ->fillForm(fn (GateEntry $e) => ['registration_no' => $e->no_plate ? null : $e->registration_no])
                 ->form([
-                    TextInput::make('registration_no')->label('Correct vehicle number')->required()->maxLength(20)->placeholder('MNA-21-1234'),
+                    TextInput::make('registration_no')->label(__('Correct vehicle number'))->required()->maxLength(20)->placeholder(__('MNA-21-1234')),
                     Textarea::make('reason')->required()->minLength(5)->maxLength(300),
                 ])
                 ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->correctVehicle($e, (string) $data['registration_no'], (string) $data['reason']), 'Vehicle number corrected')),
-            Action::make('quarantine')->label('Hold rejected lot (quarantine)')->icon('heroicon-o-lock-closed')->color('warning')
+            Action::make('quarantine')->label(__('Hold rejected lot (quarantine)'))->icon('heroicon-o-lock-closed')->color('warning')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $can('gate.entry') && $latestDecision($e) === 'lab_rejected'
                     && ! in_array('held_quarantine', $e->flags ?? [], true))
-                ->modalDescription('While it is negotiated, the lot is kept apart. It is not stock and is not billed until accepted after negotiation.')
+                ->modalDescription(__('While it is negotiated, the lot is kept apart. It is not stock and is not billed until accepted after negotiation.'))
                 ->form([
-                    TextInput::make('location')->label('Where it is held')->required()->maxLength(120),
+                    TextInput::make('location')->label(__('Where it is held'))->required()->maxLength(120),
                     Textarea::make('note')->maxLength(1000),
                 ])
                 ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->holdRejectedLot($e, $data['location'], $data['note'] ?? null), 'Lot held apart')),
             ...NegotiationActions::settlement(fn (callable $step, string $ok) => $this->run($step, $ok)),
-            Action::make('slip')->label('Issue weighment slip')->icon('heroicon-o-document-text')->color('primary')
+            Action::make('slip')->label(__('Issue weighment slip'))->icon('heroicon-o-document-text')->color('primary')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $can('weighment.capture') && ! $has($e, 'slip_issued') && $e->gross_kg !== null && $e->tare_kg !== null
                     && ($e->direction !== 'inbound' || $settled($e) || $latestDecision($e) !== 'lab_accepted'))
                 ->requiresConfirmation()
-                ->modalDescription('Freezes gross, tare, net and the settled Caat, books the payable weight on the sauda and into the godown, and drafts the purchase bill.')
+                ->modalDescription(__('Freezes gross, tare, net and the settled Caat, books the payable weight on the sauda and into the godown, and drafts the purchase bill.'))
                 ->action(fn (GateEntry $e) => $this->run(fn (GateService $g) => $g->issueSlip($e), 'Slip issued')),
             PrintButton::dialog('printSlip', 'Print slip', fn (GateEntry $e) => [app(SlipRenderer::class)->pdf($e), str_replace('/', '-', (string) $e->number).'.pdf'])
                 ->visible(fn (GateEntry $e) => $has($e, 'slip_issued')),
-            Action::make('download')->label('Download slip (PDF)')->icon('heroicon-o-arrow-down-tray')->color('gray')
+            Action::make('download')->label(__('Download slip (PDF)'))->icon('heroicon-o-arrow-down-tray')->color('gray')
                 ->visible(fn (GateEntry $e) => $has($e, 'slip_issued'))
                 ->action(fn (GateEntry $e) => response()->streamDownload(
                     fn () => print app(SlipRenderer::class)->pdf($e),
@@ -222,15 +224,15 @@ class ViewGateEntry extends ViewRecord
                     ['Content-Type' => 'application/pdf'],
                 )),
             // Mode 3: the weight-only slip at once, the final slip after the lab; every slip given stays downloadable.
-            Action::make('initialSlip')->label('Weight-only slip')->icon('heroicon-o-document')->color('primary')
+            Action::make('initialSlip')->label(__('Weight-only slip'))->icon('heroicon-o-document')->color('primary')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $can('weighment.capture') && WeighModes::of($e) === WeighModes::WEIGH_FIRST_LAB_LATER
                     && $e->gross_kg !== null && ! GateSlipVersion::query()->where('gate_entry_id', $e->id)->exists())
-                ->requiresConfirmation()->modalDescription('Gives the slip with the weight taken so far; the final slip with the lab result follows as a new version (both are kept).')
+                ->requiresConfirmation()->modalDescription(__('Gives the slip with the weight taken so far; the final slip with the lab result follows as a new version (both are kept).'))
                 ->action(fn (GateEntry $e) => $this->run(fn (GateService $g) => $g->issueInitialSlip($e), 'Weight-only slip given')),
-            Action::make('slipVersions')->label('All slips given')->icon('heroicon-o-document-duplicate')->color('gray')
+            Action::make('slipVersions')->label(__('All slips given'))->icon('heroicon-o-document-duplicate')->color('gray')
                 ->visible(fn (GateEntry $e) => GateSlipVersion::query()->where('gate_entry_id', $e->id)->count() > 1
                     || GateSlipVersion::query()->where('gate_entry_id', $e->id)->where('kind', GateSlipVersion::INITIAL)->exists())
-                ->form([Select::make('version')->label('Slip')->required()->options(fn (GateEntry $e) => GateSlipVersion::query()->where('gate_entry_id', $e->id)->orderBy('version')->get()
+                ->form([Select::make('version')->label(__('Slip'))->required()->options(fn (GateEntry $e) => GateSlipVersion::query()->where('gate_entry_id', $e->id)->orderBy('version')->get()
                     ->mapWithKeys(fn (GateSlipVersion $s) => [$s->version => 'Version '.$s->version.' — '.($s->kind === GateSlipVersion::INITIAL ? 'weight only' : 'final')
                         .' — '.$s->issued_at->timezone('Asia/Karachi')->format('d M Y H:i')])->all())])
                 ->action(fn (GateEntry $e, array $data) => response()->streamDownload(
@@ -238,10 +240,10 @@ class ViewGateEntry extends ViewRecord
                     str_replace('/', '-', (string) $e->number).'-v'.(int) $data['version'].'.pdf',
                     ['Content-Type' => 'application/pdf'],
                 )),
-            Action::make('loaded')->label('Mark loaded')->icon('heroicon-o-arrow-up-tray')
+            Action::make('loaded')->label(__('Mark loaded'))->icon('heroicon-o-arrow-up-tray')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $e->direction === 'outbound' && $e->dispatch_order_id !== null && $can('dispatch.manage') && ! $has($e, 'loaded'))
-                ->modalDescription('Loaded from the dispatch order\'s godown. Stock leaves the godown when the slip is issued.')
-                ->form([TextInput::make('bag_count')->label('Bags loaded')->integer()->minValue(0)])
+                ->modalDescription(__('Loaded from the dispatch order\'s godown. Stock leaves the godown when the slip is issued.'))
+                ->form([TextInput::make('bag_count')->label(__('Bags loaded'))->integer()->minValue(0)])
                 ->action(fn (GateEntry $e, array $data) => $this->run(
                     fn (GateService $g) => $g->markLoaded($e, filled($data['bag_count'] ?? null) ? (int) $data['bag_count'] : null),
                     'Marked loaded',
@@ -249,15 +251,15 @@ class ViewGateEntry extends ViewRecord
             WhatsAppFileButton::header('whatsappSlip', fn (GateEntry $e) => ['party' => $e->party, 'name' => $e->partyLabel(), 'document' => 'weighment slip',
                 'number' => (string) $e->number, 'file' => str_replace('/', '-', (string) $e->number).'.pdf', 'pdf' => fn () => app(SlipRenderer::class)->pdf($e)],
                 fn (GateEntry $e) => $has($e, 'slip_issued')),
-            Action::make('gatePass')->label('Issue gate pass')->icon('heroicon-o-ticket')->color('primary')
+            Action::make('gatePass')->label(__('Issue gate pass'))->icon('heroicon-o-ticket')->color('primary')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $e->direction === 'outbound' && $e->dispatch_order_id !== null
                     && $can('gatepass.issue') && $has($e, 'slip_issued') && ! $has($e, 'gate_pass_issued'))
                 ->requiresConfirmation()
-                ->modalDescription('Needs the posted tax invoice. The barrier lets the vehicle out only with a gate pass.')
+                ->modalDescription(__('Needs the posted tax invoice. The barrier lets the vehicle out only with a gate pass.'))
                 ->action(fn (GateEntry $e) => $this->run(fn (GateService $g) => $g->issueGatePass($e), 'Gate pass issued')),
             PrintButton::dialog('printGatePass', 'Print gate pass', fn (GateEntry $e) => [app(SalesDocuments::class)->gatePassPdf($e), 'gate-pass-'.str_replace('/', '-', (string) $e->number).'.pdf'])
                 ->visible(fn (GateEntry $e) => $has($e, 'gate_pass_issued')),
-            Action::make('gatePassPdf')->label('Gate pass (PDF)')->icon('heroicon-o-arrow-down-tray')->color('gray')
+            Action::make('gatePassPdf')->label(__('Gate pass (PDF)'))->icon('heroicon-o-arrow-down-tray')->color('gray')
                 ->visible(fn (GateEntry $e) => $has($e, 'gate_pass_issued'))
                 ->action(fn (GateEntry $e) => response()->streamDownload(
                     fn () => print app(SalesDocuments::class)->gatePassPdf($e),
@@ -266,30 +268,30 @@ class ViewGateEntry extends ViewRecord
                 )),
             WhatsAppFileButton::header('whatsappGatePass', fn (GateEntry $e) => ['party' => $e->party, 'name' => $e->partyLabel(), 'document' => 'gate pass',
                 'number' => (string) $e->number, 'file' => 'gate-pass-'.str_replace('/', '-', (string) $e->number).'.pdf', 'pdf' => fn () => app(SalesDocuments::class)->gatePassPdf($e)],
-                fn (GateEntry $e) => $has($e, 'gate_pass_issued'))->label('Send gate pass on WhatsApp'),
-            Action::make('exit')->label('Vehicle left')->icon('heroicon-o-arrow-right-start-on-rectangle')
+                fn (GateEntry $e) => $has($e, 'gate_pass_issued'))->label(__('Send gate pass on WhatsApp')),
+            Action::make('exit')->label(__('Vehicle left'))->icon('heroicon-o-arrow-right-start-on-rectangle')
                 ->visible(fn (GateEntry $e) => $e->isOpen() && $can('gate.entry'))
                 ->requiresConfirmation()
                 ->action(fn (GateEntry $e) => $this->run(fn (GateService $g) => $g->exit($e), 'Exit recorded')),
             ActionGroup::make([
-                Action::make('token80')->label('Token slip — 80 mm roll')
+                Action::make('token80')->label(__('Token slip — 80 mm roll'))
                     ->url(fn (GateEntry $e) => route('filament.admin.gate.token', ['id' => $e->id, 'paper' => 'roll']), shouldOpenInNewTab: true),
-                Action::make('token50')->label('Token slip — 50 mm roll')
+                Action::make('token50')->label(__('Token slip — 50 mm roll'))
                     ->url(fn (GateEntry $e) => route('filament.admin.gate.token', ['id' => $e->id, 'paper' => 'roll50']), shouldOpenInNewTab: true),
-                Action::make('tokenA4')->label('Token — A4 paper')
+                Action::make('tokenA4')->label(__('Token — A4 paper'))
                     ->url(fn (GateEntry $e) => route('filament.admin.gate.token', ['id' => $e->id, 'paper' => 'a4']), shouldOpenInNewTab: true),
-                Action::make('tokenPdf')->label('Download token (PDF)')->icon('heroicon-o-arrow-down-tray')
+                Action::make('tokenPdf')->label(__('Download token (PDF)'))->icon('heroicon-o-arrow-down-tray')
                     ->url(fn (GateEntry $e) => route('filament.admin.gate.token', ['id' => $e->id, 'paper' => 'a4', 'download' => 1])),
             ])->label(fn (GateEntry $e) => 'Print token '.$e->tokenLabel())->icon('heroicon-o-ticket')->color('gray')->button()
                 ->visible(fn (GateEntry $e) => $e->token_no !== null || $e->token_serial !== null),
             AttachmentsPanel::action(),
             ActionGroup::make([
-                Action::make('manualWeight')->label('Enter manual weight (Owner / Super Admin)')->icon('heroicon-o-exclamation-triangle')->color('danger')
+                Action::make('manualWeight')->label(__('Enter manual weight (Owner / Super Admin)'))->icon('heroicon-o-exclamation-triangle')->color('danger')
                     ->visible(fn (GateEntry $e) => $e->isOpen() && SelfApproval::allowed($this->me()) && $can('weighment.override'))
-                    ->modalDescription('Only when the indicator cannot be read. Needs a reason; the weight stays marked as manual and goes to the weight checks.')
+                    ->modalDescription(__('Only when the indicator cannot be read. Needs a reason; the weight stays marked as manual and goes to the weight checks.'))
                     ->form([
-                        Select::make('kind')->options(['gross' => 'Gross', 'tare' => 'Tare'])->required(),
-                        TextInput::make('weight_kg')->label('Weight (kg)')->required()->regex(Units::DECIMAL_3),
+                        Select::make('kind')->options(['gross' => __('Gross'), 'tare' => __('Tare')])->required(),
+                        TextInput::make('weight_kg')->label(__('Weight (kg)'))->required()->regex(Units::DECIMAL_3),
                         Textarea::make('reason')->required()->minLength(10)->maxLength(1000),
                     ])
                     ->action(function (GateEntry $e, array $data): void {
@@ -297,13 +299,13 @@ class ViewGateEntry extends ViewRecord
                             $request = app(ApprovalService::class)->submit(ManualWeighmentOverride::KEY, $data + ['gate_entry_id' => $e->id],
                                 "Manual {$data['kind']} {$data['weight_kg']} kg for {$e->registration_no} ({$e->number})", $data['reason']);
                         } catch (ApprovalDenied|ValidationException $ex) {
-                            Notification::make()->title('Not submitted')->body($ex instanceof ValidationException ? implode(' ', $ex->validator->errors()->all()) : $ex->getMessage())->danger()->send();
+                            Notification::make()->title(__('Not submitted'))->body($ex instanceof ValidationException ? implode(' ', $ex->validator->errors()->all()) : $ex->getMessage())->danger()->send();
 
                             return;
                         }
                         ApprovalNotice::send($request, 'Sent for approval');
                     }),
-                Action::make('cancel')->label('Cancel entry')->color('danger')
+                Action::make('cancel')->label(__('Cancel entry'))->color('danger')
                     ->visible(fn (GateEntry $e) => $e->isOpen() && $can('gate.entry'))
                     ->form([Textarea::make('reason')->required()->maxLength(1000)])
                     ->action(fn (GateEntry $e, array $data) => $this->run(fn (GateService $g) => $g->cancel($e, $data['reason']), 'Entry cancelled')),

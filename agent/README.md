@@ -80,6 +80,21 @@ ricemill-agent --config agent.toml camera-test                         # one pho
 
 Run `sync` from Task Scheduler every minute (or as a service); everything else works without network.
 
+### Start by itself when the PC starts
+
+Once `check` passes, open PowerShell **as administrator** in the agent folder and run once:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install-startup.ps1
+```
+
+It adds two Windows tasks that run as the PC itself, with nobody logged in: **RiceMill Agent - live weight** (at
+start-up, restarted every minute if it stops) and **RiceMill Agent - sync** (every minute). Their output goes to
+`live.log` and `sync.log` in the folder. Close any agent window started by hand. `-Remove` takes the tasks away.
+
+A password the ERP refused is tried again only every 30 minutes (so the agent cannot lock its login out for the
+whole mill); after the office unlocks it, `check` tries it at once.
+
 ## Behaviour that matters
 * No typed weights. A weight is recorded only after a stable window; the server re-checks the evidence and flags
   `stability_unverified`, `no_photo`, `scale_certificate_invalid`, `tare_deviation`.

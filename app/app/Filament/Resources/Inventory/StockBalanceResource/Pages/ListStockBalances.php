@@ -12,12 +12,14 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListStockBalances extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = StockBalanceResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('count')->label('Record physical count')->icon('heroicon-o-clipboard-document-check')
+            Action::make('count')->label(__('Record physical count'))->icon('heroicon-o-clipboard-document-check')
                 ->visible(fn () => Filament::auth()->user()?->can('stock.adjust') ?? false)
                 ->url(StockCountResource::getUrl('index')),
         ];

@@ -37,6 +37,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class AccountsReports extends Page implements HasForms
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-presentation-chart-line';
@@ -109,8 +111,8 @@ class AccountsReports extends Page implements HasForms
     public function form(Form $form): Form
     {
         return $form->columns(4)->statePath('data')->schema([
-            Select::make('report')->options(self::REPORTS)->required()->live()->selectablePlaceholder(false),
-            Select::make('ledger')->label('Ledger')->searchable()->live()
+            Select::make('report')->options(\App\Support\Locales::options(self::REPORTS))->required()->live()->selectablePlaceholder(false),
+            Select::make('ledger')->label(__('Ledger'))->searchable()->live()
                 ->options(fn () => LedgerAccount::query()->orderBy('name')->get()->mapWithKeys(fn (LedgerAccount $l) => [$l->id => $l->displayName()]))
                 ->visible(fn (Get $get) => $get('report') === 'ledger'),
             DatePicker::make('from')->live()->visible(fn (Get $get) => in_array($get('report'), self::RANGED, true)),
@@ -146,12 +148,12 @@ class AccountsReports extends Page implements HasForms
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('reportPdf')->label('PDF')->icon('heroicon-o-printer')
+            Action::make('reportPdf')->label(__('PDF'))->icon('heroicon-o-printer')
                 ->visible(fn () => ($this->data['report'] ?? 'trial_balance') !== 'ledger')
                 ->url(fn () => ReportPrintController::url([self::CATALOG_KEYS[$this->data['report'] ?? 'trial_balance'] ?? 'trial_balance'],
                     in_array($this->data['report'] ?? null, self::RANGED, true) ? ($this->data['from'] ?? null) : ($this->data['to'] ?? null), $this->data['to'] ?? null), shouldOpenInNewTab: true),
-            Action::make('allReports')->label('All reports')->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
-            Action::make('pdf')->label('Ledger statement PDF')->icon('heroicon-o-arrow-down-tray')
+            Action::make('allReports')->label(__('All reports'))->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
+            Action::make('pdf')->label(__('Ledger statement PDF'))->icon('heroicon-o-arrow-down-tray')
                 ->visible(fn () => ExportGuard::allowed() && ($this->data['report'] ?? null) === 'ledger' && filled($this->data['ledger'] ?? null))
                 ->action(fn () => $this->statementPdf()),
         ];

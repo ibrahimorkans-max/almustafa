@@ -20,6 +20,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 /** Monthly sales-tax register (Annex-C) and the s. 153 withholding register, from posted documents only. */
 class SalesTaxReturnsPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
 
     protected static ?string $navigationGroup = 'Reports';
@@ -62,15 +64,15 @@ class SalesTaxReturnsPage extends Page
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('salesPdf')->visible(fn () => ExportGuard::allowed())->label('Annex-C PDF')->icon('heroicon-o-printer')
+            Action::make('salesPdf')->visible(fn () => ExportGuard::allowed())->label(__('Annex-C PDF'))->icon('heroicon-o-printer')
                 ->url(fn () => ReportPrintController::url(['annex_c'], $this->period.'-01', $this->period.'-01'), shouldOpenInNewTab: true),
             IncomeTax::toggleAction(),
-            Action::make('whtPdf')->visible(fn () => ExportGuard::allowed() && IncomeTax::enabled())->label('Withholding PDF')->icon('heroicon-o-printer')->color('gray')
+            Action::make('whtPdf')->visible(fn () => ExportGuard::allowed() && IncomeTax::enabled())->label(__('Withholding PDF'))->icon('heroicon-o-printer')->color('gray')
                 ->url(fn () => ReportPrintController::url(['wht153'], $this->period.'-01', $this->period.'-01'), shouldOpenInNewTab: true),
-            Action::make('allReports')->visible(fn () => ExportGuard::allowed())->label('All reports')->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
-            Action::make('salesCsv')->visible(fn () => ExportGuard::allowed())->label('Annex-C (sales) CSV')->icon('heroicon-o-arrow-down-tray')
+            Action::make('allReports')->visible(fn () => ExportGuard::allowed())->label(__('All reports'))->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
+            Action::make('salesCsv')->visible(fn () => ExportGuard::allowed())->label(__('Annex-C (sales) CSV'))->icon('heroicon-o-arrow-down-tray')
                 ->action(fn () => $this->download('annex-c-'.$this->period.'.csv', $this->salesCsv())),
-            Action::make('whtCsv')->visible(fn () => ExportGuard::allowed() && IncomeTax::enabled())->label('Withholding u/s 153 CSV')->icon('heroicon-o-table-cells')->color('gray')
+            Action::make('whtCsv')->visible(fn () => ExportGuard::allowed() && IncomeTax::enabled())->label(__('Withholding u/s 153 CSV'))->icon('heroicon-o-table-cells')->color('gray')
                 ->action(fn () => $this->download('wht-153-'.$this->period.'.csv', $this->whtCsv())),
         ];
     }

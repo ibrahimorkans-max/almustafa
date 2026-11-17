@@ -4,7 +4,7 @@
     </datalist>
     <div class="mb-1 text-xs font-medium text-gray-500">Waiting (token order) — tap to fill in{{ $waiting !== [] ? ' · '.count($waiting) : '' }}</div>
     @if ($waiting === [])
-        <p class="text-xs text-gray-500">No vehicle is waiting for a weight.</p>
+        <p class="text-xs text-gray-500">{{ __('No vehicle is waiting for a weight.') }}</p>
     @else
         <div class="flex flex-wrap gap-1">
             @foreach (array_slice($waiting, 0, \App\Livewire\WeighQueue::SHOWN) as $w)
