@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 class EditLoginAccount extends EditRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = LoginAccountResource::class;
 
     protected function getHeaderActions(): array

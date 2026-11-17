@@ -20,6 +20,8 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewPurchaseBill extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use RunsDomainActions;
 
     protected static string $resource = PurchaseBillResource::class;
@@ -30,15 +32,15 @@ class ViewPurchaseBill extends ViewRecord
 
         return [
             AttachmentsPanel::action(),
-            Action::make('post')->label('Post to books')->icon('heroicon-o-check')->color('success')
+            Action::make('post')->label(__('Post to books'))->icon('heroicon-o-check')->color('success')
                 ->visible(fn (PurchaseBill $b) => $b->status === PurchaseBill::DRAFT && $can('ledger.post'))
                 ->requiresConfirmation()
-                ->modalDescription('Posts the purchase voucher (party, rate cut, round-off, brokerage). It cannot be edited afterwards, only reversed.')
+                ->modalDescription(__('Posts the purchase voucher (party, rate cut, round-off, brokerage). It cannot be edited afterwards, only reversed.'))
                 ->form([Textarea::make('note')->maxLength(1000)])
                 ->action(fn (PurchaseBill $b, array $data) => $this->runDomain(fn () => app(PurchaseBillService::class)->post($b, $data['note'] ?? null), 'Bill posted')),
             PrintButton::dialog('printBill', 'Print purchase bill', fn (PurchaseBill $b) => [app(AccountsDocuments::class)->purchaseBillPdf($b), str_replace('/', '-', (string) $b->number).'.pdf'])
                 ->visible(fn (PurchaseBill $b) => $b->status === PurchaseBill::POSTED),
-            Action::make('pdf')->label('Download bill (PDF)')->icon('heroicon-o-arrow-down-tray')->color('gray')
+            Action::make('pdf')->label(__('Download bill (PDF)'))->icon('heroicon-o-arrow-down-tray')->color('gray')
                 ->visible(fn (PurchaseBill $b) => $b->status === PurchaseBill::POSTED)
                 ->action(fn (PurchaseBill $b) => response()->streamDownload(
                     fn () => print app(AccountsDocuments::class)->purchaseBillPdf($b),
@@ -48,7 +50,7 @@ class ViewPurchaseBill extends ViewRecord
             WhatsAppFileButton::header('whatsappBill', fn (PurchaseBill $b) => ['party' => $b->party, 'document' => 'purchase bill',
                 'number' => (string) $b->number, 'file' => str_replace('/', '-', (string) $b->number).'.pdf', 'pdf' => fn () => app(AccountsDocuments::class)->purchaseBillPdf($b)],
                 fn (PurchaseBill $b) => $b->status === PurchaseBill::POSTED),
-            Action::make('cancelDraft')->label('Cancel draft')->color('gray')
+            Action::make('cancelDraft')->label(__('Cancel draft'))->color('gray')
                 ->visible(fn (PurchaseBill $b) => $b->status === PurchaseBill::DRAFT && $can('ledger.post'))
                 ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(1000)])
                 ->action(fn (PurchaseBill $b, array $data) => $this->runDomain(fn () => app(PurchaseBillService::class)->cancelDraft($b, $data['reason']), 'Draft cancelled')),

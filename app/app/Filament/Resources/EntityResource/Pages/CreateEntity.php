@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class CreateEntity extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = EntityResource::class;
 
     /** @param  array<string, mixed>  $data */

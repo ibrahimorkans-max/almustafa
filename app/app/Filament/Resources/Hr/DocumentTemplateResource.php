@@ -31,6 +31,8 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 /** Document templates: four layouts per document, the look kept in versions, one default per document. */
 class DocumentTemplateResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = DocumentTemplate::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-swatch';
@@ -47,18 +49,18 @@ class DocumentTemplateResource extends Resource
     public static function settingsForm(): array
     {
         $image = fn (string $name, string $label) => FileUpload::make($name)->label($label)->storeFiles(false)->image()
-            ->acceptedFileTypes(['image/png', 'image/jpeg'])->maxSize(20480)->helperText('PNG with a transparent background prints best. Leave empty to keep the current one.');
+            ->acceptedFileTypes(['image/png', 'image/jpeg'])->maxSize(20480)->helperText(__('PNG with a transparent background prints best. Leave empty to keep the current one.'));
 
         return [
-            TextInput::make('header_text')->label('Line under the title')->maxLength(200),
-            Textarea::make('terms')->label('Terms / notes printed at the end')->maxLength(1000)->rows(3),
-            TextInput::make('footer_text')->label('Footer line')->maxLength(300),
-            ColorPicker::make('accent')->label('Accent colour (empty = brand green)')->regex('/^#[0-9a-fA-F]{6}$/'),
-            Toggle::make('show_ntn')->label('Show NTN / STRN in the letterhead')->default(true),
-            CheckboxList::make('toggles')->label('Shown by default')->columns(2)->options(TemplateRepository::TOGGLES),
+            TextInput::make('header_text')->label(__('Line under the title'))->maxLength(200),
+            Textarea::make('terms')->label(__('Terms / notes printed at the end'))->maxLength(1000)->rows(3),
+            TextInput::make('footer_text')->label(__('Footer line'))->maxLength(300),
+            ColorPicker::make('accent')->label(__('Accent colour (empty = brand green)'))->regex('/^#[0-9a-fA-F]{6}$/'),
+            Toggle::make('show_ntn')->label(__('Show NTN / STRN in the letterhead'))->default(true),
+            CheckboxList::make('toggles')->label(__('Shown by default'))->columns(2)->options(\App\Support\Locales::options(TemplateRepository::TOGGLES)),
             $image('stamp', 'Company stamp'),
             $image('signature', 'Signature image (authorised signatory)'),
-            Textarea::make('note')->label('What changed')->required()->minLength(3)->maxLength(300),
+            Textarea::make('note')->label(__('What changed'))->required()->minLength(3)->maxLength(300),
         ];
     }
 
@@ -100,17 +102,17 @@ class DocumentTemplateResource extends Resource
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query->with('latest'))
             ->columns([
-                TextColumn::make('doc_type')->label('Document')->formatStateUsing(fn (string $state) => DocumentTypes::options()[$state] ?? $state)->sortable(),
+                TextColumn::make('doc_type')->label(__('Document'))->formatStateUsing(fn (string $state) => DocumentTypes::options()[$state] ?? $state)->sortable(),
                 TextColumn::make('name')->searchable(),
                 TextColumn::make('layout')->formatStateUsing(fn (string $state) => DocumentTemplate::LAYOUTS[$state] ?? $state),
-                TextColumn::make('latest.version_no')->label('Version'),
-                IconColumn::make('is_default')->label('Default')->boolean(),
+                TextColumn::make('latest.version_no')->label(__('Version')),
+                IconColumn::make('is_default')->label(__('Default'))->boolean(),
                 TextColumn::make('status')->badge()->color(fn (string $state) => $state === 'active' ? 'success' : 'gray'),
             ])
             ->defaultSort('doc_type')
-            ->filters([SelectFilter::make('doc_type')->label('Document')->options(DocumentTypes::options())])
+            ->filters([SelectFilter::make('doc_type')->label(__('Document'))->options(\App\Support\Locales::options(DocumentTypes::options()))])
             ->actions([
-                Action::make('version')->label('Change look')->icon('heroicon-o-paint-brush')
+                Action::make('version')->label(__('Change look'))->icon('heroicon-o-paint-brush')
                     ->form(self::settingsForm())
                     ->fillForm(fn (DocumentTemplate $record) => ($s = $record->latest->settings ?? TemplateRepository::DEFAULT_SETTINGS) + [
                         'toggles' => array_keys(array_filter((array) ($s['toggles'] ?? []))), 'note' => null,
@@ -118,23 +120,23 @@ class DocumentTemplateResource extends Resource
                     ->action(function (DocumentTemplate $record, array $data) use ($repo): void {
                         try {
                             $v = $repo()->newVersion($record, self::settings($data, $record->latest->settings ?? []), (string) $data['note']);
-                            Notification::make()->title("Version {$v->version_no} saved. Documents already issued keep their version.")->success()->send();
+                            Notification::make()->title(__('Version :version_no saved. Documents already issued keep their version.', ['version_no' => $v->version_no]))->success()->send();
                         } catch (BusinessRuleViolation $e) {
                             Notification::make()->title($e->getMessage())->danger()->send();
                         }
                     }),
-                Action::make('default')->label('Make default')->icon('heroicon-o-star')->color('gray')
+                Action::make('default')->label(__('Make default'))->icon('heroicon-o-star')->color('gray')
                     ->visible(fn (DocumentTemplate $r) => ! $r->is_default && $r->status === 'active')
                     ->action(function (DocumentTemplate $record) use ($repo): void {
                         try {
                             $repo()->makeDefault($record);
-                            Notification::make()->title('Default changed.')->success()->send();
+                            Notification::make()->title(__('Default changed.'))->success()->send();
                         } catch (BusinessRuleViolation $e) {
                             Notification::make()->title($e->getMessage())->danger()->send();
                         }
                     }),
-                Action::make('versions')->label('History')->icon('heroicon-o-clock')->color('gray')
-                    ->modalSubmitAction(false)->modalCancelActionLabel('Close')
+                Action::make('versions')->label(__('History'))->icon('heroicon-o-clock')->color('gray')
+                    ->modalSubmitAction(false)->modalCancelActionLabel(__('Close'))
                     ->modalContent(fn (DocumentTemplate $record) => view('filament.documents.template-versions', [
                         'versions' => DocumentTemplateVersion::query()->where('template_id', $record->id)->orderByDesc('version_no')->get(),
                     ])),

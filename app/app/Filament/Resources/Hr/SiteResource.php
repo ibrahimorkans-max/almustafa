@@ -20,6 +20,8 @@ use Filament\Tables\Table;
 /** Work sites with their geofence (centre + radius) and, optionally, the hours punches are expected. */
 class SiteResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = Site::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-map-pin';
@@ -38,18 +40,18 @@ class SiteResource extends Resource
             TextInput::make('code')->required()->maxLength(20)->regex('/^[A-Za-z0-9._-]+$/')
                 ->unique(ignoreRecord: true, modifyRuleUsing: fn ($rule) => HrScope::inEntity($rule)),
             TextInput::make('name')->required()->maxLength(120),
-            Select::make('kind')->options(Site::KINDS)->required(),
-            TextInput::make('latitude')->required()->numeric()->minValue(-90)->maxValue(90)->helperText('e.g. 29.7891234 (from Google Maps: long-press the spot)'),
+            Select::make('kind')->options(\App\Support\Locales::options(Site::KINDS))->required(),
+            TextInput::make('latitude')->required()->numeric()->minValue(-90)->maxValue(90)->helperText(__('e.g. 29.7891234 (from Google Maps: long-press the spot)')),
             TextInput::make('longitude')->required()->numeric()->minValue(-180)->maxValue(180),
-            TextInput::make('radius_m')->label('Radius (m)')->required()->integer()->minValue(20)->maxValue(5000)->default(150),
-            Repeater::make('time_windows')->label('Working hours (PKT) — leave empty for any time')->columnSpanFull()->columns(3)
+            TextInput::make('radius_m')->label(__('Radius (m)'))->required()->integer()->minValue(20)->maxValue(5000)->default(150),
+            Repeater::make('time_windows')->label(__('Working hours (PKT) — leave empty for any time'))->columnSpanFull()->columns(3)
                 ->defaultItems(0)
                 ->schema([
-                    CheckboxList::make('days')->options(self::DAYS)->columns(7)->required()->columnSpanFull(),
+                    CheckboxList::make('days')->options(\App\Support\Locales::options(self::DAYS))->columns(7)->required()->columnSpanFull(),
                     TimePicker::make('from')->seconds(false)->required(),
-                    TimePicker::make('to')->seconds(false)->required()->helperText('Earlier than "from" = crosses midnight'),
+                    TimePicker::make('to')->seconds(false)->required()->helperText(__('Earlier than "from" = crosses midnight')),
                 ]),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')])->default('active')->required(),
         ]);
     }
 
@@ -60,7 +62,7 @@ class SiteResource extends Resource
                 TextColumn::make('code')->searchable(),
                 TextColumn::make('name')->searchable(),
                 TextColumn::make('kind')->formatStateUsing(fn (string $state) => Site::KINDS[$state] ?? $state),
-                TextColumn::make('radius_m')->label('Radius')->suffix(' m'),
+                TextColumn::make('radius_m')->label(__('Radius'))->suffix(' m'),
                 TextColumn::make('hours')->state(fn (Site $r) => $r->time_windows ? collect($r->time_windows)
                     ->map(fn (array $w) => implode(',', array_map(fn ($d) => self::DAYS[(int) $d] ?? $d, $w['days'] ?? [])).' '.substr((string) $w['from'], 0, 5).'–'.substr((string) $w['to'], 0, 5))
                     ->implode('; ') : 'any time'),

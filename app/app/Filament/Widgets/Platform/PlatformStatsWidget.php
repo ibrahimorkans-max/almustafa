@@ -47,7 +47,7 @@ class PlatformStatsWidget extends StatsOverviewWidget
 
         return [
             Stat::make('Monthly recurring income', Units::paiseToRupees($s['mrr_paise']))
-                ->description('Paying customers at their plan price')->descriptionIcon('heroicon-m-arrow-trending-up')
+                ->description(__('Paying customers at their plan price'))->descriptionIcon('heroicon-m-arrow-trending-up')
                 ->chart($invoiced)->color('primary'),
             Stat::make('Collected this month', Units::paiseToRupees($s['collected_paise']))
                 ->description('Invoiced: '.Units::paiseToRupees($s['invoiced_paise']))->descriptionIcon('heroicon-m-banknotes')
@@ -58,13 +58,13 @@ class PlatformStatsWidget extends StatsOverviewWidget
                 ->color($s['overdue_paise'] > 0 ? 'danger' : 'success')
                 ->url($invoices.'?'.http_build_query(['tableFilters' => ['overdue' => ['isActive' => true]]])),
             Stat::make('Active customers', (string) ($c['active'] + $c['past_due']))
-                ->description("{$c['lifetime']} lifetime · {$c['past_due']} read-only")->descriptionIcon('heroicon-m-building-office-2')
+                ->description(__(':lifetime lifetime · :past_due read-only', ['lifetime' => $c['lifetime'], 'past_due' => $c['past_due']]))->descriptionIcon('heroicon-m-building-office-2')
                 ->color('success')->url(CustomerResource::getUrl()),
             Stat::make('Lifetime customers', (string) $c['lifetime'])
                 ->description('Paid once in all: '.Units::paiseToRupees($s['lifetime_paid_paise']))->descriptionIcon('heroicon-m-sparkles')
                 ->color('primary')->url(CustomerResource::getUrl()),
             Stat::make('On free trial', (string) $c['trial'])
-                ->description("{$c['trial_ended']} ended, waiting to pay · {$s['new_this_month']} new this month")->descriptionIcon('heroicon-m-clock')
+                ->description(__(':trial_ended ended, waiting to pay · :new_this_month new this month', ['trial_ended' => $c['trial_ended'], 'new_this_month' => $s['new_this_month']]))->descriptionIcon('heroicon-m-clock')
                 ->color('info')->url(CustomerResource::getUrl('index', ['tableFilters' => ['status' => ['value' => 'trial']]])),
             Stat::make('Payments to check', (string) $s['reported'])
                 ->description($s['reported'] > 0 ? 'Customers say they have paid' : 'Nothing waiting')->descriptionIcon('heroicon-m-inbox-arrow-down')

@@ -29,15 +29,15 @@
         <source srcset="{{ asset(config('ricemill.product.logo_dark')) }}" media="(prefers-color-scheme: dark)">
         <img src="{{ asset(config('ricemill.product.logo')) }}" alt="{{ config('ricemill.product.name') }}" style="height:48px;width:auto">
     </picture>
-    <h1>You do not have access to this page</h1>
+    <h1>{{ __('You do not have access to this page') }}</h1>
     @if ($detail)
         <p>{{ $detail }}</p>
     @endif
     @if ($role)
-        <p>Your role, <strong>{{ $role }}</strong>, does not include the permission this page needs.</p>
+        <p>{{ __('Your role,') }} <strong>{{ $role }}</strong>{{ __(', does not include the permission this page needs.') }}</p>
     @endif
-    <p class="muted">If you need it for your work, ask an administrator. Role changes need the approval of a second person.</p>
-    <p><a href="{{ url('/admin') }}">Back to the dashboard</a></p>
+    <p class="muted">{{ __('If you need it for your work, ask an administrator. Role changes need the approval of a second person.') }}</p>
+    <p><a href="{{ url('/admin') }}">{{ __('Back to the dashboard') }}</a></p>
 </main>
 </body>
 </html>

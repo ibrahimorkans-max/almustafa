@@ -1,12 +1,12 @@
 <x-filament-panels::page>
     @php($s = $this->getState())
     @if (! $s['mill_chosen'])
-        <x-filament::section>Choose a mill first (top right: Switch entity / account): each mill has its own sender identity.</x-filament::section>
+        <x-filament::section>{{ __('Choose a mill first (top right: Switch entity / account): each mill has its own sender identity.') }}</x-filament::section>
     @else
-        <p class="text-sm text-gray-500">These services are connected and managed by the SaaS owner for every mill. Nothing is connected here, and no keys or passwords are shown.</p>
+        <p class="text-sm text-gray-500">{{ __('These services are connected and managed by the SaaS owner for every mill. Nothing is connected here, and no keys or passwords are shown.') }}</p>
         <x-filament::section heading="Senders: who your messages come from">
             <table class="w-full text-sm">
-                <thead><tr class="text-left text-xs text-gray-500"><th class="py-1 pr-3">Service</th><th class="pr-3">Status</th><th class="pr-3">Your sender identity</th></tr></thead>
+                <thead><tr class="text-left text-xs text-gray-500"><th class="py-1 pr-3">{{ __('Service') }}</th><th class="pr-3">{{ __('Status') }}</th><th class="pr-3">{{ __('Your sender identity') }}</th></tr></thead>
                 <tbody>
                     @foreach (['whatsapp' => 'WhatsApp', 'sms' => 'SMS', 'email' => 'E-mail'] as $ch => $label)
                         @php($row = $s[$ch])
@@ -14,21 +14,21 @@
                             <td class="py-1.5 pr-3 font-medium">{{ $label }}</td>
                             <td class="pr-3">
                                 @if ($row && $row->status === 'approved')
-                                    <x-filament::badge color="success">Connected</x-filament::badge>
+                                    <x-filament::badge color="success">{{ __('Connected') }}</x-filament::badge>
                                 @elseif ($row)
                                     <x-filament::badge color="warning">{{ \App\Domain\Messaging\SenderIdentities::STATUSES[$row->status] ?? $row->status }}</x-filament::badge>
                                 @elseif ($ch === 'whatsapp' && $s['whatsapp_connected'])
-                                    <x-filament::badge color="success">Connected</x-filament::badge>
+                                    <x-filament::badge color="success">{{ __('Connected') }}</x-filament::badge>
                                 @elseif ($ch === 'email')
-                                    <x-filament::badge color="info">Sent under your mill's name</x-filament::badge>
+                                    <x-filament::badge color="info">{{ __('Sent under your mill\'s name') }}</x-filament::badge>
                                 @else
-                                    <x-filament::badge color="gray">Not assigned</x-filament::badge>
+                                    <x-filament::badge color="gray">{{ __('Not assigned') }}</x-filament::badge>
                                 @endif
                             </td>
                             <td class="pr-3">
                                 @if ($row)
                                     {{ $row->display_name }} <span class="text-xs text-gray-500">({{ $ch === 'email' ? $row->sender : \App\Domain\Usage\UsageMeter::mask((string) $row->sender) }})</span>
-                                    @if ($row->platform_sender)<div class="text-xs text-warning-600">Goes out under the platform's name, as the SaaS owner set it.</div>@endif
+                                    @if ($row->platform_sender)<div class="text-xs text-warning-600">{{ __('Goes out under the platform\'s name, as the SaaS owner set it.') }}</div>@endif
                                 @elseif ($ch === 'whatsapp')
                                     {{ $s['whatsapp_name'] }} <span class="text-xs text-gray-500">(the platform's WhatsApp number; your name is in every message)</span>
                                 @elseif ($ch === 'email')
@@ -40,7 +40,7 @@
                         </tr>
                     @endforeach
                     <tr class="border-t border-gray-100 dark:border-white/5">
-                        <td class="py-1.5 pr-3 font-medium">AI services</td>
+                        <td class="py-1.5 pr-3 font-medium">{{ __('AI services') }}</td>
                         <td class="pr-3"><x-filament::badge :color="$s['ai'] ? 'success' : 'gray'">{{ $s['ai'] ? 'Available' : 'Unavailable' }}</x-filament::badge></td>
                         <td class="pr-3 text-gray-500">The assistant and the roznamcha reader; each use is counted against your mill.</td>
                     </tr>
@@ -54,13 +54,13 @@
         <x-filament::section heading="Scanner (roznamcha pages)">
             <div class="flex flex-wrap items-center gap-2 text-sm">
                 @if (! $s['scanner_possible'])
-                    <x-filament::badge color="gray">Not on this server</x-filament::badge>
+                    <x-filament::badge color="gray">{{ __('Not on this server') }}</x-filament::badge>
                     <span class="text-gray-500">The server is not on the mill's network, so it cannot reach a scanner. Scan to a file and choose "Image" or "PDF" when adding a roznamcha page.</span>
                 @elseif ($s['scanner'])
-                    <x-filament::badge color="success">Connected</x-filament::badge><span>{{ $s['scanner'] }}</span>
+                    <x-filament::badge color="success">{{ __('Connected') }}</x-filament::badge><span>{{ $s['scanner'] }}</span>
                 @else
-                    <x-filament::badge color="gray">No scanner</x-filament::badge>
-                    <span class="text-gray-500">Give the scanner's address with the Scanner button above.</span>
+                    <x-filament::badge color="gray">{{ __('No scanner') }}</x-filament::badge>
+                    <span class="text-gray-500">{{ __('Give the scanner\'s address with the Scanner button above.') }}</span>
                 @endif
             </div>
         </x-filament::section>

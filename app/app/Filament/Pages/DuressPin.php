@@ -23,6 +23,8 @@ use Filament\Pages\Page;
  */
 class DuressPin extends Page implements HasForms
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithForms;
 
     protected static ?string $slug = 'duress-pin';
@@ -53,11 +55,11 @@ class DuressPin extends Page implements HasForms
     {
         return $form->schema([
             TextInput::make('current_password')->password()->required()->autocomplete('current-password'),
-            TextInput::make('pin')->label('Duress PIN (6–8 digits)')->password()->required()->regex('/^\d{6,8}$/')
+            TextInput::make('pin')->label(__('Duress PIN (6–8 digits)'))->password()->required()->regex('/^\d{6,8}$/')
                 ->confirmed()->autocomplete('off'),
-            TextInput::make('pin_confirmation')->label('Repeat the PIN')->password()->required()->autocomplete('off'),
-            Toggle::make('suspend')->label('Also suspend my account when the PIN is used')->default(true),
-            Toggle::make('wipe_device')->label('Also wipe the app data on the device it is used on (phone / PWA)'),
+            TextInput::make('pin_confirmation')->label(__('Repeat the PIN'))->password()->required()->autocomplete('off'),
+            Toggle::make('suspend')->label(__('Also suspend my account when the PIN is used'))->default(true),
+            Toggle::make('wipe_device')->label(__('Also wipe the app data on the device it is used on (phone / PWA)')),
         ])->statePath('data');
     }
 
@@ -78,7 +80,7 @@ class DuressPin extends Page implements HasForms
             return;
         }
         $this->form->fill(['suspend' => $data['suspend'], 'wipe_device' => $data['wipe_device']]);
-        Notification::make()->title('Duress PIN saved.')->success()->send();
+        Notification::make()->title(__('Duress PIN saved.'))->success()->send();
     }
 
     public function remove(): void
@@ -90,7 +92,7 @@ class DuressPin extends Page implements HasForms
 
             return;
         }
-        Notification::make()->title('Duress PIN removed.')->success()->send();
+        Notification::make()->title(__('Duress PIN removed.'))->success()->send();
     }
 
     private function account(): LoginAccount

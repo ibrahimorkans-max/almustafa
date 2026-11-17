@@ -21,6 +21,8 @@ use Illuminate\Support\Collection;
  */
 class MyPasskeys extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $slug = 'passkeys';
 
     protected static ?string $title = 'My passkeys';
@@ -52,7 +54,7 @@ class MyPasskeys extends Page
         try {
             app(PasskeyService::class)->register($this->me(), mb_substr($credential, 0, 20_000), $name);
             $this->name = '';
-            Notification::make()->title('Passkey added. Next time choose "Sign in with a passkey".')->success()->send();
+            Notification::make()->title(__('Passkey added. Next time choose "Sign in with a passkey".'))->success()->send();
         } catch (BusinessRuleViolation $e) {
             Notification::make()->title($e->getMessage())->danger()->send();
         }
@@ -65,7 +67,7 @@ class MyPasskeys extends Page
             return;
         }
         app(PasskeyService::class)->remove($passkey, $this->me());
-        Notification::make()->title("Passkey \"{$passkey->name}\" removed.")->success()->send();
+        Notification::make()->title(__('Passkey ":name" removed.', ['name' => $passkey->name]))->success()->send();
     }
 
     private function me(): LoginAccount

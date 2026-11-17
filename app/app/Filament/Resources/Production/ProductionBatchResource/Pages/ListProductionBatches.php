@@ -10,10 +10,12 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListProductionBatches extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = ProductionBatchResource::class;
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('Create batch')->icon('heroicon-o-plus')];
+        return [CreateAction::make()->label(__('Create batch'))->icon('heroicon-o-plus')];
     }
 }

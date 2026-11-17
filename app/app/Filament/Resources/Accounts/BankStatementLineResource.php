@@ -24,6 +24,8 @@ use Illuminate\Database\Eloquent\Builder;
 /** Bank reconciliation: imported statement lines and the book entries they confirm. */
 class BankStatementLineResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = BankStatementLine::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-check-badge';
@@ -45,20 +47,20 @@ class BankStatementLineResource extends Resource
         return $table
             ->modifyQueryUsing(fn ($query) => $query->with('voucherLine.voucher'))
             ->columns([
-                TextColumn::make('txn_date')->label('Date')->date('d M Y')->sortable(),
+                TextColumn::make('txn_date')->label(__('Date'))->date('d M Y')->sortable(),
                 TextColumn::make('description')->wrap()->searchable(),
                 TextColumn::make('reference')->placeholder('—'),
-                TextColumn::make('debit_paise')->label('Withdrawal')->alignEnd()->formatStateUsing(fn (int $state) => $state ? Units::paiseToRupees($state) : ''),
-                TextColumn::make('credit_paise')->label('Deposit')->alignEnd()->formatStateUsing(fn (int $state) => $state ? Units::paiseToRupees($state) : ''),
-                TextColumn::make('voucherLine.voucher.number')->label('Matched to')->placeholder('unmatched')
+                TextColumn::make('debit_paise')->label(__('Withdrawal'))->alignEnd()->formatStateUsing(fn (int $state) => $state ? Units::paiseToRupees($state) : ''),
+                TextColumn::make('credit_paise')->label(__('Deposit'))->alignEnd()->formatStateUsing(fn (int $state) => $state ? Units::paiseToRupees($state) : ''),
+                TextColumn::make('voucherLine.voucher.number')->label(__('Matched to'))->placeholder('unmatched')
                     ->badge()->color(fn ($state) => $state ? 'success' : 'danger'),
-                TextColumn::make('match_method')->label('How')->placeholder(''),
+                TextColumn::make('match_method')->label(__('How'))->placeholder(''),
             ])
             ->defaultSort('txn_date', 'desc')
             ->filters([
-                SelectFilter::make('ledger_account_id')->label('Bank account')
+                SelectFilter::make('ledger_account_id')->label(__('Bank account'))
                     ->options(fn () => LedgerAccount::query()->where('kind', 'bank')->get()->mapWithKeys(fn (LedgerAccount $l) => [$l->id => $l->displayName()])),
-                TernaryFilter::make('matched')->label('Matched')->default(false)
+                TernaryFilter::make('matched')->label(__('Matched'))->default(false)
                     ->queries(
                         true: fn (Builder $q) => $q->whereNotNull('voucher_line_id'),
                         false: fn (Builder $q) => $q->whereNull('voucher_line_id'),
@@ -69,7 +71,7 @@ class BankStatementLineResource extends Resource
                 Action::make('match')->icon('heroicon-o-link')
                     ->visible(fn (BankStatementLine $r) => $r->voucher_line_id === null)
                     ->form(fn (BankStatementLine $record) => [
-                        Select::make('voucher_line_id')->label('Book entry (same account, side and amount, ±5 days)')->required()
+                        Select::make('voucher_line_id')->label(__('Book entry (same account, side and amount, ±5 days)'))->required()
                             ->options($recon()->candidates($record)
                                 ->mapWithKeys(fn (VoucherLine $l) => [$l->id => "{$l->voucher->number} · {$l->voucher_date->format('d M')} · ".mb_substr((string) $l->voucher->narration, 0, 60)])),
                     ])

@@ -11,6 +11,7 @@ use App\Http\Middleware\CaptureClientContext;
 use App\Http\Middleware\MaintenanceWindow;
 use App\Http\Middleware\SanitizeInput;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\SetLocale;
 use App\Support\Eloquent\StaleModelException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -35,6 +36,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(SecurityHeaders::class);
         // Every value sent in is cleaned of invisible control characters and (outside form fields) of HTML / script code.
         $middleware->append(SanitizeInput::class);
+        // The chosen language (session, person, browser) for web pages and Livewire updates.
+        $middleware->web(append: [SetLocale::class]);
         // The phone's camera page for a roznamcha photo: its 40-character, 30-minute link is the secret, and a phone
         // that opened it from a QR code (often in another app's browser) may not keep the session's form token.
         $middleware->validateCsrfTokens(except: ['roznamcha/capture/*']);

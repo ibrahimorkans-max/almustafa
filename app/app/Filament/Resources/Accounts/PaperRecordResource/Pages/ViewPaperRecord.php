@@ -17,6 +17,8 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewPaperRecord extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use RunsDomainActions;
 
     protected static string $resource = PaperRecordResource::class;
@@ -26,15 +28,15 @@ class ViewPaperRecord extends ViewRecord
         $me = Filament::auth()->user();
 
         return [
-            AttachmentsPanel::action()->label('Attach page photo'),
-            Action::make('voucher')->label('Open voucher')->icon('heroicon-o-document-text')->color('gray')
+            AttachmentsPanel::action()->label(__('Attach page photo')),
+            Action::make('voucher')->label(__('Open voucher'))->icon('heroicon-o-document-text')->color('gray')
                 ->visible(fn (PaperRecord $r) => $r->voucher_id !== null && VoucherResource::canViewAny())
                 ->url(fn (PaperRecord $r) => VoucherResource::getUrl('view', ['record' => $r->voucher_id])),
-            Action::make('cancel')->label('Cancel this record')->icon('heroicon-o-x-circle')->color('danger')
+            Action::make('cancel')->label(__('Cancel this record'))->icon('heroicon-o-x-circle')->color('danger')
                 ->visible(fn (PaperRecord $r) => ! $r->isCancelled() && ($me?->hasPermission('ledger.post') || $me?->hasPermission('stock.adjust')))
                 ->requiresConfirmation()
-                ->modalDescription('Its voucher and stock movement are reversed on the same date; the record stays, marked cancelled. Enter the right one again after.')
-                ->form([Textarea::make('reason')->label('Why')->required()->minLength(5)->maxLength(300)])
+                ->modalDescription(__('Its voucher and stock movement are reversed on the same date; the record stays, marked cancelled. Enter the right one again after.'))
+                ->form([Textarea::make('reason')->label(__('Why'))->required()->minLength(5)->maxLength(300)])
                 ->action(fn (PaperRecord $r, array $data) => $this->runDomain(fn () => app(PaperRecords::class)->cancel($r, $data['reason']), 'Record cancelled')),
         ];
     }

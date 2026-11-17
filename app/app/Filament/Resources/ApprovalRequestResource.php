@@ -28,6 +28,8 @@ use Filament\Tables\Table;
 
 class ApprovalRequestResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = ApprovalRequest::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-check-badge';
@@ -70,15 +72,15 @@ class ApprovalRequestResource extends Resource
                 TextColumn::make('created_at')->dateTime()->sortable(),
                 TextColumn::make('action')->badge(),
                 TextColumn::make('summary')->wrap()->searchable(),
-                TextColumn::make('maker.username')->label('Requested by'),
+                TextColumn::make('maker.username')->label(__('Requested by')),
                 TextColumn::make('status')->badge()->color(fn (string $state) => static::statusColor($state)),
-                TextColumn::make('checker.username')->label('Decided by')->placeholder('—'),
+                TextColumn::make('checker.username')->label(__('Decided by'))->placeholder('—'),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
                 SelectFilter::make('status')->options([
-                    'pending' => 'Pending', 'executed' => 'Executed', 'rejected' => 'Rejected',
-                    'failed' => 'Failed', 'cancelled' => 'Cancelled',
+                    'pending' => __('Pending'), 'executed' => __('Executed'), 'rejected' => __('Rejected'),
+                    'failed' => __('Failed'), 'cancelled' => __('Cancelled'),
                 ])->default('pending'),
             ])
             ->actions([
@@ -97,34 +99,34 @@ class ApprovalRequestResource extends Resource
                 TextEntry::make('action')->badge(),
                 TextEntry::make('status')->badge()->color(fn (string $state) => static::statusColor($state)),
                 TextEntry::make('expires_at')->dateTime(),
-                TextEntry::make('maker.username')->label('Requested by'),
-                TextEntry::make('created_at')->label('Requested at')->dateTime(),
+                TextEntry::make('maker.username')->label(__('Requested by')),
+                TextEntry::make('created_at')->label(__('Requested at'))->dateTime(),
                 TextEntry::make('reason')->columnSpanFull(),
             ]),
-            Section::make('Change')->schema([
-                TextEntry::make('added')->label('Permissions added')
+            Section::make(__('Change'))->schema([
+                TextEntry::make('added')->label(__('Permissions added'))
                     ->state(fn (ApprovalRequest $r) => array_values(array_diff($r->payload['permissions'] ?? [], $r->payload['before'] ?? [])) ?: ['—'])
                     ->listWithLineBreaks()->badge()->color('success')
                     ->visible(fn (ApprovalRequest $r) => isset($r->payload['before'])),
-                TextEntry::make('removed')->label('Permissions removed')
+                TextEntry::make('removed')->label(__('Permissions removed'))
                     ->state(fn (ApprovalRequest $r) => array_values(array_diff($r->payload['before'] ?? [], $r->payload['permissions'] ?? [])) ?: ['—'])
                     ->listWithLineBreaks()->badge()->color('danger')
                     ->visible(fn (ApprovalRequest $r) => isset($r->payload['before'])),
-                KeyValueEntry::make('payload_view')->label('Payload')
+                KeyValueEntry::make('payload_view')->label(__('Payload'))
                     // Encrypted secrets (IBAN, Raast id) are never displayed; masked copies are.
                     ->state(fn (ApprovalRequest $r) => collect($r->payload)
                         ->reject(fn ($v, string $k) => str_ends_with($k, '_encrypted'))
                         ->map(fn ($v) => is_scalar($v) || $v === null ? (string) ($v ?? '—') : json_encode($v))->all())
                     ->visible(fn (ApprovalRequest $r) => ! isset($r->payload['before'])),
             ])->columns(2),
-            Section::make('Decision')->columns(3)->visible(fn (ApprovalRequest $r) => $r->decided_at !== null)->schema([
-                TextEntry::make('checker.username')->label('Decided by'),
+            Section::make(__('Decision'))->columns(3)->visible(fn (ApprovalRequest $r) => $r->decided_at !== null)->schema([
+                TextEntry::make('checker.username')->label(__('Decided by')),
                 TextEntry::make('decided_at')->dateTime(),
                 TextEntry::make('executed_at')->dateTime()->placeholder('—'),
                 TextEntry::make('decision_note')->columnSpanFull()->placeholder('—'),
                 TextEntry::make('error')->columnSpanFull()->color('danger')->placeholder('—'),
             ]),
-            Section::make('History')->collapsible()->schema([
+            Section::make(__('History'))->collapsible()->schema([
                 TextEntry::make('history')->hiddenLabel()->listWithLineBreaks()
                     ->state(fn (ApprovalRequest $r) => AuditLog::query()
                         ->where('subject_type', $r->getTable())->where('subject_id', $r->getKey())
@@ -151,10 +153,10 @@ class ApprovalRequestResource extends Resource
      */
     public static function approveAction(MountableAction $action, ?callable $after = null): MountableAction
     {
-        return self::decisionButton($action, $after)->label('Approve')->color('success')->icon('heroicon-o-check')
+        return self::decisionButton($action, $after)->label(__('Approve'))->color('success')->icon('heroicon-o-check')
             ->requiresConfirmation()
-            ->modalDescription('The approved change is carried out immediately and recorded in the audit log.')
-            ->form([Textarea::make('note')->label('Note (optional)')->maxLength(1000)])
+            ->modalDescription(__('The approved change is carried out immediately and recorded in the audit log.'))
+            ->form([Textarea::make('note')->label(__('Note (optional)'))->maxLength(1000)])
             ->action(fn (ApprovalRequest $record, array $data) => static::runDecision(
                 fn (ApprovalService $s, LoginAccount $me) => $s->approve($record, $me, $data['note'] ?? null), $after,
             ));
@@ -168,8 +170,8 @@ class ApprovalRequestResource extends Resource
      */
     public static function rejectAction(MountableAction $action, ?callable $after = null): MountableAction
     {
-        return self::decisionButton($action, $after)->label('Reject')->color('danger')->icon('heroicon-o-x-mark')
-            ->form([Textarea::make('note')->label('Reason')->required()->minLength(5)->maxLength(1000)])
+        return self::decisionButton($action, $after)->label(__('Reject'))->color('danger')->icon('heroicon-o-x-mark')
+            ->form([Textarea::make('note')->label(__('Reason'))->required()->minLength(5)->maxLength(1000)])
             ->action(fn (ApprovalRequest $record, array $data) => static::runDecision(
                 fn (ApprovalService $s, LoginAccount $me) => $s->reject($record, $me, $data['note']), $after,
             ));

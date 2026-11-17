@@ -35,7 +35,7 @@ class OperationsOverview extends StatsOverviewWidget
 
         return [
             Stat::make('Vehicles inside', (string) $ops['inside'])
-                ->description("{$ops['arrived_today']} arrived · {$ops['exited_today']} left today")
+                ->description(__(':arrived_today arrived · :exited_today left today', ['arrived_today' => $ops['arrived_today'], 'exited_today' => $ops['exited_today']]))
                 ->url(GateEntryResource::getUrl('index')),
             Stat::make('Paddy received today', $q($ops['received_today_kg']))->description('Month: '.$q($ops['received_month_kg'])),
             Stat::make('Dispatched today', $q($ops['dispatched_today_kg']))->description('Month: '.$q($ops['dispatched_month_kg'])),

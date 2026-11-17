@@ -70,19 +70,19 @@
         @media print { .mnx-wb3d { display: none !important; } }
     </style>
 
-    <div data-wb3d="canvas">Loading the 3D view…</div>
+    <div data-wb3d="canvas">{{ __('Loading the 3D view…') }}</div>
 
     <div class="top">
         <div>
-            <div class="seg" role="group" aria-label="Live or simulation">
-                <button type="button" data-wb3d-mode="live" aria-pressed="true">LIVE</button>
-                <button type="button" data-wb3d-mode="sim" aria-pressed="false">SIMULATION</button>
+            <div class="seg" role="group" aria-label="{{ __('Live or simulation') }}">
+                <button type="button" data-wb3d-mode="live" aria-pressed="true">{{ __('LIVE') }}</button>
+                <button type="button" data-wb3d-mode="sim" aria-pressed="false">{{ __('SIMULATION') }}</button>
             </div>
-            <div><span class="badge"></span> <button type="button" class="btn sim-only" data-wb3d-action="drawer" aria-pressed="true" style="margin-top:.35rem">CONTROLS</button></div>
+            <div><span class="badge"></span> <button type="button" class="btn sim-only" data-wb3d-action="drawer" aria-pressed="true" style="margin-top:.35rem">{{ __('CONTROLS') }}</button></div>
         </div>
         <div class="hud" aria-live="polite">
             <div class="code">{{ $s['code'] }} · {{ $s['name'] }} · {{ $wbUnit }}</div>
-            <div class="kg"><span data-hud="kg">{{ $wbKg === null ? '— — —' : number_format((float) $wbKg, 0) }}</span><small>kg</small></div>
+            <div class="kg"><span data-hud="kg">{{ $wbKg === null ? '— — —' : number_format((float) $wbKg, 0) }}</span><small>{{ __('kg') }}</small></div>
             <div class="sub">
                 <span data-hud="maund">{{ $wbKg === null ? 'no reading yet' : number_format((float) $wbKg / 40, 2).' maund' }}</span>
                 <span data-hud="state" @class(['stable' => $s['live'] && $s['stable'], 'moving' => $s['live'] && ! $s['stable'], 'none' => ! $s['live']])>{{ ! $s['live'] ? 'NO SIGNAL' : ($s['stable'] ? 'STABLE' : 'MOVING') }}</span>
@@ -93,61 +93,61 @@
 
     <div class="drawer sim-only">
         <div class="stats">
-            <div class="stat"><span>On the weighbridge</span><b data-wb3d-stat="vehicle">—</b></div>
-            <div class="stat"><span>Weighbridge</span><b data-wb3d-stat="wb">—</b></div>
-            <div class="stat"><span>Gross</span><b data-wb3d-stat="gross">—</b></div>
-            <div class="stat"><span>Tare</span><b data-wb3d-stat="tare">—</b></div>
-            <div class="stat"><span>Net</span><b data-wb3d-stat="net">—</b></div>
-            <div class="stat"><span>Completed</span><b data-wb3d-stat="done">0</b></div>
-            <div class="stat"><span>Inside the mill</span><b data-wb3d-stat="inside">0</b></div>
-            <div class="stat"><span>Waiting at the gate</span><b data-wb3d-stat="entryWait">0</b></div>
-            <div class="stat"><span>Waiting to weigh</span><b data-wb3d-stat="wbWait">0</b></div>
-            <div class="stat"><span>Gates (in / out)</span><b><span data-wb3d-stat="gateIn">CLOSED</span> / <span data-wb3d-stat="gateOut">CLOSED</span></b></div>
+            <div class="stat"><span>{{ __('On the weighbridge') }}</span><b data-wb3d-stat="vehicle">—</b></div>
+            <div class="stat"><span>{{ __('Weighbridge') }}</span><b data-wb3d-stat="wb">—</b></div>
+            <div class="stat"><span>{{ __('Gross') }}</span><b data-wb3d-stat="gross">—</b></div>
+            <div class="stat"><span>{{ __('Tare') }}</span><b data-wb3d-stat="tare">—</b></div>
+            <div class="stat"><span>{{ __('Net') }}</span><b data-wb3d-stat="net">—</b></div>
+            <div class="stat"><span>{{ __('Completed') }}</span><b data-wb3d-stat="done">0</b></div>
+            <div class="stat"><span>{{ __('Inside the mill') }}</span><b data-wb3d-stat="inside">0</b></div>
+            <div class="stat"><span>{{ __('Waiting at the gate') }}</span><b data-wb3d-stat="entryWait">0</b></div>
+            <div class="stat"><span>{{ __('Waiting to weigh') }}</span><b data-wb3d-stat="wbWait">0</b></div>
+            <div class="stat"><span>{{ __('Gates (in / out)') }}</span><b><span data-wb3d-stat="gateIn">{{ __('CLOSED') }}</span> / <span data-wb3d-stat="gateOut">{{ __('CLOSED') }}</span></b></div>
             <div class="stat" style="display:none"><b data-wb3d-stat="weight"></b></div>
         </div>
         <div class="tools">
-            <button type="button" class="btn go" data-wb3d-action="start">START</button>
-            <button type="button" class="btn" data-wb3d-action="pause">PAUSE</button>
-            <button type="button" class="btn stop" data-wb3d-action="reset">RESET</button>
-            <button type="button" class="btn" data-wb3d-action="demo">DEMO TOUR</button>
-            <button type="button" class="btn" data-wb3d-action="tractor">+ TRACTOR TROLLEY</button>
-            <button type="button" class="btn" data-wb3d-action="container">+ CONTAINER</button>
-            <button type="button" class="btn" data-wb3d-action="truck">+ TRUCK</button>
-            <button type="button" class="btn" data-wb3d-action="open-in">OPEN ENTRY GATE</button>
-            <button type="button" class="btn" data-wb3d-action="close-in">CLOSE ENTRY GATE</button>
-            <button type="button" class="btn" data-wb3d-action="open-out">OPEN EXIT GATE</button>
-            <button type="button" class="btn" data-wb3d-action="close-out">CLOSE EXIT GATE</button>
-            <button type="button" class="btn" data-wb3d-action="auto">AUTO MODE</button>
-            <button type="button" class="btn" data-wb3d-action="slip">WEIGHT SLIP</button>
+            <button type="button" class="btn go" data-wb3d-action="start">{{ __('START') }}</button>
+            <button type="button" class="btn" data-wb3d-action="pause">{{ __('PAUSE') }}</button>
+            <button type="button" class="btn stop" data-wb3d-action="reset">{{ __('RESET') }}</button>
+            <button type="button" class="btn" data-wb3d-action="demo">{{ __('DEMO TOUR') }}</button>
+            <button type="button" class="btn" data-wb3d-action="tractor">{{ __('+ TRACTOR TROLLEY') }}</button>
+            <button type="button" class="btn" data-wb3d-action="container">{{ __('+ CONTAINER') }}</button>
+            <button type="button" class="btn" data-wb3d-action="truck">{{ __('+ TRUCK') }}</button>
+            <button type="button" class="btn" data-wb3d-action="open-in">{{ __('OPEN ENTRY GATE') }}</button>
+            <button type="button" class="btn" data-wb3d-action="close-in">{{ __('CLOSE ENTRY GATE') }}</button>
+            <button type="button" class="btn" data-wb3d-action="open-out">{{ __('OPEN EXIT GATE') }}</button>
+            <button type="button" class="btn" data-wb3d-action="close-out">{{ __('CLOSE EXIT GATE') }}</button>
+            <button type="button" class="btn" data-wb3d-action="auto">{{ __('AUTO MODE') }}</button>
+            <button type="button" class="btn" data-wb3d-action="slip">{{ __('WEIGHT SLIP') }}</button>
         </div>
         <p class="note">Weights here come from each model vehicle's empty weight and load, shared over its axles; they are never recorded.</p>
-        <div><h3>Completed weighments</h3><table><thead><tr><th>Slip</th><th>Vehicle</th><th>Type</th><th>Gross</th><th>Tare</th><th>Net</th></tr></thead><tbody data-wb3d="history"></tbody></table></div>
-        <div><h3>Entry and exit log</h3><ol data-wb3d="log"></ol></div>
+        <div><h3>{{ __('Completed weighments') }}</h3><table><thead><tr><th>{{ __('Slip') }}</th><th>{{ __('Vehicle') }}</th><th>{{ __('Type') }}</th><th>{{ __('Gross') }}</th><th>{{ __('Tare') }}</th><th>{{ __('Net') }}</th></tr></thead><tbody data-wb3d="history"></tbody></table></div>
+        <div><h3>{{ __('Entry and exit log') }}</h3><ol data-wb3d="log"></ol></div>
     </div>
 
     <div data-wb3d="toast" hidden></div>
     <div data-wb3d="recorded" hidden></div>
     <div data-wb3d="title" hidden>
         <strong>{{ mb_strtoupper($wbMill) }}</strong>
-        <span>SMART AUTOMATED WEIGHBRIDGE SYSTEM</span>
-        <em>REAL-TIME VEHICLE TRACKING | AUTOMATIC GATE CONTROL | DIGITAL WEIGHMENT</em>
+        <span>{{ __('SMART AUTOMATED WEIGHBRIDGE SYSTEM') }}</span>
+        <em>{{ __('REAL-TIME VEHICLE TRACKING | AUTOMATIC GATE CONTROL | DIGITAL WEIGHMENT') }}</em>
     </div>
     <div data-wb3d="slip" hidden>
         <div>
             <pre data-slip="body"></pre>
-            <button type="button" class="btn" style="background:#111" data-wb3d-action="print-slip">Print</button>
-            <button type="button" class="btn" style="background:#555" data-wb3d-action="close-slip">Close</button>
+            <button type="button" class="btn" style="background:#111" data-wb3d-action="print-slip">{{ __('Print') }}</button>
+            <button type="button" class="btn" style="background:#555" data-wb3d-action="close-slip">{{ __('Close') }}</button>
         </div>
     </div>
-    <div class="cams" role="group" aria-label="Camera">
-        <button type="button" class="btn" data-wb3d-cam="side">WEIGHBRIDGE</button>
-        <button type="button" class="btn" data-wb3d-cam="cab">DRIVER VIEW</button>
-        <button type="button" class="btn" data-wb3d-cam="top">TOP VIEW</button>
-        <button type="button" class="btn" data-wb3d-cam="operator">OPERATOR DISPLAY</button>
-        <button type="button" class="btn" data-wb3d-cam="gate">MAIN GATE</button>
-        <button type="button" class="btn" data-wb3d-cam="aerial">AERIAL</button>
-        <button type="button" class="btn sim-only" data-wb3d-cam="follow">FOLLOW VEHICLE</button>
-        <button type="button" class="btn" data-wb3d-action="night" aria-pressed="false">NIGHT</button>
+    <div class="cams" role="group" aria-label="{{ __('Camera') }}">
+        <button type="button" class="btn" data-wb3d-cam="side">{{ __('WEIGHBRIDGE') }}</button>
+        <button type="button" class="btn" data-wb3d-cam="cab">{{ __('DRIVER VIEW') }}</button>
+        <button type="button" class="btn" data-wb3d-cam="top">{{ __('TOP VIEW') }}</button>
+        <button type="button" class="btn" data-wb3d-cam="operator">{{ __('OPERATOR DISPLAY') }}</button>
+        <button type="button" class="btn" data-wb3d-cam="gate">{{ __('MAIN GATE') }}</button>
+        <button type="button" class="btn" data-wb3d-cam="aerial">{{ __('AERIAL') }}</button>
+        <button type="button" class="btn sim-only" data-wb3d-cam="follow">{{ __('FOLLOW VEHICLE') }}</button>
+        <button type="button" class="btn" data-wb3d-action="night" aria-pressed="false">{{ __('NIGHT') }}</button>
     </div>
 
     <script type="importmap">{ "imports": { "three": "{{ asset('js/vendor/three-0.169.0.module.min.js') }}" } }</script>

@@ -26,6 +26,8 @@ use Illuminate\Support\Facades\Cookie;
  */
 class SecurityCentre extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-shield-exclamation';
 
     protected static ?string $navigationGroup = 'Administration';
@@ -75,14 +77,14 @@ class SecurityCentre extends Page
 
     protected function getHeaderActions(): array
     {
-        $code = TextInput::make('code')->label('Your current 2FA code')->required()->length(6)->numeric()->autocomplete('one-time-code');
+        $code = TextInput::make('code')->label(__('Your current 2FA code'))->required()->length(6)->numeric()->autocomplete('one-time-code');
 
         return [
-            Action::make('lockdown')->label('Emergency lockdown')->color('danger')->icon('heroicon-o-lock-closed')
-                ->modalHeading('Emergency lockdown')
-                ->modalDescription('Signs everyone in the chosen scope out at once (browser, phone, PWA, gate agent) and blocks sign-in for all except Owners. Nothing is deleted. The Owner and Super Admins are told by e-mail and in the app.')
+            Action::make('lockdown')->label(__('Emergency lockdown'))->color('danger')->icon('heroicon-o-lock-closed')
+                ->modalHeading(__('Emergency lockdown'))
+                ->modalDescription(__('Signs everyone in the chosen scope out at once (browser, phone, PWA, gate agent) and blocks sign-in for all except Owners. Nothing is deleted. The Owner and Super Admins are told by e-mail and in the app.'))
                 ->form([
-                    Select::make('scope')->label('Lock')->required()->default(self::platform() ? 'system' : null)
+                    Select::make('scope')->label(__('Lock'))->required()->default(self::platform() ? 'system' : null)
                         // The whole system is the platform admin's; a customer locks its own mills.
                         ->options((self::platform() ? ['system' => 'Whole system (every customer)'] : []) + Entity::query()->orderBy('code')->get()->mapWithKeys(fn (Entity $e) => [$e->id => "{$e->code} — {$e->name}"])->all()),
                     Textarea::make('reason')->required()->minLength(5)->maxLength(1000),
@@ -92,12 +94,12 @@ class SecurityCentre extends Page
                 ->action(fn (array $data) => $this->attempt(fn () => app(Lockdown::class)->lock(
                     $data['scope'] === 'system' ? null : $data['scope'], $data['reason'], (string) $data['code'],
                 ), 'Lockdown started. Everyone in scope has been signed out.')),
-            Action::make('unlock')->label('Lift lockdown')->color('success')->icon('heroicon-o-lock-open')
+            Action::make('unlock')->label(__('Lift lockdown'))->color('success')->icon('heroicon-o-lock-open')
                 ->visible(fn () => $this->locks() !== [])
                 ->form([
-                    Select::make('lock_id')->label('Lockdown')->required()
+                    Select::make('lock_id')->label(__('Lockdown'))->required()
                         ->options(fn () => collect($this->locks())->mapWithKeys(fn ($l) => [$l->id => "{$l->where} (since ".CarbonImmutable::parse($l->locked_at, 'UTC')->timezone('Asia/Karachi')->format('d M H:i').' PKT)'])->all()),
-                    Textarea::make('reason')->label('Why it is safe to unlock')->required()->minLength(5)->maxLength(1000),
+                    Textarea::make('reason')->label(__('Why it is safe to unlock'))->required()->minLength(5)->maxLength(1000),
                     $code,
                 ])
                 ->action(fn (array $data) => $this->attempt(fn () => app(Lockdown::class)->unlock(
@@ -118,13 +120,13 @@ class SecurityCentre extends Page
     protected function maintenanceActions(): array
     {
         return [
-            Action::make('maintenance')->label('Schedule maintenance')->color('warning')->icon('heroicon-o-wrench-screwdriver')
-                ->modalDescription('Everyone except holders of the secret link sees your message and the end time; the API answers 503 with Retry-After. Offline devices keep queueing.')
+            Action::make('maintenance')->label(__('Schedule maintenance'))->color('warning')->icon('heroicon-o-wrench-screwdriver')
+                ->modalDescription(__('Everyone except holders of the secret link sees your message and the end time; the API answers 503 with Retry-After. Offline devices keep queueing.'))
                 ->form([
                     TextInput::make('message')->required()->minLength(5)->maxLength(255)
                         ->default('We are updating the system.'),
-                    DateTimePicker::make('starts_at')->label('Starts')->required()->seconds(false)->default(now()),
-                    DateTimePicker::make('ends_at')->label('Expected end')->required()->seconds(false)->default(now()->addHour()),
+                    DateTimePicker::make('starts_at')->label(__('Starts'))->required()->seconds(false)->default(now()),
+                    DateTimePicker::make('ends_at')->label(__('Expected end'))->required()->seconds(false)->default(now()->addHour()),
                 ])
                 ->action(function (array $data): void {
                     try {
@@ -138,13 +140,13 @@ class SecurityCentre extends Page
                     // This browser keeps working during the window; other devices use the link.
                     Cookie::queue(Cookie::make(MaintenanceService::BYPASS_COOKIE, $r['bypass_token'],
                         (int) now()->diffInMinutes(CarbonImmutable::parse($data['ends_at']), true) + 5, secure: request()->isSecure(), httpOnly: true, sameSite: 'strict'));
-                    Notification::make()->title('Maintenance scheduled.')->success()->persistent()
+                    Notification::make()->title(__('Maintenance scheduled.'))->success()->persistent()
                         ->body('Your bypass link (shown once — keep it private): '.route('maintenance.bypass', $r['bypass_token']))
                         ->send();
                 }),
-            Action::make('endMaintenance')->label('End maintenance now')->color('gray')->icon('heroicon-o-play')
+            Action::make('endMaintenance')->label(__('End maintenance now'))->color('gray')->icon('heroicon-o-play')
                 ->visible(fn () => $this->maintenanceWindows() !== [])
-                ->form([Select::make('window_id')->label('Window')->required()
+                ->form([Select::make('window_id')->label(__('Window'))->required()
                     ->options(fn (): array => collect($this->maintenanceWindows())->mapWithKeys(fn (object $w): array => [(string) $w->id => (string) $w->message])->all())])
                 ->action(fn (array $data) => $this->attempt(fn () => app(MaintenanceService::class)->end($data['window_id']), 'Maintenance ended.')),
         ];

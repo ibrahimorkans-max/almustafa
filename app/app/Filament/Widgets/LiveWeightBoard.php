@@ -239,9 +239,9 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
     public static function tokenActions(GateEntry $entry): array
     {
         return [
-            NotificationAction::make('token80')->label('Print token (80 mm)')->button()
+            NotificationAction::make('token80')->label(__('Print token (80 mm)'))->button()
                 ->url(route('filament.admin.gate.token', ['id' => $entry->id, 'paper' => 'roll']), shouldOpenInNewTab: true),
-            NotificationAction::make('token50')->label('Print token (50 mm)')->button()->color('gray')
+            NotificationAction::make('token50')->label(__('Print token (50 mm)'))->button()->color('gray')
                 ->url(route('filament.admin.gate.token', ['id' => $entry->id, 'paper' => 'roll50']), shouldOpenInNewTab: true),
         ];
     }
@@ -274,12 +274,12 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
             ->modalDescription(fn () => (ManualWeighing::bothAllowed() ? 'Both weights may be typed (the Owner allows it).' : 'Only one of the two weights may be typed; the other must come from this weighbridge.')
                 .' It counts at once, is marked "typed by hand" and goes to the weight checks.')
             ->form([
-                Radio::make('kind')->label('Which weight')->required()->default('gross')
-                    ->options(['gross' => 'Loaded weight (gross)', 'tare' => 'Empty weight (tare)']),
-                TextInput::make('weight_kg')->label('Weight (kg)')->required()->regex('/^\d{1,9}(\.\d{1,3})?$/')->placeholder('15240')->suffix('kg'),
-                Textarea::make('reason')->label('Reason')->required()->minLength(5)->maxLength(500)
-                    ->placeholder('e.g. empty weight from Kanta 2, slip no. 4512'),
-                FileUpload::make('slip')->label('Slip or evidence (photo or PDF, optional)')->storeFiles(false)
+                Radio::make('kind')->label(__('Which weight'))->required()->default('gross')
+                    ->options(['gross' => __('Loaded weight (gross)'), 'tare' => __('Empty weight (tare)')]),
+                TextInput::make('weight_kg')->label(__('Weight (kg)'))->required()->regex('/^\d{1,9}(\.\d{1,3})?$/')->placeholder('15240')->suffix('kg'),
+                Textarea::make('reason')->label(__('Reason'))->required()->minLength(5)->maxLength(500)
+                    ->placeholder(__('e.g. empty weight from Kanta 2, slip no. 4512')),
+                FileUpload::make('slip')->label(__('Slip or evidence (photo or PDF, optional)'))->storeFiles(false)
                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480),
             ])
             ->action(function (array $data, array $arguments): void {

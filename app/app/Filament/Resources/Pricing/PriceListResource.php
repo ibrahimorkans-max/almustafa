@@ -17,6 +17,8 @@ use Filament\Tables\Table;
 /** Selling rate cards. Rates change only through an approved request; every version is kept. */
 class PriceListResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = PriceList::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-currency-rupee';

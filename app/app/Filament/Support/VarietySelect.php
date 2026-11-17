@@ -17,7 +17,7 @@ final class VarietySelect
 {
     public static function make(string $name = 'paddy_variety_id'): Select
     {
-        $select = Select::make($name)->label('Paddy variety')->searchable()
+        $select = Select::make($name)->label(__('Paddy variety'))->searchable()
             ->options(fn () => PaddyVariety::options())
             ->getOptionLabelUsing(function ($value): ?string {
                 $v = is_string($value) && $value !== '' ? PaddyVariety::query()->find($value) : null;
@@ -27,7 +27,7 @@ final class VarietySelect
 
         return Filament::auth()->user()?->can('create', PaddyVariety::class)
             ? $select->createOptionForm(PaddyVarietyResource::fields())
-                ->createOptionModalHeading('Add a paddy variety')
+                ->createOptionModalHeading(__('Add a paddy variety'))
                 ->createOptionUsing(fn (array $data) => PaddyVarietyResource::store($data)->id)
             : $select;
     }

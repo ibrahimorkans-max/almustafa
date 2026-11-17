@@ -1,10 +1,10 @@
 <x-filament-panels::page>
     <x-filament::section>
         <div class="mb-4 flex flex-wrap items-end gap-4">
-            <label class="text-sm">Month
+            <label class="text-sm">{{ __('Month') }}
                 <input type="month" wire:model.live="month" class="mt-1 block rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900">
             </label>
-            <label class="text-sm">Report
+            <label class="text-sm">{{ __('Report') }}
                 <select wire:model.live="report" class="mt-1 block rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900">
                     @foreach (\App\Domain\Hr\Payroll\StatutoryReports::REPORTS as $key => $label)
                         <option value="{{ $key }}">{{ $label }}</option>

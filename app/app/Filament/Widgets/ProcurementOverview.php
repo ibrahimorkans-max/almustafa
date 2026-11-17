@@ -76,15 +76,15 @@ class ProcurementOverview extends StatsOverviewWidget
         }
 
         return array_values(array_filter([
-            Stat::make('Purchase value (month)', $rs($purchase))->description('Posted purchase bills')->url(AllReportsPage::getUrl()),
-            $owed !== null ? Stat::make('Suppliers owed', $rs((int) $owed))->description('Outstanding purchase bills') : null,
+            Stat::make('Purchase value (month)', $rs($purchase))->description(__('Posted purchase bills'))->url(AllReportsPage::getUrl()),
+            $owed !== null ? Stat::make('Suppliers owed', $rs((int) $owed))->description(__('Outstanding purchase bills')) : null,
             Stat::make('Payments made (month)', $rs($paid)),
-            Stat::make('Negotiated reduction (month)', $rs($reduction))->description('Offered price less accepted, on settled lots'),
+            Stat::make('Negotiated reduction (month)', $rs($reduction))->description(__('Offered price less accepted, on settled lots')),
             Stat::make('Vehicles received (month)', (string) $received)->url(GateEntryResource::getUrl('index')),
             Stat::make('Lab rejections (month)', (string) $rejections)->color($rejections > 0 ? 'warning' : 'gray'),
             Stat::make('Total Caat (month)', number_format((float) $caat, 0).' kg'),
             Stat::make('Settlements waiting', (string) $pending)->color($pending > 0 ? 'warning' : 'success')
-                ->description('Weighed empty, Caat and price not approved yet'),
+                ->description(__('Weighed empty, Caat and price not approved yet')),
         ]));
     }
 }

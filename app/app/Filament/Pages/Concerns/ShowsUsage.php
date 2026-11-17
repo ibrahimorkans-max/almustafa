@@ -62,7 +62,7 @@ trait ShowsUsage
 
     public function exportExcelAction(): Action
     {
-        return Action::make('exportExcel')->label('Excel')->icon('heroicon-o-table-cells')->color('gray')
+        return Action::make('exportExcel')->label(__('Excel'))->icon('heroicon-o-table-cells')->color('gray')
             ->action(function (): StreamedResponse {
                 app(AuditLogger::class)->record('usage.exported', null, null, null, ['format' => 'xlsx', 'period' => $this->period]);
                 $bytes = $this->report()->excel();
@@ -74,7 +74,7 @@ trait ShowsUsage
 
     public function exportPdfAction(): Action
     {
-        return Action::make('exportPdf')->label('PDF')->icon('heroicon-o-document-arrow-down')->color('gray')
+        return Action::make('exportPdf')->label(__('PDF'))->icon('heroicon-o-document-arrow-down')->color('gray')
             ->action(function (): StreamedResponse {
                 app(AuditLogger::class)->record('usage.exported', null, null, null, ['format' => 'pdf', 'period' => $this->period]);
                 $r = $this->report();

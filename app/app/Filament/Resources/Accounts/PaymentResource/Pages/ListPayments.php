@@ -24,24 +24,26 @@ use Filament\Resources\Pages\ListRecords;
 /** Payments: money sent to a party (Request payment) and money received from one (Receive payment), any amount. */
 class ListPayments extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PaymentResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->label('Request payment'),
-            Action::make('receive')->label('Receive payment')->icon('heroicon-o-arrow-down-left')->color('success')
+            CreateAction::make()->label(__('Request payment')),
+            Action::make('receive')->label(__('Receive payment'))->icon('heroicon-o-arrow-down-left')->color('success')
                 ->visible(fn () => Filament::auth()->user()?->can('ledger.post') ?? false)
-                ->modalDescription('Money received from any party, into a cash or bank account, any amount. Posted as a receipt voucher (on the party\'s account).')
+                ->modalDescription(__('Money received from any party, into a cash or bank account, any amount. Posted as a receipt voucher (on the party\'s account).'))
                 ->form([
-                    Select::make('party_id')->label('From party')->required()->searchable()
+                    Select::make('party_id')->label(__('From party'))->required()->searchable()
                         ->options(fn () => Party::query()->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
-                    Select::make('into')->label('Into')->required()
+                    Select::make('into')->label(__('Into'))->required()
                         ->options(fn () => LedgerAccount::query()->where('status', 'active')->whereIn('kind', ['cash', 'bank'])->orderBy('name')->get()
                             ->mapWithKeys(fn (LedgerAccount $l) => [$l->id => $l->displayName()])),
                     DatePicker::make('date')->default(now())->required(),
-                    TextInput::make('amount')->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2),
-                    Textarea::make('narration')->label('Narration (cheque / slip / transaction number)')->maxLength(500),
+                    TextInput::make('amount')->label(__('Amount (Rs)'))->required()->regex(Units::DECIMAL_2),
+                    Textarea::make('narration')->label(__('Narration (cheque / slip / transaction number)'))->maxLength(500),
                 ])
                 ->action(function (array $data): void {
                     try {

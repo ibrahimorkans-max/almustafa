@@ -29,14 +29,14 @@ final class BankEmailCallbackController
 
         if ($request->filled('error') || ! $request->filled('code')) {
             $connection->forceFill(['oauth_state' => null, 'status' => 'error', 'last_error' => 'Sign-in was cancelled or refused.'])->save();
-            Notification::make()->title('The mailbox was not connected: sign-in was cancelled or refused.')->danger()->send();
+            Notification::make()->title(__('The mailbox was not connected: sign-in was cancelled or refused.'))->danger()->send();
 
             return redirect(EmailConnectionResource::getUrl());
         }
         try {
             $oauth->complete($connection, (string) $request->query('code'));
             app(AuditLogger::class)->record('bank_email.connected', $connection, null, ['provider' => $connection->provider, 'email' => $connection->email]);
-            Notification::make()->title("{$connection->email} is connected. Its bank e-mails are read every {$connection->sync_minutes} minutes.")->success()->send();
+            Notification::make()->title(__(':email is connected. Its bank e-mails are read every :sync_minutes minutes.', ['email' => $connection->email, 'sync_minutes' => $connection->sync_minutes]))->success()->send();
         } catch (BusinessRuleViolation $e) {
             $connection->forceFill(['oauth_state' => null, 'status' => 'error', 'last_error' => $e->getMessage()])->save();
             Notification::make()->title($e->getMessage())->danger()->send();

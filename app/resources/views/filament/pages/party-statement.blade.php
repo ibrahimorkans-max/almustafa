@@ -18,23 +18,23 @@
     <x-filament::section>{{ $this->form }}</x-filament::section>
 
     @if ($s === null)
-        <x-filament::section><p class="text-sm text-gray-500">Choose a party.</p></x-filament::section>
+        <x-filament::section><p class="text-sm text-gray-500">{{ __('Choose a party.') }}</p></x-filament::section>
     @else
         <x-filament::section>
             <div class="grid gap-3 sm:grid-cols-4">
-                <div><div class="text-xs text-gray-500">Party</div><div class="font-semibold">{{ $s['party']['name'] }}</div>
+                <div><div class="text-xs text-gray-500">{{ __('Party') }}</div><div class="font-semibold">{{ $s['party']['name'] }}</div>
                     <div class="font-mono text-xs text-gray-500">{{ $s['party']['code'] }}{{ $s['party']['contractor_code'] ? ' · '.$s['party']['contractor_code'] : '' }}</div>
                     <div class="text-xs text-gray-500">{{ $s['party']['phone'] }} {{ $s['party']['address'] }}</div></div>
                 <div><div class="text-xs text-gray-500">Opening ({{ $d($s['from']) }})</div><div class="font-semibold tabular-nums">{{ $bal($s['opening']) }}</div></div>
-                <div><div class="text-xs text-gray-500">Debit / credit in period</div><div class="tabular-nums">{{ $money($s['total_dr']) }} / {{ $money($s['total_cr']) }}</div></div>
+                <div><div class="text-xs text-gray-500">{{ __('Debit / credit in period') }}</div><div class="tabular-nums">{{ $money($s['total_dr']) }} / {{ $money($s['total_cr']) }}</div></div>
                 <div><div class="text-xs text-gray-500">Closing ({{ $d($s['to']) }})</div><div class="font-semibold tabular-nums">{{ $bal($s['closing']) }}</div>
                     <div class="text-xs text-gray-500">{{ $s['standing'] }}</div></div>
             </div>
             @if ($view === 'summary')
                 <div class="mt-4 grid gap-3 sm:grid-cols-6 text-sm">
-                    <div>Trips: <b>{{ $s['summary']['trips'] }}</b></div><div>Net: <b>{{ $kg($s['summary']['net_kg']) }} kg</b></div>
-                    <div>Billed: <b>{{ $money($s['summary']['billed']) }}</b></div><div>Open: <b>{{ $money($s['summary']['open']) }}</b></div>
-                    <div>Paid: <b>{{ $money($s['summary']['paid']) }}</b></div><div>Received: <b>{{ $money($s['summary']['received']) }}</b></div>
+                    <div>{{ __('Trips:') }} <b>{{ $s['summary']['trips'] }}</b></div><div>{{ __('Net:') }} <b>{{ $kg($s['summary']['net_kg']) }} kg</b></div>
+                    <div>{{ __('Billed:') }} <b>{{ $money($s['summary']['billed']) }}</b></div><div>{{ __('Open:') }} <b>{{ $money($s['summary']['open']) }}</b></div>
+                    <div>{{ __('Paid:') }} <b>{{ $money($s['summary']['paid']) }}</b></div><div>{{ __('Received:') }} <b>{{ $money($s['summary']['received']) }}</b></div>
                 </div>
             @endif
         </x-filament::section>
@@ -42,16 +42,16 @@
         @if (in_array($view, ['detailed', 'payments'], true))
             <x-filament::section :heading="$view === 'payments' ? 'Payments and receipts' : 'Account entries'">
                 <div class="overflow-x-auto"><table class="w-full">
-                    <thead><tr><th class="{{ $th }}">Date</th><th class="{{ $th }}">Voucher</th><th class="{{ $th }}">Particulars</th><th class="{{ $thr }}">Debit</th><th class="{{ $thr }}">Credit</th><th class="{{ $thr }}">Balance</th></tr></thead>
+                    <thead><tr><th class="{{ $th }}">{{ __('Date') }}</th><th class="{{ $th }}">{{ __('Voucher') }}</th><th class="{{ $th }}">{{ __('Particulars') }}</th><th class="{{ $thr }}">{{ __('Debit') }}</th><th class="{{ $thr }}">{{ __('Credit') }}</th><th class="{{ $thr }}">{{ __('Balance') }}</th></tr></thead>
                     <tbody>
-                        <tr><td class="{{ $td }}" colspan="5">Opening balance</td><td class="{{ $tdr }}">{{ $bal($s['opening']) }}</td></tr>
+                        <tr><td class="{{ $td }}" colspan="5">{{ __('Opening balance') }}</td><td class="{{ $tdr }}">{{ $bal($s['opening']) }}</td></tr>
                         @forelse ($view === 'payments' ? $s['payments'] : $s['lines'] as $l)
                             <tr class="{{ $row }}"><td class="{{ $td }}">{{ $d($l['date']) }}</td><td class="{{ $td }} font-mono">{{ $l['number'] }}</td><td class="{{ $td }}">{{ $l['memo'] ?? $l['narration'] }}</td>
                                 <td class="{{ $tdr }}">{{ $l['dr'] ? $money($l['dr']) : '' }}</td><td class="{{ $tdr }}">{{ $l['cr'] ? $money($l['cr']) : '' }}</td><td class="{{ $tdr }}">{{ $bal($l['balance']) }}</td></tr>
                         @empty
-                            <tr><td class="{{ $td }} text-gray-500" colspan="6">No entries in this period.</td></tr>
+                            <tr><td class="{{ $td }} text-gray-500" colspan="6">{{ __('No entries in this period.') }}</td></tr>
                         @endforelse
-                        <tr class="{{ $row }} font-semibold"><td class="{{ $td }}" colspan="5">Closing balance</td><td class="{{ $tdr }}">{{ $bal($s['closing']) }}</td></tr>
+                        <tr class="{{ $row }} font-semibold"><td class="{{ $td }}" colspan="5">{{ __('Closing balance') }}</td><td class="{{ $tdr }}">{{ $bal($s['closing']) }}</td></tr>
                     </tbody>
                 </table></div>
             </x-filament::section>
@@ -60,12 +60,12 @@
         @if (in_array($view, ['vehicle', 'sauda'], true))
             <x-filament::section :heading="$view === 'vehicle' ? 'By vehicle' : 'By sauda'">
                 <table class="w-full">
-                    <thead><tr><th class="{{ $th }}">{{ $view === 'vehicle' ? 'Vehicle' : 'Sauda' }}</th><th class="{{ $thr }}">Trips</th><th class="{{ $thr }}">Net (kg)</th><th class="{{ $thr }}">Amount</th></tr></thead>
+                    <thead><tr><th class="{{ $th }}">{{ $view === 'vehicle' ? 'Vehicle' : 'Sauda' }}</th><th class="{{ $thr }}">{{ __('Trips') }}</th><th class="{{ $thr }}">{{ __('Net (kg)') }}</th><th class="{{ $thr }}">{{ __('Amount') }}</th></tr></thead>
                     <tbody>
                         @forelse ($view === 'vehicle' ? $s['by_vehicle'] : $s['by_sauda'] as $g)
                             <tr class="{{ $row }}"><td class="{{ $td }} font-mono">{{ $g['key'] }}</td><td class="{{ $tdr }}">{{ $g['trips'] }}</td><td class="{{ $tdr }}">{{ $kg($g['net_kg']) }}</td><td class="{{ $tdr }}">{{ $money($g['amount']) }}</td></tr>
                         @empty
-                            <tr><td class="{{ $td }} text-gray-500" colspan="4">Nothing in this period.</td></tr>
+                            <tr><td class="{{ $td }} text-gray-500" colspan="4">{{ __('Nothing in this period.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -75,8 +75,8 @@
         @if (in_array($view, ['detailed', 'vehicle', 'sauda'], true) && $s['tokens'] !== [])
             <x-filament::section heading="Vehicles (tokens)">
                 <div class="overflow-x-auto"><table class="w-full">
-                    <thead><tr><th class="{{ $th }}">Date</th><th class="{{ $th }}">Token</th><th class="{{ $th }}">Vehicle</th><th class="{{ $th }}">Item</th><th class="{{ $th }}">Sauda</th>
-                        <th class="{{ $thr }}">Gross</th><th class="{{ $thr }}">Tare</th><th class="{{ $thr }}">Net</th><th class="{{ $thr }}">Payable</th><th class="{{ $thr }}">Rate/md</th><th class="{{ $thr }}">Amount</th><th class="{{ $th }}">Bill</th><th class="{{ $thr }}">Open</th></tr></thead>
+                    <thead><tr><th class="{{ $th }}">{{ __('Date') }}</th><th class="{{ $th }}">{{ __('Token') }}</th><th class="{{ $th }}">{{ __('Vehicle') }}</th><th class="{{ $th }}">{{ __('Item') }}</th><th class="{{ $th }}">{{ __('Sauda') }}</th>
+                        <th class="{{ $thr }}">{{ __('Gross') }}</th><th class="{{ $thr }}">{{ __('Tare') }}</th><th class="{{ $thr }}">{{ __('Net') }}</th><th class="{{ $thr }}">{{ __('Payable') }}</th><th class="{{ $thr }}">{{ __('Rate/md') }}</th><th class="{{ $thr }}">{{ __('Amount') }}</th><th class="{{ $th }}">{{ __('Bill') }}</th><th class="{{ $thr }}">{{ __('Open') }}</th></tr></thead>
                     <tbody>
                         @foreach ($s['tokens'] as $t)
                             <tr class="{{ $row }}"><td class="{{ $td }}">{{ $d($t['date']) }}</td><td class="{{ $td }} font-mono">{{ $t['token'] }}</td><td class="{{ $td }} font-mono">{{ $t['vehicle'] }}</td>
@@ -92,7 +92,7 @@
         @if (in_array($view, ['summary', 'detailed'], true) && $s['bills'] !== [])
             <x-filament::section heading="Bills">
                 <table class="w-full">
-                    <thead><tr><th class="{{ $th }}">Bill</th><th class="{{ $th }}">Number</th><th class="{{ $th }}">Date</th><th class="{{ $th }}">Due</th><th class="{{ $thr }}">Amount</th><th class="{{ $thr }}">Open</th><th class="{{ $th }}">Status</th></tr></thead>
+                    <thead><tr><th class="{{ $th }}">{{ __('Bill') }}</th><th class="{{ $th }}">{{ __('Number') }}</th><th class="{{ $th }}">{{ __('Date') }}</th><th class="{{ $th }}">{{ __('Due') }}</th><th class="{{ $thr }}">{{ __('Amount') }}</th><th class="{{ $thr }}">{{ __('Open') }}</th><th class="{{ $th }}">{{ __('Status') }}</th></tr></thead>
                     <tbody>
                         @foreach ($s['bills'] as $b)
                             <tr class="{{ $row }}"><td class="{{ $td }}">{{ $b['kind'] }}</td><td class="{{ $td }} font-mono">{{ $b['number'] }}</td><td class="{{ $td }}">{{ $d($b['date']) }}</td><td class="{{ $td }}">{{ $d($b['due']) }}</td>
@@ -108,8 +108,8 @@
             <x-filament::section heading="Labour contractor">
                 @if ($view !== 'summary')
                     <div class="overflow-x-auto"><table class="w-full">
-                        <thead><tr><th class="{{ $th }}">Date</th><th class="{{ $th }}">Token</th><th class="{{ $th }}">Vehicle</th><th class="{{ $th }}">Work</th><th class="{{ $thr }}">Gross</th><th class="{{ $thr }}">Tare</th>
-                            <th class="{{ $thr }}">Net</th><th class="{{ $thr }}">Billable</th><th class="{{ $thr }}">Rate</th><th class="{{ $th }}">Per</th><th class="{{ $thr }}">Charge</th><th class="{{ $th }}">Bill</th></tr></thead>
+                        <thead><tr><th class="{{ $th }}">{{ __('Date') }}</th><th class="{{ $th }}">{{ __('Token') }}</th><th class="{{ $th }}">{{ __('Vehicle') }}</th><th class="{{ $th }}">{{ __('Work') }}</th><th class="{{ $thr }}">{{ __('Gross') }}</th><th class="{{ $thr }}">{{ __('Tare') }}</th>
+                            <th class="{{ $thr }}">{{ __('Net') }}</th><th class="{{ $thr }}">{{ __('Billable') }}</th><th class="{{ $thr }}">{{ __('Rate') }}</th><th class="{{ $th }}">{{ __('Per') }}</th><th class="{{ $thr }}">{{ __('Charge') }}</th><th class="{{ $th }}">{{ __('Bill') }}</th></tr></thead>
                         <tbody>
                             @forelse ($c['tokens'] as $t)
                                 <tr class="{{ $row }}"><td class="{{ $td }}">{{ $d($t['date']) }}</td><td class="{{ $td }} font-mono">{{ $t['token'] }}</td><td class="{{ $td }} font-mono">{{ $t['vehicle'] }}</td><td class="{{ $td }}">{{ ucfirst((string) $t['work']) }}</td>
@@ -117,26 +117,26 @@
                                     <td class="{{ $tdr }}">{{ $money($t['rate']) }}</td><td class="{{ $td }}">{{ $t['basis'] }}</td><td class="{{ $tdr }}">{{ $money($t['charge']) }}</td>
                                     <td class="{{ $td }} font-mono text-xs" title="{{ $t['note'] }}">{{ $t['bill'] ?? ($t['note'] ? 'Waiting: '.$t['note'] : 'Not billed') }}</td></tr>
                             @empty
-                                <tr><td class="{{ $td }} text-gray-500" colspan="12">No tokens in this period.</td></tr>
+                                <tr><td class="{{ $td }} text-gray-500" colspan="12">{{ __('No tokens in this period.') }}</td></tr>
                             @endforelse
-                            <tr class="{{ $row }} font-semibold"><td class="{{ $td }}" colspan="10">Not billed yet</td><td class="{{ $tdr }}">{{ $money($c['unbilled_paise']) }}</td><td></td></tr>
+                            <tr class="{{ $row }} font-semibold"><td class="{{ $td }}" colspan="10">{{ __('Not billed yet') }}</td><td class="{{ $tdr }}">{{ $money($c['unbilled_paise']) }}</td><td></td></tr>
                         </tbody>
                     </table></div>
                 @endif
                 <table class="mt-4 w-full">
-                    <thead><tr><th class="{{ $th }}">Bill</th><th class="{{ $th }}">Period</th><th class="{{ $thr }}">Gross</th><th class="{{ $thr }}">Tax / deductions</th><th class="{{ $thr }}">Payable</th><th class="{{ $thr }}">Paid</th><th class="{{ $thr }}">Balance</th><th class="{{ $th }}">Status</th></tr></thead>
+                    <thead><tr><th class="{{ $th }}">{{ __('Bill') }}</th><th class="{{ $th }}">{{ __('Period') }}</th><th class="{{ $thr }}">{{ __('Gross') }}</th><th class="{{ $thr }}">{{ __('Tax / deductions') }}</th><th class="{{ $thr }}">{{ __('Payable') }}</th><th class="{{ $thr }}">{{ __('Paid') }}</th><th class="{{ $thr }}">{{ __('Balance') }}</th><th class="{{ $th }}">{{ __('Status') }}</th></tr></thead>
                     <tbody>
                         @foreach ($c['bills'] as $b)
                             <tr class="{{ $row }}"><td class="{{ $td }} font-mono">{{ $b['number'] }}</td><td class="{{ $td }}">{{ $b['period'] }}</td><td class="{{ $tdr }}">{{ $money($b['gross']) }}</td><td class="{{ $tdr }}">{{ $money($b['deductions']) }}</td>
                                 <td class="{{ $tdr }}">{{ $money($b['payable']) }}</td><td class="{{ $tdr }}">{{ $money($b['paid']) }}</td><td class="{{ $tdr }}">{{ $money($b['balance']) }}</td>
                                 <td class="{{ $td }}">{{ \App\Models\Hr\ContractorBill::PAYMENT_STATUSES[$b['pay_status']] ?? '' }}</td></tr>
                         @endforeach
-                        <tr class="{{ $row }} font-semibold"><td class="{{ $td }}" colspan="4">Totals</td><td class="{{ $tdr }}">{{ $money($c['payable']) }}</td><td class="{{ $tdr }}">{{ $money($c['paid']) }}</td><td class="{{ $tdr }}">{{ $money($c['balance']) }}</td><td></td></tr>
+                        <tr class="{{ $row }} font-semibold"><td class="{{ $td }}" colspan="4">{{ __('Totals') }}</td><td class="{{ $tdr }}">{{ $money($c['payable']) }}</td><td class="{{ $tdr }}">{{ $money($c['paid']) }}</td><td class="{{ $tdr }}">{{ $money($c['balance']) }}</td><td></td></tr>
                     </tbody>
                 </table>
                 @if ($c['payments'] !== [])
                     <table class="mt-4 w-full">
-                        <thead><tr><th class="{{ $th }}">Paid on</th><th class="{{ $th }}">Bill</th><th class="{{ $th }}">From</th><th class="{{ $th }}">Reference</th><th class="{{ $thr }}">Amount</th></tr></thead>
+                        <thead><tr><th class="{{ $th }}">{{ __('Paid on') }}</th><th class="{{ $th }}">{{ __('Bill') }}</th><th class="{{ $th }}">{{ __('From') }}</th><th class="{{ $th }}">{{ __('Reference') }}</th><th class="{{ $thr }}">{{ __('Amount') }}</th></tr></thead>
                         <tbody>
                             @foreach ($c['payments'] as $p)
                                 <tr class="{{ $row }}"><td class="{{ $td }}">{{ $d($p['date']) }}</td><td class="{{ $td }} font-mono">{{ $p['bill'] }}</td><td class="{{ $td }}">{{ $p['from'] }}</td><td class="{{ $td }}">{{ $p['reference'] }}</td><td class="{{ $tdr }}">{{ $money($p['amount']) }}</td></tr>
@@ -149,7 +149,7 @@
 
         <x-filament::section heading="Sharing history" collapsible collapsed>
             <table class="w-full">
-                <thead><tr><th class="{{ $th }}">When</th><th class="{{ $th }}">How</th><th class="{{ $th }}">To</th><th class="{{ $th }}">Period</th><th class="{{ $th }}">What happened</th></tr></thead>
+                <thead><tr><th class="{{ $th }}">{{ __('When') }}</th><th class="{{ $th }}">{{ __('How') }}</th><th class="{{ $th }}">{{ __('To') }}</th><th class="{{ $th }}">{{ __('Period') }}</th><th class="{{ $th }}">{{ __('What happened') }}</th></tr></thead>
                 <tbody>
                     @forelse ($this->getShares() as $sh)
                         <tr class="{{ $row }}"><td class="{{ $td }}">{{ $sh->created_at->timezone('Asia/Karachi')->format('d M Y H:i') }}</td><td class="{{ $td }}">{{ StatementShare::CHANNELS[$sh->channel] ?? $sh->channel }}</td>
@@ -157,7 +157,7 @@
                             @php($progress = \App\Models\WhatsAppEvent::progressOf($sh->provider_message_id))
                             <td class="{{ $td }}" title="{{ $sh->detail }}">{{ $progress !== null ? 'WhatsApp: '.\App\Models\WhatsAppEvent::PROGRESS[$progress] : (StatementShare::STATUSES[$sh->status] ?? $sh->status) }}</td></tr>
                     @empty
-                        <tr><td class="{{ $td }} text-gray-500" colspan="5">Not shared yet.</td></tr>
+                        <tr><td class="{{ $td }} text-gray-500" colspan="5">{{ __('Not shared yet.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

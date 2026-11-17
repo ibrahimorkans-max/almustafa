@@ -28,6 +28,8 @@ use Livewire\Attributes\Locked;
  */
 class LabTestEntryPage extends Page implements HasForms
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithForms;
 
     /** The vehicle comes as ?entry=…; without one, the page points to the list of lab tests to add. */
@@ -107,7 +109,7 @@ class LabTestEntryPage extends Page implements HasForms
     public function save(): void
     {
         if (! $this->open()) {
-            Notification::make()->warning()->title('The lab has already decided on this lot.')->send();
+            Notification::make()->warning()->title(__('The lab has already decided on this lot.'))->send();
 
             return;
         }

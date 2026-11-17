@@ -47,6 +47,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class CustomerResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = Customer::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
@@ -111,11 +113,11 @@ class CustomerResource extends Resource
     public static function lifetimeForm(): array
     {
         return [
-            TextInput::make('paid')->label('Paid once (Rs)')->regex(Units::DECIMAL_2)
+            TextInput::make('paid')->label(__('Paid once (Rs)'))->regex(Units::DECIMAL_2)
                 ->default(fn (?Customer $record) => ($p = $record?->plan?->price_paise_lifetime) ? number_format($p / 100, 2, '.', '') : null)
-                ->helperText('The one-time amount for lifetime access (the plan\'s lifetime price). Empty: given free.'),
-            TextInput::make('note')->label('Why (kept in the history)')->required()->maxLength(300)->placeholder('Founding customer'),
-            Toggle::make('cancel_open')->label('Cancel its open invoices')->default(true),
+                ->helperText(__('The one-time amount for lifetime access (the plan\'s lifetime price). Empty: given free.')),
+            TextInput::make('note')->label(__('Why (kept in the history)'))->required()->maxLength(300)->placeholder(__('Founding customer')),
+            Toggle::make('cancel_open')->label(__('Cancel its open invoices'))->default(true),
         ];
     }
 
@@ -144,7 +146,7 @@ class CustomerResource extends Resource
     /** @return list<Component> */
     public static function trialForm(): array
     {
-        return [TextInput::make('days')->label('Trial days from today')->integer()->minValue(1)->maxValue(365)
+        return [TextInput::make('days')->label(__('Trial days from today'))->integer()->minValue(1)->maxValue(365)
             ->default((int) config('ricemill.saas.trial_days', 14))->required()->suffix('days')];
     }
 
@@ -155,7 +157,7 @@ class CustomerResource extends Resource
         $customer->update(['status' => Customer::TRIAL, 'trial_ends_at' => now('Asia/Karachi')->addDays($days)->endOfDay()->utc()]);
         app(AuditLogger::class)->record('saas.customer.trial_set', $customer, null, null, ['days' => $days]);
         app(CustomerAccess::class)->forget();
-        Notification::make()->success()->title("{$customer->name}: free trial of {$days} days, until {$customer->trial_ends_at?->timezone('Asia/Karachi')->format('d M Y')}.")->send();
+        Notification::make()->success()->title(__(':name: free trial of :days days, until :y.', ['name' => $customer->name, 'days' => $days, 'y' => $customer->trial_ends_at?->timezone('Asia/Karachi')->format('d M Y')]))->send();
     }
 
     /** Customers only: the product's own company (the product owner's office) is not one. */
@@ -174,22 +176,22 @@ class CustomerResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            Section::make('Company')->columns(2)->schema([
+            Section::make(__('Company'))->columns(2)->schema([
                 TextInput::make('name')->required()->maxLength(160),
-                TextInput::make('alias')->label('Alias (only you see it)')->maxLength(120)->helperText('Your own name for this account; the customer never sees it.'),
-                TextInput::make('contact_name')->label('Contact person')->maxLength(120),
+                TextInput::make('alias')->label(__('Alias (only you see it)'))->maxLength(120)->helperText(__('Your own name for this account; the customer never sees it.')),
+                TextInput::make('contact_name')->label(__('Contact person'))->maxLength(120),
                 TextInput::make('phone')->tel()->maxLength(20),
                 TextInput::make('email')->email()->maxLength(160),
-                Toggle::make('payment_page')->label('Shows the payment page')->helperText('Counts when the payment page is shown to selected customers only.'),
+                Toggle::make('payment_page')->label(__('Shows the payment page'))->helperText(__('Counts when the payment page is shown to selected customers only.')),
                 Textarea::make('address')->maxLength(500),
                 Textarea::make('notes')->maxLength(2000),
             ]),
-            Section::make('Subscription')->columns(3)->schema([
-                Select::make('plan_id')->label('Plan')->options(fn () => self::planOptions())->placeholder('No plan: everything'),
-                Select::make('status')->options(self::STATUSES)->required()->native(false)
+            Section::make(__('Subscription'))->columns(3)->schema([
+                Select::make('plan_id')->label(__('Plan'))->options(fn () => self::planOptions())->placeholder(__('No plan: everything')),
+                Select::make('status')->options(\App\Support\Locales::options(self::STATUSES))->required()->native(false)
                     ->disableOptionWhen(fn (string $value, ?Customer $record) => $record !== null && in_array($value, [Customer::SUSPENDED, Customer::CANCELLED], true) && self::holdsPlatform($record))
-                    ->helperText('Paused or closed: its people are signed out and cannot sign in.'),
-                DateTimePicker::make('trial_ends_at')->label('Trial ends')->seconds(false)->visible(fn ($get) => $get('status') === Customer::TRIAL),
+                    ->helperText(__('Paused or closed: its people are signed out and cannot sign in.')),
+                DateTimePicker::make('trial_ends_at')->label(__('Trial ends'))->seconds(false)->visible(fn ($get) => $get('status') === Customer::TRIAL),
             ]),
         ]);
     }
@@ -209,7 +211,7 @@ class CustomerResource extends Resource
         }
         app(AuditLogger::class)->record('saas.payment_page.'.($show ? 'shown' : 'hidden'), null, null, null, ['customers' => $records->pluck('code')->all()]);
         Notification::make()->success()->title('Payment page '.($show ? 'shown to ' : 'hidden from ').$records->count().' customer(s).')
-            ->body('The payment page is now shown only to the customers ticked.')->send();
+            ->body(__('The payment page is now shown only to the customers ticked.'))->send();
     }
 
     public static function table(Table $table): Table
@@ -222,10 +224,10 @@ class CustomerResource extends Resource
             ->columns([
                 TextColumn::make('code')->searchable()->sortable(),
                 TextColumn::make('name')->description(fn (Customer $r) => trim(($r->contact_name ?? '').' '.($r->phone ?? '')))->searchable()->wrap(),
-                TextColumn::make('alias')->label('Alias')->placeholder('—')->searchable()->color('primary')->weight('medium'),
-                ToggleColumn::make('payment_page')->label('Payment page')->tooltip('Shown to this customer when the payment page is for selected customers only')
+                TextColumn::make('alias')->label(__('Alias'))->placeholder('—')->searchable()->color('primary')->weight('medium'),
+                ToggleColumn::make('payment_page')->label(__('Payment page'))->tooltip(__('Shown to this customer when the payment page is for selected customers only'))
                     ->visible(fn () => PaymentPage::mode() === 'selected'),
-                TextColumn::make('plan.name')->label('Plan')->placeholder('Everything'),
+                TextColumn::make('plan.name')->label(__('Plan'))->placeholder(__('Everything')),
                 TextColumn::make('status')->badge()
                     ->formatStateUsing(fn (string $state, Customer $r) => match (true) {
                         $r->isLifetime() && $state === Customer::ACTIVE => 'Lifetime',
@@ -241,65 +243,65 @@ class CustomerResource extends Resource
                         $state === Customer::PAST_DUE => 'warning',
                         default => 'danger',
                     }),
-                TextColumn::make('mills')->label('Mills')->state(fn (Customer $r) => $usage($r, 'mills')),
-                TextColumn::make('users')->label('Users')->state(fn (Customer $r) => $usage($r, 'users')),
-                TextColumn::make('vehicles')->label('Vehicles this month')->state(fn (Customer $r) => $usage($r, 'vehicles')),
-                TextColumn::make('created_at')->label('Since')->date('d M Y')->sortable(),
+                TextColumn::make('mills')->label(__('Mills'))->state(fn (Customer $r) => $usage($r, 'mills')),
+                TextColumn::make('users')->label(__('Users'))->state(fn (Customer $r) => $usage($r, 'users')),
+                TextColumn::make('vehicles')->label(__('Vehicles this month'))->state(fn (Customer $r) => $usage($r, 'vehicles')),
+                TextColumn::make('created_at')->label(__('Since'))->date('d M Y')->sortable(),
             ])
-            ->filters([SelectFilter::make('status')->options(self::STATUSES)])
+            ->filters([SelectFilter::make('status')->options(\App\Support\Locales::options(self::STATUSES))])
             ->bulkActions([
-                BulkAction::make('showPayment')->label('Show the payment page')->icon('heroicon-o-eye')
+                BulkAction::make('showPayment')->label(__('Show the payment page'))->icon('heroicon-o-eye')
                     ->action(fn (Collection $records) => self::paymentPage($records, true)),
-                BulkAction::make('hidePayment')->label('Hide the payment page')->icon('heroicon-o-eye-slash')
+                BulkAction::make('hidePayment')->label(__('Hide the payment page'))->icon('heroicon-o-eye-slash')
                     ->action(fn (Collection $records) => self::paymentPage($records, false)),
             ])
             ->actions([
                 // Block / Unblock right on the row: a blocked company sees only the payment page and nothing of its data.
-                Action::make('suspend')->label('Block')->icon('heroicon-o-no-symbol')->color('danger')->button()->size('sm')
+                Action::make('suspend')->label(__('Block'))->icon('heroicon-o-no-symbol')->color('danger')->button()->size('sm')
                     ->visible(fn (Customer $r) => ! in_array($r->status, [Customer::SUSPENDED, Customer::CANCELLED], true) && ! self::holdsPlatform($r))
                     ->modalHeading(fn (Customer $r) => "Block {$r->name}?")
-                    ->modalDescription('Its people are sent to the payment page at once and see none of their data, on the web, the app, shared links and messages, until you unblock it. Nothing is deleted.')
-                    ->modalSubmitActionLabel('Block')
-                    ->form([TextInput::make('reason')->label('Why (kept in the history)')->required()->minLength(5)->maxLength(300)])
+                    ->modalDescription(__('Its people are sent to the payment page at once and see none of their data, on the web, the app, shared links and messages, until you unblock it. Nothing is deleted.'))
+                    ->modalSubmitActionLabel(__('Block'))
+                    ->form([TextInput::make('reason')->label(__('Why (kept in the history)'))->required()->minLength(5)->maxLength(300)])
                     ->action(function (Customer $r, array $data): void {
                         $r->update(['status' => Customer::SUSPENDED]);
                         app(AuditLogger::class)->record('saas.customer.paused', $r, null, null, ['reason' => $data['reason']]);
                         app(CustomerAccess::class)->forget();
-                        Notification::make()->success()->title("{$r->name} is blocked.")->send();
+                        Notification::make()->success()->title(__(':name is blocked.', ['name' => $r->name]))->send();
                     }),
-                Action::make('unblock')->label('Unblock')->icon('heroicon-o-lock-open')->color('success')->button()->size('sm')
+                Action::make('unblock')->label(__('Unblock'))->icon('heroicon-o-lock-open')->color('success')->button()->size('sm')
                     ->visible(fn (Customer $r) => $r->status === Customer::SUSPENDED)
                     ->requiresConfirmation()->modalHeading(fn (Customer $r) => "Unblock {$r->name}?")
-                    ->modalDescription('Its people can sign in and work again at once.')->modalSubmitActionLabel('Unblock')
+                    ->modalDescription(__('Its people can sign in and work again at once.'))->modalSubmitActionLabel(__('Unblock'))
                     ->action(function (Customer $r): void {
                         $r->update(['status' => Customer::ACTIVE, 'trial_ends_at' => null]);
                         app(AuditLogger::class)->record('saas.customer.unblocked', $r);
                         app(CustomerAccess::class)->forget();
-                        Notification::make()->success()->title("{$r->name} is unblocked.")->send();
+                        Notification::make()->success()->title(__(':name is unblocked.', ['name' => $r->name]))->send();
                     }),
                 EditAction::make()->after(fn () => app(PlanLimits::class)->forget()),
                 ActionGroup::make([
-                    Action::make('extendTrial')->label('Set trial period')->icon('heroicon-o-clock')
+                    Action::make('extendTrial')->label(__('Set trial period'))->icon('heroicon-o-clock')
                         ->visible(fn (Customer $r) => self::canSetTrial($r))
                         ->modalDescription(self::TRIAL_NOTE)->form(self::trialForm())
                         ->action(fn (Customer $r, array $data) => self::setTrial($r, $data)),
-                    Action::make('activate')->label('Activate (paid)')->icon('heroicon-o-check-circle')->color('success')
+                    Action::make('activate')->label(__('Activate (paid)'))->icon('heroicon-o-check-circle')->color('success')
                         ->visible(fn (Customer $r) => ! in_array($r->status, [Customer::ACTIVE, Customer::SUSPENDED], true))   // blocked: Unblock
-                        ->modalDescription('Its people can sign in and use their plan in full.')
-                        ->form([Toggle::make('invoice')->label('Issue this month\'s invoice now')->default(fn (Customer $r) => $r->status === Customer::TRIAL)])
+                        ->modalDescription(__('Its people can sign in and use their plan in full.'))
+                        ->form([Toggle::make('invoice')->label(__('Issue this month\'s invoice now'))->default(fn (Customer $r) => $r->status === Customer::TRIAL)])
                         ->action(function (Customer $r, array $data): void {
                             $r->update(['status' => Customer::ACTIVE, 'trial_ends_at' => null]);
                             $invoice = ($data['invoice'] ?? false) ? app(Billing::class)->issueMonthly($r->refresh(), CarbonImmutable::now('Asia/Karachi')) : null;
                             Notification::make()->success()->title("{$r->name} is active.".($invoice ? " Invoice {$invoice->number} issued." : ''))->send();
                         }),
-                    Action::make('lifetime')->label('Give lifetime access')->icon('heroicon-o-sparkles')->color('primary')
+                    Action::make('lifetime')->label(__('Give lifetime access'))->icon('heroicon-o-sparkles')->color('primary')
                         ->visible(fn (Customer $r) => ! $r->isLifetime() && ! self::holdsPlatform($r))
                         ->modalDescription(self::LIFETIME_NOTE)->form(self::lifetimeForm())
                         ->action(fn (Customer $r, array $data) => self::giveLifetime($r, $data)),
-                    Action::make('endLifetime')->label('End lifetime access')->icon('heroicon-o-x-mark')->color('gray')
+                    Action::make('endLifetime')->label(__('End lifetime access'))->icon('heroicon-o-x-mark')->color('gray')
                         ->visible(fn (Customer $r) => $r->isLifetime())
-                        ->modalDescription('It stays active and is billed again from the next monthly run.')
-                        ->form([TextInput::make('note')->label('Why')->required()->maxLength(300)])
+                        ->modalDescription(__('It stays active and is billed again from the next monthly run.'))
+                        ->form([TextInput::make('note')->label(__('Why'))->required()->maxLength(300)])
                         ->action(fn (Customer $r, array $data) => self::endLifetime($r, $data)),
                 ]),
             ]);

@@ -13,11 +13,13 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListDailyWageSheets extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = DailyWageSheetResource::class;
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('Enter daily wages')->icon('heroicon-o-plus')];
+        return [CreateAction::make()->label(__('Enter daily wages'))->icon('heroicon-o-plus')];
     }
 
     public function getSubheading(): string

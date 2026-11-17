@@ -15,7 +15,7 @@ trait MasterResourceHelpers
 {
     public static function getNavigationGroup(): ?string
     {
-        return 'Masters';
+        return __('Masters');
     }
 
     /**
@@ -27,7 +27,7 @@ trait MasterResourceHelpers
         return TextInput::make('code')
             ->required(! $automatic)
             ->when($automatic, fn (TextInput $input) => $input
-                ->placeholder('Leave empty: made automatically')
+                ->placeholder(__('Leave empty: made automatically'))
                 ->disabled(fn (?Model $record) => $record !== null)->dehydrated(fn (?Model $record) => $record === null)
                 ->helperText(fn (?Model $record) => $record === null ? 'Leave empty for an automatic code; it never changes afterwards.' : 'Permanent code.'))
             ->maxLength($max)
@@ -38,12 +38,12 @@ trait MasterResourceHelpers
 
     protected static function versionColumn(): TextColumn
     {
-        return TextColumn::make('version')->label('Ver.')->toggleable(isToggledHiddenByDefault: true);
+        return TextColumn::make('version')->label(__('Ver.'))->toggleable(isToggledHiddenByDefault: true);
     }
 
     protected static function updatedColumn(): TextColumn
     {
-        return TextColumn::make('updated_at')->label('Updated')->since()->sortable()
+        return TextColumn::make('updated_at')->label(__('Updated'))->since()->sortable()
             ->tooltip(fn (Model $record) => $record->getAttribute('updated_at')?->toDateTimeString());
     }
 }

@@ -38,7 +38,7 @@ class OwnerOverview extends StatsOverviewWidget
             Stat::make('Sales', Units::paiseToRupees($o['sales']))->description($o['month'])->url($pl),
             Stat::make($o['net_profit'] >= 0 ? 'Net profit so far' : 'Net loss so far', Units::paiseToRupees(abs($o['net_profit'])))
                 ->color($o['net_profit'] >= 0 ? 'success' : 'danger')->url($pl),
-            Stat::make('Payroll cost', Units::paiseToRupees($o['payroll_cost']))->description('Posted payroll this month'),
+            Stat::make('Payroll cost', Units::paiseToRupees($o['payroll_cost']))->description(__('Posted payroll this month')),
             Stat::make('Daily wages', Units::paiseToRupees($o['daily_wages']))
                 ->description($o['daily_wages_owed'] > 0 ? 'Still owed to groups: '.Units::paiseToRupees($o['daily_wages_owed']) : 'Casual labour this month')
                 ->color($o['daily_wages_owed'] > 0 ? 'warning' : 'gray')->url(DailyWageSheetResource::getUrl()),

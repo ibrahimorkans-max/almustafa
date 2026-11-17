@@ -12,7 +12,7 @@
             <div class="flex gap-2">
                 <x-filament::button type="submit">{{ $this->hasPin() ? 'Change PIN' : 'Save PIN' }}</x-filament::button>
                 @if ($this->hasPin())
-                    <x-filament::button color="gray" wire:click="remove" type="button">Remove PIN (needs current password)</x-filament::button>
+                    <x-filament::button color="gray" wire:click="remove" type="button">{{ __('Remove PIN (needs current password)') }}</x-filament::button>
                 @endif
             </div>
         </form>

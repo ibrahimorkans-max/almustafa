@@ -34,7 +34,7 @@ class IpAllowlistRelationManager extends RelationManager
     public function form(Form $form): Form
     {
         return $form->schema([
-            TextInput::make('cidr')->label('IP or CIDR')->required()->maxLength(64)
+            TextInput::make('cidr')->label(__('IP or CIDR'))->required()->maxLength(64)
                 ->rule(function () {
                     return function (string $attribute, mixed $value, \Closure $fail): void {
                         [$ip, $mask] = array_pad(explode('/', (string) $value, 2), 2, null);
@@ -53,7 +53,7 @@ class IpAllowlistRelationManager extends RelationManager
     {
         return $table
             ->columns([
-                TextColumn::make('cidr')->label('IP / CIDR'),
+                TextColumn::make('cidr')->label(__('IP / CIDR')),
                 TextColumn::make('note'),
                 TextColumn::make('created_at')->dateTime(),
             ])

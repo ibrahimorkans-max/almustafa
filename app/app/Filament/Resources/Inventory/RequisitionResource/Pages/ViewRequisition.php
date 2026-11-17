@@ -17,6 +17,8 @@ use Filament\Resources\Pages\ViewRecord;
 /** requested → approved (by someone else) → issued; the service enforces every rule. */
 class ViewRequisition extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use RunsDomainActions;
 
     protected static string $resource = RequisitionResource::class;
@@ -36,14 +38,14 @@ class ViewRequisition extends ViewRecord
                 ->visible(fn (Requisition $r) => $r->status === Requisition::REQUESTED && $can('requisition.approve'))
                 ->form([Textarea::make('note')->required()->maxLength(1000)])
                 ->action(fn (Requisition $r, array $data) => $this->runDomain(fn () => $service()->reject($r, $data['note']), 'Rejected')),
-            Action::make('issue')->label('Issue stock')->color('primary')->icon('heroicon-o-arrow-up-on-square')
+            Action::make('issue')->label(__('Issue stock'))->color('primary')->icon('heroicon-o-arrow-up-on-square')
                 ->visible(fn (Requisition $r) => $r->status === Requisition::APPROVED && $can('requisition.create'))
                 ->requiresConfirmation()
-                ->modalDescription('Moves the stock now. Refused if the godown does not hold enough.')
+                ->modalDescription(__('Moves the stock now. Refused if the godown does not hold enough.'))
                 ->action(fn (Requisition $r) => $this->runDomain(fn () => $service()->issue($r), 'Stock issued')),
             Action::make('cancel')->color('gray')
                 ->visible(fn (Requisition $r) => in_array($r->status, [Requisition::REQUESTED, Requisition::APPROVED], true))
-                ->form([Textarea::make('note')->label('Reason')->maxLength(1000)])
+                ->form([Textarea::make('note')->label(__('Reason'))->maxLength(1000)])
                 ->action(fn (Requisition $r, array $data) => $this->runDomain(fn () => $service()->cancel($r, $data['note'] ?? null), 'Cancelled')),
         ];
     }

@@ -20,6 +20,8 @@ use Filament\Tables\Table;
 
 class EntityResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = Entity::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
@@ -36,26 +38,26 @@ class EntityResource extends Resource
             Section::make()->columns(2)->schema([
                 TextInput::make('code')->required()->maxLength(20)->alphaDash()
                     ->unique(ignoreRecord: true)->disabledOn('edit')
-                    ->helperText('Short code used in document numbers, e.g. AMR.'),
+                    ->helperText(__('Short code used in document numbers, e.g. AMR.')),
                 TextInput::make('name')->required()->maxLength(255),
                 TextInput::make('legal_name')->maxLength(255),
-                TextInput::make('ntn')->label('NTN')->maxLength(20)
+                TextInput::make('ntn')->label(__('NTN'))->maxLength(20)
                     ->rule(fn () => fn (string $attribute, mixed $value, \Closure $fail) => PakistanIds::isValidNtn((string) PakistanIds::digits((string) $value)) ? null : $fail('NTN: 7 digits and the check digit (1234567-8), or the CNIC for an individual.'))
                     ->dehydrateStateUsing(fn (?string $state) => PakistanIds::digits($state))
                     ->formatStateUsing(fn (?string $state) => PakistanIds::formatNtn($state))
-                    ->helperText('Printed on every invoice. Stored encrypted.'),
-                TextInput::make('strn')->label('STRN (sales tax registration)')->maxLength(20)
+                    ->helperText(__('Printed on every invoice. Stored encrypted.')),
+                TextInput::make('strn')->label(__('STRN (sales tax registration)'))->maxLength(20)
                     ->rule(fn () => fn (string $attribute, mixed $value, \Closure $fail) => PakistanIds::isValidStrn((string) PakistanIds::digits((string) $value)) ? null : $fail('STRN: 13 digits.'))
                     ->dehydrateStateUsing(fn (?string $state) => PakistanIds::digits($state))
-                    ->helperText('Leave empty if the mill is not registered for sales tax: invoices then print as "Invoice" without tax lines. Stored encrypted.'),
-                TextInput::make('phone')->maxLength(40)->helperText('As printed on slips and invoices, e.g. 0300-6834588.'),
-                Select::make('province')->options(array_combine(PakistanIds::PROVINCES, PakistanIds::PROVINCES)),
+                    ->helperText(__('Leave empty if the mill is not registered for sales tax: invoices then print as "Invoice" without tax lines. Stored encrypted.')),
+                TextInput::make('phone')->maxLength(40)->helperText(__('As printed on slips and invoices, e.g. 0300-6834588.')),
+                Select::make('province')->options(\App\Support\Locales::options(array_combine(PakistanIds::PROVINCES, PakistanIds::PROVINCES))),
                 TextInput::make('city')->maxLength(80),
-                TextInput::make('postal_code')->label('Postal code')->length(5)->numeric(),
+                TextInput::make('postal_code')->label(__('Postal code'))->length(5)->numeric(),
                 Textarea::make('address')->columnSpanFull()->rows(2),
                 Select::make('status')->options([
-                    Entity::STATUS_ACTIVE => 'Active',
-                    Entity::STATUS_SUSPENDED => 'Suspended',
+                    Entity::STATUS_ACTIVE => __('Active'),
+                    Entity::STATUS_SUSPENDED => __('Suspended'),
                 ])->default(Entity::STATUS_ACTIVE)->required()->selectablePlaceholder(false)
                     // Suspending a firm is for whoever manages all firms, not the mill's own Super Admin.
                     ->disabled(fn () => ! (Filament::auth()->user()?->hasPermission('entity.manage') ?? false)),

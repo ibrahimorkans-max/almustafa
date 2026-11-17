@@ -41,6 +41,7 @@ use App\Http\Controllers\VehicleRegisterPrintController;
 use App\Http\Middleware\ApplyDataVisibility;
 use App\Http\Middleware\EnsureWebAuthSession;
 use App\Http\Middleware\RequireWorkingEntityForCreate;
+use App\Http\Middleware\SetLocale;
 use App\Livewire\PrintScreenHook;
 use Filament\FontProviders\LocalFontProvider;
 use Filament\Http\Middleware\Authenticate;
@@ -48,6 +49,7 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\MenuItem;
+use Filament\Navigation\NavigationGroup;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -63,6 +65,9 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
 {
+    public const NAVIGATION_GROUPS = ['Platform', 'Procurement', 'Gate & weighbridge', 'Stock & production', 'Sales & dispatch', 'Claims & pricing',
+        'Accounts', HrScope::GROUP, 'Daily wages', 'Reports', 'Masters', 'Administration', 'Security'];
+
     public function panel(Panel $panel): Panel
     {
         return $panel
@@ -92,19 +97,20 @@ class AdminPanelProvider extends PanelProvider
             // Shown on Live weight and Vehicles at gate, not on the dashboard: registered by name so its clicks and typing
             // reach it (an unknown component is refused as "page expired" and the page reloads).
             ->livewireComponents([LiveWeightBoard::class])
-            ->navigationGroups(['Platform', 'Procurement', 'Gate & weighbridge', 'Stock & production', 'Sales & dispatch', 'Claims & pricing', 'Accounts', HrScope::GROUP, 'Daily wages', 'Reports', 'Masters', 'Administration', 'Security'])
+            // In the chosen language (the groups of the pages are translated the same way, see TranslatesLabels).
+            ->navigationGroups(array_map(fn (string $group) => NavigationGroup::make(fn () => __($group)), self::NAVIGATION_GROUPS))
             ->userMenuItems([
-                MenuItem::make()->label('Switch entity / account')->icon('heroicon-o-arrows-right-left')
+                MenuItem::make()->label(fn () => __('Switch entity / account'))->icon('heroicon-o-arrows-right-left')
                     ->url(fn () => SwitchContext::getUrl()),
-                MenuItem::make()->label('Two-factor authentication')->icon('heroicon-o-shield-check')
+                MenuItem::make()->label(fn () => __('Two-factor authentication'))->icon('heroicon-o-shield-check')
                     ->url(fn () => TwoFactor::getUrl()),
-                MenuItem::make()->label('Change password')->icon('heroicon-o-key')
+                MenuItem::make()->label(fn () => __('Change password'))->icon('heroicon-o-key')
                     ->url(fn () => ChangePassword::getUrl()),
-                MenuItem::make()->label('Passkeys')->icon('heroicon-o-finger-print')
+                MenuItem::make()->label(fn () => __('Passkeys'))->icon('heroicon-o-finger-print')
                     ->url(fn () => MyPasskeys::getUrl()),
-                MenuItem::make()->label('My devices')->icon('heroicon-o-computer-desktop')
+                MenuItem::make()->label(fn () => __('My devices'))->icon('heroicon-o-computer-desktop')
                     ->url(fn () => MyDevicesPage::getUrl()),
-                MenuItem::make()->label('Duress PIN')->icon('heroicon-o-exclamation-triangle')
+                MenuItem::make()->label(fn () => __('Duress PIN'))->icon('heroicon-o-exclamation-triangle')
                     ->url(fn () => DuressPin::getUrl())->visible(fn () => DuressPin::canAccess()),
             ])
             // Passkeys on the sign-in page and "My passkeys"; the browser's position once after sign-in.
@@ -124,7 +130,11 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(PanelsRenderHook::GLOBAL_SEARCH_AFTER, fn () => view('filament.hooks.search-all'))
             // The weighbridge's live weight in the top bar of every screen (read in the browser; never redraws the page).
             ->renderHook(PanelsRenderHook::GLOBAL_SEARCH_BEFORE, fn () => view('filament.hooks.live-weight-mini'))
+            ->renderHook(PanelsRenderHook::USER_MENU_BEFORE, fn () => view('filament.hooks.language-switch'))
             ->renderHook(PanelsRenderHook::USER_MENU_BEFORE, fn () => view('filament.hooks.paper-size'))
+            // The language can be chosen before signing in too; right-to-left fonts for Urdu, Pashto and Sindhi.
+            ->renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_BEFORE, fn () => view('filament.hooks.language-switch'))
+            ->renderHook(PanelsRenderHook::HEAD_END, fn () => view('filament.hooks.language-styles'))
             // The role of the person signed in, with its animated icon; the menu icons come alive on hover.
             ->renderHook(PanelsRenderHook::USER_MENU_BEFORE, fn () => view('filament.hooks.role-badge'))
             // Pictures drawn here (initials on the role's colours): ui-avatars.com is outside the security policy.
@@ -166,6 +176,7 @@ class AdminPanelProvider extends PanelProvider
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
+                SetLocale::class,
                 AuthenticateSession::class,
                 ShareErrorsFromSession::class,
                 VerifyCsrfToken::class,

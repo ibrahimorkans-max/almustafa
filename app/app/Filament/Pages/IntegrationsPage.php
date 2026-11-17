@@ -30,6 +30,8 @@ use Filament\Pages\Page;
  */
 class IntegrationsPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-link';
 
     protected static ?string $navigationGroup = 'Administration';
@@ -83,15 +85,15 @@ class IntegrationsPage extends Page
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('fileMessage')->label('WhatsApp file message')->icon('heroicon-o-paper-clip')->color('gray')
+            Action::make('fileMessage')->label(__('WhatsApp file message'))->icon('heroicon-o-paper-clip')->color('gray')
                 ->visible(fn () => $this->entityId() !== null)
-                ->modalHeading('The message sent with a file on WhatsApp')
+                ->modalHeading(__('The message sent with a file on WhatsApp'))
                 ->modalDescription(fn () => 'Used by "Send on WhatsApp" on slips, invoices, bills, vouchers, gate passes and statements; it can still be changed before each sending. Words in braces are filled in: '
                     .implode(', ', array_map(fn ($k, $v) => $k.' = '.$v, array_keys(WhatsAppFiles::PLACEHOLDERS), WhatsAppFiles::PLACEHOLDERS)).'.')
                 ->fillForm(fn () => ['text' => app(WhatsAppFiles::class)->template($this->entityId())])
                 ->form([
-                    Textarea::make('text')->label('Message')->required()->rows(3)->maxLength(700)
-                        ->helperText('Example: Dear {party}, please find your {document} {number} attached. {mill}'),
+                    Textarea::make('text')->label(__('Message'))->required()->rows(3)->maxLength(700)
+                        ->helperText(__('Example: Dear {party}, please find your {document} {number} attached. {mill}')),
                 ])
                 ->action(function (array $data): void {
                     try {
@@ -101,26 +103,26 @@ class IntegrationsPage extends Page
 
                         return;
                     }
-                    Notification::make()->success()->title('Saved. Files sent on WhatsApp now carry this message.')
+                    Notification::make()->success()->title(__('Saved. Files sent on WhatsApp now carry this message.'))
                         ->body(app(WhatsAppFiles::class)->message($this->entityId(), 'Muhammad Aslam', 'weighment slip', 'AMR/G/2026-27/0001'))->send();
                 }),
-            Action::make('testWhatsapp')->label('Send a test message')->icon('heroicon-o-paper-airplane')->color('gray')
+            Action::make('testWhatsapp')->label(__('Send a test message'))->icon('heroicon-o-paper-airplane')->color('gray')
                 ->visible(fn () => WhatsAppCloud::configured($this->entityId()))
-                ->form([TextInput::make('to')->label('To (mobile number)')->required()->tel()->placeholder('03001234567')])
+                ->form([TextInput::make('to')->label(__('To (mobile number)'))->required()->tel()->placeholder('03001234567')])
                 ->action(function (array $data): void {
                     $to = preg_replace('/\D/', '', (string) $data['to']) ?? '';
                     $to = str_starts_with($to, '0') ? '92'.substr($to, 1) : $to;
                     $result = (new WhatsAppCloud($this->entityId()))->send($to, 'This is a test message from your mill\'s system.');
                     $result['ok']
-                        ? Notification::make()->success()->title('Sent. Check the phone.')->send()
+                        ? Notification::make()->success()->title(__('Sent. Check the phone.'))->send()
                         : Notification::make()->danger()->title((string) $result['error'])->persistent()->send();
                 }),
-            Action::make('scanner')->label('Scanner')->icon('heroicon-o-printer')->color('gray')
+            Action::make('scanner')->label(__('Scanner'))->icon('heroicon-o-printer')->color('gray')
                 ->visible(fn () => $this->entityId() !== null && NetworkScanner::available())
-                ->modalHeading('The mill\'s network scanner')
-                ->modalDescription('For roznamcha pages: the scanner (or printer with a scanner) on the mill\'s network that understands AirScan / eSCL (most HP, Canon, Epson and Brother models do). Give its address, e.g. http://192.168.1.50. Empty: no scanner.')
+                ->modalHeading(__('The mill\'s network scanner'))
+                ->modalDescription(__('For roznamcha pages: the scanner (or printer with a scanner) on the mill\'s network that understands AirScan / eSCL (most HP, Canon, Epson and Brother models do). Give its address, e.g. http://192.168.1.50. Empty: no scanner.'))
                 ->fillForm(fn () => ['address' => NetworkScanner::address($this->entityId())])
-                ->form([TextInput::make('address')->label('Scanner address')->maxLength(200)->placeholder('http://192.168.1.50')])
+                ->form([TextInput::make('address')->label(__('Scanner address'))->maxLength(200)->placeholder(__('http://192.168.1.50'))])
                 ->action(function (array $data): void {
                     try {
                         $address = filled($data['address'] ?? null) ? NetworkScanner::validate((string) $data['address']) : null;

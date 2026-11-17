@@ -12,11 +12,13 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListGateEntries extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = GateEntryResource::class;
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('Vehicle arrived'), QuickLabTest::make()];
+        return [CreateAction::make()->label(__('Vehicle arrived')), QuickLabTest::make()];
     }
 
     /** The weighbridge reading above the list, so the operator sees the weight while working. */

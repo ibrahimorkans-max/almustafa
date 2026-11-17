@@ -10,6 +10,8 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewBankEmailTransaction extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = BankEmailTransactionResource::class;
 
     protected function getHeaderActions(): array

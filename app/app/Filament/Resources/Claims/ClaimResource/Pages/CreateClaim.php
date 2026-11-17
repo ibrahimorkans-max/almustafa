@@ -21,6 +21,8 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class CreateClaim extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use OffersPrintAfterCreate;
 
     protected string $printType = 'claim';

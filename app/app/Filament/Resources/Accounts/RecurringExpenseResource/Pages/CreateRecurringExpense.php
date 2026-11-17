@@ -15,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreateRecurringExpense extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = RecurringExpenseResource::class;
 
     /** @param  array<string, mixed>  $data */

@@ -15,13 +15,13 @@
         },
     }">
     <x-filament::icon icon="heroicon-o-printer" class="h-5 w-5 text-gray-400" />
-    <label class="sr-only" for="print-paper">Paper for printing</label>
-    <select id="print-paper" x-model="paper" x-on:change="save()" title="Paper for printing slips and reports on this device"
+    <label class="sr-only" for="print-paper">{{ __('Paper for printing') }}</label>
+    <select id="print-paper" x-model="paper" x-on:change="save()" title="{{ __('Paper for printing slips and reports on this device') }}"
         class="rounded-lg border-gray-300 py-1 pe-8 ps-2 text-xs dark:border-white/10 dark:bg-white/5">
-        <option value="">Paper: as designed</option>
+        <option value="">{{ __('Paper: as designed') }}</option>
         @foreach (\App\Domain\Documents\PaperSize::OPTIONS as $key => $label)
             <option value="{{ $key }}">Paper: {{ $label }}</option>
         @endforeach
     </select>
-    <span x-show="saved" x-cloak class="text-xs text-success-600">Saved</span>
+    <span x-show="saved" x-cloak class="text-xs text-success-600">{{ __('Saved') }}</span>
 </div>

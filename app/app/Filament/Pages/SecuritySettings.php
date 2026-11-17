@@ -21,6 +21,8 @@ use Filament\Pages\Page;
  */
 class SecuritySettings extends Page implements HasForms
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
@@ -53,10 +55,10 @@ class SecuritySettings extends Page implements HasForms
     {
         return $form->schema([
             Radio::make('login_mode')
-                ->label('Login mode')
+                ->label(__('Login mode'))
                 ->options([
-                    SettingsService::LOGIN_MODE_MULTI_ACCOUNT => 'Separate login per entity (each account has its own username, password and 2FA)',
-                    SettingsService::LOGIN_MODE_SWITCHER => 'Single login with entity switcher (a person can switch between their accounts)',
+                    SettingsService::LOGIN_MODE_MULTI_ACCOUNT => __('Separate login per entity (each account has its own username, password and 2FA)'),
+                    SettingsService::LOGIN_MODE_SWITCHER => __('Single login with entity switcher (a person can switch between their accounts)'),
                 ])
                 ->required(),
         ])->statePath('data');
@@ -66,6 +68,6 @@ class SecuritySettings extends Page implements HasForms
     {
         abort_unless(static::canAccess(), 403);
         app(SettingsService::class)->put(SettingsService::LOGIN_MODE, $this->form->getState()['login_mode']);
-        Notification::make()->title('Settings saved')->success()->send();
+        Notification::make()->title(__('Settings saved'))->success()->send();
     }
 }

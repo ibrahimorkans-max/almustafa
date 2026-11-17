@@ -24,6 +24,8 @@ use Illuminate\Database\Eloquent\Builder;
 /** Bonuses, arrears, fines and other one-off deductions: requested with a reason, approved by a second person. */
 class PayAdjustmentResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = PayAdjustment::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-adjustments-horizontal';
@@ -69,11 +71,11 @@ class PayAdjustmentResource extends Resource
             ->modifyQueryUsing(fn (Builder $query) => $query->with('employee.person'))
             ->columns([
                 TextColumn::make('month')->sortable(),
-                TextColumn::make('employee.code')->label('Employee')->searchable(),
-                TextColumn::make('employee.person.full_name')->label('Name'),
+                TextColumn::make('employee.code')->label(__('Employee'))->searchable(),
+                TextColumn::make('employee.person.full_name')->label(__('Name')),
                 TextColumn::make('type')->formatStateUsing(fn (string $state) => PayAdjustment::TYPES[$state] ?? $state),
-                TextColumn::make('name')->label('Item'),
-                TextColumn::make('amount_paise')->label('Amount')->alignEnd()->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state)),
+                TextColumn::make('name')->label(__('Item')),
+                TextColumn::make('amount_paise')->label(__('Amount'))->alignEnd()->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state)),
                 TextColumn::make('reason')->limit(40)->tooltip(fn (PayAdjustment $r) => $r->reason),
                 TextColumn::make('status')->badge()->color(fn (string $state) => match ($state) {
                     PayAdjustment::REQUESTED => 'warning', PayAdjustment::APPROVED => 'success', default => 'danger',
@@ -81,25 +83,25 @@ class PayAdjustmentResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
-                SelectFilter::make('status')->options([PayAdjustment::REQUESTED => 'Waiting for approval', PayAdjustment::APPROVED => 'Approved', PayAdjustment::REJECTED => 'Refused']),
-                SelectFilter::make('type')->options(PayAdjustment::TYPES),
+                SelectFilter::make('status')->options([PayAdjustment::REQUESTED => __('Waiting for approval'), PayAdjustment::APPROVED => __('Approved'), PayAdjustment::REJECTED => __('Refused')]),
+                SelectFilter::make('type')->options(\App\Support\Locales::options(PayAdjustment::TYPES)),
             ])
             ->actions([
-                Action::make('slip')->label('Slip')->icon('heroicon-o-printer')->color('gray')
+                Action::make('slip')->label(__('Slip'))->icon('heroicon-o-printer')->color('gray')
                     ->visible(fn (PayAdjustment $r) => $r->status === PayAdjustment::APPROVED && in_array($r->type, ['bonus', 'earning'], true) && DocumentActions::allowed())
                     ->form(DocumentActions::form('bonus_slip'))
                     ->action(fn (PayAdjustment $record, array $data) => DocumentActions::run('bonus_slip', $record->id, $data)),
                 Action::make('approve')->icon('heroicon-o-check')->color('success')->visible($open)
                     ->form([Textarea::make('note')->maxLength(500)])
                     ->action($run(fn (PayAdjustment $r, array $d) => $svc()->approve($r, $d['note'] ?? null), 'Approved.')),
-                Action::make('approveBatch')->label('Approve whole batch')->icon('heroicon-o-check-badge')->color('success')
+                Action::make('approveBatch')->label(__('Approve whole batch'))->icon('heroicon-o-check-badge')->color('success')
                     ->visible(fn (PayAdjustment $r) => $open($r) && $r->batch_id !== null)
                     ->requiresConfirmation()
                     ->modalDescription(fn (PayAdjustment $r) => PayAdjustment::query()->where('batch_id', $r->batch_id)->where('status', PayAdjustment::REQUESTED)->count().' items of this batch are waiting.')
                     ->form([Textarea::make('note')->maxLength(500)])
                     ->action($run(fn (PayAdjustment $r, array $d) => $svc()->approveBatch((string) $r->batch_id, $d['note'] ?? null), 'Batch approved.')),
-                Action::make('reject')->label('Refuse')->icon('heroicon-o-x-mark')->color('danger')->visible($open)
-                    ->form([Textarea::make('note')->label('Reason')->required()->minLength(5)->maxLength(500)])
+                Action::make('reject')->label(__('Refuse'))->icon('heroicon-o-x-mark')->color('danger')->visible($open)
+                    ->form([Textarea::make('note')->label(__('Reason'))->required()->minLength(5)->maxLength(500)])
                     ->action($run(fn (PayAdjustment $r, array $d) => $svc()->reject($r, $d['note']), 'Refused.')),
             ]);
     }

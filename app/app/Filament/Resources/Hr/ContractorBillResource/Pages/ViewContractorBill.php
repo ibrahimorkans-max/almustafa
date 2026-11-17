@@ -9,5 +9,7 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewContractorBill extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = ContractorBillResource::class;
 }

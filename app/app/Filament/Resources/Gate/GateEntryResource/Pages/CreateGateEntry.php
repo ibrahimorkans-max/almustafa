@@ -18,6 +18,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreateGateEntry extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = GateEntryResource::class;
 
     protected static ?string $title = 'Vehicle arrived';
@@ -47,11 +49,11 @@ class CreateGateEntry extends CreateRecord
 
         return Notification::make()->success()->persistent()
             ->title('Token '.$entry->tokenLabel().' — '.$entry->vehicleLabel().($entry->jack_type !== null ? ' · '.$entry->jackLabel() : ''))
-            ->body('Give the driver the token slip; vehicles are served in token order.')
+            ->body(__('Give the driver the token slip; vehicles are served in token order.'))
             ->actions([
-                NotificationAction::make('print80')->label('Print token (80 mm)')->button()
+                NotificationAction::make('print80')->label(__('Print token (80 mm)'))->button()
                     ->url(route('filament.admin.gate.token', ['id' => $entry->id, 'paper' => 'roll']), shouldOpenInNewTab: true),
-                NotificationAction::make('print50')->label('Print token (50 mm)')->button()->color('gray')
+                NotificationAction::make('print50')->label(__('Print token (50 mm)'))->button()->color('gray')
                     ->url(route('filament.admin.gate.token', ['id' => $entry->id, 'paper' => 'roll50']), shouldOpenInNewTab: true),
             ]);
     }

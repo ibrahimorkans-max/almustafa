@@ -57,11 +57,11 @@
                     <div class="font-medium" dir="auto">{{ $m['pending']['summary'] }}</div>
                     @if (empty($m['done']))
                         <div class="mt-2 flex gap-2">
-                            <x-filament::button size="sm" color="success" wire:click="confirm({{ $i }})" icon="heroicon-o-check">Confirm</x-filament::button>
-                            <x-filament::button size="sm" color="gray" wire:click="cancel({{ $i }})">Cancel</x-filament::button>
+                            <x-filament::button size="sm" color="success" wire:click="confirm({{ $i }})" icon="heroicon-o-check">{{ __('Confirm') }}</x-filament::button>
+                            <x-filament::button size="sm" color="gray" wire:click="cancel({{ $i }})">{{ __('Cancel') }}</x-filament::button>
                         </div>
                     @else
-                        <div class="mt-1 text-xs text-gray-500">Answered.</div>
+                        <div class="mt-1 text-xs text-gray-500">{{ __('Answered.') }}</div>
                     @endif
                 </div>
             @endif
@@ -77,4 +77,4 @@
         </div>
     @endif
 @endforeach
-<div wire:loading wire:target="send,confirm,quick,start" class="text-xs text-gray-500" style="margin-left:2.5rem;">Working…</div>
+<div wire:loading wire:target="send,confirm,quick,start" class="text-xs text-gray-500" style="margin-left:2.5rem;">{{ __('Working…') }}</div>

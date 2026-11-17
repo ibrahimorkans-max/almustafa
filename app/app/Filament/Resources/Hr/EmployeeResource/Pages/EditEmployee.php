@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class EditEmployee extends EditRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = EmployeeResource::class;
 
     /**

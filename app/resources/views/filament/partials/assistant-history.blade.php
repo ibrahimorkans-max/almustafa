@@ -14,7 +14,7 @@
 
     <div style="display:flex; justify-content:space-between; align-items:center; gap:.5rem;">
         <span style="color: rgb(var(--gray-500)); font-size: .8rem;">Your chats of the last {{ \App\Models\Assistant\AssistantChat::KEEP_DAYS }} days. Open one to carry on with it.</span>
-        <x-filament::button size="xs" color="gray" icon="heroicon-o-plus" wire:click="clearChat">New chat</x-filament::button>
+        <x-filament::button size="xs" color="gray" icon="heroicon-o-plus" wire:click="clearChat">{{ __('New chat') }}</x-filament::button>
     </div>
 
     @forelse ($this->history() as $day => $chats)

@@ -6,6 +6,7 @@ import hashlib
 import http.client
 import json
 import ssl
+import time
 import urllib.parse
 import uuid
 from dataclasses import dataclass
@@ -114,8 +115,8 @@ class ApiClient:
         self.access: str | None = None
         self.refresh_token: str | None = None
         # Unattended runs (sync every minute, live restarted on failure): a password the ERP refused is not sent
-        # again until it changes. Each refusal counts against the login from the mill's internet address, which
-        # every computer there shares: retrying would lock that login out for the people at the mill too.
+        # again for 30 minutes (or until it changes). Each refusal counts against the login from the mill's internet
+        # address, which every computer there shares: retrying every minute would lock that login out for everyone.
         self.refused_file = refused_file
 
     def _fingerprint(self) -> str:
@@ -123,11 +124,16 @@ class ApiClient:
 
     # ------------------------------------------------------------------ auth
 
+    # A refused password is tried again after this long, so the agent recovers by itself once the office unlocks
+    # the login; twice an hour is too rare to lock it (that needs 5 refusals within the lock-out window).
+    RETRY_REFUSED_S = 1800
+
     def login(self) -> dict:
         if self.refused_file is not None and self.refused_file.is_file() \
+                and time.time() - self.refused_file.stat().st_mtime < self.RETRY_REFUSED_S \
                 and self.refused_file.read_text(encoding="utf-8").strip() == self._fingerprint():
-            raise ApiError(401, {"error": "invalid_credentials", "message": "The ERP refused this password before; "
-                                 "it is not tried again until it is changed (ricemill-agent pair, or login)."})
+            raise ApiError(401, {"error": "invalid_credentials", "message": "The ERP refused this password; it is tried again "
+                                 "every 30 minutes, or now with: ricemill-agent check (after the office unlocked the login)."})
         try:
             body = self._send("POST", "/auth/login", {
                 "username": self.creds.username, "password": self.creds.password,

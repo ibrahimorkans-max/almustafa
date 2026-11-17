@@ -11,6 +11,8 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListExpenseCategories extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = ExpenseCategoryResource::class;
 
     public function mount(): void

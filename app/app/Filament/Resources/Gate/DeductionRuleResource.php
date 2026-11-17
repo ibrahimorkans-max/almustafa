@@ -27,6 +27,8 @@ use Filament\Tables\Table;
  */
 class DeductionRuleResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = DeductionRule::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-adjustments-horizontal';
@@ -44,19 +46,19 @@ class DeductionRuleResource extends Resource
         $unconditional = fn (Get $get) => in_array($get('method'), DeductionRule::UNCONDITIONAL, true);
 
         return $form->columns(2)->schema([
-            TextInput::make('name')->label('Rule name')->required()->maxLength(120)->placeholder('Moisture above 17 %, Bag weight, Dust 1 % …'),
-            TextInput::make('code')->label('Rule code')->disabled()->dehydrated(false)->placeholder('Made automatically (DR-…)'),
+            TextInput::make('name')->label(__('Rule name'))->required()->maxLength(120)->placeholder(__('Moisture above 17 %, Bag weight, Dust 1 % …')),
+            TextInput::make('code')->label(__('Rule code'))->disabled()->dehydrated(false)->placeholder(__('Made automatically (DR-…)')),
             ProductSelect::make('product_id', ['paddy'])->required(),
-            VarietySelect::make()->helperText('Empty: every variety of this product.'),
-            Select::make('method')->label('Deduction type')->required()->live()->options(DeductionRule::METHOD_LABELS),
-            Select::make('parameter')->label('Deduction basis (lab test)')
-                ->options(array_combine(DeductionRule::PARAMETERS, array_map(fn ($p) => ucfirst(str_replace('_', ' ', $p)), DeductionRule::PARAMETERS)))
+            VarietySelect::make()->helperText(__('Empty: every variety of this product.')),
+            Select::make('method')->label(__('Deduction type'))->required()->live()->options(\App\Support\Locales::options(DeductionRule::METHOD_LABELS)),
+            Select::make('parameter')->label(__('Deduction basis (lab test)'))
+                ->options(\App\Support\Locales::options(array_combine(DeductionRule::PARAMETERS, array_map(fn ($p) => ucfirst(str_replace('_', ' ', $p)), DeductionRule::PARAMETERS))))
                 ->required(fn (Get $get) => ! $unconditional($get))->hidden($unconditional)->dehydratedWhenHidden()
                 // Rules that need no lab reading are kept under their own basis.
                 ->dehydrateStateUsing(fn (?string $state, Get $get) => match ($get('method')) {
                     'per_bag' => 'bags', 'fixed_weight' => 'fixed', 'percent_of_net' => 'net', default => $state,
                 }),
-            TextInput::make('free_limit_bp')->label('Free limit (basis points, 1700 = 17 %)')->integer()->minValue(0)->maxValue(10000)->default(0)
+            TextInput::make('free_limit_bp')->label(__('Free limit (basis points, 1700 = 17 %)'))->integer()->minValue(0)->maxValue(10000)->default(0)
                 ->hidden($unconditional),
             TextInput::make('factor')->required()->integer()->minValue(0)->live(debounce: 500)
                 ->label(fn (Get $get) => match ($get('method')) {
@@ -67,13 +69,13 @@ class DeductionRuleResource extends Resource
                     default => 'Weight factor (10000 = 1 % weight per 1 % excess)',
                 })
                 ->maxValue(fn (Get $get) => $get('method') === 'percent_of_net' ? 10000 : null),
-            TextInput::make('reject_above_bp')->label('Reject above (basis points)')->integer()->minValue(0)->maxValue(10000)
+            TextInput::make('reject_above_bp')->label(__('Reject above (basis points)'))->integer()->minValue(0)->maxValue(10000)
                 ->hidden($unconditional),
-            DatePicker::make('effective_from')->label('Effective from')->default(fn () => now('Asia/Karachi')->toDateString())
-                ->helperText('Lots decided before this date are not affected.'),
-            TextInput::make('condition_note')->label('Applicable condition')->maxLength(200)->placeholder('e.g. only for lots in jute bags'),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
-            Placeholder::make('example')->label('Calculated deduction')->columnSpanFull()
+            DatePicker::make('effective_from')->label(__('Effective from'))->default(fn () => now('Asia/Karachi')->toDateString())
+                ->helperText(__('Lots decided before this date are not affected.')),
+            TextInput::make('condition_note')->label(__('Applicable condition'))->maxLength(200)->placeholder(__('e.g. only for lots in jute bags')),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')])->default('active')->required(),
+            Placeholder::make('example')->label(__('Calculated deduction'))->columnSpanFull()
                 ->content(fn (Get $get) => self::example((string) $get('method'), (int) $get('factor'))),
         ]);
     }
@@ -102,17 +104,17 @@ class DeductionRuleResource extends Resource
                 TextColumn::make('code')->fontFamily('mono')->searchable()->placeholder('—'),
                 TextColumn::make('name')->searchable()->placeholder('—')->description(fn (DeductionRule $r) => $r->describe()),
                 TextColumn::make('product.name'),
-                TextColumn::make('paddyVariety.name')->label('Variety')->placeholder('All'),
-                TextColumn::make('method')->label('Type')->formatStateUsing(fn (string $state) => DeductionRule::METHOD_LABELS[$state] ?? $state),
-                TextColumn::make('free_limit_bp')->label('Free')->formatStateUsing(fn (int $state) => Units::bpToPercent($state))->toggleable(),
+                TextColumn::make('paddyVariety.name')->label(__('Variety'))->placeholder(__('All')),
+                TextColumn::make('method')->label(__('Type'))->formatStateUsing(fn (string $state) => DeductionRule::METHOD_LABELS[$state] ?? $state),
+                TextColumn::make('free_limit_bp')->label(__('Free'))->formatStateUsing(fn (int $state) => Units::bpToPercent($state))->toggleable(),
                 TextColumn::make('factor'),
-                TextColumn::make('reject_above_bp')->label('Reject above')->formatStateUsing(fn (?int $state) => Units::bpToPercent($state))->placeholder('—')->toggleable(),
-                TextColumn::make('effective_from')->label('From')->date('d M Y')->placeholder('—'),
+                TextColumn::make('reject_above_bp')->label(__('Reject above'))->formatStateUsing(fn (?int $state) => Units::bpToPercent($state))->placeholder('—')->toggleable(),
+                TextColumn::make('effective_from')->label(__('From'))->date('d M Y')->placeholder('—'),
                 TextColumn::make('status')->badge(),
             ])
             ->filters([
-                SelectFilter::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive']),
-                SelectFilter::make('method')->label('Type')->options(DeductionRule::METHOD_LABELS),
+                SelectFilter::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')]),
+                SelectFilter::make('method')->label(__('Type'))->options(\App\Support\Locales::options(DeductionRule::METHOD_LABELS)),
             ])
             ->actions([EditAction::make()]);
     }

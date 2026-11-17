@@ -19,6 +19,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 class HolidayResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = Holiday::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-calendar-days';
@@ -32,8 +34,8 @@ class HolidayResource extends Resource
         return $form->columns(3)->schema([
             DatePicker::make('date')->required()
                 ->unique(ignoreRecord: true, modifyRuleUsing: fn ($rule) => HrScope::inEntity($rule)),
-            TextInput::make('name')->required()->maxLength(120)->placeholder('Diwali'),
-            Select::make('kind')->options(Holiday::KINDS)->required()->default('festival'),
+            TextInput::make('name')->required()->maxLength(120)->placeholder(__('Diwali')),
+            Select::make('kind')->options(\App\Support\Locales::options(Holiday::KINDS))->required()->default('festival'),
         ]);
     }
 
@@ -46,7 +48,7 @@ class HolidayResource extends Resource
                 TextColumn::make('kind')->formatStateUsing(fn (string $state) => Holiday::KINDS[$state] ?? $state)->badge(),
             ])
             ->defaultSort('date')
-            ->filters([Filter::make('upcoming')->label('From today')->toggle()->default()
+            ->filters([Filter::make('upcoming')->label(__('From today'))->toggle()->default()
                 ->query(fn (Builder $query) => $query->where('date', '>=', now('Asia/Karachi')->toDateString()))])
             ->actions([EditAction::make()]);
     }

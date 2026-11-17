@@ -30,6 +30,8 @@ use Filament\Resources\Pages\ListRecords;
 /** Manual entries. Payments to parties are not here: they go through payment requests and approval. */
 class ListVouchers extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = VoucherResource::class;
 
     protected function getHeaderActions(): array
@@ -38,18 +40,18 @@ class ListVouchers extends ListRecords
         $moneyLedgers = fn () => LedgerAccount::query()->whereIn('kind', ['bank', 'cash'])->where('status', 'active')->orderBy('name')->get()
             ->mapWithKeys(fn (LedgerAccount $l) => [$l->id => $l->displayName()]);
         $otherLedgers = fn () => LedgerAccount::query()->whereNotIn('kind', ['bank', 'cash'])->where('status', 'active')->orderBy('name')->pluck('name', 'id');
-        $amount = fn (string $name = 'amount') => TextInput::make($name)->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2);
+        $amount = fn (string $name = 'amount') => TextInput::make($name)->label(__('Amount (Rs)'))->required()->regex(Units::DECIMAL_2);
         $date = fn () => DatePicker::make('date')->default(now())->required();
 
         return [
             ActionGroup::make([
-                Action::make('receipt')->label('Receipt from party')->icon('heroicon-o-arrow-down-left')
+                Action::make('receipt')->label(__('Receipt from party'))->icon('heroicon-o-arrow-down-left')
                     ->form([
-                        Select::make('party_id')->label('From party')->required()->searchable()->live()
+                        Select::make('party_id')->label(__('From party'))->required()->searchable()->live()
                             ->options(fn () => Party::query()->orderBy('name')->pluck('name', 'id')),
-                        Select::make('into')->label('Into')->required()->options($moneyLedgers),
+                        Select::make('into')->label(__('Into'))->required()->options($moneyLedgers),
                         $amount(), $date(),
-                        CheckboxList::make('invoices')->label('Against invoices (settled oldest first; any remainder is on account)')
+                        CheckboxList::make('invoices')->label(__('Against invoices (settled oldest first; any remainder is on account)'))
                             ->options(fn (Get $get) => self::openInvoices($get('party_id'))),
                         Textarea::make('narration')->maxLength(500),
                     ])
@@ -62,14 +64,14 @@ class ListVouchers extends ListRecords
                 self::contra('bank_to_cash', 'Bank → Cash (withdrawal)', 'bank', 'cash', 'heroicon-o-banknotes'),
                 self::contra('bank_to_bank', 'Bank → Bank transfer', 'bank', 'bank', 'heroicon-o-arrows-right-left'),
                 self::contra('cash_to_cash', 'Cash → Cash (between cash books)', 'cash', 'cash', 'heroicon-o-arrows-right-left'),
-                Action::make('journal')->label('Journal')->icon('heroicon-o-pencil-square')
-                    ->modalDescription('Adjustments between ledgers. Bank and cash cannot be used here.')
+                Action::make('journal')->label(__('Journal'))->icon('heroicon-o-pencil-square')
+                    ->modalDescription(__('Adjustments between ledgers. Bank and cash cannot be used here.'))
                     ->form([
                         $date(),
                         Repeater::make('lines')->required()->minItems(2)->defaultItems(2)->columns(3)->schema([
-                            Select::make('account')->label('Ledger')->required()->searchable()->options($otherLedgers),
-                            TextInput::make('dr')->label('Debit (Rs)')->regex(Units::DECIMAL_2),
-                            TextInput::make('cr')->label('Credit (Rs)')->regex(Units::DECIMAL_2),
+                            Select::make('account')->label(__('Ledger'))->required()->searchable()->options($otherLedgers),
+                            TextInput::make('dr')->label(__('Debit (Rs)'))->regex(Units::DECIMAL_2),
+                            TextInput::make('cr')->label(__('Credit (Rs)'))->regex(Units::DECIMAL_2),
                         ]),
                         Textarea::make('narration')->required()->minLength(5)->maxLength(500),
                     ])
@@ -82,7 +84,7 @@ class ListVouchers extends ListRecords
                         ], array_values($data['lines'])),
                         $data['narration'],
                     ))),
-            ])->label('New entry')->icon('heroicon-o-plus')->button()->visible($can),
+            ])->label(__('New entry'))->icon('heroicon-o-plus')->button()->visible($can),
         ];
     }
 
@@ -105,9 +107,9 @@ class ListVouchers extends ListRecords
                 Select::make('to')->label($toKind === 'bank' ? 'To bank account' : 'To cash account')->required()->different('from')
                     ->options(fn () => $ledgers($toKind))->helperText(fn () => $none($toKind))
                     ->default(fn () => $fromKind !== $toKind && count($l = $ledgers($toKind)) === 1 ? array_key_first($l) : null),
-                TextInput::make('amount')->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2),
+                TextInput::make('amount')->label(__('Amount (Rs)'))->required()->regex(Units::DECIMAL_2),
                 DatePicker::make('date')->default(now())->required(),
-                Textarea::make('narration')->label('Narration (cheque / slip number)')->maxLength(500),
+                Textarea::make('narration')->label(__('Narration (cheque / slip number)'))->maxLength(500),
             ])
             ->action(fn (array $data) => $this->postVoucher(fn (ManualVouchers $m) => $m->contra(
                 LedgerAccount::query()->findOrFail($data['from']), LedgerAccount::query()->findOrFail($data['to']),
@@ -163,6 +165,6 @@ class ListVouchers extends ListRecords
 
             return;
         }
-        Notification::make()->title("Posted {$voucher->number}")->success()->send();
+        Notification::make()->title(__('Posted :number', ['number' => $voucher->number]))->success()->send();
     }
 }

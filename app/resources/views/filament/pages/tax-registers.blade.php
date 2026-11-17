@@ -10,20 +10,20 @@
     <x-filament::section>
         <div class="flex flex-wrap items-end gap-3">
             <label>
-                <span class="text-sm font-medium">Month</span>
+                <span class="text-sm font-medium">{{ __('Month') }}</span>
                 <x-filament::input.wrapper><x-filament::input type="month" wire:model.live="period" /></x-filament::input.wrapper>
             </label>
             @unless ($s['locked'])
-                <x-filament::badge color="warning">The books for this month are not locked yet — figures can still change.</x-filament::badge>
+                <x-filament::badge color="warning">{{ __('The books for this month are not locked yet — figures can still change.') }}</x-filament::badge>
             @endunless
         </div>
-        <p class="mt-3 text-sm text-gray-500">Rates and the IRIS layouts change with each Finance Act and FBR circular: the tax adviser checks these registers before filing.</p>
+        <p class="mt-3 text-sm text-gray-500">{{ __('Rates and the IRIS layouts change with each Finance Act and FBR circular: the tax adviser checks these registers before filing.') }}</p>
     </x-filament::section>
 
     <x-filament::section heading="Sales tax return — summary">
         <table class="w-full">
-            <thead><tr><th class="{{ $th }}">Sales excluding tax</th><th class="{{ $th }} text-right">Taxable</th><th class="{{ $th }} text-right">Exempt / zero-rated</th><th class="{{ $th }} text-right">Sales tax</th><th class="{{ $th }} text-right">Further tax</th><th class="{{ $th }} text-right">Total value</th></tr></thead>
-            <tbody><tr><td class="{{ $td }}">Net of credit notes</td>
+            <thead><tr><th class="{{ $th }}">{{ __('Sales excluding tax') }}</th><th class="{{ $th }} text-right">{{ __('Taxable') }}</th><th class="{{ $th }} text-right">{{ __('Exempt / zero-rated') }}</th><th class="{{ $th }} text-right">{{ __('Sales tax') }}</th><th class="{{ $th }} text-right">{{ __('Further tax') }}</th><th class="{{ $th }} text-right">{{ __('Total value') }}</th></tr></thead>
+            <tbody><tr><td class="{{ $td }}">{{ __('Net of credit notes') }}</td>
                 <td class="{{ $td }} text-right">{{ $m($s['summary']['taxable']) }}</td><td class="{{ $td }} text-right">{{ $m($s['summary']['exempt']) }}</td>
                 <td class="{{ $td }} text-right">{{ $m($s['summary']['sales_tax']) }}</td><td class="{{ $td }} text-right">{{ $m($s['summary']['further_tax']) }}</td>
                 <td class="{{ $td }} text-right font-semibold">{{ $m($s['summary']['value']) }}</td></tr>
@@ -33,7 +33,7 @@
 
     <x-filament::section heading="Annex-C · sales and credit notes ({{ count($s['sales']) }})">
         <table class="w-full">
-            <thead><tr><th class="{{ $th }}">Buyer</th><th class="{{ $th }}">NTN / CNIC</th><th class="{{ $th }}">Type</th><th class="{{ $th }}">Document</th><th class="{{ $th }}">Date</th><th class="{{ $th }}">HS code</th><th class="{{ $th }}">Rate</th><th class="{{ $th }} text-right">Value excl. tax</th><th class="{{ $th }} text-right">Sales tax</th><th class="{{ $th }} text-right">Further tax</th></tr></thead>
+            <thead><tr><th class="{{ $th }}">{{ __('Buyer') }}</th><th class="{{ $th }}">{{ __('NTN / CNIC') }}</th><th class="{{ $th }}">{{ __('Type') }}</th><th class="{{ $th }}">{{ __('Document') }}</th><th class="{{ $th }}">{{ __('Date') }}</th><th class="{{ $th }}">{{ __('HS code') }}</th><th class="{{ $th }}">{{ __('Rate') }}</th><th class="{{ $th }} text-right">{{ __('Value excl. tax') }}</th><th class="{{ $th }} text-right">{{ __('Sales tax') }}</th><th class="{{ $th }} text-right">{{ __('Further tax') }}</th></tr></thead>
             <tbody>
                 @forelse ($s['sales'] as $i)
                     <tr class="border-t border-gray-100 dark:border-white/5">
@@ -46,7 +46,7 @@
                         <td class="{{ $td }} text-right">{{ $m($i['taxable']) }}</td><td class="{{ $td }} text-right">{{ $m($i['sales_tax']) }}</td><td class="{{ $td }} text-right">{{ $m($i['further_tax']) }}</td>
                     </tr>
                 @empty
-                    <tr><td class="{{ $td }} text-gray-500" colspan="10">No posted invoices this month.</td></tr>
+                    <tr><td class="{{ $td }} text-gray-500" colspan="10">{{ __('No posted invoices this month.') }}</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -56,7 +56,7 @@
     @if (\App\Domain\Tax\IncomeTax::enabled())
     <x-filament::section heading="Income tax withheld u/s 153(1)(a) ({{ count($d['wht']) }})">
         <table class="w-full">
-            <thead><tr><th class="{{ $th }}">Supplier</th><th class="{{ $th }}">NTN / CNIC</th><th class="{{ $th }}">Filer</th><th class="{{ $th }}">Slip</th><th class="{{ $th }}">Date</th><th class="{{ $th }} text-right">Value of goods</th><th class="{{ $th }} text-right">Taxable</th><th class="{{ $th }}">Rate</th><th class="{{ $th }} text-right">Withheld</th></tr></thead>
+            <thead><tr><th class="{{ $th }}">{{ __('Supplier') }}</th><th class="{{ $th }}">{{ __('NTN / CNIC') }}</th><th class="{{ $th }}">{{ __('Filer') }}</th><th class="{{ $th }}">{{ __('Slip') }}</th><th class="{{ $th }}">{{ __('Date') }}</th><th class="{{ $th }} text-right">{{ __('Value of goods') }}</th><th class="{{ $th }} text-right">{{ __('Taxable') }}</th><th class="{{ $th }}">{{ __('Rate') }}</th><th class="{{ $th }} text-right">{{ __('Withheld') }}</th></tr></thead>
             <tbody>
                 @forelse ($d['wht'] as $i)
                     <tr class="border-t border-gray-100 dark:border-white/5">
@@ -67,7 +67,7 @@
                         <td class="{{ $td }} text-right font-semibold">{{ $m($i['tax']) }}</td>
                     </tr>
                 @empty
-                    <tr><td class="{{ $td }} text-gray-500" colspan="9">No tax withheld this month.</td></tr>
+                    <tr><td class="{{ $td }} text-gray-500" colspan="9">{{ __('No tax withheld this month.') }}</td></tr>
                 @endforelse
             </tbody>
         </table>

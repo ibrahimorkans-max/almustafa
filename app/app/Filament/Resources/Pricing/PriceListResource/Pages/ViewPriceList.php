@@ -33,6 +33,8 @@ use Illuminate\Validation\ValidationException;
  */
 class ViewPriceList extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PriceListResource::class;
 
     public function infolist(Infolist $infolist): Infolist
@@ -48,7 +50,7 @@ class ViewPriceList extends ViewRecord
                 TextEntry::make('valid_from')->date('d M Y'),
                 TextEntry::make('valid_to')->date('d M Y')->placeholder('open-ended'),
             ]),
-            Section::make('Current rates')->schema([
+            Section::make(__('Current rates'))->schema([
                 RepeatableEntry::make('current')->hiddenLabel()->columns($seesMargin ? 5 : 2)
                     ->state(function (PriceList $record) use ($pricing, $me): array {
                         return PriceListItem::query()->where('price_list_id', $record->id)->with('product')->get()
@@ -66,19 +68,19 @@ class ViewPriceList extends ViewRecord
                     })
                     ->schema([
                         TextEntry::make('product'),
-                        TextEntry::make('rate')->label('Rate / maund'),
+                        TextEntry::make('rate')->label(__('Rate / maund')),
                         ...($seesMargin ? [
-                            TextEntry::make('cost')->label('Cost / maund'),
-                            TextEntry::make('margin')->label('Margin / maund'),
-                            TextEntry::make('suggested')->label('Suggested (markup)'),
+                            TextEntry::make('cost')->label(__('Cost / maund')),
+                            TextEntry::make('margin')->label(__('Margin / maund')),
+                            TextEntry::make('suggested')->label(__('Suggested (markup)')),
                         ] : []),
                     ]),
             ]),
-            Section::make('History')->collapsible()->collapsed()->schema([
+            Section::make(__('History'))->collapsible()->collapsed()->schema([
                 RepeatableEntry::make('items')->hiddenLabel()->columns(4)->schema([
-                    TextEntry::make('created_at')->label('From')->dateTime('d M Y H:i'),
-                    TextEntry::make('product.name')->label('Product'),
-                    TextEntry::make('rate_paise_per_maund')->label('Rate / maund')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
+                    TextEntry::make('created_at')->label(__('From'))->dateTime('d M Y H:i'),
+                    TextEntry::make('product.name')->label(__('Product')),
+                    TextEntry::make('rate_paise_per_maund')->label(__('Rate / maund'))->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
                     TextEntry::make('reason')->placeholder('—'),
                 ]),
             ]),
@@ -88,12 +90,12 @@ class ViewPriceList extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('rate')->label('Request rate change')->icon('heroicon-o-pencil')
+            Action::make('rate')->label(__('Request rate change'))->icon('heroicon-o-pencil')
                 ->visible(fn () => Filament::auth()->user()?->can('pricing.rate.edit') ?? false)
-                ->modalDescription('Applied after a different person approves it. The old rate stays in the history.')
+                ->modalDescription(__('Applied after a different person approves it. The old rate stays in the history.'))
                 ->form([
                     ProductSelect::make('product_id', ['rice', 'by_product'])->required(),
-                    TextInput::make('rate')->label('New rate (Rs per maund)')->required()->regex(Units::DECIMAL_2),
+                    TextInput::make('rate')->label(__('New rate (Rs per maund)'))->required()->regex(Units::DECIMAL_2),
                     Textarea::make('reason')->required()->minLength(5)->maxLength(1000),
                 ])
                 ->action(function (PriceList $record, array $data): void {

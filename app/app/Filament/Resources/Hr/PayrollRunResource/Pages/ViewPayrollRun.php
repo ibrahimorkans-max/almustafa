@@ -36,6 +36,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class ViewPayrollRun extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PayrollRunResource::class;
 
     public function getTitle(): string
@@ -49,9 +51,9 @@ class ViewPayrollRun extends ViewRecord
         $can = fn (string $p) => PayrollRunResource::allows($p);
 
         return [
-            Action::make('lock')->label('Lock attendance')->icon('heroicon-o-lock-closed')
+            Action::make('lock')->label(__('Lock attendance'))->icon('heroicon-o-lock-closed')
                 ->visible(fn () => $is(PayrollRun::DRAFT)() && $can('hr.payroll.run'))
-                ->requiresConfirmation()->modalDescription('Attendance, leave and manual entries of this month are frozen from now on; unlock to correct them before approval.')
+                ->requiresConfirmation()->modalDescription(__('Attendance, leave and manual entries of this month are frozen from now on; unlock to correct them before approval.'))
                 ->action(fn () => $this->step(fn (PayrollService $s) => $s->lock($this->record), 'Attendance locked.')),
             Action::make('calculate')->label(fn () => $this->record->calculation_no > 0 ? 'Recalculate' : 'Calculate')->icon('heroicon-o-calculator')
                 ->visible(fn () => $is(PayrollRun::LOCKED, PayrollRun::CALCULATED)() && $can('hr.payroll.run'))
@@ -59,19 +61,19 @@ class ViewPayrollRun extends ViewRecord
             Action::make('approve')->icon('heroicon-o-check-badge')->color('success')
                 ->visible(fn () => $is(PayrollRun::CALCULATED)() && $can('hr.payroll.approve'))
                 ->form([Textarea::make('note')->maxLength(500)])
-                ->modalDescription('Approves the current calculation. Only someone other than the person who calculated it can approve.')
+                ->modalDescription(__('Approves the current calculation. Only someone other than the person who calculated it can approve.'))
                 ->action(fn (array $data) => $this->step(fn (PayrollService $s) => $s->approve($this->record, $data['note'] ?? null), 'Payroll approved.')),
             Action::make('finalize')->icon('heroicon-o-document-check')->color('success')
                 ->visible(fn () => $is(PayrollRun::APPROVED)() && $can('hr.payroll.approve'))
-                ->requiresConfirmation()->modalDescription('Posts the salary voucher, records advance recoveries and numbers the payslips. The payroll cannot change afterwards.')
+                ->requiresConfirmation()->modalDescription(__('Posts the salary voucher, records advance recoveries and numbers the payslips. The payroll cannot change afterwards.'))
                 ->action(fn () => $this->step(fn (PayrollService $s) => $s->finalize($this->record), 'Finalized and posted to the books.')),
-            Action::make('bankFile')->label('Bank transfer file')->icon('heroicon-o-building-library')
+            Action::make('bankFile')->label(__('Bank transfer file'))->icon('heroicon-o-building-library')
                 ->visible(fn () => $is(PayrollRun::FINALIZED)() && $can('hr.payroll.approve'))
                 ->form([
-                    Select::make('bank')->label('Paid from')->required()
+                    Select::make('bank')->label(__('Paid from'))->required()
                         ->options(fn () => LedgerAccount::query()->where('kind', 'bank')->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
-                    Select::make('format')->required()->default('ibft')->options(collect(SalaryPaymentService::FORMATS)->map(fn (array $f) => $f[0])->all()),
-                    DatePicker::make('date')->label('Transfer date')->required()->default(now('Asia/Karachi')),
+                    Select::make('format')->required()->default('ibft')->options(\App\Support\Locales::options(collect(SalaryPaymentService::FORMATS)->map(fn (array $f) => $f[0])->all())),
+                    DatePicker::make('date')->label(__('Transfer date'))->required()->default(now('Asia/Karachi')),
                 ])
                 ->action(function (array $data): void {
                     try {
@@ -79,25 +81,25 @@ class ViewPayrollRun extends ViewRecord
                             CarbonImmutable::parse($data['date'], 'Asia/Karachi'));
                         $missing = $r['without_iban'] === [] ? null : 'No valid IBAN (pay by cash or cheque): '.implode(', ', $r['without_iban']);
                         $r['file'] === null
-                            ? Notification::make()->title('Nobody left to pay by bank transfer.')->body($missing)->warning()->send()
-                            : Notification::make()->title("{$r['file']->number}: {$r['file']->payment_count} transfers posted. Download it below.")->body($missing)->success()->persistent()->send();
+                            ? Notification::make()->title(__('Nobody left to pay by bank transfer.'))->body($missing)->warning()->send()
+                            : Notification::make()->title(__(':number: :payment_count transfers posted. Download it below.', ['number' => $r['file']->number, 'payment_count' => $r['file']->payment_count]))->body($missing)->success()->persistent()->send();
                     } catch (BusinessRuleViolation $e) {
                         Notification::make()->title($e->getMessage())->danger()->send();
                     }
                 }),
-            Action::make('payslips')->label('All payslips')->icon('heroicon-o-printer')
+            Action::make('payslips')->label(__('All payslips'))->icon('heroicon-o-printer')
                 ->visible(fn () => $is(PayrollRun::CALCULATED, PayrollRun::APPROVED, PayrollRun::FINALIZED)() && DocumentActions::allowed())
                 ->modalDescription(fn () => $this->record->status === PayrollRun::FINALIZED
                     ? 'Issues every payslip not issued yet and gives one PDF to print (half-A4: two slips per sheet).'
                     : 'Not finalized: a DRAFT of every payslip, for checking. Nothing is issued.')
                 ->form(DocumentActions::form('payslip'))
                 ->action(fn (array $data) => $this->allPayslips($data)),
-            Action::make('register')->label('Payroll register')->icon('heroicon-o-table-cells')
+            Action::make('register')->label(__('Payroll register'))->icon('heroicon-o-table-cells')
                 ->visible(fn () => $is(PayrollRun::CALCULATED, PayrollRun::APPROVED, PayrollRun::FINALIZED)() && DocumentActions::allowed())
                 ->form(DocumentActions::form('payroll_register'))
                 ->action(fn (array $data) => DocumentActions::run('payroll_register', $this->record->id, $data)),
             ActionGroup::make([
-                Action::make('queuePayslips')->label('Payslips on the queue (large payrolls)')->icon('heroicon-o-queue-list')
+                Action::make('queuePayslips')->label(__('Payslips on the queue (large payrolls)'))->icon('heroicon-o-queue-list')
                     ->visible(fn () => $is(PayrollRun::FINALIZED)() && DocumentActions::allowed())
                     ->action(function () {
                         try {
@@ -111,10 +113,10 @@ class ViewPayrollRun extends ViewRecord
                             return null;
                         }
                     }),
-                Action::make('registerXlsx')->label('Payroll register (Excel)')->icon('heroicon-o-table-cells')
+                Action::make('registerXlsx')->label(__('Payroll register (Excel)'))->icon('heroicon-o-table-cells')
                     ->visible(fn () => $is(PayrollRun::CALCULATED, PayrollRun::APPROVED, PayrollRun::FINALIZED)() && DocumentActions::allowed())
                     ->action(fn () => $this->registerXlsx()),
-                Action::make('download')->label('Download bank file')->icon('heroicon-o-arrow-down-tray')
+                Action::make('download')->label(__('Download bank file'))->icon('heroicon-o-arrow-down-tray')
                     ->visible(fn () => $is(PayrollRun::FINALIZED)() && $can('bank.view'))
                     ->form([Select::make('file')->required()->options(fn () => PayrollBankFile::query()->where('payroll_run_id', $this->record->id)
                         ->orderByDesc('created_at')->pluck('number', 'id'))])
@@ -130,10 +132,10 @@ class ViewPayrollRun extends ViewRecord
 
                         return response()->streamDownload(fn () => print $csv, str_replace('/', '-', $file->number).'.csv', ['Content-Type' => 'text/csv']);
                     }),
-                Action::make('reports')->label('Statutory reports')->icon('heroicon-o-document-chart-bar')
+                Action::make('reports')->label(__('Statutory reports'))->icon('heroicon-o-document-chart-bar')
                     ->visible(fn () => $is(PayrollRun::FINALIZED)() && StatutoryReportsPage::canAccess())
                     ->url(fn () => StatutoryReportsPage::getUrl(['month' => $this->record->month])),
-                Action::make('unlock')->label('Unlock attendance')->icon('heroicon-o-lock-open')->color('danger')
+                Action::make('unlock')->label(__('Unlock attendance'))->icon('heroicon-o-lock-open')->color('danger')
                     ->visible(fn () => $is(PayrollRun::LOCKED, PayrollRun::CALCULATED)() && $can('hr.payroll.run'))
                     ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(500)])
                     ->action(fn (array $data) => $this->step(fn (PayrollService $s) => $s->unlock($this->record, $data['reason']), 'Unlocked — correct attendance, then lock and calculate again.')),

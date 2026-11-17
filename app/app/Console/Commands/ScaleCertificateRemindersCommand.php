@@ -53,7 +53,7 @@ final class ScaleCertificateRemindersCommand extends Command
                         ? "Weighbridge {$certificate->scale->code}: {$certificate->type} certificate EXPIRED"
                         : "Weighbridge {$certificate->scale->code}: {$certificate->type} certificate expires in {$left} day(s)";
                     Notification::make()->title($title)
-                        ->body("Certificate {$certificate->certificate_no}, valid until {$certificate->valid_until->toDateString()}.")
+                        ->body(__('Certificate :certificate_no, valid until :todatestring.', ['certificate_no' => $certificate->certificate_no, 'todatestring' => $certificate->valid_until->toDateString()]))
                         ->{$left <= 0 ? 'danger' : 'warning'}()
                         ->sendToDatabase($recipients);
                     $audit->record('scale.certificate.reminder', $certificate, meta: ['days_left' => $left, 'recipients' => $recipients->count()]);

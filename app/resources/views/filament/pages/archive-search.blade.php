@@ -13,18 +13,18 @@
     <x-filament::section>
         <form wire:submit="search" class="flex flex-wrap items-end gap-3">
             <label>
-                <span class="text-sm font-medium">Closed from</span>
+                <span class="text-sm font-medium">{{ __('Closed from') }}</span>
                 <x-filament::input.wrapper><x-filament::input type="date" wire:model="from" /></x-filament::input.wrapper>
             </label>
             <label>
-                <span class="text-sm font-medium">to</span>
+                <span class="text-sm font-medium">{{ __('to') }}</span>
                 <x-filament::input.wrapper><x-filament::input type="date" wire:model="to" /></x-filament::input.wrapper>
             </label>
             <label>
-                <span class="text-sm font-medium">Type</span>
+                <span class="text-sm font-medium">{{ __('Type') }}</span>
                 <x-filament::input.wrapper>
                     <x-filament::input.select wire:model="type">
-                        <option value="">All</option>
+                        <option value="">{{ __('All') }}</option>
                         @foreach (\App\Domain\Archive\ArchiveService::TYPES as $key => $def)
                             <option value="{{ $key }}">{{ $def[3] }}</option>
                         @endforeach
@@ -32,10 +32,10 @@
                 </x-filament::input.wrapper>
             </label>
             <label class="min-w-[14rem] flex-1">
-                <span class="text-sm font-medium">Number, vehicle or party (optional)</span>
-                <x-filament::input.wrapper><x-filament::input type="text" wire:model="term" placeholder="e.g. AMR/G/2026-27/0012 or MNA211234" /></x-filament::input.wrapper>
+                <span class="text-sm font-medium">{{ __('Number, vehicle or party (optional)') }}</span>
+                <x-filament::input.wrapper><x-filament::input type="text" wire:model="term" placeholder="{{ __('e.g. AMR/G/2026-27/0012 or MNA211234') }}" /></x-filament::input.wrapper>
             </label>
-            <x-filament::button type="submit" icon="heroicon-o-magnifying-glass">Show records</x-filament::button>
+            <x-filament::button type="submit" icon="heroicon-o-magnifying-glass">{{ __('Show records') }}</x-filament::button>
         </form>
         <p class="mt-2 text-xs text-gray-500">
             Closed records older than {{ app(\App\Domain\Settings\SettingsService::class)->archiveRetentionMonths() }} months are kept here. They can be read and restored, not printed or downloaded.
@@ -45,10 +45,10 @@
 
     @if ($this->canSetRetention())
         <x-filament::section>
-            <x-slot name="heading">When closed records move here</x-slot>
+            <x-slot name="heading">{{ __('When closed records move here') }}</x-slot>
             <form wire:submit="saveRetention" class="flex flex-wrap items-end gap-3">
                 <label>
-                    <span class="text-sm font-medium">Months after closing</span>
+                    <span class="text-sm font-medium">{{ __('Months after closing') }}</span>
                     <x-filament::input.wrapper>
                         <x-filament::input.select wire:model="retention">
                             @foreach (\App\Domain\Settings\SettingsService::ARCHIVE_RETENTION_CHOICES as $months)
@@ -57,11 +57,10 @@
                         </x-filament::input.select>
                     </x-filament::input.wrapper>
                 </label>
-                <x-filament::button type="submit" color="gray">Save</x-filament::button>
+                <x-filament::button type="submit" color="gray">{{ __('Save') }}</x-filament::button>
             </form>
             <p class="mt-2 text-xs text-gray-500">
-                For all mills. Only closed records move (completed saudas, vehicles that left, closed batches, issued requisitions, settled claims),
-                on the 1st of each month. Accounts, stock and tax totals are not affected. The change is recorded in the audit log.
+                {{ __('For all mills. Only closed records move (completed saudas, vehicles that left, closed batches, issued requisitions, settled claims), on the 1st of each month. Accounts, stock and tax totals are not affected. The change is recorded in the audit log.') }}
             </p>
         </x-filament::section>
     @endif
@@ -72,7 +71,7 @@
             <x-slot name="headerEnd">{{ $this->restorePeriodAction }}</x-slot>
             <div class="overflow-x-auto">
                 <table class="w-full">
-                    <thead><tr><th class="{{ $th }}">Type</th><th class="{{ $th }}">Number</th><th class="{{ $th }}">Details</th><th class="{{ $th }}">Closed</th><th class="{{ $th }}">Kept since</th><th></th></tr></thead>
+                    <thead><tr><th class="{{ $th }}">{{ __('Type') }}</th><th class="{{ $th }}">{{ __('Number') }}</th><th class="{{ $th }}">{{ __('Details') }}</th><th class="{{ $th }}">{{ __('Closed') }}</th><th class="{{ $th }}">{{ __('Kept since') }}</th><th></th></tr></thead>
                     <tbody>
                         @forelse ($results as $row)
                             <tr class="border-t border-gray-100 dark:border-white/5">
@@ -87,7 +86,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td class="{{ $td }} text-gray-500" colspan="6">No records in this period.</td></tr>
+                            <tr><td class="{{ $td }} text-gray-500" colspan="6">{{ __('No records in this period.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>

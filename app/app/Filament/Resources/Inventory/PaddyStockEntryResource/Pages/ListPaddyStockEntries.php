@@ -10,10 +10,12 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListPaddyStockEntries extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PaddyStockEntryResource::class;
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('New paddy stock entry')];
+        return [CreateAction::make()->label(__('New paddy stock entry'))];
     }
 }

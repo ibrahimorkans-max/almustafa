@@ -7,6 +7,7 @@ namespace App\Filament\Pages\Auth;
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Auth\DeviceInfo;
+use App\Domain\Auth\FirstSignIn;
 use App\Domain\Auth\Exceptions\AuthenticationFailed;
 use App\Domain\Auth\LoginService;
 use App\Domain\Auth\PasskeyService;
@@ -52,14 +53,14 @@ class Login extends BaseLogin
     {
         return $form->schema([
             TextInput::make('username')
-                ->label('Username')
+                ->label(__('Username'))
                 ->required(fn () => ! $this->awaitingCode)
                 ->hidden(fn () => $this->awaitingCode)
                 ->autocomplete('username')
                 ->autofocus()
                 ->maxLength(64),
             TextInput::make('password')
-                ->label('Password')
+                ->label(__('Password'))
                 ->password()
                 ->revealable()
                 ->required(fn () => ! $this->awaitingCode)
@@ -72,8 +73,8 @@ class Login extends BaseLogin
                 ->view('filament.forms.otp-boxes')
                 ->visible(fn () => $this->awaitingCode && ! $this->useRecoveryCode),
             TextInput::make('recovery_code')
-                ->label('Recovery code')
-                ->helperText('One of the recovery codes you saved when you set up two-step sign-in.')
+                ->label(__('Recovery code'))
+                ->helperText(__('One of the recovery codes you saved when you set up two-step sign-in.'))
                 ->required(fn () => $this->awaitingCode && $this->useRecoveryCode)
                 ->visible(fn () => $this->awaitingCode && $this->useRecoveryCode)
                 ->autocomplete('off')
@@ -231,7 +232,7 @@ class Login extends BaseLogin
             // On the code step the main button reads "Verify & continue" (the six boxes also send by themselves).
             ...array_map(fn (Action $a) => $a->label(fn () => $this->awaitingCode ? 'Verify & continue' : __('filament-panels::pages/auth/login.form.actions.authenticate.label')),
                 parent::getFormActions()),
-            Action::make('passkey')->label('Sign in with a passkey')->icon('heroicon-o-finger-print')->color('gray')->outlined()
+            Action::make('passkey')->label(__('Sign in with a passkey'))->icon('heroicon-o-finger-print')->color('gray')->outlined()
                 ->alpineClickHandler('rmPasskeyLogin($wire)')
                 ->visible(fn () => ! $this->awaitingCode),
         ];
@@ -239,15 +240,19 @@ class Login extends BaseLogin
 
     private function finish(LoginAccount $account, bool $mfaPassed, string $method = 'password'): LoginResponse
     {
+        $device = $this->deviceInfo();
         $session = app(LoginService::class)->completeLogin(
             $account,
             AuthSession::CHANNEL_WEB,
-            $this->deviceInfo(),
+            $device,
             request()->ip(),
             request()->userAgent(),
             $mfaPassed,
             $method,
         );
+        // A new user's first sign-in: where it came from (IP, place, device) is kept; the e-mail check follows.
+        app(FirstSignIn::class)->capture($account, $session, $device->uid, $device->name,
+            $this->data['latitude'] ?? null, $this->data['longitude'] ?? null, $this->data['accuracy'] ?? null);
 
         Filament::auth()->login($account);
         session()->regenerate();

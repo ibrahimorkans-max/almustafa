@@ -10,10 +10,12 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListDispatchOrders extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = DispatchOrderResource::class;
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('New dispatch order')];
+        return [CreateAction::make()->label(__('New dispatch order'))];
     }
 }

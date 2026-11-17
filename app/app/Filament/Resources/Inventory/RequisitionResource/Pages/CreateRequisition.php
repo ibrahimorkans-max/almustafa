@@ -17,6 +17,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreateRequisition extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use OffersPrintAfterCreate;
 
     protected string $printType = 'requisition';

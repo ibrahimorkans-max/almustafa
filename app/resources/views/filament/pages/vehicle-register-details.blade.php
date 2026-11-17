@@ -29,13 +29,13 @@
     </div>
 
     <div class="rounded-lg border border-gray-200 p-3 dark:border-white/10">
-        <h3 class="mb-2 font-semibold">Weighments (from the weighbridge)</h3>
+        <h3 class="mb-2 font-semibold">{{ __('Weighments (from the weighbridge)') }}</h3>
         @if ($d['weighments'] === [])
-            <p class="text-gray-500">Not weighed yet.</p>
+            <p class="text-gray-500">{{ __('Not weighed yet.') }}</p>
         @else
             <div class="overflow-x-auto">
                 <table class="w-full text-left">
-                    <thead class="text-xs text-gray-500"><tr><th class="py-1 pr-3">Weighment</th><th class="pr-3">Time</th><th class="pr-3">Scale · source</th><th class="pr-3">By</th><th class="text-right">Weight</th></tr></thead>
+                    <thead class="text-xs text-gray-500"><tr><th class="py-1 pr-3">{{ __('Weighment') }}</th><th class="pr-3">{{ __('Time') }}</th><th class="pr-3">{{ __('Scale · source') }}</th><th class="pr-3">{{ __('By') }}</th><th class="text-right">{{ __('Weight') }}</th></tr></thead>
                     <tbody>
                         @foreach ($d['weighments'] as $w)
                             <tr class="border-t border-gray-100 dark:border-white/5">
@@ -52,7 +52,7 @@
 
     @if ($d['lab'] !== [])
         <div class="rounded-lg border border-gray-200 p-3 dark:border-white/10">
-            <h3 class="mb-2 font-semibold">Lab test</h3>
+            <h3 class="mb-2 font-semibold">{{ __('Lab test') }}</h3>
             <dl class="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
                 @foreach ($d['lab'] as [$label, $value])
                     <div><dt class="text-xs text-gray-500">{{ $label }}</dt><dd class="font-medium">{{ $value }}</dd></div>
@@ -63,7 +63,7 @@
 
     <div class="grid gap-4 md:grid-cols-2">
         <div class="rounded-lg border border-gray-200 p-3 dark:border-white/10">
-            <h3 class="mb-2 font-semibold">How the weight was worked out</h3>
+            <h3 class="mb-2 font-semibold">{{ __('How the weight was worked out') }}</h3>
             <ol class="list-decimal space-y-1 pl-5">
                 @foreach ($d['weightSteps'] as $step)<li>{{ $step }}</li>@endforeach
             </ol>
@@ -79,7 +79,7 @@
 
     @if ($d['timeline'] !== [])
         <div class="rounded-lg border border-gray-200 p-3 dark:border-white/10">
-            <h3 class="mb-2 font-semibold">Timeline</h3>
+            <h3 class="mb-2 font-semibold">{{ __('Timeline') }}</h3>
             <ul class="space-y-1">
                 @foreach ($d['timeline'] as [$when, $what, $by])
                     <li class="flex gap-3"><span class="w-24 shrink-0 font-mono text-xs text-gray-500">{{ $when }}</span><span class="flex-1">{{ $what }}</span><span class="text-xs text-gray-500">{{ $by }}</span></li>

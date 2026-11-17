@@ -23,19 +23,21 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListStockCounts extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = StockCountResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('count')->label('Record physical count')->icon('heroicon-o-plus')
+            Action::make('count')->label(__('Record physical count'))->icon('heroicon-o-plus')
                 ->visible(fn () => Filament::auth()->user()?->can('stock.adjust') ?? false)
-                ->modalDescription('The books figure is taken at this moment. Any difference is sent to a second person for approval before it is booked.')
+                ->modalDescription(__('The books figure is taken at this moment. Any difference is sent to a second person for approval before it is booked.'))
                 ->form([
                     ProductSelect::make('product_id', stockItemsOnly: true)->required(),
-                    Select::make('godown_id')->label('Godown')->required()->options(fn () => RequisitionResource::godownOptions()),
-                    TextInput::make('counted_kg')->label('Counted (kg)')->required()->regex(Units::DECIMAL_3),
-                    Textarea::make('note')->label('How it was counted')->maxLength(1000),
+                    Select::make('godown_id')->label(__('Godown'))->required()->options(fn () => RequisitionResource::godownOptions()),
+                    TextInput::make('counted_kg')->label(__('Counted (kg)'))->required()->regex(Units::DECIMAL_3),
+                    Textarea::make('note')->label(__('How it was counted'))->maxLength(1000),
                 ])
                 ->action(function (array $data): void {
                     try {

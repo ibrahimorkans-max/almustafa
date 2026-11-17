@@ -19,6 +19,8 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewSalesBill extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use RunsDomainActions;
 
     protected static string $resource = SalesBillResource::class;
@@ -28,15 +30,15 @@ class ViewSalesBill extends ViewRecord
         $can = fn (string $p) => Filament::auth()->user()?->can($p) ?? false;
 
         return [
-            Action::make('post')->label('Post invoice')->icon('heroicon-o-check')->color('success')
+            Action::make('post')->label(__('Post invoice'))->icon('heroicon-o-check')->color('success')
                 ->visible(fn (SalesBill $b) => $b->status === SalesBill::DRAFT && $can('ledger.post'))
                 ->requiresConfirmation()
-                ->modalDescription('Assigns the invoice number and posts the sales voucher (buyer, sales, output sales tax). It cannot be edited afterwards.')
+                ->modalDescription(__('Assigns the invoice number and posts the sales voucher (buyer, sales, output sales tax). It cannot be edited afterwards.'))
                 ->form([Textarea::make('note')->maxLength(1000)])
                 ->action(fn (SalesBill $b, array $data) => $this->runDomain(fn () => app(SalesBillService::class)->post($b, $data['note'] ?? null), 'Invoice posted')),
             PrintButton::dialog('printInvoice', 'Print invoice', fn (SalesBill $b) => [app(SalesDocuments::class)->invoicePdf($b), str_replace('/', '-', (string) $b->number).'.pdf'])
                 ->visible(fn (SalesBill $b) => $b->status === SalesBill::POSTED),
-            Action::make('pdf')->label('Download invoice (PDF)')->icon('heroicon-o-arrow-down-tray')->color('gray')
+            Action::make('pdf')->label(__('Download invoice (PDF)'))->icon('heroicon-o-arrow-down-tray')->color('gray')
                 ->visible(fn (SalesBill $b) => $b->status === SalesBill::POSTED)
                 ->action(fn (SalesBill $b) => response()->streamDownload(
                     fn () => print app(SalesDocuments::class)->invoicePdf($b),
@@ -46,7 +48,7 @@ class ViewSalesBill extends ViewRecord
             WhatsAppFileButton::header('whatsappInvoice', fn (SalesBill $b) => ['party' => $b->party, 'document' => $b->isSalesTaxInvoice() ? 'sales tax invoice' : 'invoice',
                 'number' => (string) $b->number, 'file' => str_replace('/', '-', (string) $b->number).'.pdf', 'pdf' => fn () => app(SalesDocuments::class)->invoicePdf($b)],
                 fn (SalesBill $b) => $b->status === SalesBill::POSTED),
-            Action::make('cancelDraft')->label('Cancel draft')->color('gray')
+            Action::make('cancelDraft')->label(__('Cancel draft'))->color('gray')
                 ->visible(fn (SalesBill $b) => $b->status === SalesBill::DRAFT && $can('ledger.post'))
                 ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(1000)])
                 ->action(fn (SalesBill $b, array $data) => $this->runDomain(fn () => app(SalesBillService::class)->cancelDraft($b, $data['reason']), 'Draft cancelled')),

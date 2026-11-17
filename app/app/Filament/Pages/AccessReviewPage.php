@@ -14,6 +14,8 @@ use Filament\Pages\Page;
 /** Who has which role and permission, last sign-in, where each person is (exact location), and accounts that need a decision. */
 class AccessReviewPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
 
     protected static ?string $navigationGroup = 'Administration';
@@ -56,7 +58,7 @@ class AccessReviewPage extends Page
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('csv')->visible(fn () => ExportGuard::allowed())->label('Export CSV')->icon('heroicon-o-arrow-down-tray')
+            Action::make('csv')->visible(fn () => ExportGuard::allowed())->label(__('Export CSV'))->icon('heroicon-o-arrow-down-tray')
                 ->action(fn () => response()->streamDownload(
                     fn () => print app(AccessReview::class)->csv(),
                     'access-review-'.now()->timezone('Asia/Karachi')->format('Y-m-d').'.csv',

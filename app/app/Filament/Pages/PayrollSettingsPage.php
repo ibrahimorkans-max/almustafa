@@ -28,6 +28,8 @@ use Filament\Pages\Page;
  */
 class PayrollSettingsPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-adjustments-horizontal';
 
     protected static ?string $navigationGroup = HrScope::GROUP;
@@ -89,29 +91,29 @@ class PayrollSettingsPage extends Page
 
     public function changeAction(): Action
     {
-        return Action::make('change')->label('Change')->size('sm')
+        return Action::make('change')->label(__('Change'))->size('sm')
             ->visible(fn () => Filament::auth()->user()?->can('hr.payroll.approve') ?? false)
             ->modalHeading(fn (array $arguments) => PayrollSettings::DEFAULTS[$arguments['key']][1] ?? 'Change')
             ->form(function (array $arguments): array {
                 $key = (string) $arguments['key'];
                 $default = PayrollSettings::DEFAULTS[$key][0];
                 $value = match (true) {
-                    is_bool($default) => Toggle::make('value')->label('Yes'),
-                    $key === 'income_tax_slabs' => Repeater::make('value')->label('Slabs (taxable income per year)')->columns(3)->minItems(1)
+                    is_bool($default) => Toggle::make('value')->label(__('Yes')),
+                    $key === 'income_tax_slabs' => Repeater::make('value')->label(__('Slabs (taxable income per year)'))->columns(3)->minItems(1)
                         ->schema([
-                            TextInput::make('from')->label('From (Rs)')->required()->regex(Units::DECIMAL_2),
-                            TextInput::make('fixed')->label('Fixed tax (Rs)')->required()->regex(Units::DECIMAL_2),
-                            TextInput::make('rate')->label('Rate on the part above (%)')->required()->numeric()->minValue(0)->maxValue(100),
+                            TextInput::make('from')->label(__('From (Rs)'))->required()->regex(Units::DECIMAL_2),
+                            TextInput::make('fixed')->label(__('Fixed tax (Rs)'))->required()->regex(Units::DECIMAL_2),
+                            TextInput::make('rate')->label(__('Rate on the part above (%)'))->required()->numeric()->minValue(0)->maxValue(100),
                         ]),
-                    str_ends_with($key, '_paise') => TextInput::make('value')->label('Amount (Rs)')->required()->regex(Units::DECIMAL_2),
-                    str_ends_with($key, '_bp') => TextInput::make('value')->label('Percent')->required()->numeric()->minValue(0)->maxValue(1000),
+                    str_ends_with($key, '_paise') => TextInput::make('value')->label(__('Amount (Rs)'))->required()->regex(Units::DECIMAL_2),
+                    str_ends_with($key, '_bp') => TextInput::make('value')->label(__('Percent'))->required()->numeric()->minValue(0)->maxValue(1000),
                     default => TextInput::make('value')->required()->integer()->minValue(0),
                 };
 
                 return [
                     $value,
-                    DatePicker::make('from')->label('In force from')->required()->default(now('Asia/Karachi')->startOfMonth()),
-                    Textarea::make('note')->label('Source (notification, Finance Act …)')->required()->minLength(3)->maxLength(500),
+                    DatePicker::make('from')->label(__('In force from'))->required()->default(now('Asia/Karachi')->startOfMonth()),
+                    Textarea::make('note')->label(__('Source (notification, Finance Act …)'))->required()->minLength(3)->maxLength(500),
                 ];
             })
             ->action(function (array $data, array $arguments): void {
@@ -127,7 +129,7 @@ class PayrollSettingsPage extends Page
                 };
                 try {
                     app(PayrollSettings::class)->set($key, $value, CarbonImmutable::parse($data['from'], 'Asia/Karachi'), (string) $data['note']);
-                    Notification::make()->title('New value recorded.')->success()->send();
+                    Notification::make()->title(__('New value recorded.'))->success()->send();
                 } catch (BusinessRuleViolation $e) {
                     Notification::make()->title($e->getMessage())->danger()->send();
                 }

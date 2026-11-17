@@ -21,6 +21,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 /** EOBI, PESSI, s. 149 salary tax, wages and overtime registers of a finalized month; CSV or Excel. */
 class StatutoryReportsPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
 
     protected static ?string $navigationGroup = 'Reports';
@@ -71,11 +73,11 @@ class StatutoryReportsPage extends Page
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('pdf')->visible(fn () => ExportGuard::allowed())->label('PDF')->icon('heroicon-o-printer')
+            Action::make('pdf')->visible(fn () => ExportGuard::allowed())->label(__('PDF'))->icon('heroicon-o-printer')
                 ->url(fn () => ReportPrintController::url([$this->report], $this->month.'-01', $this->month.'-01'), shouldOpenInNewTab: true),
-            Action::make('allReports')->label('All reports')->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
-            Action::make('xlsx')->label('Excel')->icon('heroicon-o-table-cells')->action(fn () => $this->download('xlsx')),
-            Action::make('csv')->visible(fn () => ExportGuard::allowed())->label('CSV')->icon('heroicon-o-arrow-down-tray')->color('gray')->action(fn () => $this->download('csv')),
+            Action::make('allReports')->label(__('All reports'))->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
+            Action::make('xlsx')->label(__('Excel'))->icon('heroicon-o-table-cells')->action(fn () => $this->download('xlsx')),
+            Action::make('csv')->visible(fn () => ExportGuard::allowed())->label(__('CSV'))->icon('heroicon-o-arrow-down-tray')->color('gray')->action(fn () => $this->download('csv')),
         ];
     }
 

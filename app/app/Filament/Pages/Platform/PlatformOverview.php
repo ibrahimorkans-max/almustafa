@@ -26,6 +26,8 @@ use Filament\Pages\Page;
  */
 class PlatformOverview extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-presentation-chart-line';
 
     protected static ?string $navigationGroup = 'Platform';
@@ -71,9 +73,9 @@ class PlatformOverview extends Page
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('customers')->label('New customer')->icon('heroicon-o-plus')->url(CustomerResource::getUrl()),
-            Action::make('invoices')->label('Invoices')->icon('heroicon-o-document-currency-rupee')->color('gray')->url(SaasInvoiceResource::getUrl()),
-            Action::make('methods')->label('Payment methods')->icon('heroicon-o-qr-code')->color('gray')->url(PaymentMethodResource::getUrl()),
+            Action::make('customers')->label(__('New customer'))->icon('heroicon-o-plus')->url(CustomerResource::getUrl()),
+            Action::make('invoices')->label(__('Invoices'))->icon('heroicon-o-document-currency-rupee')->color('gray')->url(SaasInvoiceResource::getUrl()),
+            Action::make('methods')->label(__('Payment methods'))->icon('heroicon-o-qr-code')->color('gray')->url(PaymentMethodResource::getUrl()),
         ];
     }
 }

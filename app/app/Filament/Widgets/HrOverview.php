@@ -47,7 +47,7 @@ class HrOverview extends StatsOverviewWidget
                 ->color($t['absent'] > 0 ? 'warning' : 'success'),
             Stat::make('Punches to review', (string) $hr['flagged_punches'])->color($hr['flagged_punches'] > 0 ? 'warning' : 'gray')
                 ->url(AttendanceLogResource::getUrl('index')),
-            Stat::make('Leave', "{$hr['leave_pending']} to decide")->description("{$hr['leave_next_7_days']} on leave in the next 7 days")
+            Stat::make('Leave', "{$hr['leave_pending']} to decide")->description(__(':leave_next_7_days on leave in the next 7 days', ['leave_next_7_days' => $hr['leave_next_7_days']]))
                 ->url(LeaveRequestResource::getUrl('index')),
         ];
         if ($sees('hr.salary.view')) {
@@ -58,7 +58,7 @@ class HrOverview extends StatsOverviewWidget
         }
         if ($sees('hr.documents.generate')) {
             $stats[] = Stat::make('Payslips not delivered', (string) $hr['undelivered_payslips'])
-                ->description('Last payroll: never shared, opened or downloaded')->color($hr['undelivered_payslips'] > 0 ? 'warning' : 'gray')
+                ->description(__('Last payroll: never shared, opened or downloaded'))->color($hr['undelivered_payslips'] > 0 ? 'warning' : 'gray')
                 ->url(GeneratedDocumentResource::getUrl('index'));
         }
 

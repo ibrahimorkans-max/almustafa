@@ -16,6 +16,8 @@ use Filament\Tables\Table;
 
 class DesignationResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = Designation::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-identification';
@@ -29,7 +31,7 @@ class DesignationResource extends Resource
         return $form->schema([
             TextInput::make('name')->required()->maxLength(120)
                 ->unique(ignoreRecord: true, modifyRuleUsing: fn ($rule) => HrScope::inEntity($rule)),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')])->default('active')->required(),
         ]);
     }
 

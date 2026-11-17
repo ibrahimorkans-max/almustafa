@@ -31,6 +31,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class SaasInvoiceResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = SaasInvoice::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-currency-rupee';
@@ -90,11 +92,11 @@ class SaasInvoiceResource extends Resource
             ->defaultSort('issued_at', 'desc')
             ->columns([
                 TextColumn::make('number')->searchable()->sortable(),
-                TextColumn::make('customer.name')->label('Customer')->description(fn (SaasInvoice $r) => $r->customer->code)->searchable(),
+                TextColumn::make('customer.name')->label(__('Customer'))->description(fn (SaasInvoice $r) => $r->customer->code)->searchable(),
                 TextColumn::make('description')->wrap(),
-                TextColumn::make('amount_paise')->label('Amount')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state))->alignEnd(),
-                TextColumn::make('due_at')->label('Due')->date('d M Y', 'Asia/Karachi')->sortable(),
-                TextColumn::make('standing')->label('State')->badge()->state(fn (SaasInvoice $r) => $r->standing())
+                TextColumn::make('amount_paise')->label(__('Amount'))->formatStateUsing(fn (int $state) => Units::paiseToRupees($state))->alignEnd(),
+                TextColumn::make('due_at')->label(__('Due'))->date('d M Y', 'Asia/Karachi')->sortable(),
+                TextColumn::make('standing')->label(__('State'))->badge()->state(fn (SaasInvoice $r) => $r->standing())
                     ->formatStateUsing(fn (string $state, SaasInvoice $r) => match ($state) {
                         'overdue' => 'Overdue '.$r->daysOverdue().' d',
                         'paid' => 'Paid',
@@ -105,7 +107,7 @@ class SaasInvoiceResource extends Resource
                         'paid' => 'success', 'overdue' => 'danger', 'void' => 'gray', default => 'warning'
                     }),
                 // The transaction the customer reported: its ID (to find on the bank statement), how, how much, when.
-                TextColumn::make('reported_reference')->label('Transaction ID (reported)')->fontFamily('mono')->weight('bold')->copyable()
+                TextColumn::make('reported_reference')->label(__('Transaction ID (reported)'))->fontFamily('mono')->weight('bold')->copyable()
                     ->searchable()
                     ->description(fn (SaasInvoice $r) => $r->reported_reference === null ? null : implode(' · ', array_filter([
                         $r->reportedMethod?->name,
@@ -113,25 +115,25 @@ class SaasInvoiceResource extends Resource
                         $r->reported_paid_on?->format('d M Y'),
                     ])))
                     ->placeholder('—')->toggleable(),
-                TextColumn::make('payment_reference')->label('Received')->fontFamily('mono')->searchable()
+                TextColumn::make('payment_reference')->label(__('Received'))->fontFamily('mono')->searchable()
                     ->description(fn (SaasInvoice $r) => $r->paid_at ? $r->paid_at->timezone('Asia/Karachi')->format('d M Y') : null)
                     ->placeholder('—')->toggleable(),
             ])
             ->filters([
-                SelectFilter::make('status')->options([SaasInvoice::OPEN => 'Open', SaasInvoice::PAID => 'Paid', SaasInvoice::VOID => 'Cancelled']),
-                Filter::make('reported')->label('Payment reported, not yet checked')
+                SelectFilter::make('status')->options([SaasInvoice::OPEN => __('Open'), SaasInvoice::PAID => __('Paid'), SaasInvoice::VOID => __('Cancelled')]),
+                Filter::make('reported')->label(__('Payment reported, not yet checked'))
                     ->query(fn (Builder $q) => $q->where('status', SaasInvoice::OPEN)->whereNotNull('reported_at')),
-                Filter::make('overdue')->label('Overdue')->query(fn (Builder $q) => $q->where('status', SaasInvoice::OPEN)->where('due_at', '<', now())),
-                SelectFilter::make('customer_id')->label('Customer')->relationship('customer', 'name')->searchable(),
+                Filter::make('overdue')->label(__('Overdue'))->query(fn (Builder $q) => $q->where('status', SaasInvoice::OPEN)->where('due_at', '<', now())),
+                SelectFilter::make('customer_id')->label(__('Customer'))->relationship('customer', 'name')->searchable(),
             ])
             ->actions([
-                Action::make('pdf')->label('PDF')->icon('heroicon-o-document-arrow-down')
+                Action::make('pdf')->label(__('PDF'))->icon('heroicon-o-document-arrow-down')
                     ->url(fn (SaasInvoice $r) => route('filament.admin.saas.invoice', ['id' => $r->id]), shouldOpenInNewTab: true),
                 ActionGroup::make([
-                    Action::make('receipt')->label('Customer\'s receipt')->icon('heroicon-o-paper-clip')
+                    Action::make('receipt')->label(__('Customer\'s receipt'))->icon('heroicon-o-paper-clip')
                         ->visible(fn (SaasInvoice $r) => $r->receipt_path !== null)
                         ->url(fn (SaasInvoice $r) => route('filament.admin.saas.receipt', ['id' => $r->id]), shouldOpenInNewTab: true),
-                    Action::make('markPaid')->label('Mark paid')->icon('heroicon-o-check-circle')->color('success')
+                    Action::make('markPaid')->label(__('Mark paid'))->icon('heroicon-o-check-circle')->color('success')
                         ->visible(fn (SaasInvoice $r) => $r->status === SaasInvoice::OPEN)
                         ->modalDescription(fn (SaasInvoice $r) => $r->reported_reference !== null
                             ? 'The customer reported: '.$r->reportedSummary().'. Find this transaction ID on your statement first.'
@@ -142,15 +144,15 @@ class SaasInvoiceResource extends Resource
                             'reference' => $r->reported_reference,
                         ])
                         ->form([
-                            TextInput::make('amount')->label('Amount received (Rs)')->required()->regex(Units::DECIMAL_2),
-                            DatePicker::make('paid_on')->label('Received on')->required()->maxDate(now('Asia/Karachi')),
-                            TextInput::make('reference')->label('Transaction ID (as on your statement)')->required()->maxLength(60)
+                            TextInput::make('amount')->label(__('Amount received (Rs)'))->required()->regex(Units::DECIMAL_2),
+                            DatePicker::make('paid_on')->label(__('Received on'))->required()->maxDate(now('Asia/Karachi')),
+                            TextInput::make('reference')->label(__('Transaction ID (as on your statement)'))->required()->maxLength(60)
                                 ->extraInputAttributes(['style' => 'text-transform: uppercase; font-family: monospace;']),
                             Textarea::make('note')->maxLength(500),
                         ])
                         ->action(fn (SaasInvoice $r, array $data) => self::run(fn (LoginAccount $by) => app(Billing::class)
                             ->markPaid($r, $by, Units::rupeesToPaise((string) $data['amount']), (string) $data['paid_on'], (string) $data['reference'], $data['note'] ?? null), 'Payment recorded.')),
-                    Action::make('void')->label('Cancel invoice')->icon('heroicon-o-x-circle')->color('danger')
+                    Action::make('void')->label(__('Cancel invoice'))->icon('heroicon-o-x-circle')->color('danger')
                         ->visible(fn (SaasInvoice $r) => $r->status === SaasInvoice::OPEN)
                         ->form([TextInput::make('reason')->required()->minLength(5)->maxLength(300)])
                         ->action(fn (SaasInvoice $r, array $data) => self::run(fn (LoginAccount $by) => app(Billing::class)->void($r, $by, (string) $data['reason']), 'Invoice cancelled.')),

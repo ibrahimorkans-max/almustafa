@@ -21,6 +21,8 @@ use Filament\Support\Enums\MaxWidth;
  */
 class PaymentRequiredPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use PaysSubscription;
 
     protected static ?string $navigationIcon = 'heroicon-o-credit-card';

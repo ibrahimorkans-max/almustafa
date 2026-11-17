@@ -36,6 +36,8 @@ use Filament\Tables\Table;
 
 class ClaimResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     use HidesArchived;
 
     protected static ?string $model = Claim::class;
@@ -71,21 +73,21 @@ class ClaimResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            Radio::make('document_type')->label('Against')->required()->live()->inline()
-                ->options([Claim::SALES => 'Our sales invoice (buyer claims)', Claim::PURCHASE => 'A purchase bill (we claim from the supplier)'])
+            Radio::make('document_type')->label(__('Against'))->required()->live()->inline()
+                ->options([Claim::SALES => __('Our sales invoice (buyer claims)'), Claim::PURCHASE => __('A purchase bill (we claim from the supplier)')])
                 ->default(Claim::SALES)->columnSpanFull()
                 ->afterStateUpdated(fn (Set $set) => $set('document_id', null)),
-            Select::make('document_id')->label('Document')->required()->searchable()
+            Select::make('document_id')->label(__('Document'))->required()->searchable()
                 ->options(fn (Get $get) => self::documentOptions((string) $get('document_type')))
                 ->helperText(fn (Get $get) => self::documentOptions((string) $get('document_type')) === []
                     ? ($get('document_type') === Claim::PURCHASE ? 'No posted purchase bills yet.' : 'No posted sales invoices yet.').' A claim is raised against a posted bill.'
                     : null),
-            Select::make('type')->options(Claim::TYPES)->required(),
-            TextInput::make('amount')->label('Amount claimed (Rs)')->required()->regex(Units::DECIMAL_2),
-            Select::make('transporter_party_id')->label('Transporter (transit shortage)')->searchable()
+            Select::make('type')->options(\App\Support\Locales::options(Claim::TYPES))->required(),
+            TextInput::make('amount')->label(__('Amount claimed (Rs)'))->required()->regex(Units::DECIMAL_2),
+            Select::make('transporter_party_id')->label(__('Transporter (transit shortage)'))->searchable()
                 ->options(fn () => Party::query()->where('is_transporter', true)->orderBy('name')->pluck('name', 'id')),
             Textarea::make('description')->required()->minLength(10)->maxLength(2000)->columnSpanFull(),
-            FileUpload::make('evidence')->label('Photos / documents')->multiple()->storeFiles(false)
+            FileUpload::make('evidence')->label(__('Photos / documents'))->multiple()->storeFiles(false)
                 ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480)->columnSpanFull(),
         ]);
     }
@@ -96,18 +98,18 @@ class ClaimResource extends Resource
             ->modifyQueryUsing(fn ($query) => $query->with('party'))
             ->columns([
                 TextColumn::make('number')->searchable(),
-                TextColumn::make('created_at')->label('Raised')->date('d M Y')->sortable(),
-                TextColumn::make('party.name')->label('Party')->searchable(),
-                TextColumn::make('document_type')->label('Against')->formatStateUsing(fn (string $state) => $state === Claim::SALES ? 'Sales invoice' : 'Purchase bill'),
+                TextColumn::make('created_at')->label(__('Raised'))->date('d M Y')->sortable(),
+                TextColumn::make('party.name')->label(__('Party'))->searchable(),
+                TextColumn::make('document_type')->label(__('Against'))->formatStateUsing(fn (string $state) => $state === Claim::SALES ? 'Sales invoice' : 'Purchase bill'),
                 TextColumn::make('type')->formatStateUsing(fn (string $state) => Claim::TYPES[$state] ?? $state),
-                TextColumn::make('claimed_paise')->label('Claimed')->alignEnd()->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
-                TextColumn::make('settled_paise')->label('Settled')->alignEnd()->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state))->placeholder('—'),
+                TextColumn::make('claimed_paise')->label(__('Claimed'))->alignEnd()->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
+                TextColumn::make('settled_paise')->label(__('Settled'))->alignEnd()->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state))->placeholder('—'),
                 TextColumn::make('status')->badge()->color(fn (string $state) => self::statusColor($state))
                     ->formatStateUsing(fn (string $state) => self::STATUS_LABELS[$state] ?? $state),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
-                SelectFilter::make('status')->options(self::STATUS_LABELS),
+                SelectFilter::make('status')->options(\App\Support\Locales::options(self::STATUS_LABELS)),
             ])
             ->actions([ViewAction::make(), PrintButton::row('claim')]);
     }
@@ -119,38 +121,38 @@ class ClaimResource extends Resource
                 TextEntry::make('number'),
                 TextEntry::make('status')->badge()->color(fn (string $state) => self::statusColor($state))
                     ->formatStateUsing(fn (string $state) => self::STATUS_LABELS[$state] ?? $state),
-                TextEntry::make('party.name')->label('Party'),
-                TextEntry::make('document')->label('Against')->state(fn (Claim $r) => $r->document()?->number)->placeholder('—')
+                TextEntry::make('party.name')->label(__('Party')),
+                TextEntry::make('document')->label(__('Against'))->state(fn (Claim $r) => $r->document()?->number)->placeholder('—')
                     ->url(fn (Claim $r) => self::documentUrl($r))->color('primary'),
                 TextEntry::make('type')->formatStateUsing(fn (string $state) => Claim::TYPES[$state] ?? $state),
-                TextEntry::make('claimed_paise')->label('Claimed')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
-                TextEntry::make('settled_paise')->label('Approved / settled')->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state))->placeholder('—'),
-                TextEntry::make('transporter.name')->label('Transporter')->placeholder('—'),
+                TextEntry::make('claimed_paise')->label(__('Claimed'))->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
+                TextEntry::make('settled_paise')->label(__('Approved / settled'))->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state))->placeholder('—'),
+                TextEntry::make('transporter.name')->label(__('Transporter'))->placeholder('—'),
                 TextEntry::make('description')->columnSpanFull(),
             ]),
-            Section::make('Document claimed against')->columns(4)
+            Section::make(__('Document claimed against'))->columns(4)
                 ->visible(fn (Claim $r) => $r->document() !== null)
                 ->schema([
-                    TextEntry::make('doc_number')->label('Number')->state(fn (Claim $r) => $r->document()?->number),
-                    TextEntry::make('doc_date')->label('Date')->state(fn (Claim $r) => $r->document()?->bill_date?->format('d M Y')),
-                    TextEntry::make('doc_product')->label('Product')->state(fn (Claim $r) => $r->document()?->product?->name)->placeholder('—'),
-                    TextEntry::make('doc_amount')->label('Bill amount')->state(function (Claim $r): string {
+                    TextEntry::make('doc_number')->label(__('Number'))->state(fn (Claim $r) => $r->document()?->number),
+                    TextEntry::make('doc_date')->label(__('Date'))->state(fn (Claim $r) => $r->document()?->bill_date?->format('d M Y')),
+                    TextEntry::make('doc_product')->label(__('Product'))->state(fn (Claim $r) => $r->document()?->product?->name)->placeholder('—'),
+                    TextEntry::make('doc_amount')->label(__('Bill amount'))->state(function (Claim $r): string {
                         $doc = $r->document();
 
                         return Units::paiseToRupees($doc instanceof SalesBill ? $doc->total_paise : $doc?->net_paise);
                     }),
                 ]),
-            Section::make('Photos & documents')
+            Section::make(__('Photos & documents'))
                 ->schema([
-                    TextEntry::make('evidence')->hiddenLabel()->placeholder('No photos or documents attached.')->html()
+                    TextEntry::make('evidence')->hiddenLabel()->placeholder(__('No photos or documents attached.'))->html()
                         ->state(fn (Claim $r): ?string => self::evidenceLinks($r)),
                 ]),
-            Section::make('History')->schema([
+            Section::make(__('History'))->schema([
                 RepeatableEntry::make('events')->hiddenLabel()->columns(4)->schema([
-                    TextEntry::make('created_at')->label('When')->dateTime('d M Y H:i'),
+                    TextEntry::make('created_at')->label(__('When'))->dateTime('d M Y H:i'),
                     TextEntry::make('event')->badge(),
-                    TextEntry::make('actor.username')->label('Who')->placeholder('system'),
-                    TextEntry::make('data')->label('Details')
+                    TextEntry::make('actor.username')->label(__('Who'))->placeholder('system'),
+                    TextEntry::make('data')->label(__('Details'))
                         ->state(fn (ClaimEvent $record) => collect($record->data ?? [])->except(['evidence'])->map(fn ($v, $k) => "{$k}: ".(is_scalar($v) ? $v : json_encode($v)))->implode(' · ')),
                 ]),
             ]),

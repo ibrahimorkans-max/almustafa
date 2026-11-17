@@ -27,6 +27,8 @@ use Filament\Tables\Table;
  */
 class EmailIntegrationPage extends Page implements HasTable
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-envelope';
@@ -83,13 +85,13 @@ class EmailIntegrationPage extends Page implements HasTable
     {
         return $table
             ->query(Customer::query())
-            ->heading('Bank e-mail import per customer')
+            ->heading(__('Bank e-mail import per customer'))
             ->columns([
                 TextColumn::make('name')->searchable()->sortable(),
                 TextColumn::make('code')->fontFamily('mono'),
-                TextColumn::make('mailboxes')->label('Mailboxes')->state(fn (Customer $record) => app(TenantContext::class)->runAsSystem(
+                TextColumn::make('mailboxes')->label(__('Mailboxes'))->state(fn (Customer $record) => app(TenantContext::class)->runAsSystem(
                     fn () => EmailConnection::query()->whereIn('entity_id', Entity::query()->where('customer_id', $record->id)->select('id'))->count())),
-                ToggleColumn::make('bank_email_enabled')->label('Allowed')
+                ToggleColumn::make('bank_email_enabled')->label(__('Allowed'))
                     ->afterStateUpdated(fn (Customer $record, bool $state) => app(AuditLogger::class)->record('platform.bank_email.'.($state ? 'enabled' : 'disabled'), $record)),
             ])
             ->defaultSort('name');

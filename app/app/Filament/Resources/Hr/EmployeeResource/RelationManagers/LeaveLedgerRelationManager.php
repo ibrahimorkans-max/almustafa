@@ -51,9 +51,9 @@ class LeaveLedgerRelationManager extends RelationManager
             ->heading(fn () => $this->balancesText())
             ->modifyQueryUsing(fn (Builder $query) => $query->with('leaveType'))
             ->columns([
-                TextColumn::make('created_at')->label('When')->dateTime('d M Y H:i', 'Asia/Karachi'),
+                TextColumn::make('created_at')->label(__('When'))->dateTime('d M Y H:i', 'Asia/Karachi'),
                 TextColumn::make('year'),
-                TextColumn::make('leaveType.code')->label('Type')->badge(),
+                TextColumn::make('leaveType.code')->label(__('Type'))->badge(),
                 TextColumn::make('kind'),
                 TextColumn::make('days')->alignEnd()->color(fn (LeaveLedgerEntry $r) => (float) $r->days < 0 ? 'danger' : 'success'),
                 TextColumn::make('note')->wrap()->placeholder('—'),
@@ -61,18 +61,18 @@ class LeaveLedgerRelationManager extends RelationManager
             ->defaultSort('created_at', 'desc')
             ->filters([SelectFilter::make('year')->options(fn () => LeaveLedgerEntry::query()->distinct()->orderByDesc('year')->pluck('year', 'year')->all())])
             ->headerActions([
-                Action::make('adjust')->label('Adjust balance')->icon('heroicon-o-plus-circle')
+                Action::make('adjust')->label(__('Adjust balance'))->icon('heroicon-o-plus-circle')
                     ->visible(function (): bool {
                         $user = Filament::auth()->user();
 
                         return $user instanceof LoginAccount && $user->hasPermission('hr.employee.edit');
                     })
                     ->form([
-                        Select::make('leave_type_id')->label('Leave type')->required()
+                        Select::make('leave_type_id')->label(__('Leave type'))->required()
                             ->options(fn () => LeaveType::query()->where('paid', true)->orderBy('code')->pluck('name', 'id')),
                         TextInput::make('year')->required()->integer()->default((int) now('Asia/Karachi')->year),
-                        Select::make('kind')->options(['opening' => 'Opening balance', 'accrual' => 'Accrual (earned)', 'adjustment' => 'Correction (+ or −)'])->required(),
-                        TextInput::make('days')->required()->regex('/^-?\d{1,3}(\.[05])?$/')->helperText('Whole or half days, e.g. 7 or 1.5'),
+                        Select::make('kind')->options(['opening' => __('Opening balance'), 'accrual' => __('Accrual (earned)'), 'adjustment' => __('Correction (+ or −)')])->required(),
+                        TextInput::make('days')->required()->regex('/^-?\d{1,3}(\.[05])?$/')->helperText(__('Whole or half days, e.g. 7 or 1.5')),
                         Textarea::make('note')->required()->maxLength(500),
                     ])
                     ->action(function (array $data): void {
@@ -86,7 +86,7 @@ class LeaveLedgerRelationManager extends RelationManager
 
                             return;
                         }
-                        Notification::make()->title('Balance recorded.')->success()->send();
+                        Notification::make()->title(__('Balance recorded.'))->success()->send();
                     }),
             ]);
     }

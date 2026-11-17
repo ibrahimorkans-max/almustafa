@@ -22,6 +22,8 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class CreateExpense extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = ExpenseResource::class;
 
     protected static ?string $title = 'New expense or income';

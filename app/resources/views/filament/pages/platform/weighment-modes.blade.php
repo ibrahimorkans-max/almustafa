@@ -17,7 +17,7 @@
     </x-filament::section>
 
     <x-filament::input.wrapper class="max-w-md">
-        <x-filament::input type="search" wire:model.live.debounce.400ms="search" placeholder="Search a company or mill" />
+        <x-filament::input type="search" wire:model.live.debounce.400ms="search" placeholder="{{ __('Search a company or mill') }}" />
     </x-filament::input.wrapper>
 
     @forelse ($this->getCompanies() as $c)
@@ -25,42 +25,42 @@
             <x-slot name="heading">{{ $c['name'] }} @if ($c['alias']) <span class="text-sm font-normal text-gray-500">({{ $c['alias'] }})</span> @endif</x-slot>
             <x-slot name="headerEnd">{{ ($this->companyAction)(['customer' => $c['id']]) }} {{ ($this->labAction)(['customer' => $c['id']]) }}</x-slot>
             <div class="mb-3 flex flex-wrap items-center gap-2 text-sm">
-                <span class="text-gray-500">Company defaults:</span>
+                <span class="text-gray-500">{{ __('Company defaults:') }}</span>
                 @if (! $c['set'])
-                    <x-filament::badge color="gray">Not set — each mill keeps its earlier weighing policy</x-filament::badge>
+                    <x-filament::badge color="gray">{{ __('Not set — each mill keeps its earlier weighing policy') }}</x-filament::badge>
                 @elseif ($c['modes'] === [])
-                    <x-filament::badge color="danger">All modes off</x-filament::badge>
+                    <x-filament::badge color="danger">{{ __('All modes off') }}</x-filament::badge>
                 @else
                     @foreach ($c['modes'] as $m)<x-filament::badge color="success">{{ $short[$m] }}</x-filament::badge>@endforeach
                 @endif
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
-                    <thead><tr class="text-left text-gray-500"><th class="py-1 pr-3">Mill</th><th class="pr-3">Setting</th><th class="pr-3">Modes on now</th><th></th></tr></thead>
+                    <thead><tr class="text-left text-gray-500"><th class="py-1 pr-3">{{ __('Mill') }}</th><th class="pr-3">{{ __('Setting') }}</th><th class="pr-3">{{ __('Modes on now') }}</th><th></th></tr></thead>
                     <tbody>
                         @forelse ($c['mills'] as $m)
                             <tr class="border-t border-gray-100 dark:border-white/5" wire:key="mill-{{ $m['id'] }}">
                                 <td class="py-1.5 pr-3 font-medium">{{ $m['name'] }}</td>
                                 <td class="pr-3">{{ $m['own'] ? 'Its own' : 'Company' }} <span class="text-xs text-gray-400">{{ $m['version'] }}</span></td>
                                 <td class="pr-3">
-                                    @forelse ($m['modes'] as $mode)<x-filament::badge color="{{ $m['own'] ? 'warning' : 'success' }}" class="mr-1 inline-flex">{{ $short[$mode] }}</x-filament::badge>@empty<x-filament::badge color="danger">None</x-filament::badge>@endforelse
+                                    @forelse ($m['modes'] as $mode)<x-filament::badge color="{{ $m['own'] ? 'warning' : 'success' }}" class="mr-1 inline-flex">{{ $short[$mode] }}</x-filament::badge>@empty<x-filament::badge color="danger">{{ __('None') }}</x-filament::badge>@endforelse
                                 </td>
                                 <td class="whitespace-nowrap text-right">{{ ($this->millAction)(['mill' => $m['id']]) }} {{ ($this->labAction)(['mill' => $m['id']]) }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="py-2 text-gray-500">No mills yet.</td></tr>
+                            <tr><td colspan="4" class="py-2 text-gray-500">{{ __('No mills yet.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </x-filament::section>
     @empty
-        <p class="text-sm text-gray-500">No company matches.</p>
+        <p class="text-sm text-gray-500">{{ __('No company matches.') }}</p>
     @endforelse
 
     <x-filament::section heading="Change history" collapsible>
         <table class="w-full text-sm">
-            <thead><tr class="text-left text-gray-500"><th class="py-1 pr-3">When</th><th class="pr-3">Company / mill</th><th class="pr-3">Before</th><th class="pr-3">After</th><th class="pr-3">By</th><th>Why</th></tr></thead>
+            <thead><tr class="text-left text-gray-500"><th class="py-1 pr-3">{{ __('When') }}</th><th class="pr-3">{{ __('Company / mill') }}</th><th class="pr-3">{{ __('Before') }}</th><th class="pr-3">{{ __('After') }}</th><th class="pr-3">{{ __('By') }}</th><th>{{ __('Why') }}</th></tr></thead>
             <tbody>
                 @forelse ($this->getHistory() as $h)
                     <tr class="border-t border-gray-100 dark:border-white/5">
@@ -72,7 +72,7 @@
                         <td class="text-xs">{{ $h->reason ?? '' }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="py-2 text-gray-500">No changes yet.</td></tr>
+                    <tr><td colspan="6" class="py-2 text-gray-500">{{ __('No changes yet.') }}</td></tr>
                 @endforelse
             </tbody>
         </table>

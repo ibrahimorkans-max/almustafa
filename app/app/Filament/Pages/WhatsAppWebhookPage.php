@@ -26,6 +26,8 @@ use Illuminate\Support\Collection;
  */
 class WhatsAppWebhookPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-arrows-right-left';
 
     protected static ?string $navigationLabel = 'WhatsApp webhook';
@@ -98,9 +100,9 @@ class WhatsAppWebhookPage extends Page
         return [
             Action::make('appSecret')->label(fn () => ($this->getWebhook()['has_secret'] ?? false) ? 'Change app secret' : 'Save app secret')
                 ->icon('heroicon-o-key')->visible(fn () => $this->scope() !== null)
-                ->modalHeading('The Meta app\'s secret')
-                ->modalDescription('Meta for Developers → your app → App settings → Basic → App secret → Show. It proves that each message to the webhook really comes from Meta. Kept encrypted and never shown again.')
-                ->form([TextInput::make('secret')->label('App secret')->password()->revealable(false)->required()->length(32)])
+                ->modalHeading(__('The Meta app\'s secret'))
+                ->modalDescription(__('Meta for Developers → your app → App settings → Basic → App secret → Show. It proves that each message to the webhook really comes from Meta. Kept encrypted and never shown again.'))
+                ->form([TextInput::make('secret')->label(__('App secret'))->password()->revealable(false)->required()->length(32)])
                 ->action(function (array $data): void {
                     try {
                         Integrations::saveWhatsappWebhookSecret((string) $this->scope(), (string) $data['secret']);
@@ -109,15 +111,15 @@ class WhatsAppWebhookPage extends Page
 
                         return;
                     }
-                    Notification::make()->success()->title('App secret saved. WhatsApp\'s messages are accepted now.')->send();
+                    Notification::make()->success()->title(__('App secret saved. WhatsApp\'s messages are accepted now.'))->send();
                 }),
-            Action::make('renewToken')->label('New verify token')->icon('heroicon-o-arrow-path')->color('gray')
+            Action::make('renewToken')->label(__('New verify token'))->icon('heroicon-o-arrow-path')->color('gray')
                 ->visible(fn () => $this->scope() !== null)
                 ->requiresConfirmation()
-                ->modalDescription('The current verify token stops working. Type the new one in Meta and press "Verify and save" again. (Messages keep arriving meanwhile; the token is only for the check.)')
+                ->modalDescription(__('The current verify token stops working. Type the new one in Meta and press "Verify and save" again. (Messages keep arriving meanwhile; the token is only for the check.)'))
                 ->action(function (): void {
                     Integrations::renewWhatsappWebhookToken((string) $this->scope());
-                    Notification::make()->success()->title('New verify token made: copy it into Meta.')->send();
+                    Notification::make()->success()->title(__('New verify token made: copy it into Meta.'))->send();
                 }),
         ];
     }

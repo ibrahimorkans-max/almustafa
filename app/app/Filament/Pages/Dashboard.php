@@ -17,6 +17,8 @@ use Illuminate\Http\RedirectResponse;
  */
 class Dashboard extends BaseDashboard
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     public function mount(): void
     {
         $user = Filament::auth()->user();

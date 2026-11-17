@@ -16,6 +16,8 @@ use Filament\Pages\Page;
  */
 class PartyPortalPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-user-circle';
 
     protected static ?string $navigationLabel = 'My account';

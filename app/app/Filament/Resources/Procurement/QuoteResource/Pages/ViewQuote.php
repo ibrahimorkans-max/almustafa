@@ -24,6 +24,8 @@ use Filament\Resources\Pages\ViewRecord;
  */
 class ViewQuote extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = QuoteResource::class;
 
     protected function getHeaderActions(): array
@@ -31,8 +33,8 @@ class ViewQuote extends ViewRecord
         $open = fn (Quote $r) => $r->isOpen() && (Filament::auth()->user()?->can('quote.manage') ?? false);
         $other = fn (Quote $r) => $r->last_offer_by === Quote::BY_MILL ? Quote::BY_SELLER : Quote::BY_MILL;
         $counterForm = [
-            TextInput::make('quantity_maund')->label('Quantity (maund)')->required()->regex(Units::DECIMAL_3),
-            TextInput::make('rate_rupees')->label('Rate (Rs per maund)')->required()->regex(Units::DECIMAL_2),
+            TextInput::make('quantity_maund')->label(__('Quantity (maund)'))->required()->regex(Units::DECIMAL_3),
+            TextInput::make('rate_rupees')->label(__('Rate (Rs per maund)'))->required()->regex(Units::DECIMAL_2),
             Textarea::make('note')->maxLength(1000),
         ];
 

@@ -37,6 +37,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class DataVisibilityRuleResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = DataVisibilityRule::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-eye-slash';
@@ -81,24 +83,24 @@ class DataVisibilityRuleResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            Select::make('customer_id')->label('Customer / tenant')->searchable()->live()
+            Select::make('customer_id')->label(__('Customer / tenant'))->searchable()->live()
                 ->options(fn () => Customer::query()->orderBy('name')->pluck('name', 'id'))
-                ->helperText('Empty: the default for every customer on the plan below.')
+                ->helperText(__('Empty: the default for every customer on the plan below.'))
                 ->required(fn (Get $get) => blank($get('plan_id'))),
-            Select::make('plan_id')->label('Subscription plan')->options(fn () => Plan::query()->orderBy('name')->pluck('name', 'id'))
+            Select::make('plan_id')->label(__('Subscription plan'))->options(fn () => Plan::query()->orderBy('name')->pluck('name', 'id'))
                 ->visible(fn (Get $get) => blank($get('customer_id')))->required(fn (Get $get) => blank($get('customer_id'))),
-            Select::make('module')->options(DataVisibility::MODULES)->default('all')->required(),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
-            TextInput::make('duration')->label('Visibility duration')->integer()->minValue(1)->maxValue(1200)
-                ->helperText('How far back records are shown. Empty: no limit on age.'),
-            Select::make('duration_unit')->label('Duration unit')->options(['days' => 'Days', 'months' => 'Months'])->default('days')->required(),
-            DatePicker::make('starts_on')->label('Start date')->helperText('The rule applies from this day. Empty: at once.'),
-            DatePicker::make('expires_on')->label('Expiry date')->helperText('After this day (and the grace days) nothing of the module is shown until extended. Empty: no end.'),
-            TextInput::make('grace_days')->label('Grace period (days)')->integer()->minValue(0)->maxValue(365)->default(0),
-            DatePicker::make('override_until')->label('Manual override until')->helperText('Everything is shown until this day, whatever the rule says.'),
-            TextInput::make('override_reason')->label('Override reason')->maxLength(300)->required(fn (Get $get) => filled($get('override_until'))),
+            Select::make('module')->options(\App\Support\Locales::options(DataVisibility::MODULES))->default('all')->required(),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')])->default('active')->required(),
+            TextInput::make('duration')->label(__('Visibility duration'))->integer()->minValue(1)->maxValue(1200)
+                ->helperText(__('How far back records are shown. Empty: no limit on age.')),
+            Select::make('duration_unit')->label(__('Duration unit'))->options(['days' => __('Days'), 'months' => __('Months')])->default('days')->required(),
+            DatePicker::make('starts_on')->label(__('Start date'))->helperText(__('The rule applies from this day. Empty: at once.')),
+            DatePicker::make('expires_on')->label(__('Expiry date'))->helperText(__('After this day (and the grace days) nothing of the module is shown until extended. Empty: no end.')),
+            TextInput::make('grace_days')->label(__('Grace period (days)'))->integer()->minValue(0)->maxValue(365)->default(0),
+            DatePicker::make('override_until')->label(__('Manual override until'))->helperText(__('Everything is shown until this day, whatever the rule says.')),
+            TextInput::make('override_reason')->label(__('Override reason'))->maxLength(300)->required(fn (Get $get) => filled($get('override_until'))),
             Placeholder::make('note')->hiddenLabel()->columnSpanFull()
-                ->content('Records are never deleted: hidden records show again as soon as the window is extended. Balances and totals stay complete.'),
+                ->content(__('Records are never deleted: hidden records show again as soon as the window is extended. Balances and totals stay complete.')),
         ]);
     }
 
@@ -107,14 +109,14 @@ class DataVisibilityRuleResource extends Resource
         return $table
             ->modifyQueryUsing(fn ($query) => $query->with(['customer', 'plan']))
             ->columns([
-                TextColumn::make('applies')->label('Applies to')->state(fn (DataVisibilityRule $r) => $r->customer->name ?? ('Plan: '.($r->plan->name ?? '?')))
+                TextColumn::make('applies')->label(__('Applies to'))->state(fn (DataVisibilityRule $r) => $r->customer->name ?? ('Plan: '.($r->plan->name ?? '?')))
                     ->description(fn (DataVisibilityRule $r) => $r->customer_id === null ? 'Default for the plan' : 'This customer'),
                 TextColumn::make('module')->formatStateUsing(fn (string $state) => DataVisibility::MODULES[$state] ?? $state),
-                TextColumn::make('window')->label('Visible')->state(fn (DataVisibilityRule $r) => $r->windowLabel()),
-                TextColumn::make('starts_on')->label('Start')->date('d M Y')->placeholder('—'),
-                TextColumn::make('expires_on')->label('Expiry')->date('d M Y')->placeholder('No end')
+                TextColumn::make('window')->label(__('Visible'))->state(fn (DataVisibilityRule $r) => $r->windowLabel()),
+                TextColumn::make('starts_on')->label(__('Start'))->date('d M Y')->placeholder('—'),
+                TextColumn::make('expires_on')->label(__('Expiry'))->date('d M Y')->placeholder(__('No end'))
                     ->description(fn (DataVisibilityRule $r) => $r->grace_days > 0 ? '+'.$r->grace_days.' days grace' : null),
-                TextColumn::make('effect')->label('Today')->badge()
+                TextColumn::make('effect')->label(__('Today'))->badge()
                     ->state(function (DataVisibilityRule $r): string {
                         $limit = DataVisibility::evaluate($r, CarbonImmutable::now('Asia/Karachi'));
 
@@ -127,17 +129,17 @@ class DataVisibilityRuleResource extends Resource
                     ->color(fn (string $state) => match (true) {
                         $state === 'Access ended' => 'danger', $state === 'Everything shown' => 'success', default => 'warning',
                     }),
-                TextColumn::make('override_until')->label('Override')->date('d M Y')->placeholder('—')->description(fn (DataVisibilityRule $r) => $r->override_reason),
+                TextColumn::make('override_until')->label(__('Override'))->date('d M Y')->placeholder('—')->description(fn (DataVisibilityRule $r) => $r->override_reason),
                 TextColumn::make('status')->badge()->color(fn (string $state) => $state === 'active' ? 'success' : 'gray'),
             ])
             ->filters([
-                SelectFilter::make('module')->options(DataVisibility::MODULES),
-                SelectFilter::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive']),
+                SelectFilter::make('module')->options(\App\Support\Locales::options(DataVisibility::MODULES)),
+                SelectFilter::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')]),
             ])
             ->actions([
-                Action::make('extend')->label('Extend')->icon('heroicon-o-calendar-days')
+                Action::make('extend')->label(__('Extend'))->icon('heroicon-o-calendar-days')
                     ->form([
-                        TextInput::make('days')->label('Extend the expiry by (days)')->integer()->minValue(1)->maxValue(3650)->required()->default(30),
+                        TextInput::make('days')->label(__('Extend the expiry by (days)'))->integer()->minValue(1)->maxValue(3650)->required()->default(30),
                     ])
                     ->action(function (DataVisibilityRule $record, array $data): void {
                         $base = $record->expires_on !== null && $record->expires_on->isFuture() ? CarbonImmutable::parse($record->expires_on) : CarbonImmutable::now('Asia/Karachi');
@@ -148,11 +150,11 @@ class DataVisibilityRuleResource extends Resource
                     }),
                 ActionGroup::make([
                     EditAction::make(),
-                    Action::make('restore')->label('Restore full access')->icon('heroicon-o-lock-open')->color('success')
-                        ->requiresConfirmation()->modalDescription('Switches the rule off: the customer sees all its records again.')
+                    Action::make('restore')->label(__('Restore full access'))->icon('heroicon-o-lock-open')->color('success')
+                        ->requiresConfirmation()->modalDescription(__('Switches the rule off: the customer sees all its records again.'))
                         ->action(function (DataVisibilityRule $record): void {
                             $record->update(['status' => 'inactive']);
-                            Notification::make()->success()->title('Full access restored.')->send();
+                            Notification::make()->success()->title(__('Full access restored.'))->send();
                         }),
                     DeleteAction::make(),
                 ]),

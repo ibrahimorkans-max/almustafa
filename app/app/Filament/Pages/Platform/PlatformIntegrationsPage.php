@@ -27,6 +27,8 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
  */
 class PlatformIntegrationsPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-link';
 
     protected static ?string $navigationGroup = 'Platform';
@@ -68,20 +70,20 @@ class PlatformIntegrationsPage extends Page
         $saved = fn () => Integrations::whatsappSaved('platform');
 
         return [
-            Action::make('whatsapp')->label('Connect WhatsApp')->icon('heroicon-o-chat-bubble-left-right')
-                ->modalHeading('The product\'s WhatsApp Business number')
-                ->modalDescription('Used by every mill that has not connected its own. From Meta → WhatsApp Manager → API setup. Checked with WhatsApp before saving.')
+            Action::make('whatsapp')->label(__('Connect WhatsApp'))->icon('heroicon-o-chat-bubble-left-right')
+                ->modalHeading(__('The product\'s WhatsApp Business number'))
+                ->modalDescription(__('Used by every mill that has not connected its own. From Meta → WhatsApp Manager → API setup. Checked with WhatsApp before saving.'))
                 ->fillForm(fn () => array_merge(['template' => 'mill_update', 'language' => 'en'], array_diff_key($saved() ?? [], ['access_token' => true])))
                 ->form([
-                    TextInput::make('phone_number_id')->label('Phone number ID')->required()->regex('/^\d{6,30}$/'),
-                    TextInput::make('access_token')->label('Access token')->password()->revealable(false)
+                    TextInput::make('phone_number_id')->label(__('Phone number ID'))->required()->regex('/^\d{6,30}$/'),
+                    TextInput::make('access_token')->label(__('Access token'))->password()->revealable(false)
                         ->placeholder(fn () => $saved() ? 'Saved: leave empty to keep it' : '')->required(fn () => $saved() === null),
-                    TextInput::make('template')->label('Message template name')->required()->maxLength(100),
-                    TextInput::make('language')->label('Template language code')->required()->maxLength(10),
-                    \Filament\Forms\Components\Radio::make('name_in')->label('Each mill\'s name in its messages (one number sends for all)')
-                        ->options(Integrations::NAME_IN)->default('body')->required(),
-                    TextInput::make('doc_template')->label('Template for files (optional)')->maxLength(100)->placeholder('mill_document')
-                        ->helperText('An approved template whose header is a Document and whose body has one variable {{1}}. With it, files reach anyone; without it, only people who wrote in the last 24 hours.'),
+                    TextInput::make('template')->label(__('Message template name'))->required()->maxLength(100),
+                    TextInput::make('language')->label(__('Template language code'))->required()->maxLength(10),
+                    \Filament\Forms\Components\Radio::make('name_in')->label(__('Each mill\'s name in its messages (one number sends for all)'))
+                        ->options(\App\Support\Locales::options(Integrations::NAME_IN))->default('body')->required(),
+                    TextInput::make('doc_template')->label(__('Template for files (optional)'))->maxLength(100)->placeholder('mill_document')
+                        ->helperText(__('An approved template whose header is a Document and whose body has one variable {{1}}. With it, files reach anyone; without it, only people who wrote in the last 24 hours.')),
                 ])
                 ->action(function (array $data): void {
                     try {
@@ -91,20 +93,20 @@ class PlatformIntegrationsPage extends Page
                         Notification::make()->danger()->title($e->getMessage())->persistent()->send();
                     }
                 }),
-            Action::make('firebase')->label('Connect Firebase')->icon('heroicon-o-bell-alert')
-                ->modalHeading('The product\'s Firebase project')
-                ->modalDescription('Firebase console → Project settings: the service account key (Service accounts → Generate new private key), the web app\'s settings (General → Your apps) and the Web Push key (Cloud Messaging). Checked with Google before saving.')
+            Action::make('firebase')->label(__('Connect Firebase'))->icon('heroicon-o-bell-alert')
+                ->modalHeading(__('The product\'s Firebase project'))
+                ->modalDescription(__('Firebase console → Project settings: the service account key (Service accounts → Generate new private key), the web app\'s settings (General → Your apps) and the Web Push key (Cloud Messaging). Checked with Google before saving.'))
                 ->fillForm(fn () => ['web' => Integrations::firebase()['web'], 'vapid_key' => Integrations::firebase()['vapid_key']])
                 ->form([
-                    FileUpload::make('key')->label('Service account key (.json)')->storeFiles(false)->acceptedFileTypes(['application/json', 'text/plain'])->maxSize(64)
+                    FileUpload::make('key')->label(__('Service account key (.json)'))->storeFiles(false)->acceptedFileTypes(['application/json', 'text/plain'])->maxSize(64)
                         ->helperText(fn () => Integrations::firebase()['source'] === 'product' ? 'Saved: leave empty to keep it.' : 'Required.'),
-                    Section::make('Web app (for notifications in browsers)')->columns(2)->schema([
-                        TextInput::make('web.apiKey')->label('API key'),
-                        TextInput::make('web.authDomain')->label('Auth domain'),
-                        TextInput::make('web.projectId')->label('Project ID'),
-                        TextInput::make('web.messagingSenderId')->label('Messaging sender ID'),
-                        TextInput::make('web.appId')->label('App ID'),
-                        TextInput::make('vapid_key')->label('Web Push key (VAPID)'),
+                    Section::make(__('Web app (for notifications in browsers)'))->columns(2)->schema([
+                        TextInput::make('web.apiKey')->label(__('API key')),
+                        TextInput::make('web.authDomain')->label(__('Auth domain')),
+                        TextInput::make('web.projectId')->label(__('Project ID')),
+                        TextInput::make('web.messagingSenderId')->label(__('Messaging sender ID')),
+                        TextInput::make('web.appId')->label(__('App ID')),
+                        TextInput::make('vapid_key')->label(__('Web Push key (VAPID)')),
                     ]),
                 ])
                 ->action(function (array $data): void {
@@ -116,27 +118,27 @@ class PlatformIntegrationsPage extends Page
                         Integrations::saveFirebase($file instanceof TemporaryUploadedFile ? (string) $file->get() : null, (array) ($data['web'] ?? []), (string) ($data['vapid_key'] ?? ''));
                         $check = app(FirebasePush::class)->check();
                         $check === null
-                            ? Notification::make()->success()->title('Firebase connected; Google accepted the service account.')->send()
+                            ? Notification::make()->success()->title(__('Firebase connected; Google accepted the service account.'))->send()
                             : Notification::make()->danger()->title('Saved, but Google refused it: '.$check)->persistent()->send();
                     } catch (BusinessRuleViolation $e) {
                         Notification::make()->danger()->title($e->getMessage())->persistent()->send();
                     }
                 }),
-            Action::make('testFirebase')->label('Test Firebase')->icon('heroicon-o-check-badge')->color('gray')
+            Action::make('testFirebase')->label(__('Test Firebase'))->icon('heroicon-o-check-badge')->color('gray')
                 ->visible(fn () => FirebasePush::configured())
                 ->action(function (): void {
                     $check = app(FirebasePush::class)->check();
                     $check === null
-                        ? Notification::make()->success()->title('Google accepted the service account: notifications can be sent.')->send()
+                        ? Notification::make()->success()->title(__('Google accepted the service account: notifications can be sent.'))->send()
                         : Notification::make()->danger()->title($check)->persistent()->send();
                 }),
-            Action::make('disconnect')->label('Disconnect…')->icon('heroicon-o-x-mark')->color('danger')
+            Action::make('disconnect')->label(__('Disconnect…'))->icon('heroicon-o-x-mark')->color('danger')
                 ->visible(fn () => $saved() !== null || Integrations::firebase()['source'] === 'product')
-                ->form([Radio::make('what')->options(['whatsapp' => 'The product\'s WhatsApp', 'firebase' => 'Firebase'])->required()])
-                ->requiresConfirmation()->modalDescription('The saved settings are deleted. The server\'s .env settings, if any, apply again.')
+                ->form([Radio::make('what')->options(['whatsapp' => __('The product\'s WhatsApp'), 'firebase' => __('Firebase')])->required()])
+                ->requiresConfirmation()->modalDescription(__('The saved settings are deleted. The server\'s .env settings, if any, apply again.'))
                 ->action(function (array $data): void {
                     $data['what'] === 'whatsapp' ? Integrations::removeWhatsapp('platform') : Integrations::removeFirebase();
-                    Notification::make()->success()->title('Disconnected.')->send();
+                    Notification::make()->success()->title(__('Disconnected.'))->send();
                 }),
         ];
     }

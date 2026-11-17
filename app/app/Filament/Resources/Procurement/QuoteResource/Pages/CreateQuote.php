@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class CreateQuote extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = QuoteResource::class;
 
     /** @param  array<string, mixed>  $data */

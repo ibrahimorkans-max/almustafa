@@ -15,15 +15,17 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListPeriodLocks extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PeriodLockResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('lock')->label('Lock a month')->icon('heroicon-o-lock-closed')
+            Action::make('lock')->label(__('Lock a month'))->icon('heroicon-o-lock-closed')
                 ->visible(fn () => Filament::auth()->user()?->can('period.lock') ?? false)
-                ->modalDescription('No voucher can be posted into a locked month. Reopening needs a second person.')
-                ->form([TextInput::make('period')->label('Month (YYYY-MM)')->required()->default(now('Asia/Karachi')->subMonthNoOverflow()->format('Y-m'))])
+                ->modalDescription(__('No voucher can be posted into a locked month. Reopening needs a second person.'))
+                ->form([TextInput::make('period')->label(__('Month (YYYY-MM)'))->required()->default(now('Asia/Karachi')->subMonthNoOverflow()->format('Y-m'))])
                 ->action(function (array $data): void {
                     try {
                         app(PeriodLocks::class)->lock($data['period']);
@@ -32,7 +34,7 @@ class ListPeriodLocks extends ListRecords
 
                         return;
                     }
-                    Notification::make()->title("{$data['period']} locked")->success()->send();
+                    Notification::make()->title(__(':period locked', ['period' => $data['period']]))->success()->send();
                 }),
         ];
     }

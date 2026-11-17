@@ -20,6 +20,8 @@ use Filament\Tables\Table;
 /** Bulk generation on the queue: progress, failures with reasons, retry, one PDF to print and a ZIP of the originals. */
 class DocumentBatchResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = DocumentBatch::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-queue-list';
@@ -60,11 +62,11 @@ class DocumentBatchResource extends Resource
             ->poll('5s')
             ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('created_at')->label('Started')->dateTime('d M Y H:i', 'Asia/Karachi'),
+                TextColumn::make('created_at')->label(__('Started'))->dateTime('d M Y H:i', 'Asia/Karachi'),
                 TextColumn::make('label'),
-                TextColumn::make('doc_type')->label('Document')->formatStateUsing(fn (string $state) => DocumentTypes::options()[$state] ?? $state),
+                TextColumn::make('doc_type')->label(__('Document'))->formatStateUsing(fn (string $state) => DocumentTypes::options()[$state] ?? $state),
                 TextColumn::make('progress')->state(fn (DocumentBatch $r) => "{$r->done_count} / {$r->total} ({$r->percent()} %)"),
-                TextColumn::make('failed_count')->label('Failed')->state(fn (DocumentBatch $r) => count($r->failed ?? []))
+                TextColumn::make('failed_count')->label(__('Failed'))->state(fn (DocumentBatch $r) => count($r->failed ?? []))
                     ->color(fn (int $state) => $state > 0 ? 'danger' : null),
                 TextColumn::make('status')->badge()->color(fn (string $state) => match ($state) {
                     DocumentBatch::DONE => 'success', DocumentBatch::FAILED => 'danger', DocumentBatch::RUNNING => 'info', default => 'gray',
@@ -72,20 +74,20 @@ class DocumentBatchResource extends Resource
             ])
             ->actions([
                 ActionGroup::make([
-                    Action::make('pdf')->label('PDF to print')->icon('heroicon-o-printer')
+                    Action::make('pdf')->label(__('PDF to print'))->icon('heroicon-o-printer')
                         ->visible(fn (DocumentBatch $r) => $r->status === DocumentBatch::DONE && $r->pdf_path !== null)->action($download('pdf')),
-                    Action::make('zip')->label('ZIP of originals')->icon('heroicon-o-archive-box-arrow-down')
+                    Action::make('zip')->label(__('ZIP of originals'))->icon('heroicon-o-archive-box-arrow-down')
                         ->visible(fn (DocumentBatch $r) => $r->status === DocumentBatch::DONE && $r->zip_path !== null)->action($download('zip')),
-                    Action::make('failures')->label('Why some failed')->icon('heroicon-o-exclamation-triangle')->color('danger')
+                    Action::make('failures')->label(__('Why some failed'))->icon('heroicon-o-exclamation-triangle')->color('danger')
                         ->visible(fn (DocumentBatch $r) => ($r->failed ?? []) !== [] || $r->error !== null)
-                        ->modalSubmitAction(false)->modalCancelActionLabel('Close')
+                        ->modalSubmitAction(false)->modalCancelActionLabel(__('Close'))
                         ->modalContent(fn (DocumentBatch $record) => view('filament.documents.batch-failures', ['batch' => $record])),
-                    Action::make('retry')->label('Retry the failed ones')->icon('heroicon-o-arrow-path')
+                    Action::make('retry')->label(__('Retry the failed ones'))->icon('heroicon-o-arrow-path')
                         ->visible(fn (DocumentBatch $r) => ($r->failed ?? []) !== [] && $r->status === DocumentBatch::DONE)
                         ->action(function (DocumentBatch $record): void {
                             try {
                                 app(DocumentBatches::class)->retryFailed($record);
-                                Notification::make()->title('Retry started.')->success()->send();
+                                Notification::make()->title(__('Retry started.'))->success()->send();
                             } catch (BusinessRuleViolation $e) {
                                 Notification::make()->title($e->getMessage())->danger()->send();
                             }

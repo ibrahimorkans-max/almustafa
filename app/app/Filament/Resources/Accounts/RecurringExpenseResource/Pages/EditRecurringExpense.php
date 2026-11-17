@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class EditRecurringExpense extends EditRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = RecurringExpenseResource::class;
 
     /**

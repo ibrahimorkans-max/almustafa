@@ -42,6 +42,8 @@ use Illuminate\Database\Eloquent\Builder;
 /** Stock & production → Paddy stock entry: paddy received into a godown, by hand or against a gate token. */
 class PaddyStockEntryResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = PaddyStockEntry::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-inbox-arrow-down';
@@ -124,12 +126,12 @@ class PaddyStockEntryResource extends Resource
         $today = fn () => now('Asia/Karachi');
 
         return $form->columns(3)->schema([
-            Section::make('Receipt')->columns(3)->schema([
-                TextInput::make('number')->label('Stock entry number')->disabled()->dehydrated(false)->placeholder('Made when saved'),
-                DatePicker::make('entry_date')->label('Entry date')->required()->default($today)->maxDate($today)->live(),
-                Select::make('gate_entry_id')->label('Linked gate token (optional)')->searchable()->live()
+            Section::make(__('Receipt'))->columns(3)->schema([
+                TextInput::make('number')->label(__('Stock entry number'))->disabled()->dehydrated(false)->placeholder(__('Made when saved')),
+                DatePicker::make('entry_date')->label(__('Entry date'))->required()->default($today)->maxDate($today)->live(),
+                Select::make('gate_entry_id')->label(__('Linked gate token (optional)'))->searchable()->live()
                     ->options(fn () => self::tokenOptions())
-                    ->helperText('Tokens already in stock (through their slip or another entry) are not offered.')
+                    ->helperText(__('Tokens already in stock (through their slip or another entry) are not offered.'))
                     ->afterStateUpdated(function (?string $state, Set $set): void {
                         $e = $state === null ? null : GateEntry::query()->with('party')->find($state);
                         if ($e === null) {
@@ -154,32 +156,32 @@ class PaddyStockEntryResource extends Resource
                             $set('product_id', $ids[0]);
                         }
                     }),
-                ProductSelect::make('product_id', ['paddy'])->label('Paddy product')->required()->live(),
-                Select::make('godown_id')->label('Warehouse / godown')->required()->options(fn () => RequisitionResource::godownOptions()),
-                TextInput::make('party_name')->label('Supplier / party')->maxLength(160)->autocomplete('off')
+                ProductSelect::make('product_id', ['paddy'])->label(__('Paddy product'))->required()->live(),
+                Select::make('godown_id')->label(__('Warehouse / godown'))->required()->options(fn () => RequisitionResource::godownOptions()),
+                TextInput::make('party_name')->label(__('Supplier / party'))->maxLength(160)->autocomplete('off')
                     ->datalist(fn () => GateEntryResource::partySuggestions())
-                    ->helperText('A registered party, or any name as typed.'),
-                TextInput::make('registration_no')->label('Vehicle number')->maxLength(20),
-                Select::make('sauda_id')->label('Linked purchase sauda')->searchable()
+                    ->helperText(__('A registered party, or any name as typed.')),
+                TextInput::make('registration_no')->label(__('Vehicle number'))->maxLength(20),
+                Select::make('sauda_id')->label(__('Linked purchase sauda'))->searchable()
                     ->options(fn () => Sauda::query()->where('direction', 'purchase')->whereIn('status', [Sauda::STATUS_CONFIRMED, Sauda::STATUS_IN_DELIVERY])
                         ->with('party')->get()->mapWithKeys(fn (Sauda $s) => [$s->id => $s->number.' — '.$s->party->name])->all()),
             ]),
-            Section::make('Weights')->columns(3)->schema([
-                TextInput::make('bag_count')->label('Number of bags')->integer()->minValue(0)->live(debounce: 500),
-                TextInput::make('gross_kg')->label('Gross weight (kg)')->required()->regex(Units::DECIMAL_3)->live(debounce: 500),
-                TextInput::make('tare_kg')->label('Tare weight (kg)')->regex(Units::DECIMAL_3)->default('0')->live(debounce: 500),
-                Toggle::make('override')->label('Type the deduction by hand (with a reason)')->live()->columnSpanFull(),
-                TextInput::make('deduction_override_kg')->label('Deduction weight (kg)')->regex(Units::DECIMAL_3)->live(debounce: 500)
+            Section::make(__('Weights'))->columns(3)->schema([
+                TextInput::make('bag_count')->label(__('Number of bags'))->integer()->minValue(0)->live(debounce: 500),
+                TextInput::make('gross_kg')->label(__('Gross weight (kg)'))->required()->regex(Units::DECIMAL_3)->live(debounce: 500),
+                TextInput::make('tare_kg')->label(__('Tare weight (kg)'))->regex(Units::DECIMAL_3)->default('0')->live(debounce: 500),
+                Toggle::make('override')->label(__('Type the deduction by hand (with a reason)'))->live()->columnSpanFull(),
+                TextInput::make('deduction_override_kg')->label(__('Deduction weight (kg)'))->regex(Units::DECIMAL_3)->live(debounce: 500)
                     ->visible(fn (Get $get) => (bool) $get('override'))->required(fn (Get $get) => (bool) $get('override')),
-                TextInput::make('deduction_override_reason')->label('Reason')->minLength(5)->maxLength(300)->columnSpan(2)
+                TextInput::make('deduction_override_reason')->label(__('Reason'))->minLength(5)->maxLength(300)->columnSpan(2)
                     ->visible(fn (Get $get) => (bool) $get('override'))->required(fn (Get $get) => (bool) $get('override')),
-                TextInput::make('rate_rupees')->label('Rate (Rs per maund)')->regex(Units::DECIMAL_2)->live(debounce: 500),
-                Placeholder::make('figures')->label('Net · deduction · accepted · amount')->columnSpan(2)->content(fn (Get $get) => self::figures($get)),
+                TextInput::make('rate_rupees')->label(__('Rate (Rs per maund)'))->regex(Units::DECIMAL_2)->live(debounce: 500),
+                Placeholder::make('figures')->label(__('Net · deduction · accepted · amount'))->columnSpan(2)->content(fn (Get $get) => self::figures($get)),
             ]),
             Textarea::make('remarks')->maxLength(1000)->columnSpanFull(),
             ...EntryLocation::fields(),
-            Toggle::make('post')->label('Post to stock now')->default(true)
-                ->helperText('Off: saved as a draft that changes no stock until posted.'),
+            Toggle::make('post')->label(__('Post to stock now'))->default(true)
+                ->helperText(__('Off: saved as a draft that changes no stock until posted.')),
         ]);
     }
 
@@ -189,17 +191,17 @@ class PaddyStockEntryResource extends Resource
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['product', 'paddyVariety', 'godown', 'party', 'gateEntry']))
             ->columns([
                 TextColumn::make('number')->searchable()->sortable(),
-                TextColumn::make('entry_date')->label('Date')->date('d M Y')->sortable(),
-                TextColumn::make('token')->label('Token')->state(fn (PaddyStockEntry $r) => $r->gateEntry?->tokenLabel())->placeholder('manual')->fontFamily('mono'),
-                TextColumn::make('product.name')->label('Paddy')->description(fn (PaddyStockEntry $r) => $r->paddyVariety?->name),
-                TextColumn::make('party')->label('Supplier')->state(fn (PaddyStockEntry $r) => $r->partyLabel())->placeholder('—')
+                TextColumn::make('entry_date')->label(__('Date'))->date('d M Y')->sortable(),
+                TextColumn::make('token')->label(__('Token'))->state(fn (PaddyStockEntry $r) => $r->gateEntry?->tokenLabel())->placeholder('manual')->fontFamily('mono'),
+                TextColumn::make('product.name')->label(__('Paddy'))->description(fn (PaddyStockEntry $r) => $r->paddyVariety?->name),
+                TextColumn::make('party')->label(__('Supplier'))->state(fn (PaddyStockEntry $r) => $r->partyLabel())->placeholder('—')
                     ->searchable(query: fn (Builder $query, string $search) => $query->orWhereRaw('LOWER(party_name) LIKE ?', ['%'.mb_strtolower($search).'%'])),
-                TextColumn::make('godown.name')->label('Godown'),
-                TextColumn::make('registration_no')->label('Vehicle')->fontFamily('mono')->placeholder('—')->searchable(),
-                TextColumn::make('net_kg')->label('Net (kg)')->alignEnd()->numeric(3),
-                TextColumn::make('deduction_kg')->label('Deduction (kg)')->alignEnd()->numeric(3)->toggleable(),
-                TextColumn::make('accepted_kg')->label('Accepted (kg)')->alignEnd()->numeric(3)->weight('bold'),
-                TextColumn::make('amount_paise')->label('Amount')->alignEnd()->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state))->placeholder('—'),
+                TextColumn::make('godown.name')->label(__('Godown')),
+                TextColumn::make('registration_no')->label(__('Vehicle'))->fontFamily('mono')->placeholder('—')->searchable(),
+                TextColumn::make('net_kg')->label(__('Net (kg)'))->alignEnd()->numeric(3),
+                TextColumn::make('deduction_kg')->label(__('Deduction (kg)'))->alignEnd()->numeric(3)->toggleable(),
+                TextColumn::make('accepted_kg')->label(__('Accepted (kg)'))->alignEnd()->numeric(3)->weight('bold'),
+                TextColumn::make('amount_paise')->label(__('Amount'))->alignEnd()->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state))->placeholder('—'),
                 TextColumn::make('status')->badge()->formatStateUsing(fn (string $state) => PaddyStockEntry::STATUS_LABELS[$state] ?? $state)
                     ->color(fn (string $state) => match ($state) {
                         PaddyStockEntry::POSTED => 'success', PaddyStockEntry::CANCELLED => 'danger', default => 'warning',
@@ -207,9 +209,9 @@ class PaddyStockEntryResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
-                SelectFilter::make('status')->options(PaddyStockEntry::STATUS_LABELS),
-                SelectFilter::make('godown_id')->label('Godown')->relationship('godown', 'name'),
-                SelectFilter::make('paddy_variety_id')->label('Variety')->relationship('paddyVariety', 'name'),
+                SelectFilter::make('status')->options(\App\Support\Locales::options(PaddyStockEntry::STATUS_LABELS)),
+                SelectFilter::make('godown_id')->label(__('Godown'))->relationship('godown', 'name'),
+                SelectFilter::make('paddy_variety_id')->label(__('Variety'))->relationship('paddyVariety', 'name'),
                 Filter::make('dates')->form([DatePicker::make('from'), DatePicker::make('until')])
                     ->query(fn (Builder $q, array $data) => $q
                         ->when($data['from'] ?? null, fn (Builder $q, $d) => $q->whereDate('entry_date', '>=', $d))
@@ -225,28 +227,28 @@ class PaddyStockEntryResource extends Resource
                 TextEntry::make('number'),
                 TextEntry::make('status')->badge()->formatStateUsing(fn (string $state) => PaddyStockEntry::STATUS_LABELS[$state] ?? $state),
                 TextEntry::make('entry_date')->date('d M Y'),
-                TextEntry::make('token')->label('Gate token')->state(fn (PaddyStockEntry $r) => $r->gateEntry?->tokenLabel())->placeholder('Manual entry')
+                TextEntry::make('token')->label(__('Gate token'))->state(fn (PaddyStockEntry $r) => $r->gateEntry?->tokenLabel())->placeholder(__('Manual entry'))
                     ->url(fn (PaddyStockEntry $r) => $r->gate_entry_id ? GateEntryResource::getUrl('view', ['record' => $r->gate_entry_id]) : null),
-                TextEntry::make('product.name')->label('Paddy product'),
-                TextEntry::make('paddyVariety.name')->label('Variety')->placeholder('—'),
-                TextEntry::make('party')->label('Supplier')->state(fn (PaddyStockEntry $r) => $r->partyLabel())->placeholder('—'),
-                TextEntry::make('godown.name')->label('Godown'),
-                TextEntry::make('registration_no')->label('Vehicle')->placeholder('—'),
-                TextEntry::make('sauda.number')->label('Sauda')->placeholder('—'),
-                TextEntry::make('bag_count')->label('Bags')->placeholder('—'),
-                TextEntry::make('captured_location')->label('Entered at')
+                TextEntry::make('product.name')->label(__('Paddy product')),
+                TextEntry::make('paddyVariety.name')->label(__('Variety'))->placeholder('—'),
+                TextEntry::make('party')->label(__('Supplier'))->state(fn (PaddyStockEntry $r) => $r->partyLabel())->placeholder('—'),
+                TextEntry::make('godown.name')->label(__('Godown')),
+                TextEntry::make('registration_no')->label(__('Vehicle'))->placeholder('—'),
+                TextEntry::make('sauda.number')->label(__('Sauda'))->placeholder('—'),
+                TextEntry::make('bag_count')->label(__('Bags'))->placeholder('—'),
+                TextEntry::make('captured_location')->label(__('Entered at'))
                     ->state(fn (PaddyStockEntry $r) => EntryLocation::label($r->captured_location))->url(fn (PaddyStockEntry $r) => EntryLocation::mapUrl($r->captured_location), shouldOpenInNewTab: true)
                     ->visible(fn (PaddyStockEntry $r) => $r->captured_location !== null)->color('primary'),
-                TextEntry::make('rate_paise_per_maund')->label('Rate / maund')->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state))->placeholder('—'),
+                TextEntry::make('rate_paise_per_maund')->label(__('Rate / maund'))->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state))->placeholder('—'),
             ]),
             InfoSection::make('Weights')->columns(6)->schema([
-                TextEntry::make('gross_kg')->label('Gross (kg)'),
-                TextEntry::make('tare_kg')->label('Tare (kg)'),
-                TextEntry::make('net_kg')->label('Net (kg)')->weight('bold'),
-                TextEntry::make('deduction_kg')->label('Deduction (kg)'),
-                TextEntry::make('accepted_kg')->label('Accepted (kg)')->weight('bold'),
-                TextEntry::make('amount_paise')->label('Amount')->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state))->placeholder('—'),
-                TextEntry::make('deduction_lines')->label('Deduction applied')->columnSpanFull()->placeholder('None')
+                TextEntry::make('gross_kg')->label(__('Gross (kg)')),
+                TextEntry::make('tare_kg')->label(__('Tare (kg)')),
+                TextEntry::make('net_kg')->label(__('Net (kg)'))->weight('bold'),
+                TextEntry::make('deduction_kg')->label(__('Deduction (kg)')),
+                TextEntry::make('accepted_kg')->label(__('Accepted (kg)'))->weight('bold'),
+                TextEntry::make('amount_paise')->label(__('Amount'))->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state))->placeholder('—'),
+                TextEntry::make('deduction_lines')->label(__('Deduction applied'))->columnSpanFull()->placeholder(__('None'))
                     ->state(fn (PaddyStockEntry $r) => collect($r->deduction_lines ?? [])->map(fn (array $l) => ($l['rule'] ?? $l['method']).': '.$l['deduction_kg'].' kg'
                         .(isset($l['reason']) ? ' — '.$l['reason'] : ''))->implode(' · ') ?: null),
             ]),

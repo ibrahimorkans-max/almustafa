@@ -25,7 +25,7 @@
     </style>
     <div class="rm-chats">
         <x-filament::section :heading="'Conversations ('.count($chats).')'">
-            <input type="search" wire:model.live.debounce.400ms="search" placeholder="Search party, code or number"
+            <input type="search" wire:model.live.debounce.400ms="search" placeholder="{{ __('Search party, code or number') }}"
                 class="mb-3 block w-full rounded-lg border-gray-300 text-sm dark:border-white/10 dark:bg-white/5">
             @forelse ($chats as $c)
                 <button type="button" wire:click="open('{{ $c['key'] }}')" wire:key="chat-{{ $c['key'] }}" @class(['rm-chat-item', 'on' => $this->chat === $c['key']])>
@@ -45,7 +45,7 @@
 
         <x-filament::section :heading="$head ? $head['name'] : 'Choose a conversation'" :description="$head['phone'] ?? null">
             @if ($head === null)
-                <p class="text-sm text-gray-500">Every message sent to a party shows here (WhatsApp or SMS, with how it went), and what parties send back on WhatsApp.</p>
+                <p class="text-sm text-gray-500">{{ __('Every message sent to a party shows here (WhatsApp or SMS, with how it went), and what parties send back on WhatsApp.') }}</p>
             @else
                 <div class="rm-thread" x-data x-init="$el.scrollTop = $el.scrollHeight">
                     @forelse ($thread as $m)
@@ -58,12 +58,12 @@
                                 {{ $m['at']->timezone('Asia/Karachi')->format('d M Y H:i') }}
                                 @if ($m['out'])
                                     · {{ $m['channel'] === 'sms' ? 'SMS' : 'WhatsApp' }} ·
-                                    @if ($m['delivery'] === 'read') <span style="color: #0284c7;">✓✓ Read</span>
+                                    @if ($m['delivery'] === 'read') <span style="color: #0284c7;">{{ __('✓✓ Read') }}</span>
                                     @elseif ($m['delivery'] === 'delivered') ✓✓ Delivered
-                                    @elseif ($m['delivery'] === 'failed') <span style="color: #dc2626;">Not delivered</span>
+                                    @elseif ($m['delivery'] === 'failed') <span style="color: #dc2626;">{{ __('Not delivered') }}</span>
                                     @elseif ($m['status'] === 'sent') ✓ Sent
-                                    @elseif ($m['status'] === 'manual') <span style="color: #d97706;">To send by hand</span>
-                                    @elseif ($m['status'] === 'failed') <span style="color: #dc2626;">Failed</span>
+                                    @elseif ($m['status'] === 'manual') <span style="color: #d97706;">{{ __('To send by hand') }}</span>
+                                    @elseif ($m['status'] === 'failed') <span style="color: #dc2626;">{{ __('Failed') }}</span>
                                     @elseif ($m['status'] === 'skipped') Not sent
                                     @else {{ $m['status'] }}
                                     @endif
@@ -76,7 +76,7 @@
                             @endif
                         </div>
                     @empty
-                        <p class="text-sm text-gray-500">No messages.</p>
+                        <p class="text-sm text-gray-500">{{ __('No messages.') }}</p>
                     @endforelse
                 </div>
             @endif

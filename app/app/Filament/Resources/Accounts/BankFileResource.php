@@ -19,6 +19,8 @@ use Filament\Tables\Table;
 /** Bulk-transfer files for the bank portal, one per batch of released bank payments. */
 class BankFileResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = BankFile::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-up-tray';
@@ -37,15 +39,15 @@ class BankFileResource extends Resource
             ->modifyQueryUsing(fn ($query) => $query->with('bank'))
             ->columns([
                 TextColumn::make('number'),
-                TextColumn::make('created_at')->label('Created')->dateTime('d M Y H:i')->sortable(),
-                TextColumn::make('bank.name')->label('From account')->state(fn (BankFile $r) => $r->bank->displayName()),
-                TextColumn::make('payment_count')->label('Payments')->alignEnd(),
-                TextColumn::make('total_paise')->label('Total')->alignEnd()->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
-                TextColumn::make('sha256')->label('SHA-256')->limit(12)->fontFamily('mono'),
+                TextColumn::make('created_at')->label(__('Created'))->dateTime('d M Y H:i')->sortable(),
+                TextColumn::make('bank.name')->label(__('From account'))->state(fn (BankFile $r) => $r->bank->displayName()),
+                TextColumn::make('payment_count')->label(__('Payments'))->alignEnd(),
+                TextColumn::make('total_paise')->label(__('Total'))->alignEnd()->formatStateUsing(fn (int $state) => Units::paiseToRupees($state)),
+                TextColumn::make('sha256')->label(__('SHA-256'))->limit(12)->fontFamily('mono'),
             ])
             ->defaultSort('created_at', 'desc')
             ->actions([
-                Action::make('download')->label('Download CSV')->icon('heroicon-o-arrow-down-tray')
+                Action::make('download')->label(__('Download CSV'))->icon('heroicon-o-arrow-down-tray')
                     ->visible(fn () => Filament::auth()->user()?->can('bank.view') ?? false)
                     ->action(function (BankFile $record) {
                         try {

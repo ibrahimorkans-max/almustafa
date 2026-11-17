@@ -40,6 +40,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ContractorRateResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = ContractorRate::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-truck';
@@ -92,40 +94,40 @@ class ContractorRateResource extends Resource
         $used = fn (?ContractorRate $record) => $record !== null && $record->usedOnBills();
 
         return $form->columns(3)->schema([
-            Select::make('party_id')->label('Contractor')->required()->searchable()->live()->options(fn () => ContractorBillResource::contractors())
+            Select::make('party_id')->label(__('Contractor'))->required()->searchable()->live()->options(fn () => ContractorBillResource::contractors())
                 ->afterStateUpdated(fn (callable $set) => $set('vehicle_id', null))
-                ->disabled($used)->helperText('A vendor chosen here becomes a labour contractor (with a CTR code).'),
-            Select::make('vehicle_id')->label('Contractor vehicle')->required()->searchable()->live()
+                ->disabled($used)->helperText(__('A vendor chosen here becomes a labour contractor (with a CTR code).')),
+            Select::make('vehicle_id')->label(__('Contractor vehicle'))->required()->searchable()->live()
                 ->options(fn (Get $get) => self::vehicleOptions($get('party_id')))
                 ->disabled($used)
                 ->helperText(fn (Get $get) => filled($get('party_id')) && self::vehicleOptions($get('party_id')) === []
                     ? 'This contractor has no vehicles yet: add one with "+".' : 'Only this contractor\'s vehicles.')
                 ->createOptionForm([
-                    TextInput::make('registration_no')->label('Registration number')->required()->maxLength(20),
-                    Select::make('vehicle_type')->label('Kind of vehicle')->options(Vehicle::LABELS)->default('truck')->required(),
+                    TextInput::make('registration_no')->label(__('Registration number'))->required()->maxLength(20),
+                    Select::make('vehicle_type')->label(__('Kind of vehicle'))->options(\App\Support\Locales::options(Vehicle::LABELS))->default('truck')->required(),
                 ])
                 ->createOptionUsing(function (array $data, Get $get): string {
                     $party = Party::query()->findOrFail($get('party_id'));
 
                     return app(ContractorVehicles::class)->addVehicle($party, (string) $data['registration_no'], (string) $data['vehicle_type'])->id;
                 }),
-            Select::make('work')->label('Work / service')->options(ContractorRate::WORK)->default('unloading')->required()->disabled($used),
-            Select::make('basis')->label('Rate per')->options(ContractorRate::BASES)->default('maund')->required()->live()->disabled($used)
-                ->helperText('Charge = billable weight ÷ rate weight × rate.'),
-            TextInput::make('basis_qty')->label('Custom weight')->regex(Units::DECIMAL_3)->disabled($used)
+            Select::make('work')->label(__('Work / service'))->options(\App\Support\Locales::options(ContractorRate::WORK))->default('unloading')->required()->disabled($used),
+            Select::make('basis')->label(__('Rate per'))->options(\App\Support\Locales::options(ContractorRate::BASES))->default('maund')->required()->live()->disabled($used)
+                ->helperText(__('Charge = billable weight ÷ rate weight × rate.')),
+            TextInput::make('basis_qty')->label(__('Custom weight'))->regex(Units::DECIMAL_3)->disabled($used)
                 ->visible(fn (Get $get) => $get('basis') === 'custom')->required(fn (Get $get) => $get('basis') === 'custom'),
-            Select::make('basis_unit')->label('Unit')->options(ContractorRate::CUSTOM_UNITS)->default('kg')->disabled($used)
+            Select::make('basis_unit')->label(__('Unit'))->options(\App\Support\Locales::options(ContractorRate::CUSTOM_UNITS))->default('kg')->disabled($used)
                 ->visible(fn (Get $get) => $get('basis') === 'custom')->required(fn (Get $get) => $get('basis') === 'custom'),
-            TextInput::make('rate_paise')->label('Rate (Rs)')->required()->regex(Units::DECIMAL_2)->disabled($used)
+            TextInput::make('rate_paise')->label(__('Rate (Rs)'))->required()->regex(Units::DECIMAL_2)->disabled($used)
                 ->formatStateUsing(fn ($state) => $state === null ? null : bcdiv((string) $state, '100', 2))
                 ->dehydrateStateUsing(fn ($state) => Units::rupeesToPaise((string) $state)),
-            DatePicker::make('effective_from')->label('Effective from')->required()->default(fn () => now('Asia/Karachi')->toDateString()),
-            DatePicker::make('effective_to')->label('Effective to')->afterOrEqual('effective_from')
-                ->helperText('Empty: until a new rate replaces it.'),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
-            TextInput::make('note')->label('Remarks')->maxLength(300)->columnSpan(2),
+            DatePicker::make('effective_from')->label(__('Effective from'))->required()->default(fn () => now('Asia/Karachi')->toDateString()),
+            DatePicker::make('effective_to')->label(__('Effective to'))->afterOrEqual('effective_from')
+                ->helperText(__('Empty: until a new rate replaces it.')),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')])->default('active')->required(),
+            TextInput::make('note')->label(__('Remarks'))->maxLength(300)->columnSpan(2),
             Placeholder::make('used')->label('')->columnSpanFull()->visible($used)
-                ->content('This rate is on a bill: its amount and weight cannot change. To change the rate, add a new rate from the new date; this one closes the day before.'),
+                ->content(__('This rate is on a bill: its amount and weight cannot change. To change the rate, add a new rate from the new date; this one closes the day before.')),
         ]);
     }
 
@@ -135,28 +137,28 @@ class ContractorRateResource extends Resource
             ->modifyQueryUsing(fn ($query) => $query->with(['party', 'vehicle']))
             ->columns([
                 TextColumn::make('code')->fontFamily('mono')->searchable()->sortable(),
-                TextColumn::make('party.name')->label('Contractor')->searchable()->sortable()
+                TextColumn::make('party.name')->label(__('Contractor'))->searchable()->sortable()
                     ->description(fn (ContractorRate $r) => $r->party->contractor_code),
-                TextColumn::make('vehicle.registration_no')->label('Vehicle')->fontFamily('mono')->searchable()
+                TextColumn::make('vehicle.registration_no')->label(__('Vehicle'))->fontFamily('mono')->searchable()
                     ->state(fn (ContractorRate $r) => $r->vehicle->registration_no ?? ($r->vehicle_type ? 'Any '.Vehicle::typeLabel($r->vehicle_type) : 'Any vehicle'))
                     ->description(fn (ContractorRate $r) => $r->vehicle ? Vehicle::typeLabel($r->vehicle->vehicle_type) : null),
                 TextColumn::make('work')->formatStateUsing(fn (string $state) => ContractorRate::WORK[$state] ?? $state),
-                TextColumn::make('rate_paise')->label('Rate')->alignEnd()->fontFamily('mono')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state))
+                TextColumn::make('rate_paise')->label(__('Rate'))->alignEnd()->fontFamily('mono')->formatStateUsing(fn (int $state) => Units::paiseToRupees($state))
                     ->description(fn (ContractorRate $r) => $r->basisLabel()),
-                TextColumn::make('effective_from')->label('From')->date('d M Y')->sortable(),
-                TextColumn::make('effective_to')->label('To')->date('d M Y')->placeholder('Open'),
-                TextColumn::make('unbilled')->label('Unbilled tokens')->alignEnd()
+                TextColumn::make('effective_from')->label(__('From'))->date('d M Y')->sortable(),
+                TextColumn::make('effective_to')->label(__('To'))->date('d M Y')->placeholder(__('Open')),
+                TextColumn::make('unbilled')->label(__('Unbilled tokens'))->alignEnd()
                     ->state(fn (ContractorRate $r) => GateEntry::query()->where('contractor_party_id', $r->party_id)->whereNull('contractor_bill_id')
                         ->where('status', '!=', 'cancelled')->when($r->vehicle_id, fn ($q) => $q->where('vehicle_id', $r->vehicle_id))->count()),
                 TextColumn::make('status')->badge()->color(fn (string $state) => $state === 'active' ? 'success' : 'gray'),
             ])
             ->defaultSort('effective_from', 'desc')
             ->filters([
-                SelectFilter::make('party_id')->label('Contractor')->options(fn () => ContractorBillResource::contractors()),
-                SelectFilter::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive']),
+                SelectFilter::make('party_id')->label(__('Contractor'))->options(fn () => ContractorBillResource::contractors()),
+                SelectFilter::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')]),
             ])
             ->actions([
-                Action::make('vehicles')->label('Tokens')->icon('heroicon-o-truck')->color('gray')
+                Action::make('vehicles')->label(__('Tokens'))->icon('heroicon-o-truck')->color('gray')
                     ->url(fn (ContractorRate $r) => GateEntryResource::getUrl('index', ['tableFilters' => ['open' => ['value' => 'all'], 'contractor' => ['value' => $r->party_id]]])),
                 EditAction::make()->using(fn (ContractorRate $record, array $data, EditAction $action) => self::guarded(fn () => tap($record)->update($data), $action)),
             ]);

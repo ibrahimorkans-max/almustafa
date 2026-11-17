@@ -34,6 +34,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class FinancialReportsPage extends Page implements HasForms
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-chart-bar-square';
@@ -78,7 +80,7 @@ class FinancialReportsPage extends Page implements HasForms
         $uses = fn (string ...$reports) => fn (Get $get) => in_array($get('report'), $reports, true);
 
         return $form->columns(4)->statePath('data')->schema([
-            Select::make('report')->options(FinancialTables::REPORTS)->required()->live()->selectablePlaceholder(false)
+            Select::make('report')->options(\App\Support\Locales::options(FinancialTables::REPORTS))->required()->live()->selectablePlaceholder(false)
                 ->afterStateUpdated(fn (?string $state) => $this->report = (string) $state),
             DatePicker::make('from')->live()->required()->visible($uses('pl', 'monthly', 'payroll', 'cashflow')),
             DatePicker::make('to')->label(fn (Get $get) => $get('report') === 'staff' ? 'As on' : 'To')->live()->required()
@@ -109,12 +111,12 @@ class FinancialReportsPage extends Page implements HasForms
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('allReports')->label('All reports')->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
-            Action::make('ytd')->label('This tax year')->color('gray')->icon('heroicon-o-calendar')
+            Action::make('allReports')->label(__('All reports'))->icon('heroicon-o-printer')->color('gray')->url(fn () => AllReportsPage::getUrl()),
+            Action::make('ytd')->label(__('This tax year'))->color('gray')->icon('heroicon-o-calendar')
                 ->visible(fn () => in_array($this->data['report'] ?? 'pl', ['pl', 'monthly', 'payroll', 'cashflow'], true))
                 ->action(fn () => $this->data = ['from' => self::taxYearStart($this->data['to'] ?? null)] + ($this->data ?? [])),
-            Action::make('pdf')->visible(fn () => ExportGuard::allowed())->label('PDF')->icon('heroicon-o-arrow-down-tray')->action(fn () => $this->download('pdf')),
-            Action::make('excel')->visible(fn () => ExportGuard::allowed())->label('Excel')->icon('heroicon-o-table-cells')->color('gray')->action(fn () => $this->download('xlsx')),
+            Action::make('pdf')->visible(fn () => ExportGuard::allowed())->label(__('PDF'))->icon('heroicon-o-arrow-down-tray')->action(fn () => $this->download('pdf')),
+            Action::make('excel')->visible(fn () => ExportGuard::allowed())->label(__('Excel'))->icon('heroicon-o-table-cells')->color('gray')->action(fn () => $this->download('xlsx')),
         ];
     }
 

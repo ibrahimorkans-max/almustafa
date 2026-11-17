@@ -9,5 +9,7 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewAuditLog extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = AuditLogResource::class;
 }

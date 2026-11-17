@@ -25,6 +25,8 @@ use Illuminate\Database\Eloquent\Builder;
 /** Monthly expenses that draft themselves (rent, electricity, guards …); accounts check and post each draft. */
 class RecurringExpenseResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = RecurringExpense::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-path';
@@ -44,18 +46,18 @@ class RecurringExpenseResource extends Resource
         $month = '/^\d{4}-(0[1-9]|1[0-2])$/';
 
         return $form->columns(2)->schema([
-            TextInput::make('name')->required()->maxLength(120)->placeholder('e.g. Godown rent'),
-            Select::make('expense_category_id')->label('Category')->required()->searchable()
+            TextInput::make('name')->required()->maxLength(120)->placeholder(__('e.g. Godown rent')),
+            Select::make('expense_category_id')->label(__('Category'))->required()->searchable()
                 ->options(fn () => ExpenseCategory::query()->where('status', 'active')->where('kind', 'expense')->orderBy('name')->pluck('name', 'id')),
-            TextInput::make('amount')->label('Usual amount (Rs)')->required()->regex(Units::DECIMAL_2)
-                ->helperText('Each month\'s draft can be corrected before posting.'),
-            TextInput::make('day_of_month')->label('Day of the month')->required()->integer()->minValue(1)->maxValue(28)->default(1),
-            TextInput::make('starts_month')->label('First month')->required()->regex($month)->default(fn () => now('Asia/Karachi')->format('Y-m'))->placeholder('2026-10'),
-            TextInput::make('ends_month')->label('Last month')->regex($month)->placeholder('open-ended'),
-            Radio::make('via')->label('Paid from')->inline()->required()->default('cash')->live()->options(ExpenseResource::VIA)
+            TextInput::make('amount')->label(__('Usual amount (Rs)'))->required()->regex(Units::DECIMAL_2)
+                ->helperText(__('Each month\'s draft can be corrected before posting.')),
+            TextInput::make('day_of_month')->label(__('Day of the month'))->required()->integer()->minValue(1)->maxValue(28)->default(1),
+            TextInput::make('starts_month')->label(__('First month'))->required()->regex($month)->default(fn () => now('Asia/Karachi')->format('Y-m'))->placeholder('2026-10'),
+            TextInput::make('ends_month')->label(__('Last month'))->regex($month)->placeholder('open-ended'),
+            Radio::make('via')->label(__('Paid from'))->inline()->required()->default('cash')->live()->options(\App\Support\Locales::options(ExpenseResource::VIA))
                 ->afterStateUpdated(fn (Set $set) => $set('pay_from_ledger_id', null)),
             ExpenseResource::ledgerSelect('pay_from_ledger_id'),
-            Select::make('party_id')->label('Party (landlord, utility …)')->searchable()->options(fn () => ExpenseResource::parties())
+            Select::make('party_id')->label(__('Party (landlord, utility …)'))->searchable()->options(fn () => ExpenseResource::parties())
                 ->visible(fn (Get $get) => $get('via') === 'party')->required(fn (Get $get) => $get('via') === 'party'),
             Toggle::make('active')->default(true),
         ]);
@@ -67,10 +69,10 @@ class RecurringExpenseResource extends Resource
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['category', 'payFrom', 'party']))
             ->columns([
                 TextColumn::make('name')->searchable(),
-                TextColumn::make('category.name')->label('Category'),
-                TextColumn::make('amount_paise')->label('Amount')->alignEnd()->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state)),
-                TextColumn::make('day_of_month')->label('Day')->alignEnd(),
-                TextColumn::make('via')->label('Paid')->state(fn (RecurringExpense $r) => $r->payFrom->name ?? ($r->party !== null ? 'On credit: '.$r->party->name : '—')),
+                TextColumn::make('category.name')->label(__('Category')),
+                TextColumn::make('amount_paise')->label(__('Amount'))->alignEnd()->formatStateUsing(fn (?int $state) => Units::paiseToRupees($state)),
+                TextColumn::make('day_of_month')->label(__('Day'))->alignEnd(),
+                TextColumn::make('via')->label(__('Paid'))->state(fn (RecurringExpense $r) => $r->payFrom->name ?? ($r->party !== null ? 'On credit: '.$r->party->name : '—')),
                 TextColumn::make('period')->state(fn (RecurringExpense $r) => $r->starts_month.' → '.($r->ends_month ?? 'open')),
                 IconColumn::make('active')->boolean(),
             ])

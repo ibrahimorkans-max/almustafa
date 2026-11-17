@@ -26,6 +26,8 @@ use Illuminate\Support\Collection;
  */
 class SwitchContext extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $slug = 'switch';
 
     protected static ?string $title = 'Switch entity / account';

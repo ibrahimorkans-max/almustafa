@@ -16,12 +16,14 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListPayrollRuns extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PayrollRunResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('open')->label('Start month payroll')->icon('heroicon-o-plus')
+            Action::make('open')->label(__('Start month payroll'))->icon('heroicon-o-plus')
                 ->visible(fn () => PayrollRunResource::allows('hr.payroll.run'))
                 ->form([
                     TextInput::make('month')->required()->regex('/^\d{4}-(0[1-9]|1[0-2])$/')->placeholder('2026-10')

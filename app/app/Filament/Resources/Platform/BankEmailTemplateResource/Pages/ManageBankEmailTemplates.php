@@ -10,6 +10,8 @@ use Filament\Resources\Pages\ManageRecords;
 
 class ManageBankEmailTemplates extends ManageRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = BankEmailTemplateResource::class;
 
     protected function getHeaderActions(): array

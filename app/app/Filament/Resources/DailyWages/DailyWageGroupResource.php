@@ -25,6 +25,8 @@ use Filament\Tables\Table;
  */
 class DailyWageGroupResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = DailyWageGroup::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
@@ -42,15 +44,15 @@ class DailyWageGroupResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            TextInput::make('name')->label('Group name')->required()->maxLength(120)->placeholder('e.g. Akram loading group'),
-            TextInput::make('leader_name')->label('Leader (mukadam)')->required()->maxLength(120),
-            TextInput::make('leader_phone')->label('Leader\'s phone')->tel()->maxLength(20),
-            TextInput::make('leader_cnic')->label('Leader\'s CNIC (optional)')->maxLength(15)->regex('/^\d{5}-?\d{7}-?\d$/'),
-            Select::make('default_category_id')->label('Usual work')->searchable()
+            TextInput::make('name')->label(__('Group name'))->required()->maxLength(120)->placeholder(__('e.g. Akram loading group')),
+            TextInput::make('leader_name')->label(__('Leader (mukadam)'))->required()->maxLength(120),
+            TextInput::make('leader_phone')->label(__('Leader\'s phone'))->tel()->maxLength(20),
+            TextInput::make('leader_cnic')->label(__('Leader\'s CNIC (optional)'))->maxLength(15)->regex('/^\d{5}-?\d{7}-?\d$/'),
+            Select::make('default_category_id')->label(__('Usual work'))->searchable()
                 ->options(fn () => DailyWageCategory::query()->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
-            TextInput::make('usual_size')->label('Usual number of workers')->numeric()->minValue(1)->maxValue(500),
+            TextInput::make('usual_size')->label(__('Usual number of workers'))->numeric()->minValue(1)->maxValue(500),
             Textarea::make('notes')->rows(2)->maxLength(1000)->columnSpanFull(),
-            Select::make('status')->options(['active' => 'Working with us', 'inactive' => 'Not any more'])->default('active')->required(),
+            Select::make('status')->options(['active' => __('Working with us'), 'inactive' => __('Not any more')])->default('active')->required(),
         ]);
     }
 
@@ -60,17 +62,17 @@ class DailyWageGroupResource extends Resource
             ->modifyQueryUsing(fn ($query) => $query->with('defaultCategory'))
             ->columns([
                 TextColumn::make('name')->searchable()->sortable(),
-                TextColumn::make('leader_name')->label('Leader')->searchable()->description(fn (DailyWageGroup $g) => $g->leader_phone),
-                TextColumn::make('defaultCategory.name')->label('Usual work')->placeholder('—'),
-                TextColumn::make('usual_size')->label('Workers')->placeholder('—'),
-                TextColumn::make('this_month')->label('Paid this month')->alignEnd()
+                TextColumn::make('leader_name')->label(__('Leader'))->searchable()->description(fn (DailyWageGroup $g) => $g->leader_phone),
+                TextColumn::make('defaultCategory.name')->label(__('Usual work'))->placeholder('—'),
+                TextColumn::make('usual_size')->label(__('Workers'))->placeholder('—'),
+                TextColumn::make('this_month')->label(__('Paid this month'))->alignEnd()
                     ->state(fn (DailyWageGroup $g) => Money::paise((int) DailyWageSheet::query()->where('group_id', $g->id)
                         ->whereIn('status', [DailyWageSheet::POSTED, DailyWageSheet::PAID])
                         ->where('work_date', '>=', now('Asia/Karachi')->startOfMonth()->toDateString())->sum('net_paise'))->format()),
                 TextColumn::make('status')->badge()->color(fn (string $state) => $state === 'active' ? 'success' : 'gray'),
             ])
             ->defaultSort('name')
-            ->filters([SelectFilter::make('status')->options(['active' => 'Working with us', 'inactive' => 'Not any more'])->default('active')])
+            ->filters([SelectFilter::make('status')->options(['active' => __('Working with us'), 'inactive' => __('Not any more')])->default('active')])
             ->actions([EditAction::make()]);
     }
 

@@ -21,6 +21,8 @@ use Illuminate\Support\HtmlString;
 
 class ListRoznamchaPages extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = RoznamchaResource::class;
 
     /** Today's budget at the top: the budget, what is paid out, what is left. */
@@ -48,22 +50,22 @@ class ListRoznamchaPages extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->label('Add a page'),
-            Action::make('budget')->label('Daily budget')->icon('heroicon-o-banknotes')->color('gray')
+            CreateAction::make()->label(__('Add a page')),
+            Action::make('budget')->label(__('Daily budget'))->icon('heroicon-o-banknotes')->color('gray')
                 ->visible(fn () => RoznamchaBudgets::canSet())
-                ->modalHeading('Roznamcha daily budget')
-                ->modalDescription('How much cash may be paid out (banam) in a day. A page that takes its day over the budget is posted only with the reason.')
+                ->modalHeading(__('Roznamcha daily budget'))
+                ->modalDescription(__('How much cash may be paid out (banam) in a day. A page that takes its day over the budget is posted only with the reason.'))
                 ->fillForm(fn () => ['what' => 'usual', 'usual' => ($u = app(RoznamchaBudgets::class)->usual()) !== null ? number_format($u / 100, 2, '.', '') : null,
                     'date' => now('Asia/Karachi')->toDateString()])
                 ->form([
-                    Radio::make('what')->label('Set')->options(['usual' => 'The usual amount for every day', 'day' => 'One day\'s own amount'])->live()->required(),
-                    TextInput::make('usual')->label('Usual daily budget (Rs)')->visible(fn ($get) => $get('what') === 'usual')
-                        ->regex(Units::DECIMAL_2)->helperText('Empty: no budget.')->prefix('Rs'),
-                    DatePicker::make('date')->label('Day')->visible(fn ($get) => $get('what') === 'day')->required(fn ($get) => $get('what') === 'day'),
-                    TextInput::make('day_amount')->label('That day\'s budget (Rs)')->visible(fn ($get) => $get('what') === 'day')
-                        ->regex(Units::DECIMAL_2)->helperText('Empty: the day goes back to the usual amount.')->prefix('Rs'),
-                    TextInput::make('note')->label('Why (optional)')->visible(fn ($get) => $get('what') === 'day')->maxLength(300)
-                        ->placeholder('e.g. paddy payments day'),
+                    Radio::make('what')->label(__('Set'))->options(['usual' => __('The usual amount for every day'), 'day' => __('One day\'s own amount')])->live()->required(),
+                    TextInput::make('usual')->label(__('Usual daily budget (Rs)'))->visible(fn ($get) => $get('what') === 'usual')
+                        ->regex(Units::DECIMAL_2)->helperText(__('Empty: no budget.'))->prefix(__('Rs')),
+                    DatePicker::make('date')->label(__('Day'))->visible(fn ($get) => $get('what') === 'day')->required(fn ($get) => $get('what') === 'day'),
+                    TextInput::make('day_amount')->label(__('That day\'s budget (Rs)'))->visible(fn ($get) => $get('what') === 'day')
+                        ->regex(Units::DECIMAL_2)->helperText(__('Empty: the day goes back to the usual amount.'))->prefix(__('Rs')),
+                    TextInput::make('note')->label(__('Why (optional)'))->visible(fn ($get) => $get('what') === 'day')->maxLength(300)
+                        ->placeholder(__('e.g. paddy payments day')),
                 ])
                 ->action(function (array $data): void {
                     $budgets = app(RoznamchaBudgets::class);
@@ -79,7 +81,7 @@ class ListRoznamchaPages extends ListRecords
 
                         return;
                     }
-                    Notification::make()->success()->title('Budget saved.')->send();
+                    Notification::make()->success()->title(__('Budget saved.'))->send();
                 }),
         ];
     }

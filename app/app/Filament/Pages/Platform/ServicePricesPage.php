@@ -38,6 +38,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class ServicePricesPage extends Page implements HasTable
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-receipt-percent';
@@ -76,45 +78,45 @@ class ServicePricesPage extends Page implements HasTable
                 TextColumn::make('channel')->formatStateUsing(fn (string $state) => ServiceUsage::CHANNELS[$state] ?? $state)->badge(),
                 TextColumn::make('provider')->formatStateUsing(fn (string $state) => $state === '*' ? 'Any provider' : $state)->searchable(),
                 TextColumn::make('service')->formatStateUsing(fn (string $state) => $state === '*' ? 'Any service' : $state),
-                TextColumn::make('customer_id')->label('For')->formatStateUsing(fn (?string $state) => $state === null ? 'Every company' : ($companies[$state] ?? $state))->placeholder('Every company'),
+                TextColumn::make('customer_id')->label(__('For'))->formatStateUsing(fn (?string $state) => $state === null ? 'Every company' : ($companies[$state] ?? $state))->placeholder(__('Every company')),
                 TextColumn::make('model')->formatStateUsing(fn (string $state) => ServicePrice::MODELS[$state] ?? $state),
-                TextColumn::make('unit_price')->label('Cost / unit')->formatStateUsing(fn ($state, ServicePrice $p) => $p->currency.' '.rtrim(rtrim((string) $state, '0'), '.')),
-                TextColumn::make('charge_price')->label('Charge / unit')->formatStateUsing(fn ($state, ServicePrice $p) => $p->currency.' '.rtrim(rtrim((string) $state, '0'), '.'))->placeholder('as cost'),
-                TextColumn::make('free_allowance')->label('Free / month'),
-                TextColumn::make('monthly_fee')->label('Monthly fee'),
-                TextColumn::make('tax_percent')->label('Tax %'),
-                TextColumn::make('monthly_quota')->label('Quota')->placeholder('—'),
-                TextColumn::make('effective_from')->label('From')->date('d M Y'),
+                TextColumn::make('unit_price')->label(__('Cost / unit'))->formatStateUsing(fn ($state, ServicePrice $p) => $p->currency.' '.rtrim(rtrim((string) $state, '0'), '.')),
+                TextColumn::make('charge_price')->label(__('Charge / unit'))->formatStateUsing(fn ($state, ServicePrice $p) => $p->currency.' '.rtrim(rtrim((string) $state, '0'), '.'))->placeholder(__('as cost')),
+                TextColumn::make('free_allowance')->label(__('Free / month')),
+                TextColumn::make('monthly_fee')->label(__('Monthly fee')),
+                TextColumn::make('tax_percent')->label(__('Tax %')),
+                TextColumn::make('monthly_quota')->label(__('Quota'))->placeholder('—'),
+                TextColumn::make('effective_from')->label(__('From'))->date('d M Y'),
             ])
             ->defaultPaginationPageOption(25)
-            ->emptyStateHeading('No prices yet')->emptyStateDescription('Without a price, usage is recorded with no cost. Add the price of each service you pay for.');
+            ->emptyStateHeading(__('No prices yet'))->emptyStateDescription(__('Without a price, usage is recorded with no cost. Add the price of each service you pay for.'));
     }
 
     public function addPriceAction(): Action
     {
-        return Action::make('addPrice')->label('Add a price')->icon('heroicon-o-plus')
-            ->modalDescription('A new price from its date; the earlier price stays for the usage before it. TOTAL = QUANTITY × UNIT PRICE.')
+        return Action::make('addPrice')->label(__('Add a price'))->icon('heroicon-o-plus')
+            ->modalDescription(__('A new price from its date; the earlier price stays for the usage before it. TOTAL = QUANTITY × UNIT PRICE.'))
             ->form([
                 Grid::make(3)->schema([
-                    Select::make('channel')->options(ServiceUsage::CHANNELS)->required(),
-                    TextInput::make('provider')->label('Provider (* = any)')->default('*')->required()->maxLength(60)
+                    Select::make('channel')->options(\App\Support\Locales::options(ServiceUsage::CHANNELS))->required(),
+                    TextInput::make('provider')->label(__('Provider (* = any)'))->default('*')->required()->maxLength(60)
                         ->datalist(['*', 'OpenRouter', 'OpenAI', 'Google Gemini', 'WhatsApp Cloud (Meta)', 'Firebase Cloud Messaging', 'Gmail API', 'Microsoft Graph', 'Twilio']),
-                    TextInput::make('service')->label('Service (* = any)')->default('*')->required()->maxLength(80),
-                    Select::make('customer_id')->label('For')->options(self::companies())->placeholder('Every company')->searchable(),
-                    Select::make('model')->label('Pricing')->options(ServicePrice::MODELS)->default('pay_per_use')->required(),
-                    DatePicker::make('effective_from')->label('From')->default(now('Asia/Karachi')->toDateString())->required(),
-                    TextInput::make('unit_price')->label('Cost per unit')->numeric()->minValue(0)->required(),
-                    TextInput::make('charge_price')->label('Charged to the company per unit (empty: same)')->numeric()->minValue(0),
-                    Select::make('currency')->options(['PKR' => 'PKR', 'USD' => 'USD'])->default('PKR')->required(),
-                    TextInput::make('free_allowance')->label('Free units a month')->integer()->minValue(0)->default(0),
-                    TextInput::make('monthly_fee')->label('Monthly fee (package)')->numeric()->minValue(0)->default(0),
-                    TextInput::make('tax_percent')->label('Tax %')->numeric()->minValue(0)->maxValue(100)->default(0),
-                    TextInput::make('monthly_quota')->label('Monthly quota (alert above)')->integer()->minValue(1),
+                    TextInput::make('service')->label(__('Service (* = any)'))->default('*')->required()->maxLength(80),
+                    Select::make('customer_id')->label(__('For'))->options(\App\Support\Locales::options(self::companies()))->placeholder(__('Every company'))->searchable(),
+                    Select::make('model')->label(__('Pricing'))->options(\App\Support\Locales::options(ServicePrice::MODELS))->default('pay_per_use')->required(),
+                    DatePicker::make('effective_from')->label(__('From'))->default(now('Asia/Karachi')->toDateString())->required(),
+                    TextInput::make('unit_price')->label(__('Cost per unit'))->numeric()->minValue(0)->required(),
+                    TextInput::make('charge_price')->label(__('Charged to the company per unit (empty: same)'))->numeric()->minValue(0),
+                    Select::make('currency')->options(['PKR' => __('PKR'), 'USD' => __('USD')])->default('PKR')->required(),
+                    TextInput::make('free_allowance')->label(__('Free units a month'))->integer()->minValue(0)->default(0),
+                    TextInput::make('monthly_fee')->label(__('Monthly fee (package)'))->numeric()->minValue(0)->default(0),
+                    TextInput::make('tax_percent')->label(__('Tax %'))->numeric()->minValue(0)->maxValue(100)->default(0),
+                    TextInput::make('monthly_quota')->label(__('Monthly quota (alert above)'))->integer()->minValue(1),
                     TextInput::make('note')->maxLength(200)->columnSpan(2),
                 ]),
-                Repeater::make('tiers')->label('Tiers (a lower price from the n-th unit of the month)')->defaultItems(0)->columns(2)->schema([
-                    TextInput::make('from')->label('From unit')->integer()->minValue(1)->required(),
-                    TextInput::make('price')->label('Unit price')->numeric()->minValue(0)->required(),
+                Repeater::make('tiers')->label(__('Tiers (a lower price from the n-th unit of the month)'))->defaultItems(0)->columns(2)->schema([
+                    TextInput::make('from')->label(__('From unit'))->integer()->minValue(1)->required(),
+                    TextInput::make('price')->label(__('Unit price'))->numeric()->minValue(0)->required(),
                 ]),
             ])
             ->action(function (array $data): void {
@@ -125,21 +127,21 @@ class ServicePricesPage extends Page implements HasTable
                         'created_by' => Filament::auth()->id(),
                     ]);
                 app(AuditLogger::class)->record('usage.price_added', $price, null, $price->toArray());
-                Notification::make()->success()->title('Price added.')->send();
+                Notification::make()->success()->title(__('Price added.'))->send();
             });
     }
 
     public function providerBillAction(): Action
     {
-        return Action::make('providerBill')->label("Record a provider's bill")->icon('heroicon-o-document-text')->color('gray')
+        return Action::make('providerBill')->label(__("Record a provider's bill"))->icon('heroicon-o-document-text')->color('gray')
             ->form([
                 Grid::make(2)->schema([
                     TextInput::make('provider')->required()->maxLength(60),
-                    Select::make('channel')->options(ServiceUsage::CHANNELS),
-                    DatePicker::make('period')->label('Month billed (any day of it)')->required(),
+                    Select::make('channel')->options(\App\Support\Locales::options(ServiceUsage::CHANNELS)),
+                    DatePicker::make('period')->label(__('Month billed (any day of it)'))->required(),
                     TextInput::make('amount')->numeric()->minValue(0)->required(),
-                    Select::make('currency')->options(['PKR' => 'PKR', 'USD' => 'USD'])->default('PKR')->required(),
-                    TextInput::make('reference')->label('Invoice number')->maxLength(120),
+                    Select::make('currency')->options(['PKR' => __('PKR'), 'USD' => __('USD')])->default('PKR')->required(),
+                    TextInput::make('reference')->label(__('Invoice number'))->maxLength(120),
                 ]),
             ])
             ->action(function (array $data): void {
@@ -147,15 +149,15 @@ class ServicePricesPage extends Page implements HasTable
                     'period' => CarbonImmutable::parse($data['period'])->startOfMonth()->toDateString(), 'amount' => $data['amount'], 'currency' => $data['currency'],
                     'reference' => $data['reference'] ?? null, 'created_by' => Filament::auth()->id()]);
                 app(AuditLogger::class)->record('usage.provider_bill', $e, null, $e->toArray());
-                Notification::make()->success()->title("Provider's bill recorded.")->send();
+                Notification::make()->success()->title(__("Provider's bill recorded."))->send();
             });
     }
 
     public function statementsAction(): Action
     {
-        return Action::make('statements')->label('Issue monthly statements')->icon('heroicon-o-banknotes')->color('gray')
-            ->modalDescription('Works out each company\'s usage charge for the month (units beyond the free allowance × the charge price, package fees, tax). A statement once issued is kept as it is.')
-            ->form([DatePicker::make('month')->label('Month (any day of it)')->default(now('Asia/Karachi')->subMonthNoOverflow()->toDateString())->required()])
+        return Action::make('statements')->label(__('Issue monthly statements'))->icon('heroicon-o-banknotes')->color('gray')
+            ->modalDescription(__('Works out each company\'s usage charge for the month (units beyond the free allowance × the charge price, package fees, tax). A statement once issued is kept as it is.'))
+            ->form([DatePicker::make('month')->label(__('Month (any day of it)'))->default(now('Asia/Karachi')->subMonthNoOverflow()->toDateString())->required()])
             ->action(function (array $data): void {
                 $month = CarbonImmutable::parse($data['month'], 'Asia/Karachi');
                 $n = 0;
@@ -164,7 +166,7 @@ class ServicePricesPage extends Page implements HasTable
                     $n++;
                 }
                 app(AuditLogger::class)->record('usage.statements_issued', null, null, null, ['month' => $month->format('Y-m'), 'companies' => $n]);
-                Notification::make()->success()->title("Statements for {$month->format('M Y')}: {$n} companies.")->send();
+                Notification::make()->success()->title(__('Statements for :y: :n companies.', ['y' => $month->format('M Y'), 'n' => $n]))->send();
             });
     }
 

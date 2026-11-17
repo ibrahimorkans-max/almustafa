@@ -35,6 +35,8 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
  */
 class PaymentMethodResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = SaasPaymentMethod::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-qr-code';
@@ -81,27 +83,27 @@ class PaymentMethodResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            Section::make('Account')->columns(2)->schema([
-                TextInput::make('name')->required()->maxLength(80)->placeholder('Meezan Bank, JazzCash, Raast …'),
-                Select::make('kind')->options(SaasPaymentMethod::KINDS)->default('bank')->required()->native(false),
-                TextInput::make('account_title')->label('Account title')->maxLength(120),
-                TextInput::make('account_number')->label('Account / mobile number')->maxLength(60),
-                TextInput::make('iban')->label('IBAN')->maxLength(40)->regex('/^[A-Za-z0-9 ]*$/'),
-                TextInput::make('sort')->label('Order')->integer()->default(100),
+            Section::make(__('Account'))->columns(2)->schema([
+                TextInput::make('name')->required()->maxLength(80)->placeholder(__('Meezan Bank, JazzCash, Raast …')),
+                Select::make('kind')->options(\App\Support\Locales::options(SaasPaymentMethod::KINDS))->default('bank')->required()->native(false),
+                TextInput::make('account_title')->label(__('Account title'))->maxLength(120),
+                TextInput::make('account_number')->label(__('Account / mobile number'))->maxLength(60),
+                TextInput::make('iban')->label(__('IBAN'))->maxLength(40)->regex('/^[A-Za-z0-9 ]*$/'),
+                TextInput::make('sort')->label(__('Order'))->integer()->default(100),
                 Textarea::make('instructions')->maxLength(1000)->rows(2)->columnSpanFull()
-                    ->placeholder('Write the invoice number in the description, then press "I\'ve paid".'),
-                Toggle::make('active')->label('Shown to customers')->default(true),
+                    ->placeholder(__('Write the invoice number in the description, then press "I\'ve paid".')),
+                Toggle::make('active')->label(__('Shown to customers'))->default(true),
             ]),
-            Section::make('QR code')->schema([
-                Placeholder::make('qr_now')->label('QR now')->visibleOn('edit')
+            Section::make(__('QR code'))->schema([
+                Placeholder::make('qr_now')->label(__('QR now'))->visibleOn('edit')
                     ->content(fn (?SaasPaymentMethod $record) => $record?->qrDataUri() !== null
                         ? new HtmlString('<img src="'.$record->qrDataUri().'" style="width: 140px; height: 140px; object-fit: contain;" alt="">')
                         : new HtmlString('<span class="text-sm text-gray-500">None</span>')),
-                FileUpload::make('qr_upload')->label('QR picture from the bank or wallet')->storeFiles(false)->image()
-                    ->acceptedFileTypes(self::IMAGE_TYPES)->maxSize(20480)->helperText('PNG or JPG. Used before the text below.'),
-                TextInput::make('qr_text')->label('Or make a QR from this text')->maxLength(500)
-                    ->helperText('A Raast ID, a payment link or the account details: customers scan it with their banking app.'),
-                Toggle::make('remove_qr')->label('Remove the QR picture')->visibleOn('edit'),
+                FileUpload::make('qr_upload')->label(__('QR picture from the bank or wallet'))->storeFiles(false)->image()
+                    ->acceptedFileTypes(self::IMAGE_TYPES)->maxSize(20480)->helperText(__('PNG or JPG. Used before the text below.')),
+                TextInput::make('qr_text')->label(__('Or make a QR from this text'))->maxLength(500)
+                    ->helperText(__('A Raast ID, a payment link or the account details: customers scan it with their banking app.')),
+                Toggle::make('remove_qr')->label(__('Remove the QR picture'))->visibleOn('edit'),
             ]),
         ]);
     }
@@ -143,9 +145,9 @@ class PaymentMethodResource extends Resource
             ->defaultSort('sort')
             ->columns([
                 TextColumn::make('name')->description(fn (SaasPaymentMethod $r) => SaasPaymentMethod::KINDS[$r->kind] ?? $r->kind)->searchable(),
-                TextColumn::make('account_title')->label('Account')->description(fn (SaasPaymentMethod $r) => $r->iban ?: $r->account_number)->placeholder('—'),
-                IconColumn::make('qr')->label('QR')->state(fn (SaasPaymentMethod $r) => $r->hasQr())->boolean(),
-                TextColumn::make('active')->label('Shown')->badge()->formatStateUsing(fn (bool $state) => $state ? 'shown' : 'hidden')
+                TextColumn::make('account_title')->label(__('Account'))->description(fn (SaasPaymentMethod $r) => $r->iban ?: $r->account_number)->placeholder('—'),
+                IconColumn::make('qr')->label(__('QR'))->state(fn (SaasPaymentMethod $r) => $r->hasQr())->boolean(),
+                TextColumn::make('active')->label(__('Shown'))->badge()->formatStateUsing(fn (bool $state) => $state ? 'shown' : 'hidden')
                     ->color(fn (bool $state) => $state ? 'success' : 'gray'),
             ])
             ->actions([

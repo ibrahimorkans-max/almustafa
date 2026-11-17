@@ -57,7 +57,7 @@
 
     {{-- The data that fits the line the cursor is on. --}}
     <div class="mnx-suggest" x-show="choices.length > 0" x-cloak>
-        <div class="mnx-suggest-head">Choose <strong x-text="field.replace(/\s*\(.*\)\s*$/, '')"></strong> · press one to fill the blank (type to narrow)</div>
+        <div class="mnx-suggest-head">{{ __('Choose') }} <strong x-text="field.replace(/\s*\(.*\)\s*$/, '')"></strong> {{ __('· press one to fill the blank (type to narrow)') }}</div>
         <div class="mnx-suggest-list">
             <template x-for="o in choices" :key="o.label">
                 <button type="button" class="mnx-pill mnx-pill-sm" x-on:mousedown.prevent="choose(o)"><span x-text="o.label"></span></button>
@@ -75,6 +75,6 @@
             placeholder="{{ $this->aiEnabled() ? 'e.g. How much profit this month? · Register MNA-21-1234 for sauda 0001' : 'e.g. stock · profit this month · arrived MNA-21-1234 · help' }}"
             class="flex-1 rounded-lg border-gray-300 text-sm shadow-sm dark:border-white/10 dark:bg-white/5"
             style="resize:none; min-height:2.4rem; line-height:1.4;"></textarea>
-        <x-filament::button type="submit" icon="heroicon-o-paper-airplane" wire:loading.attr="disabled" wire:target="send">Send</x-filament::button>
+        <x-filament::button type="submit" icon="heroicon-o-paper-airplane" wire:loading.attr="disabled" wire:target="send">{{ __('Send') }}</x-filament::button>
     </form>
 </div>

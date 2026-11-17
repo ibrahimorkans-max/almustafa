@@ -26,7 +26,7 @@ use Symfony\Component\HttpFoundation\Response;
  *  - the web session must map to a live auth_sessions row (revocation, absolute + idle expiry);
  *  - IP allowlist is re-checked;
  *  - Owner's working entity is applied;
- *  - accounts that must enroll 2FA or change their password are confined to those pages.
+ *  - a new user's first sign-in, accounts that must enroll 2FA or change their password are confined to those pages.
  */
 final class EnsureWebAuthSession
 {
@@ -39,6 +39,7 @@ final class EnsureWebAuthSession
         'filament.admin.auth.logout',
         'filament.admin.pages.two-factor',
         'filament.admin.pages.change-password',
+        'filament.admin.pages.first-sign-in',
     ];
 
     public function __construct(
@@ -105,6 +106,10 @@ final class EnsureWebAuthSession
         $route = $request->route()?->getName();
         $livewire = $request->is('livewire/*');
         if (! $livewire && ! in_array($route, self::ALWAYS_ALLOWED, true)) {
+            // A new user first confirms an e-mail address and gives their own details (FirstSignInPage).
+            if ($account->needsFirstSignIn()) {
+                return redirect()->route('filament.admin.pages.first-sign-in');
+            }
             if ($account->mfaRequired() && ! $account->hasMfa()) {
                 return redirect()->route('filament.admin.pages.two-factor');
             }

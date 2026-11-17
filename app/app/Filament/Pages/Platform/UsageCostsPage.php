@@ -16,6 +16,8 @@ use Filament\Pages\Page;
  */
 class UsageCostsPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use ShowsUsage;
 
     protected static ?string $navigationIcon = 'heroicon-o-currency-dollar';

@@ -1,16 +1,16 @@
 <x-filament-panels::page>
     @php($sel = 'block w-full rounded-lg border-gray-300 text-sm dark:border-white/10 dark:bg-white/5')
     <div class="grid gap-3 sm:grid-cols-3">
-        <label class="text-sm"><span class="text-gray-500">Search</span><input type="search" wire:model.live.debounce.400ms="search" placeholder="Name or username" class="{{ $sel }}"></label>
-        <label class="text-sm"><span class="text-gray-500">Company</span>
-            <select wire:model.live="company" class="{{ $sel }}"><option value="">All companies</option>@foreach ($this->companies() as $id => $name)<option value="{{ $id }}">{{ $name }}</option>@endforeach</select></label>
-        <label class="text-sm"><span class="text-gray-500">Status</span>
-            <select wire:model.live="status" class="{{ $sel }}"><option value="">Any</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="revoked">Revoked</option></select></label>
+        <label class="text-sm"><span class="text-gray-500">{{ __('Search') }}</span><input type="search" wire:model.live.debounce.400ms="search" placeholder="{{ __('Name or username') }}" class="{{ $sel }}"></label>
+        <label class="text-sm"><span class="text-gray-500">{{ __('Company') }}</span>
+            <select wire:model.live="company" class="{{ $sel }}"><option value="">{{ __('All companies') }}</option>@foreach ($this->companies() as $id => $name)<option value="{{ $id }}">{{ $name }}</option>@endforeach</select></label>
+        <label class="text-sm"><span class="text-gray-500">{{ __('Status') }}</span>
+            <select wire:model.live="status" class="{{ $sel }}"><option value="">{{ __('Any') }}</option><option value="active">{{ __('Active') }}</option><option value="suspended">{{ __('Suspended') }}</option><option value="revoked">{{ __('Revoked') }}</option></select></label>
     </div>
     <x-filament::section>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
-                <thead><tr class="text-left text-xs text-gray-500"><th class="py-1 pr-3">User</th><th class="pr-3">Company · mill</th><th class="pr-3">Role</th><th class="pr-3">Status</th><th class="pr-3">Last sign-in</th><th></th></tr></thead>
+                <thead><tr class="text-left text-xs text-gray-500"><th class="py-1 pr-3">{{ __('User') }}</th><th class="pr-3">{{ __('Company · mill') }}</th><th class="pr-3">{{ __('Role') }}</th><th class="pr-3">{{ __('Status') }}</th><th class="pr-3">{{ __('Last sign-in') }}</th><th></th></tr></thead>
                 <tbody>
                     @forelse ($this->users() as $u)
                         <tr class="border-t border-gray-100 dark:border-white/5" wire:key="u-{{ $u['id'] }}">
@@ -27,13 +27,13 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="py-2 text-gray-500">No users match.</td></tr>
+                        <tr><td colspan="6" class="py-2 text-gray-500">{{ __('No users match.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
         @if (count($this->users()) >= $limit)
-            <x-filament::button color="gray" size="sm" class="mt-3" wire:click="$set('limit', {{ $limit + 100 }})">Show more</x-filament::button>
+            <x-filament::button color="gray" size="sm" class="mt-3" wire:click="$set('limit', {{ $limit + 100 }})">{{ __('Show more') }}</x-filament::button>
         @endif
     </x-filament::section>
     <x-filament-actions::modals />

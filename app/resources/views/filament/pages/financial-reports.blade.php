@@ -34,7 +34,7 @@
                     <tr class="{{ $style }}">
                         <td class="px-3 py-1.5 text-sm {{ $row['style'] === 'line' ? 'pl-6' : '' }}">
                             @if (isset($row['ledger']))
-                                <a href="{{ $this->ledgerUrl($row['ledger']) }}" class="text-primary-600 hover:underline dark:text-primary-400" title="Open the ledger statement">{{ $row['label'] }}</a>
+                                <a href="{{ $this->ledgerUrl($row['ledger']) }}" class="text-primary-600 hover:underline dark:text-primary-400" title="{{ __('Open the ledger statement') }}">{{ $row['label'] }}</a>
                             @else
                                 {{ $row['label'] }}
                             @endif
@@ -44,7 +44,7 @@
                         @endforeach
                     </tr>
                 @empty
-                    <tr><td class="px-3 py-4 text-sm text-gray-500">Nothing in this period.</td></tr>
+                    <tr><td class="px-3 py-4 text-sm text-gray-500">{{ __('Nothing in this period.') }}</td></tr>
                 @endforelse
             </tbody>
         </table>

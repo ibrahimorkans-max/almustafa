@@ -2,7 +2,9 @@
 
 use App\Domain\Security\MaintenanceService;
 use App\Http\Controllers\FirebaseServiceWorkerController;
+use App\Http\Controllers\FirstSignInVerifyController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\RoznamchaCaptureController;
 use App\Http\Controllers\SharedDocumentController;
 use App\Http\Controllers\SharedStatementController;
@@ -11,6 +13,13 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/admin');
+
+// The button in a new user's verification e-mail (first sign-in): a signed link that works once.
+Route::get('/first-sign-in/verify/{account}/{token}', FirstSignInVerifyController::class)->whereUuid('account')->where('token', '[A-Za-z0-9]{48}')
+    ->middleware(['signed', 'throttle:20,1'])->name('first-sign-in.verify');
+
+// The language of the whole system (English, Urdu, Pashto, Sindhi), for this person and this browser.
+Route::get('/language/{locale}', LocaleController::class)->where('locale', '[a-z]{2}')->middleware('throttle:30,1')->name('language');
 
 // Public check of printed slips, invoices and gate passes (number + printed code; minimal facts only).
 Route::get('/verify', VerifyDocumentController::class)->middleware('throttle:30,1')->name('verify');

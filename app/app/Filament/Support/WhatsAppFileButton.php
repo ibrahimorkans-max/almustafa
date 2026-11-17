@@ -47,11 +47,11 @@ final class WhatsAppFileButton
      */
     private static function configure(Action|TableAction $action, Closure $resolve, ?Closure $when): Action|TableAction
     {
-        return $action->label('Send on WhatsApp')->icon('heroicon-o-paper-airplane')->color('success')
+        return $action->label(__('Send on WhatsApp'))->icon('heroicon-o-paper-airplane')->color('success')
             ->visible(fn (?Model $record = null) => WhatsAppFiles::ready(app(TenantContext::class)->entityId()) && ($when === null || $when($record)))
             ->modalHeading(fn (Model $record) => 'Send '.$resolve($record)['document'].' '.$resolve($record)['number'].' on WhatsApp')
-            ->modalDescription('The PDF goes as a file with this message, from the mill\'s WhatsApp number. The message comes from the mill\'s template (Administration → Integrations) and can be changed here.')
-            ->modalSubmitActionLabel('Send')
+            ->modalDescription(__('The PDF goes as a file with this message, from the mill\'s WhatsApp number. The message comes from the mill\'s template (Administration → Integrations) and can be changed here.'))
+            ->modalSubmitActionLabel(__('Send'))
             ->fillForm(function (Model $record) use ($resolve): array {
                 $r = $resolve($record);
                 $party = $r['party'] ?? null;
@@ -62,9 +62,9 @@ final class WhatsAppFileButton
                 ];
             })
             ->form(fn (Model $record) => [
-                Placeholder::make('file')->label('File')->content(fn () => '📎 '.$resolve($record)['file']),
-                TextInput::make('phone')->label('WhatsApp number')->required()->tel()->placeholder('0300 1234567')->maxLength(20),
-                Textarea::make('message')->label('Message')->required()->rows(3)->maxLength(900),
+                Placeholder::make('file')->label(__('File'))->content(fn () => '📎 '.$resolve($record)['file']),
+                TextInput::make('phone')->label(__('WhatsApp number'))->required()->tel()->placeholder('0300 1234567')->maxLength(20),
+                Textarea::make('message')->label(__('Message'))->required()->rows(3)->maxLength(900),
             ])
             ->action(function (Model $record, array $data, Action|TableAction $action) use ($resolve): void {
                 $r = $resolve($record);
@@ -77,7 +77,7 @@ final class WhatsAppFileButton
                     return;
                 }
                 $sent['ok']
-                    ? Notification::make()->success()->title(ucfirst($r['document']).' sent on WhatsApp.')->body('Delivery shows in Chats once WhatsApp reports it.')->send()
+                    ? Notification::make()->success()->title(ucfirst($r['document']).' sent on WhatsApp.')->body(__('Delivery shows in Chats once WhatsApp reports it.'))->send()
                     : Notification::make()->danger()->title((string) $sent['error'])->persistent()->send();
             });
     }

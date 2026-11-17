@@ -29,6 +29,8 @@ use Filament\Tables\Table;
 
 class RequisitionResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     use HidesArchived;
 
     protected static ?string $model = Requisition::class;
@@ -61,20 +63,20 @@ class RequisitionResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            Radio::make('destination')->options(['batch' => 'To a production batch (milling)', 'godown' => 'To another godown (transfer)'])
+            Radio::make('destination')->options(['batch' => __('To a production batch (milling)'), 'godown' => __('To another godown (transfer)')])
                 ->default('batch')->required()->live()->columnSpanFull(),
-            Select::make('to_batch_id')->label('Batch')->required(fn (Get $get) => $get('destination') === 'batch')
+            Select::make('to_batch_id')->label(__('Batch'))->required(fn (Get $get) => $get('destination') === 'batch')
                 ->visible(fn (Get $get) => $get('destination') === 'batch')->live()
                 ->options(fn () => ProductionBatch::query()->where('status', 'open')->with('paddy')->get()
                     ->mapWithKeys(fn (ProductionBatch $b) => [$b->id => "{$b->number} — {$b->paddy->name}"])),
-            Select::make('product_id')->label('Product')->required()->searchable()
+            Select::make('product_id')->label(__('Product'))->required()->searchable()
                 ->options(fn (Get $get) => Product::query()->where('is_stock_item', true)->where('status', 'active')
                     ->when($get('destination') === 'batch' && $get('to_batch_id'), fn ($q) => $q->whereKey(ProductionBatch::query()->whereKey($get('to_batch_id'))->value('paddy_product_id')))
                     ->orderBy('name')->pluck('name', 'id')),
-            Select::make('from_godown_id')->label('From godown')->required()->options(fn () => self::godownOptions()),
-            Select::make('to_godown_id')->label('To godown')->required(fn (Get $get) => $get('destination') === 'godown')
+            Select::make('from_godown_id')->label(__('From godown'))->required()->options(fn () => self::godownOptions()),
+            Select::make('to_godown_id')->label(__('To godown'))->required(fn (Get $get) => $get('destination') === 'godown')
                 ->visible(fn (Get $get) => $get('destination') === 'godown')->options(fn () => self::godownOptions()),
-            TextInput::make('quantity_kg')->label('Quantity (kg)')->required()->regex(Units::DECIMAL_3),
+            TextInput::make('quantity_kg')->label(__('Quantity (kg)'))->required()->regex(Units::DECIMAL_3),
             Textarea::make('purpose')->maxLength(1000)->columnSpanFull(),
         ]);
     }
@@ -92,20 +94,20 @@ class RequisitionResource extends Resource
             ->modifyQueryUsing(fn ($query) => $query->with(['product', 'fromGodown', 'toGodown', 'toBatch']))
             ->columns([
                 TextColumn::make('number')->searchable(),
-                TextColumn::make('product.name')->label('Product'),
+                TextColumn::make('product.name')->label(__('Product')),
                 TextColumn::make('quantity_kg')->label('kg')->alignEnd()->fontFamily('mono'),
-                TextColumn::make('fromGodown.name')->label('From'),
-                TextColumn::make('destination')->label('To')
+                TextColumn::make('fromGodown.name')->label(__('From')),
+                TextColumn::make('destination')->label(__('To'))
                     ->state(fn (Requisition $r) => $r->toBatch->number ?? $r->toGodown?->name),
                 TextColumn::make('status')->badge()->color(fn (string $state) => self::statusColor($state)),
-                TextColumn::make('created_at')->label('Requested')->dateTime('d M H:i')->sortable(),
+                TextColumn::make('created_at')->label(__('Requested'))->dateTime('d M H:i')->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
-                SelectFilter::make('status')->options(array_combine(
+                SelectFilter::make('status')->options(\App\Support\Locales::options(array_combine(
                     ['requested', 'approved', 'issued', 'rejected', 'cancelled'],
                     ['Waiting for approval', 'Approved (to issue)', 'Issued', 'Rejected', 'Cancelled'],
-                )),
+                ))),
             ])
             ->actions([ViewAction::make(), PrintButton::row('requisition')]);
     }
@@ -116,15 +118,15 @@ class RequisitionResource extends Resource
             Section::make()->columns(4)->schema([
                 TextEntry::make('number'),
                 TextEntry::make('status')->badge()->color(fn (string $state) => self::statusColor($state)),
-                TextEntry::make('product.name')->label('Product'),
-                TextEntry::make('quantity_kg')->label('Quantity (kg)')->fontFamily('mono'),
-                TextEntry::make('fromGodown.name')->label('From godown'),
-                TextEntry::make('toBatch.number')->label('To batch')->placeholder('—'),
-                TextEntry::make('toGodown.name')->label('To godown')->placeholder('—'),
+                TextEntry::make('product.name')->label(__('Product')),
+                TextEntry::make('quantity_kg')->label(__('Quantity (kg)'))->fontFamily('mono'),
+                TextEntry::make('fromGodown.name')->label(__('From godown')),
+                TextEntry::make('toBatch.number')->label(__('To batch'))->placeholder('—'),
+                TextEntry::make('toGodown.name')->label(__('To godown'))->placeholder('—'),
                 TextEntry::make('purpose')->placeholder('—'),
-                TextEntry::make('approved_at')->label('Decided')->dateTime('d M Y H:i')->placeholder('—'),
-                TextEntry::make('decision_note')->label('Decision note')->placeholder('—'),
-                TextEntry::make('issued_at')->label('Issued')->dateTime('d M Y H:i')->placeholder('—'),
+                TextEntry::make('approved_at')->label(__('Decided'))->dateTime('d M Y H:i')->placeholder('—'),
+                TextEntry::make('decision_note')->label(__('Decision note'))->placeholder('—'),
+                TextEntry::make('issued_at')->label(__('Issued'))->dateTime('d M Y H:i')->placeholder('—'),
             ]),
         ]);
     }

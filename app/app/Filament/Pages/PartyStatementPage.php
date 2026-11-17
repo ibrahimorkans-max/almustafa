@@ -43,6 +43,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class PartyStatementPage extends Page implements HasForms
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
@@ -97,7 +99,7 @@ class PartyStatementPage extends Page implements HasForms
     public function form(Form $form): Form
     {
         return $form->columns(5)->statePath('data')->schema([
-            Select::make('party_id')->label('Party')->searchable()->live()->columnSpan(2)
+            Select::make('party_id')->label(__('Party'))->searchable()->live()->columnSpan(2)
                 ->getSearchResultsUsing(fn (string $search) => Party::query()
                     ->when(self::contractorsOnly(), fn ($q) => $q->where('is_contractor', true))
                     ->where(fn ($q) => $q->where('name', 'ilike', '%'.$search.'%')->orWhere('code', 'ilike', '%'.$search.'%')->orWhere('contractor_code', 'ilike', '%'.$search.'%'))
@@ -105,13 +107,13 @@ class PartyStatementPage extends Page implements HasForms
                 ->getOptionLabelUsing(fn ($value) => ($p = Party::query()->find($value)) ? "{$p->name} ({$p->code})" : null),
             DatePicker::make('from')->required()->live(),
             DatePicker::make('to')->required()->live()->afterOrEqual('from'),
-            Select::make('view')->options(PartyStatementReport::VIEWS)->required()->live()->selectablePlaceholder(false),
-            Select::make('type')->label('Transaction type')->options(PartyStatementReport::TYPES)->live()->selectablePlaceholder(false),
-            Select::make('product_id')->label('Product')->searchable()->live()->options(fn () => Product::query()->orderBy('name')->pluck('name', 'id')->all()),
-            TextInput::make('vehicle')->label('Vehicle number')->live(onBlur: true)->maxLength(20),
-            Select::make('sauda_id')->label('Sauda')->searchable()->live()
+            Select::make('view')->options(\App\Support\Locales::options(PartyStatementReport::VIEWS))->required()->live()->selectablePlaceholder(false),
+            Select::make('type')->label(__('Transaction type'))->options(\App\Support\Locales::options(PartyStatementReport::TYPES))->live()->selectablePlaceholder(false),
+            Select::make('product_id')->label(__('Product'))->searchable()->live()->options(fn () => Product::query()->orderBy('name')->pluck('name', 'id')->all()),
+            TextInput::make('vehicle')->label(__('Vehicle number'))->live(onBlur: true)->maxLength(20),
+            Select::make('sauda_id')->label(__('Sauda'))->searchable()->live()
                 ->options(fn () => filled($this->data['party_id'] ?? null) ? Sauda::query()->where('party_id', $this->data['party_id'])->orderByDesc('created_at')->limit(200)->pluck('number', 'id')->all() : []),
-            Select::make('payment_status')->label('Payment status')->options(PartyStatementReport::PAYMENT_STATUSES)->live()->selectablePlaceholder(false),
+            Select::make('payment_status')->label(__('Payment status'))->options(\App\Support\Locales::options(PartyStatementReport::PAYMENT_STATUSES))->live()->selectablePlaceholder(false),
         ]);
     }
 
@@ -166,24 +168,24 @@ class PartyStatementPage extends Page implements HasForms
         $ready = fn () => $this->selectedParty() !== null;
 
         return [
-            Action::make('print')->label('Print')->icon('heroicon-o-printer')->visible($ready)
+            Action::make('print')->label(__('Print'))->icon('heroicon-o-printer')->visible($ready)
                 ->action(function (): void {
                     [$party, $from, $to, $pdf] = $this->pdf();
                     app(PartyStatementSharing::class)->log($party, 'print', null, $from, $to, $this->filters(), null, 'done', null);
                     PrintDelivery::toPrinter($this, $pdf, PartyStatementSharing::fileName($party, $to));
                 }),
-            Action::make('download')->label('Download PDF')->icon('heroicon-o-arrow-down-tray')->color('gray')->visible($ready)
+            Action::make('download')->label(__('Download PDF'))->icon('heroicon-o-arrow-down-tray')->color('gray')->visible($ready)
                 ->action(function (): StreamedResponse {
                     [$party, $from, $to, $pdf] = $this->pdf();
                     app(PartyStatementSharing::class)->log($party, 'pdf', null, $from, $to, $this->filters(), null, 'done', null);
 
                     return response()->streamDownload(fn () => print $pdf, PartyStatementSharing::fileName($party, $to), ['Content-Type' => 'application/pdf']);
                 }),
-            Action::make('whatsapp')->label('WhatsApp')->icon('heroicon-o-chat-bubble-left-right')->color('success')->visible($ready)
-                ->modalDescription('Sends a secure link to the statement (it expires in 3 days). Without the mill\'s WhatsApp connection, WhatsApp opens with the message ready for you to send.')
+            Action::make('whatsapp')->label(__('WhatsApp'))->icon('heroicon-o-chat-bubble-left-right')->color('success')->visible($ready)
+                ->modalDescription(__('Sends a secure link to the statement (it expires in 3 days). Without the mill\'s WhatsApp connection, WhatsApp opens with the message ready for you to send.'))
                 ->fillForm(fn () => ['phone' => $this->selectedParty()?->phone, 'message' => $this->defaultMessage()])
                 ->form([
-                    TextInput::make('phone')->label('Mobile number')->required()->maxLength(20),
+                    TextInput::make('phone')->label(__('Mobile number'))->required()->maxLength(20),
                     Textarea::make('message')->required()->rows(4)->maxLength(800),
                 ])
                 ->action(function (array $data): void {
@@ -201,10 +203,10 @@ class PartyStatementPage extends Page implements HasForms
                     Notification::make()->title($r['status'] === 'failed' ? 'Not sent' : ($r['status'] === 'accepted' ? 'Handed to WhatsApp' : 'WhatsApp opened'))
                         ->body($r['detail'])->{$r['status'] === 'failed' ? 'danger' : 'success'}()->send();
                 }),
-            Action::make('whatsappFile')->label('Send PDF on WhatsApp')->icon('heroicon-o-paper-airplane')->color('success')
+            Action::make('whatsappFile')->label(__('Send PDF on WhatsApp'))->icon('heroicon-o-paper-airplane')->color('success')
                 ->visible(fn () => $ready() && WhatsAppFiles::ready($this->selectedParty()?->entity_id))
-                ->modalDescription('The statement PDF goes as a file from the mill\'s WhatsApp number, with this message (from the mill\'s template).')
-                ->modalSubmitActionLabel('Send')
+                ->modalDescription(__('The statement PDF goes as a file from the mill\'s WhatsApp number, with this message (from the mill\'s template).'))
+                ->modalSubmitActionLabel(__('Send'))
                 ->fillForm(function (): array {
                     $party = $this->selectedParty();
                     [, $to] = $this->period();
@@ -213,7 +215,7 @@ class PartyStatementPage extends Page implements HasForms
                         'message' => app(WhatsAppFiles::class)->message($party?->entity_id, $party?->name, 'account statement', 'to '.$to->format('d M Y'))];
                 })
                 ->form([
-                    TextInput::make('phone')->label('WhatsApp number')->required()->maxLength(20),
+                    TextInput::make('phone')->label(__('WhatsApp number'))->required()->maxLength(20),
                     Textarea::make('message')->required()->rows(3)->maxLength(900),
                 ])
                 ->action(function (array $data): void {
@@ -228,13 +230,13 @@ class PartyStatementPage extends Page implements HasForms
                     app(PartyStatementSharing::class)->log($party, 'whatsapp', (string) $data['phone'], $from, $to, $this->filters(), null,
                         $r['ok'] ? 'accepted' : 'failed', $r['ok'] ? 'PDF sent as a file on WhatsApp. Delivery shows in Chats once WhatsApp reports it.' : (string) $r['error']);
                     $r['ok']
-                        ? Notification::make()->success()->title('Statement sent on WhatsApp.')->send()
+                        ? Notification::make()->success()->title(__('Statement sent on WhatsApp.'))->send()
                         : Notification::make()->danger()->title((string) $r['error'])->persistent()->send();
                 }),
-            Action::make('email')->label('E-mail')->icon('heroicon-o-envelope')->color('gray')->visible($ready)
+            Action::make('email')->label(__('E-mail'))->icon('heroicon-o-envelope')->color('gray')->visible($ready)
                 ->fillForm(fn () => ['email' => $this->selectedParty()?->email, 'subject' => $this->defaultSubject(), 'message' => $this->defaultMessage()])
                 ->form([
-                    TextInput::make('email')->label('E-mail address')->email()->required()->maxLength(190),
+                    TextInput::make('email')->label(__('E-mail address'))->email()->required()->maxLength(190),
                     TextInput::make('subject')->required()->maxLength(190),
                     Textarea::make('message')->required()->rows(5)->maxLength(2000),
                 ])
@@ -250,7 +252,7 @@ class PartyStatementPage extends Page implements HasForms
                     Notification::make()->title($r['status'] === 'failed' ? 'Not sent' : 'E-mail handed to the mail server')->body($r['detail'])
                         ->{$r['status'] === 'failed' ? 'danger' : 'success'}()->send();
                 }),
-            Action::make('link')->label('Secure link')->icon('heroicon-o-link')->color('gray')->visible($ready)
+            Action::make('link')->label(__('Secure link'))->icon('heroicon-o-link')->color('gray')->visible($ready)
                 ->action(function (): void {
                     [$from, $to] = $this->period();
                     $party = $this->selectedParty() ?? abort(404);

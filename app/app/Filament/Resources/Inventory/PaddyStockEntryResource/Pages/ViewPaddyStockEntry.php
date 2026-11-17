@@ -16,6 +16,8 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewPaddyStockEntry extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PaddyStockEntryResource::class;
 
     protected function getHeaderActions(): array
@@ -23,11 +25,11 @@ class ViewPaddyStockEntry extends ViewRecord
         $can = fn () => Filament::auth()->user()?->can('stock.adjust') ?? false;
 
         return [
-            Action::make('post')->label('Post to stock')->icon('heroicon-o-check')->color('success')
+            Action::make('post')->label(__('Post to stock'))->icon('heroicon-o-check')->color('success')
                 ->visible(fn (PaddyStockEntry $record) => $record->status === PaddyStockEntry::DRAFT && $can())
-                ->requiresConfirmation()->modalDescription('Adds the accepted weight to the godown\'s stock.')
+                ->requiresConfirmation()->modalDescription(__('Adds the accepted weight to the godown\'s stock.'))
                 ->action(fn (PaddyStockEntry $record) => $this->run(fn (PaddyStockEntries $s) => $s->post($record), 'Posted to stock')),
-            Action::make('cancel')->label('Cancel draft')->icon('heroicon-o-x-mark')->color('danger')
+            Action::make('cancel')->label(__('Cancel draft'))->icon('heroicon-o-x-mark')->color('danger')
                 ->visible(fn (PaddyStockEntry $record) => $record->status === PaddyStockEntry::DRAFT && $can())
                 ->form([Textarea::make('reason')->required()->minLength(5)->maxLength(500)])
                 ->action(fn (PaddyStockEntry $record, array $data) => $this->run(fn (PaddyStockEntries $s) => $s->cancel($record, (string) $data['reason']), 'Draft cancelled')),

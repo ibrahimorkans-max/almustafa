@@ -22,7 +22,9 @@ use Filament\Tables\Table;
 
 class ProductResource extends Resource
 {
-    use MasterResourceHelpers;
+    use \App\Filament\Concerns\TranslatesResourceLabels, MasterResourceHelpers {
+        MasterResourceHelpers::getNavigationGroup insteadof \App\Filament\Concerns\TranslatesResourceLabels;
+    }
 
     protected static ?string $model = Product::class;
 
@@ -50,29 +52,29 @@ class ProductResource extends Resource
             static::codeInput('products', 30, automatic: true),
             TextInput::make('name')->required()->maxLength(160),
             Select::make('category')->options(static::categoryOptions())->required()->live(),
-            Select::make('paddy_variety_id')->label('Paddy variety')->options(fn () => PaddyVariety::options())->searchable()
+            Select::make('paddy_variety_id')->label(__('Paddy variety'))->options(fn () => PaddyVariety::options())->searchable()
                 ->visible(fn (Get $get) => $get('category') === 'paddy')
                 ->createOptionForm(PaddyVarietyResource::fields())
                 ->createOptionUsing(fn (array $data) => PaddyVarietyResource::store($data)->id),
             TextInput::make('variety')->label(fn (Get $get) => $get('category') === 'paddy' ? 'Variety (free text, older records)' : 'Variety')
-                ->maxLength(60)->placeholder('1121, PR-126, Sharbati …'),
-            TextInput::make('pct_code')->label('PCT / HS code')->regex('/^\d{4}(\.\d{2,4})?$/')->placeholder('1006.3090')
-                ->helperText('Pakistan Customs Tariff heading, printed on the invoice and the sales-tax return.'),
-            Select::make('tax_rate_id')->label('Sales tax rate')->relationship('taxRate', 'name')->preload(),
-            Select::make('brand_id')->label('Brand')->relationship('brand', 'name')->preload(),
-            Select::make('sale_unit')->options(['kg' => 'Kilogram', 'maund' => 'Maund (40 kg)', 'quintal' => 'Quintal (100 kg)', 'ton' => 'Ton (1000 kg)', 'bag' => 'Bag'])
-                ->default('kg')->required()->live()->helperText('Stock is always kept in kilograms.'),
-            TextInput::make('bag_weight_kg')->label('Bag weight (kg)')->regex('/^\d{1,6}(\.\d{1,3})?$/')
+                ->maxLength(60)->placeholder(__('1121, PR-126, Sharbati …')),
+            TextInput::make('pct_code')->label(__('PCT / HS code'))->regex('/^\d{4}(\.\d{2,4})?$/')->placeholder('1006.3090')
+                ->helperText(__('Pakistan Customs Tariff heading, printed on the invoice and the sales-tax return.')),
+            Select::make('tax_rate_id')->label(__('Sales tax rate'))->relationship('taxRate', 'name')->preload(),
+            Select::make('brand_id')->label(__('Brand'))->relationship('brand', 'name')->preload(),
+            Select::make('sale_unit')->options(['kg' => __('Kilogram'), 'maund' => __('Maund (40 kg)'), 'quintal' => __('Quintal (100 kg)'), 'ton' => __('Ton (1000 kg)'), 'bag' => __('Bag')])
+                ->default('kg')->required()->live()->helperText(__('Stock is always kept in kilograms.')),
+            TextInput::make('bag_weight_kg')->label(__('Bag weight (kg)'))->regex('/^\d{1,6}(\.\d{1,3})?$/')
                 ->required(fn (Get $get) => $get('sale_unit') === 'bag')->visible(fn (Get $get) => $get('sale_unit') === 'bag'),
-            Toggle::make('is_stock_item')->label('Track stock')->default(true),
+            Toggle::make('is_stock_item')->label(__('Track stock'))->default(true),
             // Cost information: only accounts sees and sets it.
-            TextInput::make('valuation_paise_per_kg')->label('By-product valuation (Rs per kg)')
-                ->helperText('Realisable value used to cost by-products when a milling batch closes; the rest of the cost goes to rice.')
+            TextInput::make('valuation_paise_per_kg')->label(__('By-product valuation (Rs per kg)'))
+                ->helperText(__('Realisable value used to cost by-products when a milling batch closes; the rest of the cost goes to rice.'))
                 ->regex(Units::DECIMAL_2)
                 ->formatStateUsing(fn ($state) => $state === null ? null : bcdiv((string) $state, '100', 2))
                 ->dehydrateStateUsing(fn (?string $state) => $state === null || $state === '' ? null : Units::rupeesToPaise($state))
                 ->visible(fn (Get $get) => $get('category') === 'by_product' && (auth()->user()?->can('ledger.post') ?? false)),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')])->default('active')->required(),
         ]);
     }
 
@@ -84,8 +86,8 @@ class ProductResource extends Resource
                 TextColumn::make('name')->searchable(),
                 TextColumn::make('category')->badge(),
                 TextColumn::make('variety')->placeholder('—'),
-                TextColumn::make('pct_code')->label('PCT')->placeholder('—'),
-                TextColumn::make('taxRate.name')->label('Sales tax')->placeholder('—'),
+                TextColumn::make('pct_code')->label(__('PCT'))->placeholder('—'),
+                TextColumn::make('taxRate.name')->label(__('Sales tax'))->placeholder('—'),
                 TextColumn::make('brand.name')->placeholder('—'),
                 TextColumn::make('sale_unit'),
                 static::updatedColumn(),

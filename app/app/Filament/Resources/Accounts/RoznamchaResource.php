@@ -45,6 +45,8 @@ use Illuminate\Database\Eloquent\Model;
 /** Accounts → Roznamcha: the daily cash book, scanned or typed, checked by a second person, then posted. */
 class RoznamchaResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = RoznamchaPage::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-book-open';
@@ -83,12 +85,12 @@ class RoznamchaResource extends Resource
         $today = fn () => now('Asia/Karachi');
 
         return $form->columns(2)->schema([
-            DatePicker::make('entry_date')->label('Entry date')->required()->default($today)->maxDate($today),
-            Select::make('cash_ledger_id')->label('Cash account')->required()
+            DatePicker::make('entry_date')->label(__('Entry date'))->required()->default($today)->maxDate($today),
+            Select::make('cash_ledger_id')->label(__('Cash account'))->required()
                 ->options(fn () => LedgerAccount::query()->where('kind', 'cash')->where('status', 'active')->orderBy('name')->pluck('name', 'id'))
                 ->default(fn () => LedgerAccount::query()->where('kind', 'cash')->where('status', 'active')->count() === 1
                     ? LedgerAccount::query()->where('kind', 'cash')->where('status', 'active')->value('id') : null),
-            Radio::make('source')->label('Input')->options(RoznamchaPage::SOURCES)->default('camera')->required()->live()->inline()->columnSpanFull()
+            Radio::make('source')->label(__('Input'))->options(\App\Support\Locales::options(RoznamchaPage::SOURCES))->default('camera')->required()->live()->inline()->columnSpanFull()
                 ->afterStateUpdated(fn (Set $set) => $set('scan', null)),
             // Mobile camera: on a phone the camera opens; on a computer, a QR code / link opens it on a phone.
             Hidden::make('capture_token'),
@@ -123,16 +125,16 @@ class RoznamchaResource extends Resource
     public static function lineFields(): array
     {
         return [
-            Repeater::make('lines')->label('Entries')->columns(6)->reorderable()->addActionLabel('Add an entry')->defaultItems(0)
+            Repeater::make('lines')->label(__('Entries'))->columns(6)->reorderable()->addActionLabel(__('Add an entry'))->defaultItems(0)
                 ->schema([
-                    Select::make('party_id')->label('Party')->searchable()->columnSpan(2)
+                    Select::make('party_id')->label(__('Party'))->searchable()->columnSpan(2)
                         ->options(fn () => Party::query()->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
-                    Select::make('ledger_account_id')->label('or account')->searchable()->columnSpan(2)
+                    Select::make('ledger_account_id')->label(__('or account'))->searchable()->columnSpan(2)
                         ->options(fn () => LedgerAccount::query()->whereNotIn('kind', ['cash', 'bank', 'party'])->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
                     // Urdu digits (۱۵,۰۰۰) are taken too.
-                    TextInput::make('credit')->label('Received (jama)')->regex('/^[\d۰-۹٠-٩,٬]{1,16}([.٫][\d۰-۹٠-٩]{1,2})?$/u'),
-                    TextInput::make('debit')->label('Paid (banam)')->regex('/^[\d۰-۹٠-٩,٬]{1,16}([.٫][\d۰-۹٠-٩]{1,2})?$/u'),
-                    TextInput::make('account_text')->label('As written')->columnSpan(2)->maxLength(160)->extraInputAttributes(['dir' => 'auto', 'style' => "font-family: 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Urdu Typesetting', 'Noto Sans Arabic', Tahoma, inherit;"]),
+                    TextInput::make('credit')->label(__('Received (jama)'))->regex('/^[\d۰-۹٠-٩,٬]{1,16}([.٫][\d۰-۹٠-٩]{1,2})?$/u'),
+                    TextInput::make('debit')->label(__('Paid (banam)'))->regex('/^[\d۰-۹٠-٩,٬]{1,16}([.٫][\d۰-۹٠-٩]{1,2})?$/u'),
+                    TextInput::make('account_text')->label(__('As written'))->columnSpan(2)->maxLength(160)->extraInputAttributes(['dir' => 'auto', 'style' => "font-family: 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Urdu Typesetting', 'Noto Sans Arabic', Tahoma, inherit;"]),
                     TextInput::make('narration')->columnSpan(3)->maxLength(300)->extraInputAttributes(['dir' => 'auto', 'style' => "font-family: 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Urdu Typesetting', 'Noto Sans Arabic', Tahoma, inherit;"]),
                     TextInput::make('reference')->maxLength(80),
                 ]),
@@ -156,14 +158,14 @@ class RoznamchaResource extends Resource
             ->modifyQueryUsing(fn ($query) => $query->withSum('lines as received_paise', 'credit_paise')->withSum('lines as paid_paise', 'debit_paise')->withCount('lines'))
             ->columns([
                 TextColumn::make('number')->searchable()->sortable(),
-                TextColumn::make('entry_date')->label('Date')->date('d M Y')->sortable(),
+                TextColumn::make('entry_date')->label(__('Date'))->date('d M Y')->sortable(),
                 TextColumn::make('source')->formatStateUsing(fn (string $state) => RoznamchaPage::SOURCES[$state] ?? $state)
                     ->description(fn (RoznamchaPage $r) => $r->ocr_engine && $r->ocr_engine !== 'none' ? 'Read by '.$r->ocr_engine : null),
-                TextColumn::make('lines_count')->label('Entries')->alignEnd(),
-                TextColumn::make('received_paise')->label('Received')->alignEnd()->fontFamily('mono')->formatStateUsing(fn ($state) => Units::paiseToRupees((int) $state)),
-                TextColumn::make('paid_paise')->label('Paid')->alignEnd()->fontFamily('mono')->formatStateUsing(fn ($state) => Units::paiseToRupees((int) $state)),
+                TextColumn::make('lines_count')->label(__('Entries'))->alignEnd(),
+                TextColumn::make('received_paise')->label(__('Received'))->alignEnd()->fontFamily('mono')->formatStateUsing(fn ($state) => Units::paiseToRupees((int) $state)),
+                TextColumn::make('paid_paise')->label(__('Paid'))->alignEnd()->fontFamily('mono')->formatStateUsing(fn ($state) => Units::paiseToRupees((int) $state)),
                 // The page's day against the daily budget (Daily budget on the list): left, or over.
-                TextColumn::make('day_budget')->label('Day\'s budget')->badge()->placeholder('—')
+                TextColumn::make('day_budget')->label(__('Day\'s budget'))->badge()->placeholder('—')
                     ->state(function (RoznamchaPage $r): ?string {
                         $d = app(RoznamchaBudgets::class)->day(CarbonImmutable::parse($r->entry_date->toDateString(), 'Asia/Karachi'));
 
@@ -178,7 +180,7 @@ class RoznamchaResource extends Resource
             ])
             ->defaultSort('entry_date', 'desc')
             ->filters([
-                SelectFilter::make('status')->options(RoznamchaPage::STATUS_LABELS),
+                SelectFilter::make('status')->options(\App\Support\Locales::options(RoznamchaPage::STATUS_LABELS)),
                 Filter::make('dates')->form([DatePicker::make('from'), DatePicker::make('until')])
                     ->query(fn (Builder $query, array $data) => $query
                         ->when($data['from'] ?? null, fn (Builder $q, $d) => $q->whereDate('entry_date', '>=', $d))
@@ -191,34 +193,34 @@ class RoznamchaResource extends Resource
     {
         return $infolist->schema([
             Section::make()->columns(4)->schema([
-                TextEntry::make('number')->label('Roznamcha number'),
+                TextEntry::make('number')->label(__('Roznamcha number')),
                 TextEntry::make('entry_date')->date('d M Y'),
                 TextEntry::make('status')->badge()->formatStateUsing(fn (string $state) => RoznamchaPage::STATUS_LABELS[$state] ?? $state),
                 TextEntry::make('source')->formatStateUsing(fn (string $state) => RoznamchaPage::SOURCES[$state] ?? $state),
-                TextEntry::make('scan')->label('Attached scan')->state(fn (RoznamchaPage $r) => $r->stored_file_id ? 'Open the original page' : null)->placeholder('None')
+                TextEntry::make('scan')->label(__('Attached scan'))->state(fn (RoznamchaPage $r) => $r->stored_file_id ? 'Open the original page' : null)->placeholder(__('None'))
                     ->url(fn (RoznamchaPage $r) => $r->stored_file_id ? route('filament.admin.roznamcha.scan', ['id' => $r->id]) : null, shouldOpenInNewTab: true)->color('primary'),
-                TextEntry::make('entered_by')->label('Entered by')->state(fn (RoznamchaPage $r) => self::username($r->created_by))->placeholder('—'),
-                TextEntry::make('verified_by')->label('Verified by')->state(fn (RoznamchaPage $r) => self::username($r->verified_by))->placeholder('—')
+                TextEntry::make('entered_by')->label(__('Entered by'))->state(fn (RoznamchaPage $r) => self::username($r->created_by))->placeholder('—'),
+                TextEntry::make('verified_by')->label(__('Verified by'))->state(fn (RoznamchaPage $r) => self::username($r->verified_by))->placeholder('—')
                     ->helperText(fn (RoznamchaPage $r) => $r->verified_at?->timezone('Asia/Karachi')->format('d M Y H:i')),
-                TextEntry::make('cashLedger.name')->label('Cash account')->placeholder('—'),
-                TextEntry::make('captured_location')->label('Entered at')
+                TextEntry::make('cashLedger.name')->label(__('Cash account'))->placeholder('—'),
+                TextEntry::make('captured_location')->label(__('Entered at'))
                     ->state(fn (RoznamchaPage $r) => EntryLocation::label($r->captured_location))->url(fn (RoznamchaPage $r) => EntryLocation::mapUrl($r->captured_location), shouldOpenInNewTab: true)
                     ->visible(fn (RoznamchaPage $r) => $r->captured_location !== null)->color('primary'),
                 TextEntry::make('note')->columnSpanFull()->placeholder('—'),
             ]),
-            Section::make('Entries')->schema([
+            Section::make(__('Entries'))->schema([
                 RepeatableEntry::make('lines')->hiddenLabel()->columns(6)->schema([
-                    TextEntry::make('account')->label('Party / account')->columnSpan(2)
-                        ->state(fn (RoznamchaLine $record) => $record->party->name ?? $record->ledgerAccount->name ?? null)->placeholder('Not chosen')
+                    TextEntry::make('account')->label(__('Party / account'))->columnSpan(2)
+                        ->state(fn (RoznamchaLine $record) => $record->party->name ?? $record->ledgerAccount->name ?? null)->placeholder(__('Not chosen'))
                         ->helperText(fn (RoznamchaLine $record) => $record->account_text),
-                    TextEntry::make('credit_paise')->label('Received')->formatStateUsing(fn (int $state) => $state > 0 ? Units::paiseToRupees($state) : '—'),
-                    TextEntry::make('debit_paise')->label('Paid')->formatStateUsing(fn (int $state) => $state > 0 ? Units::paiseToRupees($state) : '—'),
+                    TextEntry::make('credit_paise')->label(__('Received'))->formatStateUsing(fn (int $state) => $state > 0 ? Units::paiseToRupees($state) : '—'),
+                    TextEntry::make('debit_paise')->label(__('Paid'))->formatStateUsing(fn (int $state) => $state > 0 ? Units::paiseToRupees($state) : '—'),
                     TextEntry::make('narration')->placeholder('—'),
-                    TextEntry::make('voucher.number')->label('Voucher')->placeholder('—'),
+                    TextEntry::make('voucher.number')->label(__('Voucher'))->placeholder('—'),
                 ]),
             ]),
-            Section::make('Text read from the scan')->collapsed()->schema([
-                TextEntry::make('ocr_text')->hiddenLabel()->placeholder('Nothing read.')->extraAttributes(['class' => 'whitespace-pre-line text-sm'] + ['dir' => 'auto', 'style' => "font-family: 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Urdu Typesetting', 'Noto Sans Arabic', Tahoma, inherit;"]),
+            Section::make(__('Text read from the scan'))->collapsed()->schema([
+                TextEntry::make('ocr_text')->hiddenLabel()->placeholder(__('Nothing read.'))->extraAttributes(['class' => 'whitespace-pre-line text-sm'] + ['dir' => 'auto', 'style' => "font-family: 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Urdu Typesetting', 'Noto Sans Arabic', Tahoma, inherit;"]),
             ]),
         ]);
     }

@@ -18,7 +18,9 @@ use Filament\Tables\Table;
 
 class DriverResource extends Resource
 {
-    use MasterResourceHelpers;
+    use \App\Filament\Concerns\TranslatesResourceLabels, MasterResourceHelpers {
+        MasterResourceHelpers::getNavigationGroup insteadof \App\Filament\Concerns\TranslatesResourceLabels;
+    }
 
     protected static ?string $model = Driver::class;
 
@@ -39,12 +41,12 @@ class DriverResource extends Resource
         return $form->columns(2)->schema([
             TextInput::make('name')->required()->maxLength(120),
             TextInput::make('phone')->tel()->maxLength(16),
-            TextInput::make('licence_no')->label('Driving licence no.')->maxLength(30),
-            DatePicker::make('licence_valid_until')->label('Licence valid until'),
-            Select::make('transporter_party_id')->label('Transporter')
+            TextInput::make('licence_no')->label(__('Driving licence no.'))->maxLength(30),
+            DatePicker::make('licence_valid_until')->label(__('Licence valid until')),
+            Select::make('transporter_party_id')->label(__('Transporter'))
                 ->relationship('transporter', 'name', fn ($query) => $query->where('is_transporter', true))
                 ->searchable()->preload(),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')])->default('active')->required(),
         ]);
     }
 
@@ -54,8 +56,8 @@ class DriverResource extends Resource
             ->columns([
                 TextColumn::make('name')->searchable()->sortable(),
                 TextColumn::make('phone')->searchable(),
-                TextColumn::make('licence_no')->label('Licence')->placeholder('—'),
-                TextColumn::make('licence_valid_until')->label('Valid until')->date()
+                TextColumn::make('licence_no')->label(__('Licence'))->placeholder('—'),
+                TextColumn::make('licence_valid_until')->label(__('Valid until'))->date()
                     ->color(fn (Driver $r) => $r->licence_valid_until?->isPast() ? 'danger' : null)->placeholder('—'),
                 TextColumn::make('transporter.name')->placeholder('—'),
                 TextColumn::make('status')->badge(),

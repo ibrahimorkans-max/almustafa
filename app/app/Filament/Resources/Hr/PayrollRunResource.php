@@ -23,6 +23,8 @@ use Filament\Tables\Table;
 /** The monthly payroll: open → lock attendance → calculate → approve (second person) → finalize → pay. */
 class PayrollRunResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = PayrollRun::class;
 
     protected static ?string $recordTitleAttribute = 'number';
@@ -69,9 +71,9 @@ class PayrollRunResource extends Resource
                 TextColumn::make('number')->searchable(),
                 TextColumn::make('status')->badge()->formatStateUsing(fn (string $state) => PayrollRun::STATUSES[$state] ?? $state)
                     ->color(fn (string $state) => self::statusColor($state)),
-                TextColumn::make('employees')->label('Staff')->state(fn (PayrollRun $r) => $r->totals['employees'] ?? '—'),
-                TextColumn::make('gross')->label('Gross')->alignEnd()->state($total('gross_paise')),
-                TextColumn::make('net')->label('Net pay')->alignEnd()->state($total('net_paise')),
+                TextColumn::make('employees')->label(__('Staff'))->state(fn (PayrollRun $r) => $r->totals['employees'] ?? '—'),
+                TextColumn::make('gross')->label(__('Gross'))->alignEnd()->state($total('gross_paise')),
+                TextColumn::make('net')->label(__('Net pay'))->alignEnd()->state($total('net_paise')),
                 TextColumn::make('warnings')->state(fn (PayrollRun $r) => $r->totals['warnings'] ?? '—')
                     ->color(fn ($state) => is_int($state) && $state > 0 ? 'warning' : null),
             ])
@@ -89,21 +91,21 @@ class PayrollRunResource extends Resource
                 TextEntry::make('month'),
                 TextEntry::make('status')->badge()->formatStateUsing(fn (string $state) => PayrollRun::STATUSES[$state] ?? $state)
                     ->color(fn (string $state) => self::statusColor($state)),
-                TextEntry::make('calculation_no')->label('Calculation')->placeholder('—'),
-                TextEntry::make('employees')->label('Staff')->state(fn (PayrollRun $r) => $r->totals['employees'] ?? '—'),
-                TextEntry::make('gross')->label('Gross')->state($total('gross_paise')),
-                TextEntry::make('deductions')->label('Deductions')->state($total('deductions_paise')),
-                TextEntry::make('net')->label('Net pay')->state($total('net_paise')),
-                TextEntry::make('employer')->label('Employer contributions')->state($total('employer_paise')),
+                TextEntry::make('calculation_no')->label(__('Calculation'))->placeholder('—'),
+                TextEntry::make('employees')->label(__('Staff'))->state(fn (PayrollRun $r) => $r->totals['employees'] ?? '—'),
+                TextEntry::make('gross')->label(__('Gross'))->state($total('gross_paise')),
+                TextEntry::make('deductions')->label(__('Deductions'))->state($total('deductions_paise')),
+                TextEntry::make('net')->label(__('Net pay'))->state($total('net_paise')),
+                TextEntry::make('employer')->label(__('Employer contributions'))->state($total('employer_paise')),
                 TextEntry::make('warnings')->state(fn (PayrollRun $r) => $r->totals['warnings'] ?? '—'),
-                TextEntry::make('approved_at')->label('Approved')->dateTime('d M Y H:i', 'Asia/Karachi')->placeholder('—'),
-                TextEntry::make('finalized_at')->label('Finalized')->dateTime('d M Y H:i', 'Asia/Karachi')->placeholder('—'),
+                TextEntry::make('approved_at')->label(__('Approved'))->dateTime('d M Y H:i', 'Asia/Karachi')->placeholder('—'),
+                TextEntry::make('finalized_at')->label(__('Finalized'))->dateTime('d M Y H:i', 'Asia/Karachi')->placeholder('—'),
             ]),
-            Section::make('Bank transfer files')->visible(fn (PayrollRun $r) => $r->status === PayrollRun::FINALIZED)->schema([
-                RepeatableEntry::make('bank_files')->hiddenLabel()->columns(4)->placeholder('None yet.')
+            Section::make(__('Bank transfer files'))->visible(fn (PayrollRun $r) => $r->status === PayrollRun::FINALIZED)->schema([
+                RepeatableEntry::make('bank_files')->hiddenLabel()->columns(4)->placeholder(__('None yet.'))
                     ->state(fn (PayrollRun $r) => PayrollBankFile::query()->where('payroll_run_id', $r->id)->orderBy('created_at')->get()
                         ->map(fn (PayrollBankFile $f) => ['number' => $f->number, 'format' => $f->format, 'count' => $f->payment_count, 'total' => Units::paiseToRupees($f->total_paise)])->all())
-                    ->schema([TextEntry::make('number'), TextEntry::make('format'), TextEntry::make('count')->label('Payments'), TextEntry::make('total')->label('Total')]),
+                    ->schema([TextEntry::make('number'), TextEntry::make('format'), TextEntry::make('count')->label(__('Payments')), TextEntry::make('total')->label(__('Total'))]),
             ]),
         ]);
     }

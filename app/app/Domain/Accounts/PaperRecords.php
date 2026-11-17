@@ -74,8 +74,8 @@ final class PaperRecords
 
     public const KEPT_KINDS = ['weighment', 'note'];
 
-    /** Kinds that carry the vehicle the goods came or went in (its number, driver, bags, bilty). */
-    public const VEHICLE_KINDS = ['purchase', 'sale', 'weighment', 'note'];
+    /** Kinds that may carry the vehicle the goods came or went in (number, type, driver, owner, route, freight, bags, bilty). */
+    public const VEHICLE_KINDS = ['purchase', 'sale', 'payment', 'receipt', 'expense', 'weighment', 'note'];
 
     /** Kinds that carry how the money moved (mode, cheque / transaction no., bank, who paid or received it). */
     public const PAYMENT_KINDS = ['payment', 'receipt', 'expense'];
@@ -91,7 +91,7 @@ final class PaperRecords
     public const COLUMNS = ['kind', 'date', 'register_page', 'paper_number', 'party', 'party_phone', 'party_cnic', 'party_address', 'party_city',
         'amount', 'side', 'account', 'cash_bank', 'credit_account', 'payment_mode', 'reference', 'cheque_date', 'party_bank', 'handled_by',
         'product', 'godown', 'quantity_kg', 'rate_per_maund', 'vehicle', 'vehicle_type', 'driver_name', 'driver_phone', 'bags', 'bilty_no',
-        'gross_kg', 'tare_kg', 'description'];
+        'gross_kg', 'tare_kg', 'description', 'driver_cnic', 'vehicle_owner', 'from_place', 'to_place', 'freight'];
 
     public const MAX_ROWS = 5000;
 
@@ -331,18 +331,16 @@ final class PaperRecords
      *
      * @return array{batch: string, entered: int, errors: list<array{row: int, error: string}>}
      */
-    public function import(string $csv): array
+    public function import(string $file): array
     {
-        $lines = preg_split('/\r\n|\n|\r/', ltrim($csv, "\xEF\xBB\xBF")) ?: [];
-        $lines = array_values(array_filter($lines, fn (string $l) => trim($l, " \t,;") !== ''));
+        // The Excel template (plain column names, lists) or a CSV with the same or the short column names.
+        $lines = PaperRecordSheet::rows($file);
         if ($lines === []) {
             throw new BusinessRuleViolation('The file is empty.');
         }
-        $delimiter = substr_count($lines[0], ';') > substr_count($lines[0], ',') ? ';' : ',';
-        $header = array_map(fn ($h) => Str::snake(trim(mb_strtolower((string) $h))), str_getcsv($lines[0], $delimiter));
-        $header = array_map(fn ($h) => $h === 'register' || $h === 'book_ref' ? 'register_page' : $h, $header);
+        $header = array_map(fn ($h) => PaperRecordSheet::column((string) $h) ?? '', $lines[0]);
         if (! in_array('kind', $header, true) || ! in_array('date', $header, true)) {
-            throw new BusinessRuleViolation('The first row must be the column names of the template (kind, date, …). Download the template.');
+            throw new BusinessRuleViolation('The first row must be the column names of the template (Record type, Date, …). Download the template.');
         }
         if (count($lines) - 1 > self::MAX_ROWS) {
             throw new BusinessRuleViolation(sprintf('At most %d rows at a time: split the file.', self::MAX_ROWS));
@@ -351,11 +349,12 @@ final class PaperRecords
         $batch = 'IMP-'.now('Asia/Karachi')->format('ymd-His').'-'.Str::upper(Str::random(4));
         $entered = 0;
         $errors = [];
-        foreach (array_slice($lines, 1) as $i => $line) {
-            $cells = str_getcsv($line, $delimiter);
+        foreach (array_slice($lines, 1) as $i => $cells) {
             $row = [];
             foreach ($header as $n => $column) {
-                $row[$column] = trim((string) ($cells[$n] ?? ''));
+                if ($column !== '') {
+                    $row[$column] = trim((string) ($cells[$n] ?? ''));
+                }
             }
             try {
                 DB::transaction(fn () => $this->record($this->fromRow($row), $batch));
@@ -420,13 +419,19 @@ final class PaperRecords
      */
     private function fromRow(array $row): array
     {
-        $kind = Str::snake(mb_strtolower($row['kind'] ?? ''));
+        $kind = PaperRecordSheet::kind($row['kind'] ?? '');
+        foreach (['payment_mode' => 'paymentMode', 'vehicle_type' => 'vehicleType'] as $column => $normalize) {
+            if (filled($row[$column] ?? null)) {
+                $row[$column] = PaperRecordSheet::$normalize($row[$column]);
+            }
+        }
         $data = ['kind' => $kind, 'date' => $row['date'] ?? '', 'book_ref' => $row['register_page'] ?? null, 'paper_number' => $row['paper_number'] ?? null,
-            'amount' => $row['amount'] ?? null, 'side' => mb_strtolower($row['side'] ?? ''), 'description' => $row['description'] ?? null,
+            'amount' => $row['amount'] ?? null, 'side' => PaperRecordSheet::side($row['side'] ?? ''), 'description' => $row['description'] ?? null,
             'quantity_kg' => $row['quantity_kg'] ?? null, 'rate_per_maund' => $row['rate_per_maund'] ?? null, 'vehicle' => $row['vehicle'] ?? null,
             'gross_kg' => $row['gross_kg'] ?? null, 'tare_kg' => $row['tare_kg'] ?? null]
             + array_intersect_key($row, array_flip(['party_phone', 'party_cnic', 'party_address', 'party_city', 'payment_mode', 'reference', 'cheque_date',
-                'party_bank', 'handled_by', 'vehicle_type', 'driver_name', 'driver_phone', 'bags', 'bilty_no']));
+                'party_bank', 'handled_by', 'vehicle_type', 'driver_name', 'driver_phone', 'bags', 'bilty_no',
+                'driver_cnic', 'vehicle_owner', 'from_place', 'to_place', 'freight']));
         $data['side'] = match ($data['side']) {
             'debit', 'dr', 'd' => 'dr', 'credit', 'cr', 'c' => 'cr',
             'receivable', 'owes us', 'lena', 'debtor' => 'receivable', 'payable', 'we owe', 'dena', 'creditor' => 'payable',
@@ -624,9 +629,19 @@ final class PaperRecords
             $plate = PakistanIds::normalizeVehicleNumber($number);
             $number = PakistanIds::isValidVehicleNumber($plate) ? PakistanIds::formatVehicleNumber($plate) : $number;
         }
+        $driverCnic = $text('driver_cnic', 20);
+        if ($driverCnic !== null && ! PakistanIds::isValidCnic((string) PakistanIds::digits($driverCnic))) {
+            throw new BusinessRuleViolation("Driver's CNIC \"{$driverCnic}\" is not a CNIC (13 digits, e.g. 36302-1234567-1).");
+        }
+        $freight = $text('freight', 20);
+        $freightPaise = $freight === null ? null : $this->amount(str_replace(',', '', $freight));
 
         return ['vehicle' => $number, 'vehicle_type' => $type, 'driver_name' => $text('driver_name', 120),
             'driver_phone' => $driverPhone === null ? null : PakistanIds::formatMobile(PakistanIds::normalizeMobile($driverPhone)),
+            // Only the last four digits are kept as written (the driver is not a party of the mill).
+            'driver_cnic' => $driverCnic === null ? null : '*********'.substr((string) PakistanIds::digits($driverCnic), -4),
+            'vehicle_owner' => $text('vehicle_owner', 120), 'from_place' => $text('from_place', 80), 'to_place' => $text('to_place', 80),
+            'freight' => $freightPaise === null ? null : number_format($freightPaise / 100, 2, '.', ''),
             'bags' => $bags, 'bilty_no' => $text('bilty_no', 40)];
     }
 

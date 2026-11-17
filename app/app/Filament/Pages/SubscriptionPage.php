@@ -25,6 +25,8 @@ use Filament\Pages\Page;
  */
 class SubscriptionPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use PaysSubscription;
 
     protected static ?string $navigationIcon = 'heroicon-o-credit-card';

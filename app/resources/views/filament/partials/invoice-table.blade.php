@@ -5,7 +5,7 @@
 --}}
 @php($rs = fn (?int $p) => \App\Filament\Support\Units::paiseToRupees((int) $p))
 @if ($invoices->isEmpty())
-    <p class="text-sm text-gray-500">No invoices yet.</p>
+    <p class="text-sm text-gray-500">{{ __('No invoices yet.') }}</p>
 @else
     <div class="grid gap-4 md:grid-cols-2">
         @foreach ($invoices as $inv)
@@ -35,23 +35,23 @@
                     <div class="mt-3 rounded-lg bg-success-50 p-3 text-sm dark:bg-success-950">
                         <div class="font-medium text-success-800 dark:text-success-200">Payment received {{ $inv->paid_at?->timezone('Asia/Karachi')->format('d M Y') }}</div>
                         @if ($inv->payment_reference)
-                            <div class="mt-1 text-xs text-gray-600 dark:text-gray-300">Transaction ID <span class="font-mono font-semibold">{{ $inv->payment_reference }}</span> · {{ $rs($inv->paid_amount_paise) }}</div>
+                            <div class="mt-1 text-xs text-gray-600 dark:text-gray-300">{{ __('Transaction ID') }} <span class="font-mono font-semibold">{{ $inv->payment_reference }}</span> · {{ $rs($inv->paid_amount_paise) }}</div>
                         @endif
                     </div>
                 @elseif ($inv->status === 'open' && $inv->reported_at)
                     <div class="mt-3 rounded-lg bg-info-50 p-3 text-sm dark:bg-info-950">
                         <div class="font-medium text-info-800 dark:text-info-200">You reported a payment {{ $inv->reported_at->timezone('Asia/Karachi')->format('d M') }}: being checked</div>
                         <dl class="mt-1 grid grid-cols-[auto_1fr] gap-x-3 text-xs text-gray-600 dark:text-gray-300">
-                            <dt>Transaction ID</dt><dd class="font-mono font-semibold" style="word-break: break-all;">{{ $inv->reported_reference }}</dd>
-                            @if ($inv->reportedMethod)<dt>Paid with</dt><dd>{{ $inv->reportedMethod->name }}</dd>@endif
-                            @if ($inv->reported_amount_paise !== null)<dt>Amount</dt><dd>{{ $rs($inv->reported_amount_paise) }}</dd>@endif
-                            @if ($inv->reported_paid_on)<dt>Paid on</dt><dd>{{ $inv->reported_paid_on->format('d M Y') }}</dd>@endif
+                            <dt>{{ __('Transaction ID') }}</dt><dd class="font-mono font-semibold" style="word-break: break-all;">{{ $inv->reported_reference }}</dd>
+                            @if ($inv->reportedMethod)<dt>{{ __('Paid with') }}</dt><dd>{{ $inv->reportedMethod->name }}</dd>@endif
+                            @if ($inv->reported_amount_paise !== null)<dt>{{ __('Amount') }}</dt><dd>{{ $rs($inv->reported_amount_paise) }}</dd>@endif
+                            @if ($inv->reported_paid_on)<dt>{{ __('Paid on') }}</dt><dd>{{ $inv->reported_paid_on->format('d M Y') }}</dd>@endif
                         </dl>
                     </div>
                 @endif
 
                 <div class="mt-4 flex items-center justify-between gap-2">
-                    <a href="{{ route('filament.admin.saas.invoice', ['id' => $inv->id]) }}" target="_blank" class="text-sm font-medium text-primary-600 hover:underline dark:text-primary-400">Invoice PDF</a>
+                    <a href="{{ route('filament.admin.saas.invoice', ['id' => $inv->id]) }}" target="_blank" class="text-sm font-medium text-primary-600 hover:underline dark:text-primary-400">{{ __('Invoice PDF') }}</a>
                     @if ($inv->status === 'open')
                         {{ ($this->reportPaymentAction)(['invoice' => $inv->id]) }}
                     @endif

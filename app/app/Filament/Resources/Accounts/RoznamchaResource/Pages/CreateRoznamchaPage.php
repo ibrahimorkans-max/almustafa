@@ -34,6 +34,8 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
  */
 class CreateRoznamchaPage extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = RoznamchaResource::class;
 
     protected static ?string $title = 'Add a roznamcha page';
@@ -52,7 +54,7 @@ class CreateRoznamchaPage extends CreateRecord
         $file = is_string($token) ? app(RoznamchaCapture::class)->received($token, (string) Filament::auth()->id()) : null;
         if ($file !== null && ($this->data['capture_file_id'] ?? null) === null) {
             $this->data['capture_file_id'] = $file;
-            Notification::make()->success()->title('Photo received from the phone.')->send();
+            Notification::make()->success()->title(__('Photo received from the phone.'))->send();
         }
     }
 
@@ -64,7 +66,7 @@ class CreateRoznamchaPage extends CreateRecord
                 ?? throw new BusinessRuleViolation('No scanner is set: Administration → Integrations → Scanner.');
             $bytes = app(NetworkScanner::class)->scan($address);
             $this->data['scanned_file_id'] = app(FileStore::class)->put($bytes)->id;
-            Notification::make()->success()->title('Page scanned.')->send();
+            Notification::make()->success()->title(__('Page scanned.'))->send();
         } catch (BusinessRuleViolation $e) {
             Notification::make()->danger()->title($e->getMessage())->persistent()->send();
         }

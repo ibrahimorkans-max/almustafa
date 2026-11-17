@@ -30,6 +30,8 @@ use Illuminate\Support\HtmlString;
  */
 class WeighmentCheckResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = Weighment::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
@@ -93,17 +95,17 @@ class WeighmentCheckResource extends Resource
 
         return $table
             ->columns([
-                TextColumn::make('gateEntry.number')->label('Gate entry')->searchable()
+                TextColumn::make('gateEntry.number')->label(__('Gate entry'))->searchable()
                     ->description(fn (Weighment $w) => $w->gateEntry?->registration_no),
                 TextColumn::make('kind')->badge()->color(fn (string $state) => $state === Weighment::GROSS ? 'info' : 'gray'),
-                TextColumn::make('weight_kg')->label('Weight (kg)')->numeric(0)->alignEnd(),
-                TextColumn::make('source')->label('Taken by')
+                TextColumn::make('weight_kg')->label(__('Weight (kg)'))->numeric(0)->alignEnd(),
+                TextColumn::make('source')->label(__('Taken by'))
                     ->state(fn (Weighment $w) => self::howTaken($w))
                     ->description(fn (Weighment $w) => $w->creator?->username),
                 TextColumn::make('flags')->badge()->color('warning')->placeholder('—')
                     ->formatStateUsing(fn (string $state) => GateEntryResource::FLAG_LABELS[$state] ?? $state),
-                TextColumn::make('captured_at')->label('At')->formatStateUsing(fn ($state, Weighment $w) => $pkt($w->captured_at))->sortable(),
-                TextColumn::make('check')->label('Check')->badge()
+                TextColumn::make('captured_at')->label(__('At'))->formatStateUsing(fn ($state, Weighment $w) => $pkt($w->captured_at))->sortable(),
+                TextColumn::make('check')->label(__('Check'))->badge()
                     ->state(fn (Weighment $w) => match ($w->lastCheck()?->decision) {
                         WeighmentCheck::OK => 'OK', WeighmentCheck::QUERY => 'Queried', default => 'Not checked',
                     })
@@ -116,8 +118,8 @@ class WeighmentCheckResource extends Resource
             ])
             ->defaultSort('captured_at', 'desc')
             ->filters([
-                SelectFilter::make('state')->label('Show')->default('unchecked')
-                    ->options(['unchecked' => 'Not checked yet', 'queried' => 'Queried', 'all' => 'All'])
+                SelectFilter::make('state')->label(__('Show'))->default('unchecked')
+                    ->options(['unchecked' => __('Not checked yet'), 'queried' => __('Queried'), 'all' => __('All')])
                     ->query(fn (Builder $query, array $data) => match ($data['value'] ?? 'unchecked') {
                         'unchecked' => $query->whereDoesntHave('checks'),
                         // The latest check is a query: a query with no later check after it.
@@ -127,18 +129,18 @@ class WeighmentCheckResource extends Resource
                                 ->whereColumn('later.checked_at', '>', 'weighment_checks.checked_at'))),
                         default => $query,
                     }),
-                SelectFilter::make('kind')->options([Weighment::GROSS => 'Gross', Weighment::TARE => 'Tare']),
+                SelectFilter::make('kind')->options([Weighment::GROSS => __('Gross'), Weighment::TARE => __('Tare')]),
             ])
             ->actions([
-                Action::make('evidence')->label('Evidence')->icon('heroicon-o-magnifying-glass')->color('gray')
+                Action::make('evidence')->label(__('Evidence'))->icon('heroicon-o-magnifying-glass')->color('gray')
                     ->modalHeading(fn (Weighment $w) => 'Weight '.number_format((float) $w->weight_kg, 0).' kg · '.$w->gateEntry?->registration_no)
                     ->modalContent(fn (Weighment $w) => new HtmlString(self::evidenceHtml($w)))
-                    ->modalSubmitAction(false)->modalCancelActionLabel('Close'),
-                Action::make('ok')->label('OK')->icon('heroicon-o-check')->color('success')
-                    ->form([Textarea::make('note')->label('Note (optional)')->rows(2)->maxLength(500)])
+                    ->modalSubmitAction(false)->modalCancelActionLabel(__('Close')),
+                Action::make('ok')->label(__('OK'))->icon('heroicon-o-check')->color('success')
+                    ->form([Textarea::make('note')->label(__('Note (optional)'))->rows(2)->maxLength(500)])
                     ->action(fn (Weighment $w, array $data) => self::decide($w, WeighmentCheck::OK, $data['note'] ?? null)),
-                Action::make('query')->label('Query')->icon('heroicon-o-exclamation-triangle')->color('danger')
-                    ->form([Textarea::make('note')->label('What is wrong?')->required()->minLength(5)->rows(3)->maxLength(500)])
+                Action::make('query')->label(__('Query'))->icon('heroicon-o-exclamation-triangle')->color('danger')
+                    ->form([Textarea::make('note')->label(__('What is wrong?'))->required()->minLength(5)->rows(3)->maxLength(500)])
                     ->action(fn (Weighment $w, array $data) => self::decide($w, WeighmentCheck::QUERY, $data['note'] ?? null)),
             ])
             ->bulkActions([]);

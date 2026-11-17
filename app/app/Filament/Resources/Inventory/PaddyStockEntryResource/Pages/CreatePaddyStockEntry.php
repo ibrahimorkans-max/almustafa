@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreatePaddyStockEntry extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PaddyStockEntryResource::class;
 
     protected static ?string $title = 'New paddy stock entry';

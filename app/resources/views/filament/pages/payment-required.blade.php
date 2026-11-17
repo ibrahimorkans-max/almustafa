@@ -20,7 +20,7 @@
                 <p class="mt-1 text-sm text-gray-700 dark:text-gray-300">
                     {{ $customer?->name }}: everything you recorded is safe, but nothing can be seen or changed until then.
                     @if ($owner)
-                        Pay the amount below with any of the ways shown, then press <strong>I've paid</strong>. Your system opens again as soon as we confirm the payment.
+                        Pay the amount below with any of the ways shown, then press <strong>{{ __('I\'ve paid') }}</strong>. Your system opens again as soon as we confirm the payment.
                     @else
                         The system opens again once your company's owner has paid. Please tell them.
                     @endif
@@ -28,7 +28,7 @@
             </div>
             @if ($owner && $total > 0)
                 <div class="text-right">
-                    <div class="text-xs uppercase tracking-wide text-gray-500">To pay</div>
+                    <div class="text-xs uppercase tracking-wide text-gray-500">{{ __('To pay') }}</div>
                     <div class="text-3xl font-bold">{{ \App\Filament\Support\Units::paiseToRupees($total) }}</div>
                 </div>
             @endif
@@ -37,7 +37,7 @@
 
     @if ($owner)
     <x-filament::section icon="heroicon-o-document-text">
-        <x-slot name="heading">What is due</x-slot>
+        <x-slot name="heading">{{ __('What is due') }}</x-slot>
         @if ($open->isEmpty())
             <p class="text-sm text-gray-500">No invoice is open. {{ $contact === '' ? 'Please contact us to continue.' : 'Please contact us to continue: '.$contact.'.' }}</p>
         @else
@@ -46,7 +46,7 @@
     </x-filament::section>
 
     <x-filament::section icon="heroicon-o-qr-code">
-        <x-slot name="heading">Ways to pay</x-slot>
+        <x-slot name="heading">{{ __('Ways to pay') }}</x-slot>
         @include('filament.partials.payment-methods')
     </x-filament::section>
     @endif
@@ -55,7 +55,7 @@
         <span>@if ($contact !== '') Questions? {{ $contact }} @endif</span>
         <form method="post" action="{{ filament()->getLogoutUrl() }}">
             @csrf
-            <x-filament::button type="submit" color="gray" icon="heroicon-o-arrow-left-on-rectangle">Sign out</x-filament::button>
+            <x-filament::button type="submit" color="gray" icon="heroicon-o-arrow-left-on-rectangle">{{ __('Sign out') }}</x-filament::button>
         </form>
     </div>
     </div>

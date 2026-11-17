@@ -21,6 +21,8 @@ use Illuminate\Database\Eloquent\Model;
 /** Confidential: default markup over cost per product category, used only to suggest selling rates. */
 class MarkupSettingResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = MarkupSetting::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-receipt-percent';
@@ -37,8 +39,8 @@ class MarkupSettingResource extends Resource
     {
         return $form->columns(2)->schema([
             Select::make('category')->required()->disabledOn('edit')
-                ->options(array_combine(Product::CATEGORIES, array_map(fn ($c) => ucfirst(str_replace('_', '-', $c)), Product::CATEGORIES))),
-            TextInput::make('markup_bp')->label('Markup over cost (%)')->required()->regex('/^\d{1,4}(\.\d{1,2})?$/')
+                ->options(\App\Support\Locales::options(array_combine(Product::CATEGORIES, array_map(fn ($c) => ucfirst(str_replace('_', '-', $c)), Product::CATEGORIES)))),
+            TextInput::make('markup_bp')->label(__('Markup over cost (%)'))->required()->regex('/^\d{1,4}(\.\d{1,2})?$/')
                 ->formatStateUsing(fn ($state) => $state === null ? null : bcdiv((string) $state, '100', 2))
                 ->dehydrateStateUsing(fn (string $state) => Units::percentToBp($state)),
         ]);
@@ -49,8 +51,8 @@ class MarkupSettingResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('category')->badge(),
-                TextColumn::make('markup_bp')->label('Markup')->formatStateUsing(fn (int $state) => Units::bpToPercent($state)),
-                TextColumn::make('updated_at')->label('Changed')->since(),
+                TextColumn::make('markup_bp')->label(__('Markup'))->formatStateUsing(fn (int $state) => Units::bpToPercent($state)),
+                TextColumn::make('updated_at')->label(__('Changed'))->since(),
             ])
             ->actions([
                 EditAction::make()->using(fn (MarkupSetting $record, array $data): Model => app(PricingService::class)->setMarkup($record->category, (int) $data['markup_bp'])),

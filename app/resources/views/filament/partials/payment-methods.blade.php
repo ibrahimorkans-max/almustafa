@@ -5,11 +5,11 @@
 @endphp
 @if ($methods->isEmpty())
     <div class="rounded-xl bg-gray-50 p-4 text-sm dark:bg-white/5">
-        <div class="font-semibold">Pay by bank transfer</div>
+        <div class="font-semibold">{{ __('Pay by bank transfer') }}</div>
         @forelse ($bank as $label => $value)
             <div>{{ $label }}: <span class="font-medium">{{ $value }}</span></div>
         @empty
-            <div class="text-gray-500">Contact us for the payment details.</div>
+            <div class="text-gray-500">{{ __('Contact us for the payment details.') }}</div>
         @endforelse
     </div>
 @else
@@ -27,7 +27,7 @@
                     <div class="mt-3 flex justify-center">
                         <img src="{{ $m->qrDataUri() }}" alt="QR code for {{ $m->name }}" class="h-44 w-44 rounded-lg border border-gray-200 bg-white object-contain p-2 dark:border-white/10">
                     </div>
-                    <div class="mt-1 text-center text-xs text-gray-500">Scan with your banking or wallet app</div>
+                    <div class="mt-1 text-center text-xs text-gray-500">{{ __('Scan with your banking or wallet app') }}</div>
                 @endif
                 <dl class="mt-3 space-y-1 text-sm">
                     @foreach ($m->details() as $label => $value)
@@ -41,4 +41,4 @@
         @endforeach
     </div>
 @endif
-<p class="mt-3 text-sm text-gray-500">Write the invoice number with your payment, then press <strong>I've paid</strong> on the invoice.</p>
+<p class="mt-3 text-sm text-gray-500">{{ __('Write the invoice number with your payment, then press') }} <strong>{{ __('I\'ve paid') }}</strong> {{ __('on the invoice.') }}</p>

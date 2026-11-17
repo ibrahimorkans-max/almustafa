@@ -16,18 +16,20 @@ use Filament\Resources\Pages\ManageRecords;
 
 class ManageLabParameters extends ManageRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = LabParameterResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->label('Add lab test')->mutateFormDataUsing(fn (array $data) => LabParameterResource::limits($data)),
+            CreateAction::make()->label(__('Add lab test'))->mutateFormDataUsing(fn (array $data) => LabParameterResource::limits($data)),
             // Each variety its own limits: start from the general tests, then edit that product's limits.
-            Action::make('copyToProduct')->label('Copy tests to a product / variety')->icon('heroicon-o-document-duplicate')->color('gray')
+            Action::make('copyToProduct')->label(__('Copy tests to a product / variety'))->icon('heroicon-o-document-duplicate')->color('gray')
                 ->visible(fn () => Filament::auth()->user()?->can('create', LabParameter::class) ?? false)
-                ->modalDescription('Adds the general lab tests to this product with the same limits; then edit its limits. Tests it already has are kept.')
+                ->modalDescription(__('Adds the general lab tests to this product with the same limits; then edit its limits. Tests it already has are kept.'))
                 ->form([
-                    Select::make('product_id')->label('Product / variety')->required()->searchable()
+                    Select::make('product_id')->label(__('Product / variety'))->required()->searchable()
                         ->options(fn () => Product::query()->where('category', 'paddy')->orderBy('name')->get()
                             ->mapWithKeys(fn (Product $p) => [$p->id => $p->name.($p->variety ? ' ('.$p->variety.')' : '')])->all()),
                 ])

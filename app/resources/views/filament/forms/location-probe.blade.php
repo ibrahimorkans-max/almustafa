@@ -30,5 +30,5 @@
     }"
     x-on:rm-need-location.window="read(true)"
 >
-    <p x-show="asking" x-cloak class="text-center text-xs font-medium text-primary-600 dark:text-primary-400">Checking that you are at the mill…</p>
+    <p x-show="asking" x-cloak class="text-center text-xs font-medium text-primary-600 dark:text-primary-400">{{ __('Checking that you are at the mill…') }}</p>
 </div>

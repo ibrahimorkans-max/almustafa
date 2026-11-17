@@ -14,6 +14,8 @@ use Filament\Resources\Pages\ViewRecord;
  */
 class ViewGeneratedDocument extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = GeneratedDocumentResource::class;
 
     public function mount(int|string $record): void

@@ -21,6 +21,8 @@ use Illuminate\Database\Eloquent\Builder;
 /** Current stock per product and godown — a projection of the stock ledger (read-only). */
 class StockBalanceResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = StockBalance::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-cube';
@@ -45,26 +47,26 @@ class StockBalanceResource extends Resource
                 ->join('products', 'products.id', '=', 'stock_balances.product_id')
                 ->select('stock_balances.*', 'products.category as product_category'))
             ->columns([
-                TextColumn::make('product.name')->label('Product')->searchable(),
-                TextColumn::make('godown.name')->label('Godown'),
-                TextColumn::make('quantity_kg')->label('Quantity (kg)')->alignEnd()->fontFamily('mono')->sortable()
+                TextColumn::make('product.name')->label(__('Product'))->searchable(),
+                TextColumn::make('godown.name')->label(__('Godown')),
+                TextColumn::make('quantity_kg')->label(__('Quantity (kg)'))->alignEnd()->fontFamily('mono')->sortable()
                     ->color(fn (string $state) => bccomp($state, '0', 3) === 0 ? 'gray' : null),
-                TextColumn::make('maund')->label('Maund')->alignEnd()
+                TextColumn::make('maund')->label(__('Maund'))->alignEnd()
                     ->state(fn (StockBalance $record) => Units::kgToMaund($record->quantity_kg)),
-                TextColumn::make('updated_at')->label('Last movement')->dateTime('d M Y H:i')->sortable(),
+                TextColumn::make('updated_at')->label(__('Last movement'))->dateTime('d M Y H:i')->sortable(),
             ])
             ->groups([
-                Group::make('product_category')->label('Category')
+                Group::make('product_category')->label(__('Category'))
                     ->getTitleFromRecordUsing(fn (StockBalance $record) => self::CATEGORY_LABELS[$record->getAttribute('product_category')] ?? 'Other'),
             ])
             ->defaultGroup('product_category')
             ->defaultSort('product_category')
             ->filters([
-                SelectFilter::make('category')->options(self::CATEGORY_LABELS)
+                SelectFilter::make('category')->options(\App\Support\Locales::options(self::CATEGORY_LABELS))
                     ->query(fn (Builder $query, array $data) => filled($data['value'] ?? null) ? $query->where('products.category', $data['value']) : $query),
-                SelectFilter::make('godown_id')->label('Godown')->options(fn () => Godown::query()->orderBy('code')->pluck('name', 'id')),
-                SelectFilter::make('product_id')->label('Product')->searchable()->options(fn () => Product::query()->orderBy('name')->pluck('name', 'id')),
-                TernaryFilter::make('non_zero')->label('Only with stock')->default(true)
+                SelectFilter::make('godown_id')->label(__('Godown'))->options(fn () => Godown::query()->orderBy('code')->pluck('name', 'id')),
+                SelectFilter::make('product_id')->label(__('Product'))->searchable()->options(fn () => Product::query()->orderBy('name')->pluck('name', 'id')),
+                TernaryFilter::make('non_zero')->label(__('Only with stock'))->default(true)
                     ->queries(
                         true: fn (Builder $query) => $query->where('stock_balances.quantity_kg', '<>', 0),
                         false: fn (Builder $query) => $query,
@@ -72,7 +74,7 @@ class StockBalanceResource extends Resource
                     ),
             ])
             ->actions([
-                Action::make('ledger')->label('Movements')->icon('heroicon-o-list-bullet')->color('gray')
+                Action::make('ledger')->label(__('Movements'))->icon('heroicon-o-list-bullet')->color('gray')
                     ->url(fn (StockBalance $record) => StockEntryResource::getUrl('index', ['tableFilters' => [
                         'product_id' => ['value' => $record->product_id], 'godown_id' => ['value' => $record->godown_id],
                     ]])),

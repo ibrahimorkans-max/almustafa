@@ -17,6 +17,8 @@ use Illuminate\Validation\ValidationException;
 /** HR enters a leave request on someone's behalf (it still needs an approver). */
 class CreateLeaveRequest extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = LeaveRequestResource::class;
 
     protected static ?string $title = 'Enter leave';

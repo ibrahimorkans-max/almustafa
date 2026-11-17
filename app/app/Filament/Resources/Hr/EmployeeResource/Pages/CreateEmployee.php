@@ -13,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreateEmployee extends CreateRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = EmployeeResource::class;
 
     protected static ?string $title = 'Add employee';

@@ -29,6 +29,8 @@ use Filament\Pages\Page;
  */
 class ManualWeighingPage extends Page implements HasForms
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-pencil-square';
@@ -79,21 +81,21 @@ class ManualWeighingPage extends Page implements HasForms
     public function form(Form $form): Form
     {
         return $form->statePath('data')->schema([
-            Section::make('Weights typed by hand')
-                ->description('Every typed weight keeps its reason (and the other weighbridge\'s slip when given), is marked "typed by hand" everywhere and goes to the weight checks.')
+            Section::make(__('Weights typed by hand'))
+                ->description(__('Every typed weight keeps its reason (and the other weighbridge\'s slip when given), is marked "typed by hand" everywhere and goes to the weight checks.'))
                 ->schema([
-                    Toggle::make('enabled')->label('Allow weights to be typed by hand')->live()
-                        ->helperText('Off: every weight must come from the weighbridge.'),
-                    Toggle::make('both')->label('Allow both weights of a vehicle to be typed (loaded and empty)')
+                    Toggle::make('enabled')->label(__('Allow weights to be typed by hand'))->live()
+                        ->helperText(__('Off: every weight must come from the weighbridge.')),
+                    Toggle::make('both')->label(__('Allow both weights of a vehicle to be typed (loaded and empty)'))
                         ->visible(fn (Get $get) => (bool) $get('enabled'))
-                        ->helperText('For when the weighbridge is out of order. Off: only one of the two may be typed; the other must come from the weighbridge.'),
+                        ->helperText(__('For when the weighbridge is out of order. Off: only one of the two may be typed; the other must come from the weighbridge.')),
                 ]),
-            Section::make('Who may type weights')
-                ->description('Tick the people who may type weights by hand. Nobody ticked: those whose role allows it (Supervisor, Super Admin, Owner).')
+            Section::make(__('Who may type weights'))
+                ->description(__('Tick the people who may type weights by hand. Nobody ticked: those whose role allows it (Supervisor, Super Admin, Owner).'))
                 ->visible(fn (Get $get) => (bool) $get('enabled'))
                 ->schema([
                     CheckboxList::make('users')->hiddenLabel()->options(fn () => self::staff())->columns(2)->searchable()->bulkToggleable()
-                        ->noSearchResultsMessage('Nobody of that name.'),
+                        ->noSearchResultsMessage(__('Nobody of that name.')),
                 ]),
         ]);
     }

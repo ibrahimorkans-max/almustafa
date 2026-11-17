@@ -25,6 +25,8 @@ use Filament\Tables\Table;
 /** Chart of accounts. Party and system ledgers are created by the application. */
 class LedgerAccountResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = LedgerAccount::class;
 
     protected static ?string $recordTitleAttribute = 'name';
@@ -50,18 +52,18 @@ class LedgerAccountResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            Select::make('kind')->options(['general' => 'General', 'bank' => 'Mill bank account'])->default('general')->required()->live()
+            Select::make('kind')->options(['general' => __('General'), 'bank' => __('Mill bank account')])->default('general')->required()->live()
                 ->disabledOn('edit'),
-            Select::make('group_id')->label('Group')->required()
+            Select::make('group_id')->label(__('Group'))->required()
                 ->options(fn () => AccountGroup::query()->orderBy('sort')->pluck('name', 'id')),
             TextInput::make('code')->required()->maxLength(40)->regex('/^[A-Za-z0-9._-]+$/')->disabledOn('edit'),
             TextInput::make('name')->required()->maxLength(160),
-            TextInput::make('bank_account_number')->label('IBAN')->maxLength(34)->placeholder('PK36 SCBL 0000 0011 2345 6702')
+            TextInput::make('bank_account_number')->label(__('IBAN'))->maxLength(34)->placeholder(__('PK36 SCBL 0000 0011 2345 6702'))
                 ->rule(fn () => fn (string $a, mixed $v, \Closure $fail) => $v && ! PakistanIds::isValidIban((string) PakistanIds::normalizeIban((string) $v)) ? $fail('The IBAN is not valid (PK and 22 characters; check digits).') : null)
                 ->visible(fn (Get $get) => $get('kind') === 'bank')->required(fn (Get $get) => $get('kind') === 'bank')
                 ->visibleOn('create'),
             TextInput::make('bank_name')->maxLength(120)->visible(fn (Get $get) => $get('kind') === 'bank'),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')])->default('active')->required(),
         ]);
     }
 
@@ -72,9 +74,9 @@ class LedgerAccountResource extends Resource
             ->columns([
                 TextColumn::make('code')->searchable(),
                 TextColumn::make('name')->searchable()->state(fn (LedgerAccount $r) => $r->displayName()),
-                TextColumn::make('group.name')->label('Group'),
+                TextColumn::make('group.name')->label(__('Group')),
                 TextColumn::make('kind')->badge(),
-                TextColumn::make('balance')->label('Balance')->alignEnd()
+                TextColumn::make('balance')->label(__('Balance'))->alignEnd()
                     ->state(function (LedgerAccount $r) {
                         $b = app(Books::class)->balance($r);
 
@@ -84,11 +86,11 @@ class LedgerAccountResource extends Resource
             ])
             ->defaultSort('code')
             ->filters([
-                SelectFilter::make('kind')->options(array_combine(LedgerAccount::KINDS, array_map('ucfirst', LedgerAccount::KINDS))),
-                SelectFilter::make('group_id')->label('Group')->options(fn () => AccountGroup::query()->orderBy('sort')->pluck('name', 'id')),
+                SelectFilter::make('kind')->options(\App\Support\Locales::options(array_combine(LedgerAccount::KINDS, array_map('ucfirst', LedgerAccount::KINDS)))),
+                SelectFilter::make('group_id')->label(__('Group'))->options(fn () => AccountGroup::query()->orderBy('sort')->pluck('name', 'id')),
             ])
             ->actions([
-                Action::make('statement')->label('Statement')->icon('heroicon-o-document-text')->color('gray')
+                Action::make('statement')->label(__('Statement'))->icon('heroicon-o-document-text')->color('gray')
                     ->url(fn (LedgerAccount $r) => AccountsReports::getUrl(['report' => 'ledger', 'ledger' => $r->id])),
                 EditAction::make(),
             ]);

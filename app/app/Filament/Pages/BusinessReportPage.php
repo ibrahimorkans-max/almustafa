@@ -25,6 +25,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class BusinessReportPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
 
     protected static ?string $navigationGroup = 'Reports';

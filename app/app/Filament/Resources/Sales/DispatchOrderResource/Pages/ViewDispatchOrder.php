@@ -22,6 +22,8 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewDispatchOrder extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use RunsDomainActions;
 
     protected static string $resource = DispatchOrderResource::class;
@@ -32,10 +34,10 @@ class ViewDispatchOrder extends ViewRecord
 
         return [
             PrintButton::header('dispatch'),
-            Action::make('arrived')->label('Vehicle arrived')->icon('heroicon-o-truck')
+            Action::make('arrived')->label(__('Vehicle arrived'))->icon('heroicon-o-truck')
                 ->visible(fn (DispatchOrder $o) => $o->status === DispatchOrder::OPEN && $can('gate.entry'))
                 ->form([
-                    TextInput::make('registration_no')->label('Vehicle registration no.')->required()->maxLength(20),
+                    TextInput::make('registration_no')->label(__('Vehicle registration no.'))->required()->maxLength(20),
                     TextInput::make('driver_name')->maxLength(120),
                 ])
                 ->action(function (DispatchOrder $o, array $data) {
@@ -49,10 +51,10 @@ class ViewDispatchOrder extends ViewRecord
 
                     return redirect(GateEntryResource::getUrl('view', ['record' => $entry]));
                 }),
-            Action::make('approval')->label('Open credit approval')->icon('heroicon-o-shield-check')
+            Action::make('approval')->label(__('Open credit approval'))->icon('heroicon-o-shield-check')
                 ->visible(fn (DispatchOrder $o) => $o->status === DispatchOrder::PENDING_CREDIT && $o->credit_override_request_id !== null)
                 ->url(fn (DispatchOrder $o) => ApprovalRequestResource::getUrl('view', ['record' => $o->credit_override_request_id])),
-            Action::make('gate')->label('Open gate entry')->icon('heroicon-o-arrow-top-right-on-square')->color('gray')
+            Action::make('gate')->label(__('Open gate entry'))->icon('heroicon-o-arrow-top-right-on-square')->color('gray')
                 ->visible(fn (DispatchOrder $o) => $o->gate_entry_id !== null)
                 ->url(fn (DispatchOrder $o) => GateEntryResource::getUrl('view', ['record' => $o->gate_entry_id])),
             Action::make('cancel')->color('danger')

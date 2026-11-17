@@ -58,33 +58,33 @@ trait PaysSubscription
                 ? 'Correct the transaction' : 'I\'ve paid')
             ->visible(fn () => $this->canReportPayment())
             ->modalHeading(fn (array $arguments) => 'Report a payment: '.(SaasInvoice::query()->find($arguments['invoice'] ?? null)->number ?? ''))
-            ->modalDescription('After you pay, enter the transaction ID exactly as it appears on your bank or wallet receipt. We match it with the payment we received, then mark the invoice paid.')
+            ->modalDescription(__('After you pay, enter the transaction ID exactly as it appears on your bank or wallet receipt. We match it with the payment we received, then mark the invoice paid.'))
             ->fillForm(fn (array $arguments) => [
                 'amount' => number_format((SaasInvoice::query()->find($arguments['invoice'] ?? null)->amount_paise ?? 0) / 100, 2, '.', ''),
                 'paid_on' => now('Asia/Karachi')->toDateString(),
                 'method_id' => SaasPaymentMethod::query()->offered()->count() === 1 ? SaasPaymentMethod::query()->offered()->value('id') : null,
             ])
             ->form([
-                Select::make('method_id')->label('Paid with')->native(false)
+                Select::make('method_id')->label(__('Paid with'))->native(false)
                     ->options(fn () => SaasPaymentMethod::query()->offered()->pluck('name', 'id')->all())
                     ->required(fn () => SaasPaymentMethod::query()->offered()->exists())
                     ->visible(fn () => SaasPaymentMethod::query()->offered()->exists()),
                 Grid::make(2)->schema([
-                    TextInput::make('transaction_id')->label('Transaction ID')->required()->maxLength(60)
-                        ->placeholder('e.g. FT26112233445 or 0123456789')
-                        ->helperText('Letters and numbers as printed on the receipt; spaces are removed.')
+                    TextInput::make('transaction_id')->label(__('Transaction ID'))->required()->maxLength(60)
+                        ->placeholder(__('e.g. FT26112233445 or 0123456789'))
+                        ->helperText(__('Letters and numbers as printed on the receipt; spaces are removed.'))
                         ->extraInputAttributes(['autocomplete' => 'off', 'spellcheck' => 'false', 'style' => 'text-transform: uppercase; font-family: monospace;']),
-                    TextInput::make('transaction_id_again')->label('Transaction ID again')->required()->maxLength(60)
+                    TextInput::make('transaction_id_again')->label(__('Transaction ID again'))->required()->maxLength(60)
                         ->extraInputAttributes(['autocomplete' => 'off', 'spellcheck' => 'false', 'style' => 'text-transform: uppercase; font-family: monospace;'])
                         ->rule(fn (Get $get) => function (string $attribute, mixed $value, \Closure $fail) use ($get): void {
                             if (SaasInvoice::cleanTransactionId((string) $value) !== SaasInvoice::cleanTransactionId((string) $get('transaction_id'))) {
                                 $fail('The two transaction IDs do not match. Check them on your receipt.');
                             }
                         }),
-                    TextInput::make('amount')->label('Amount sent (Rs)')->required()->regex(Units::DECIMAL_2),
-                    DatePicker::make('paid_on')->label('Paid on')->required()->maxDate(now('Asia/Karachi')),
+                    TextInput::make('amount')->label(__('Amount sent (Rs)'))->required()->regex(Units::DECIMAL_2),
+                    DatePicker::make('paid_on')->label(__('Paid on'))->required()->maxDate(now('Asia/Karachi')),
                 ]),
-                FileUpload::make('receipt')->label('Receipt or screenshot (photo or PDF, optional)')->storeFiles(false)
+                FileUpload::make('receipt')->label(__('Receipt or screenshot (photo or PDF, optional)'))->storeFiles(false)
                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480),
                 Textarea::make('note')->maxLength(500)->rows(2),
             ])
@@ -106,7 +106,7 @@ trait PaysSubscription
 
                     return;
                 }
-                Notification::make()->success()->title('Thank you. We\'ll mark the invoice paid once the payment reaches us.')->send();
+                Notification::make()->success()->title(__('Thank you. We\'ll mark the invoice paid once the payment reaches us.'))->send();
             });
     }
 }

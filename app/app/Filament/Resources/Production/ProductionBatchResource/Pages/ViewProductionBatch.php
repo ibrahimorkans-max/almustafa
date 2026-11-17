@@ -31,6 +31,8 @@ use Filament\Resources\Pages\ViewRecord;
  */
 class ViewProductionBatch extends ViewRecord
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use RunsDomainActions;
 
     protected static string $resource = ProductionBatchResource::class;
@@ -41,20 +43,20 @@ class ViewProductionBatch extends ViewRecord
         $open = fn (ProductionBatch $b) => $b->isOpen();
         $godowns = fn () => RequisitionResource::godownOptions();
         $period = [
-            DateTimePicker::make('period_start')->label('From')->seconds(false)->required()->default(now()->subHour()->startOfHour()),
-            DateTimePicker::make('period_end')->label('To')->seconds(false)->required()->default(now()->startOfHour())->after('period_start'),
+            DateTimePicker::make('period_start')->label(__('From'))->seconds(false)->required()->default(now()->subHour()->startOfHour()),
+            DateTimePicker::make('period_end')->label(__('To'))->seconds(false)->required()->default(now()->startOfHour())->after('period_start'),
         ];
         $service = fn () => app(ProductionService::class);
         $at = fn (array $data, string $key) => CarbonImmutable::parse($data[$key]);
 
         return [
             PrintButton::header('batch'),
-            Action::make('input')->label('Log paddy fed')->icon('heroicon-o-arrow-down-on-square')
+            Action::make('input')->label(__('Log paddy fed'))->icon('heroicon-o-arrow-down-on-square')
                 ->visible(fn (ProductionBatch $b) => $open($b) && $can('production.log'))
-                ->modalDescription('Takes the paddy out of the godown now. For stores-controlled issue use a requisition.')
+                ->modalDescription(__('Takes the paddy out of the godown now. For stores-controlled issue use a requisition.'))
                 ->form([
-                    Select::make('godown_id')->label('From godown')->required()->options($godowns),
-                    TextInput::make('quantity_kg')->label('Quantity (kg)')->required()->regex(Units::DECIMAL_3),
+                    Select::make('godown_id')->label(__('From godown'))->required()->options($godowns),
+                    TextInput::make('quantity_kg')->label(__('Quantity (kg)'))->required()->regex(Units::DECIMAL_3),
                     ...$period,
                     Textarea::make('note')->maxLength(1000),
                 ])
@@ -62,13 +64,13 @@ class ViewProductionBatch extends ViewRecord
                     $b, Godown::query()->findOrFail($data['godown_id']), (string) $data['quantity_kg'],
                     $at($data, 'period_start'), $at($data, 'period_end'), $data['note'] ?? null,
                 ), 'Input logged')),
-            Action::make('output')->label('Log output')->icon('heroicon-o-arrow-up-on-square')->color('success')
+            Action::make('output')->label(__('Log output'))->icon('heroicon-o-arrow-up-on-square')->color('success')
                 ->visible(fn (ProductionBatch $b) => $open($b) && $can('production.log'))
                 ->form([
-                    Select::make('product_id')->label('Rice / by-product')->required()
+                    Select::make('product_id')->label(__('Rice / by-product'))->required()
                         ->options(fn () => Product::query()->whereIn('category', ProductionService::OUTPUT_CATEGORIES)->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
-                    Select::make('godown_id')->label('Into godown')->required()->options($godowns),
-                    TextInput::make('quantity_kg')->label('Quantity (kg)')->required()->regex(Units::DECIMAL_3),
+                    Select::make('godown_id')->label(__('Into godown'))->required()->options($godowns),
+                    TextInput::make('quantity_kg')->label(__('Quantity (kg)'))->required()->regex(Units::DECIMAL_3),
                     ...$period,
                     Textarea::make('note')->maxLength(1000),
                 ])
@@ -76,17 +78,17 @@ class ViewProductionBatch extends ViewRecord
                     $b, Product::query()->findOrFail($data['product_id']), Godown::query()->findOrFail($data['godown_id']), (string) $data['quantity_kg'],
                     $at($data, 'period_start'), $at($data, 'period_end'), $data['note'] ?? null,
                 ), 'Output logged')),
-            Action::make('outputs')->label('Log several outputs')->icon('heroicon-o-squares-plus')->color('success')
+            Action::make('outputs')->label(__('Log several outputs'))->icon('heroicon-o-squares-plus')->color('success')
                 ->visible(fn (ProductionBatch $b) => $open($b) && $can('production.log'))
-                ->modalDescription('Every product that came off this run (head rice, broken, bran, husk …). All are booked together, or none. What is left of the paddy is the processing loss.')
+                ->modalDescription(__('Every product that came off this run (head rice, broken, bran, husk …). All are booked together, or none. What is left of the paddy is the processing loss.'))
                 ->modalWidth('4xl')
                 ->form([
-                    Repeater::make('rows')->label('Outputs')->required()->minItems(1)->defaultItems(4)->columns(3)
+                    Repeater::make('rows')->label(__('Outputs'))->required()->minItems(1)->defaultItems(4)->columns(3)
                         ->schema([
-                            Select::make('product_id')->label('Product')->required()->searchable()
+                            Select::make('product_id')->label(__('Product'))->required()->searchable()
                                 ->options(fn () => ProductSelect::options(ProductionService::OUTPUT_CATEGORIES)),
-                            Select::make('godown_id')->label('Into godown')->required()->options($godowns),
-                            TextInput::make('quantity_kg')->label('Quantity (kg)')->required()->regex(Units::DECIMAL_3),
+                            Select::make('godown_id')->label(__('Into godown'))->required()->options($godowns),
+                            TextInput::make('quantity_kg')->label(__('Quantity (kg)'))->required()->regex(Units::DECIMAL_3),
                         ]),
                     ...$period,
                     Textarea::make('note')->maxLength(1000),
@@ -99,11 +101,11 @@ class ViewProductionBatch extends ViewRecord
                     ], array_values((array) $data['rows'])),
                     $at($data, 'period_start'), $at($data, 'period_end'), $data['note'] ?? null,
                 ), 'Outputs logged')),
-            Action::make('correct')->label('Correct a log')->icon('heroicon-o-arrow-uturn-left')->color('warning')
+            Action::make('correct')->label(__('Correct a log'))->icon('heroicon-o-arrow-uturn-left')->color('warning')
                 ->visible(fn (ProductionBatch $b) => $open($b) && $can('production.log'))
-                ->modalDescription('Adds a reversing log and moves the stock back. The original stays on record.')
+                ->modalDescription(__('Adds a reversing log and moves the stock back. The original stays on record.'))
                 ->form([
-                    Select::make('log_id')->label('Log to reverse')->required()
+                    Select::make('log_id')->label(__('Log to reverse'))->required()
                         ->options(fn (ProductionBatch $record) => ProductionLog::query()->where('batch_id', $record->id)->whereNull('reverses_id')
                             ->whereNotIn('id', ProductionLog::query()->where('batch_id', $record->id)->whereNotNull('reverses_id')->select('reverses_id'))
                             ->with('product')->orderByDesc('period_start')->get()
@@ -114,10 +116,10 @@ class ViewProductionBatch extends ViewRecord
                     fn () => $service()->reverse(ProductionLog::query()->findOrFail($data['log_id']), $data['reason']),
                     'Log corrected',
                 )),
-            Action::make('close')->label('Close batch')->icon('heroicon-o-lock-closed')->color('danger')
+            Action::make('close')->label(__('Close batch'))->icon('heroicon-o-lock-closed')->color('danger')
                 ->visible(fn (ProductionBatch $b) => $open($b) && $can('batch.manage'))
                 ->requiresConfirmation()
-                ->modalDescription('Freezes the yield against the outturn standards. No more logs can be added.')
+                ->modalDescription(__('Freezes the yield against the outturn standards. No more logs can be added.'))
                 ->form([Textarea::make('notes')->maxLength(2000)])
                 ->action(fn (ProductionBatch $b, array $data) => $this->runDomain(fn () => $service()->close($b, $data['notes'] ?? null), 'Batch closed')),
         ];

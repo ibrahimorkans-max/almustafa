@@ -25,7 +25,7 @@ class CertificatesRelationManager extends RelationManager
     public function form(Form $form): Form
     {
         return $form->columns(2)->schema([
-            Select::make('type')->options([ScaleCertificate::TYPE_STAMPING => 'Stamping (Legal Metrology)', ScaleCertificate::TYPE_CALIBRATION => 'Calibration'])->required(),
+            Select::make('type')->options([ScaleCertificate::TYPE_STAMPING => __('Stamping (Legal Metrology)'), ScaleCertificate::TYPE_CALIBRATION => __('Calibration')])->required(),
             TextInput::make('certificate_no')->required()->maxLength(60),
             TextInput::make('issued_by')->maxLength(160),
             DatePicker::make('issued_on')->required(),

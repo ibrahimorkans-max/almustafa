@@ -20,7 +20,7 @@
 
     <p style="color: rgb(var(--gray-500)); font-size: .8rem;">
         {{ $this->aiEnabled() ? 'Ask in your own words (English or Roman Urdu); these are examples.' : 'Type these commands (add an AI key to ask in your own words).' }}
-        Press an example to put it in the box. Anything marked <span class="mnx-badge">Confirm</span> changes data and runs only after you confirm it.
+        Press an example to put it in the box. Anything marked <span class="mnx-badge">{{ __('Confirm') }}</span> {{ __('changes data and runs only after you confirm it.') }}
     </p>
 
     @foreach ($this->features() as $group)
@@ -32,10 +32,10 @@
                         <span>{{ $f['title'] }}</span>
                         <span style="display:flex; gap:.35rem; align-items:center;">
                             @if ($f['writes'])
-                                <span class="mnx-badge">Confirm</span>
+                                <span class="mnx-badge">{{ __('Confirm') }}</span>
                             @endif
                             @if ($f['quick'])
-                                <button type="button" class="mnx-pill mnx-pill-sm" wire:click="quick('{{ $f['quick'] }}')"><span>Fill the blanks</span></button>
+                                <button type="button" class="mnx-pill mnx-pill-sm" wire:click="quick('{{ $f['quick'] }}')"><span>{{ __('Fill the blanks') }}</span></button>
                             @endif
                         </span>
                     </div>
@@ -51,7 +51,7 @@
     @php($screens = $this->screens())
     @if ($screens !== [])
         <section>
-            <h3>Screens you can open</h3>
+            <h3>{{ __('Screens you can open') }}</h3>
             @foreach ($screens as $menu => $links)
                 <div style="margin-bottom:.5rem;">
                     <div style="font-weight:600; font-size:.78rem; margin-bottom:.2rem;">{{ $menu }}</div>

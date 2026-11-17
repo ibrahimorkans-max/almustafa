@@ -43,6 +43,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class DailyWageSheetResource extends Resource
 {
+    use \App\Filament\Concerns\TranslatesResourceLabels;
+
     protected static ?string $model = DailyWageSheet::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-banknotes';
@@ -88,9 +90,9 @@ class DailyWageSheetResource extends Resource
         $unit = fn (Get $get): string => (string) (DailyWageCategory::query()->whereKey($get('category_id'))->value('unit') ?? 'day');
 
         return $form->columns(2)->schema([
-            DatePicker::make('work_date')->label('Work date')->required()->default(now('Asia/Karachi')->toDateString())->maxDate(now('Asia/Karachi')),
-            Radio::make('who')->label('Who worked')->options(['group' => 'A labour group', 'single' => 'One worker'])->default('group')->inline()->live(),
-            Select::make('group_id')->label('Labour group')->searchable()->live()->required(fn (Get $get) => $get('who') === 'group')
+            DatePicker::make('work_date')->label(__('Work date'))->required()->default(now('Asia/Karachi')->toDateString())->maxDate(now('Asia/Karachi')),
+            Radio::make('who')->label(__('Who worked'))->options(['group' => __('A labour group'), 'single' => __('One worker')])->default('group')->inline()->live(),
+            Select::make('group_id')->label(__('Labour group'))->searchable()->live()->required(fn (Get $get) => $get('who') === 'group')
                 ->visible(fn (Get $get) => $get('who') !== 'single')
                 ->options(fn () => DailyWageGroup::query()->where('status', 'active')->orderBy('name')->get()->mapWithKeys(fn (DailyWageGroup $g) => [$g->id => $g->label()])->all())
                 ->afterStateUpdated(function (?string $state, Set $set): void {
@@ -103,24 +105,24 @@ class DailyWageSheetResource extends Resource
                         $set('rate', bcdiv((string) $group->defaultCategory->rate_paise, '100', 2));
                     }
                 }),
-            TextInput::make('worker_name')->label('Worker\'s name')->maxLength(120)->required(fn (Get $get) => $get('who') === 'single')
+            TextInput::make('worker_name')->label(__('Worker\'s name'))->maxLength(120)->required(fn (Get $get) => $get('who') === 'single')
                 ->visible(fn (Get $get) => $get('who') === 'single'),
-            Select::make('category_id')->label('Work')->required()->searchable()->live()
+            Select::make('category_id')->label(__('Work'))->required()->searchable()->live()
                 ->options(fn () => DailyWageCategory::query()->where('status', 'active')->orderBy('name')->get()
                     ->mapWithKeys(fn (DailyWageCategory $c) => [$c->id => $c->name.' — '.Money::paise($c->rate_paise)->format().' '.$c->rateLabel()])->all())
                 ->afterStateUpdated(fn (?string $state, Set $set) => $set('rate', ($c = DailyWageCategory::query()->find($state)) ? bcdiv((string) $c->rate_paise, '100', 2) : null)),
-            TextInput::make('workers')->label('Number of workers')->numeric()->integer()->minValue(1)->maxValue(500)->required()->default(1)->live(onBlur: true),
+            TextInput::make('workers')->label(__('Number of workers'))->numeric()->integer()->minValue(1)->maxValue(500)->required()->default(1)->live(onBlur: true),
             TextInput::make('quantity')->label(fn (Get $get) => DailyWageCategory::UNITS[$unit($get)][0] ?? 'Quantity')->required()->default('1')
                 ->regex('/^\d{1,6}(\.\d{1,3})?$/')->live(onBlur: true)
                 ->helperText(fn (Get $get) => (DailyWageCategory::UNITS[$unit($get)][2] ?? true) ? 'Paid to each worker.' : 'For the whole work of the group.'),
             TextInput::make('rate')->label(fn (Get $get) => 'Rate (Rs '.(DailyWageCategory::UNITS[$unit($get)][1] ?? '').')')->required()->regex(Units::DECIMAL_2)->live(onBlur: true),
-            TextInput::make('extra')->label('Extra (Rs): overtime, bonus')->regex(Units::DECIMAL_2)->live(onBlur: true),
-            TextInput::make('deduction')->label('Less (Rs): advance already given, food')->regex(Units::DECIMAL_2)->live(onBlur: true),
-            Placeholder::make('total')->label('To pay')->content($total),
-            Textarea::make('worker_names')->label('Workers\' names (optional)')->rows(2)->maxLength(2000),
-            Textarea::make('description')->label('What was done (optional)')->rows(2)->maxLength(500),
-            Select::make('pay')->label('Payment')->options(fn () => self::canPay() ? self::PAY : ['draft' => self::PAY['draft']])->default('draft')->required()->live(),
-            Select::make('paid_from')->label('Paid from')
+            TextInput::make('extra')->label(__('Extra (Rs): overtime, bonus'))->regex(Units::DECIMAL_2)->live(onBlur: true),
+            TextInput::make('deduction')->label(__('Less (Rs): advance already given, food'))->regex(Units::DECIMAL_2)->live(onBlur: true),
+            Placeholder::make('total')->label(__('To pay'))->content($total),
+            Textarea::make('worker_names')->label(__('Workers\' names (optional)'))->rows(2)->maxLength(2000),
+            Textarea::make('description')->label(__('What was done (optional)'))->rows(2)->maxLength(500),
+            Select::make('pay')->label(__('Payment'))->options(fn () => self::canPay() ? self::PAY : ['draft' => self::PAY['draft']])->default('draft')->required()->live(),
+            Select::make('paid_from')->label(__('Paid from'))
                 ->options(fn (Get $get) => LedgerAccount::query()->where('kind', $get('pay') === 'bank' ? 'bank' : 'cash')->where('status', 'active')->orderBy('name')->pluck('name', 'id')->all())
                 ->visible(fn (Get $get) => in_array($get('pay'), ['cash', 'bank'], true))->required(fn (Get $get) => in_array($get('pay'), ['cash', 'bank'], true)),
         ]);
@@ -132,15 +134,15 @@ class DailyWageSheetResource extends Resource
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['group', 'category']))
             ->columns([
                 TextColumn::make('number')->searchable()->sortable(),
-                TextColumn::make('work_date')->label('Date')->date('d M Y')->sortable(),
-                TextColumn::make('who')->label('Group / worker')->state(fn (DailyWageSheet $s) => $s->who())
+                TextColumn::make('work_date')->label(__('Date'))->date('d M Y')->sortable(),
+                TextColumn::make('who')->label(__('Group / worker'))->state(fn (DailyWageSheet $s) => $s->who())
                     ->searchable(query: fn (Builder $query, string $search) => $query->where(fn (Builder $q) => $q->whereRaw('LOWER(worker_name) LIKE ?', ['%'.mb_strtolower($search).'%'])
                         ->orWhereHas('group', fn (Builder $g) => $g->whereRaw('LOWER(name) LIKE ?', ['%'.mb_strtolower($search).'%'])->orWhereRaw('LOWER(leader_name) LIKE ?', ['%'.mb_strtolower($search).'%'])))),
-                TextColumn::make('category.name')->label('Work'),
+                TextColumn::make('category.name')->label(__('Work')),
                 TextColumn::make('workers')->alignEnd(),
-                TextColumn::make('quantity')->label('Qty')->alignEnd()->formatStateUsing(fn ($state, DailyWageSheet $s) => rtrim(rtrim((string) $state, '0'), '.').' '.$s->unit),
-                TextColumn::make('net_paise')->label('To pay (Rs)')->alignEnd()->formatStateUsing(fn (int $state) => Money::paise($state)->grouped())
-                    ->summarize(Sum::make()->label('Total')->formatStateUsing(fn ($state) => Money::paise((int) $state)->format())),
+                TextColumn::make('quantity')->label(__('Qty'))->alignEnd()->formatStateUsing(fn ($state, DailyWageSheet $s) => rtrim(rtrim((string) $state, '0'), '.').' '.$s->unit),
+                TextColumn::make('net_paise')->label(__('To pay (Rs)'))->alignEnd()->formatStateUsing(fn (int $state) => Money::paise($state)->grouped())
+                    ->summarize(Sum::make()->label(__('Total'))->formatStateUsing(fn ($state) => Money::paise((int) $state)->format())),
                 TextColumn::make('status')->badge()->formatStateUsing(fn (string $state) => DailyWageSheet::STATUSES[$state] ?? $state)
                     ->color(fn (string $state) => match ($state) {
                         DailyWageSheet::PAID => 'success', DailyWageSheet::POSTED => 'warning', DailyWageSheet::CANCELLED => 'gray', default => 'info'
@@ -148,9 +150,9 @@ class DailyWageSheetResource extends Resource
             ])
             ->defaultSort('work_date', 'desc')
             ->filters([
-                SelectFilter::make('status')->options(DailyWageSheet::STATUSES),
-                SelectFilter::make('group_id')->label('Labour group')->options(fn () => DailyWageGroup::query()->orderBy('name')->pluck('name', 'id')),
-                SelectFilter::make('category_id')->label('Work')->options(fn () => DailyWageCategory::query()->orderBy('name')->pluck('name', 'id')),
+                SelectFilter::make('status')->options(\App\Support\Locales::options(DailyWageSheet::STATUSES)),
+                SelectFilter::make('group_id')->label(__('Labour group'))->options(fn () => DailyWageGroup::query()->orderBy('name')->pluck('name', 'id')),
+                SelectFilter::make('category_id')->label(__('Work'))->options(fn () => DailyWageCategory::query()->orderBy('name')->pluck('name', 'id')),
                 Filter::make('period')->form([DatePicker::make('from'), DatePicker::make('until')])
                     ->query(fn (Builder $query, array $data) => $query
                         ->when($data['from'] ?? null, fn (Builder $q, $d) => $q->where('work_date', '>=', $d))
@@ -174,10 +176,10 @@ class DailyWageSheetResource extends Resource
      */
     public static function postAction(string $class): mixed
     {
-        return $class::make('post')->label('Book')->icon('heroicon-o-check')->color('success')
+        return $class::make('post')->label(__('Book'))->icon('heroicon-o-check')->color('success')
             ->visible(fn (DailyWageSheet $record) => $record->status === DailyWageSheet::DRAFT && self::canPay())
             ->form([
-                Select::make('paid_from')->label('Paid from')->options(fn () => ['later' => 'Not paid yet (book as owed)'] + self::payFromOptions())->required(),
+                Select::make('paid_from')->label(__('Paid from'))->options(fn () => ['later' => 'Not paid yet (book as owed)'] + self::payFromOptions())->required(),
             ])
             ->action(function (DailyWageSheet $record, array $data): void {
                 try {
@@ -201,9 +203,9 @@ class DailyWageSheetResource extends Resource
      */
     public static function payAction(string $class): mixed
     {
-        return $class::make('pay')->label('Pay')->icon('heroicon-o-banknotes')->color('warning')
+        return $class::make('pay')->label(__('Pay'))->icon('heroicon-o-banknotes')->color('warning')
             ->visible(fn (DailyWageSheet $record) => $record->status === DailyWageSheet::POSTED && self::canPay())
-            ->form([Select::make('paid_from')->label('Paid from')->options(fn () => self::payFromOptions())->required()])
+            ->form([Select::make('paid_from')->label(__('Paid from'))->options(fn () => self::payFromOptions())->required()])
             ->action(function (DailyWageSheet $record, array $data): void {
                 try {
                     $s = app(DailyWages::class)->pay($record, LedgerAccount::query()->findOrFail($data['paid_from']));

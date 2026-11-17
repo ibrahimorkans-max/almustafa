@@ -19,7 +19,9 @@ use Filament\Tables\Table;
 
 class GodownResource extends Resource
 {
-    use MasterResourceHelpers;
+    use \App\Filament\Concerns\TranslatesResourceLabels, MasterResourceHelpers {
+        MasterResourceHelpers::getNavigationGroup insteadof \App\Filament\Concerns\TranslatesResourceLabels;
+    }
 
     protected static ?string $model = Godown::class;
 
@@ -42,11 +44,11 @@ class GodownResource extends Resource
         return $form->schema([
             static::codeInput('godowns'),
             TextInput::make('name')->required()->maxLength(120),
-            Select::make('type')->options(array_combine(Godown::TYPES, array_map('ucfirst', Godown::TYPES)))->default('godown')->required(),
-            TextInput::make('capacity_kg')->label('Capacity (kg)')->regex('/^\d{1,12}(\.\d{1,3})?$/')
-                ->helperText('Stored in kilograms. 1 maund = 40 kg, 1 ton = 1000 kg.'),
+            Select::make('type')->options(\App\Support\Locales::options(array_combine(Godown::TYPES, array_map('ucfirst', Godown::TYPES))))->default('godown')->required(),
+            TextInput::make('capacity_kg')->label(__('Capacity (kg)'))->regex('/^\d{1,12}(\.\d{1,3})?$/')
+                ->helperText(__('Stored in kilograms. 1 maund = 40 kg, 1 ton = 1000 kg.')),
             Textarea::make('address')->rows(2)->maxLength(500),
-            Select::make('status')->options(['active' => 'Active', 'inactive' => 'Inactive'])->default('active')->required(),
+            Select::make('status')->options(['active' => __('Active'), 'inactive' => __('Inactive')])->default('active')->required(),
         ]);
     }
 
@@ -57,7 +59,7 @@ class GodownResource extends Resource
                 TextColumn::make('code')->searchable()->sortable(),
                 TextColumn::make('name')->searchable(),
                 TextColumn::make('type')->badge(),
-                TextColumn::make('capacity_kg')->label('Capacity (ton)')
+                TextColumn::make('capacity_kg')->label(__('Capacity (ton)'))
                     ->formatStateUsing(fn (?string $state) => $state === null ? '—' : Weight::kg($state)->in('ton')),
                 TextColumn::make('status')->badge(),
                 static::updatedColumn(),

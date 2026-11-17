@@ -10,10 +10,12 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListPriceLists extends ListRecords
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static string $resource = PriceListResource::class;
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('New price list')];
+        return [CreateAction::make()->label(__('New price list'))];
     }
 }

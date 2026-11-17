@@ -26,6 +26,8 @@ use Filament\Tables\Table;
  */
 class MyDevicesPage extends Page implements HasTable
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-computer-desktop';
@@ -80,29 +82,29 @@ class MyDevicesPage extends Page implements HasTable
         return $table
             ->query(fn () => Device::query()->where('login_account_id', Filament::auth()->id())->where('platform', '!=', 'agent'))
             ->columns([
-                TextColumn::make('registration')->label('Registration ID')->fontFamily('mono')
+                TextColumn::make('registration')->label(__('Registration ID'))->fontFamily('mono')
                     ->state(fn (Device $r) => self::registrationId($r))
                     ->description(fn (Device $r) => $r->id === $this->currentDeviceId() ? 'This device' : null),
-                TextColumn::make('name')->label('Device')->limit(50)->placeholder('—')->tooltip(fn (Device $r) => $r->name),
+                TextColumn::make('name')->label(__('Device'))->limit(50)->placeholder('—')->tooltip(fn (Device $r) => $r->name),
                 TextColumn::make('platform')->badge()->formatStateUsing(fn (string $state) => match ($state) {
                     'pwa' => 'Installed app', 'web' => 'Browser', 'android' => 'Android app', 'ios' => 'iPhone app', default => $state,
                 }),
                 TextColumn::make('status')->badge()->color(fn (string $state) => $state === Device::STATUS_ACTIVE ? 'success' : 'danger')
                     ->description(fn (Device $r) => $r->status === Device::STATUS_ACTIVE ? ($r->isTrusted() ? 'Approved' : 'Not approved yet') : null),
-                TextColumn::make('created_at')->label('Registered')->date('d M Y', 'Asia/Karachi'),
-                TextColumn::make('last_seen_at')->label('Last activity')->since()->placeholder('—')
+                TextColumn::make('created_at')->label(__('Registered'))->date('d M Y', 'Asia/Karachi'),
+                TextColumn::make('last_seen_at')->label(__('Last activity'))->since()->placeholder('—')
                     ->tooltip(fn (Device $r) => $r->last_seen_at?->timezone('Asia/Karachi')->format('d M Y H:i').($r->last_ip ? ' · '.$r->last_ip : '')),
             ])
             ->defaultSort('last_seen_at', 'desc')
             ->actions([
-                Action::make('remove')->label('Remove')->icon('heroicon-o-no-symbol')->color('danger')
+                Action::make('remove')->label(__('Remove'))->icon('heroicon-o-no-symbol')->color('danger')
                     ->visible(fn (Device $r) => $r->isUsable() && $r->id !== $this->currentDeviceId())
                     ->requiresConfirmation()
-                    ->modalDescription('It is signed out and cannot sign in again with this account. Use it when a phone is replaced or a computer is no longer yours.')
+                    ->modalDescription(__('It is signed out and cannot sign in again with this account. Use it when a phone is replaced or a computer is no longer yours.'))
                     ->action(function (Device $record): void {
                         abort_unless($record->login_account_id === Filament::auth()->id(), 403);
                         app(DeviceService::class)->revoke($record, 'Removed by its user under My devices');
-                        Notification::make()->success()->title('Device removed.')->send();
+                        Notification::make()->success()->title(__('Device removed.'))->send();
                     }),
             ])
             ->paginated(false);

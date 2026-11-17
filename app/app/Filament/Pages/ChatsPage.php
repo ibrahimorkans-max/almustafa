@@ -21,6 +21,8 @@ use Livewire\Attributes\Url;
  */
 class ChatsPage extends Page
 {
+    use \App\Filament\Concerns\TranslatesLabels;
+
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
 
     protected static ?string $navigationGroup = 'Masters';

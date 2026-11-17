@@ -47,7 +47,7 @@ final class PrintButton
     /** @param  callable|null  $when  given the record; false hides the button */
     public static function row(string $type, ?callable $when = null): TableAction
     {
-        return TableAction::make('print')->label('Print')->icon('heroicon-o-printer')->color('gray')
+        return TableAction::make('print')->label(__('Print'))->icon('heroicon-o-printer')->color('gray')
             ->url(fn (Model $record) => self::url($type, $record), shouldOpenInNewTab: true)
             ->extraAttributes(fn (Model $record) => ['data-rm-print' => self::url($type, $record)])
             ->visible(fn (Model $record) => self::allowed($type) && ($when === null || $when($record)));
