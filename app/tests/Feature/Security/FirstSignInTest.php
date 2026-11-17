@@ -139,3 +139,19 @@ it('keeps a finished Owner without listed networks out when the allow-list is re
     expect(app(IpAllowlistPolicy::class)->allows(fsiAccount($owner), '149.40.161.14'))->toBeFalse()
         ->and(FirstSignIn::network('2001:db8:1:2:3:4:5:6'))->toBe('2001:db8:1:2::/64');
 });
+
+it('lets the server admin see why an Owner is refused and allow the network (auth:networks)', function () {
+    config(['ricemill.security.super_admin_require_ip_allowlist' => true]);
+    $owner = Make::account(Make::entity('FSN'), 'OWNER', ['mfa' => true]);
+    Make::system(fn () => LoginAccount::query()->withoutGlobalScopes()->whereKey($owner->id)->update(['first_sign_in_completed_at' => now()]));
+
+    $this->artisan('auth:networks', ['username' => $owner->username, '--test' => '149.40.161.14'])
+        ->expectsOutputToContain('refused from everywhere')->expectsOutputToContain('149.40.161.14: refused.')->assertSuccessful();
+    $this->artisan('auth:networks', ['username' => $owner->username, '--allow' => '149.40.161.14', '--test' => '149.40.161.99'])
+        ->expectsOutputToContain('149.40.161.0/24 allowed')->expectsOutputToContain('149.40.161.99: allowed.')->assertSuccessful();
+    $this->artisan('auth:networks', ['username' => $owner->username, '--allow' => 'nonsense'])->assertFailed();
+
+    $this->artisan('auth:networks', ['username' => $owner->username, '--first-sign-in' => true])
+        ->expectsOutputToContain('first sign-in again')->assertSuccessful();
+    expect(fsiAccount($owner)->needsFirstSignIn())->toBeTrue();
+});
