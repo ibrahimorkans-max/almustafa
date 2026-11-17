@@ -155,3 +155,23 @@ it('lets the server admin see why an Owner is refused and allow the network (aut
         ->expectsOutputToContain('first sign-in again')->assertSuccessful();
     expect(fsiAccount($owner)->needsFirstSignIn())->toBeTrue();
 });
+
+it('lets a new Owner whose listed network is another one finish the first sign-in, and adds this network', function () {
+    config(['ricemill.security.super_admin_require_ip_allowlist' => true]);
+    $entity = Make::entity('FSE');
+    $owner = Make::account($entity, 'OWNER', ['mfa' => true]);
+    Make::system(fn () => IpAllowlistEntry::query()->create(['entity_id' => $entity->id, 'login_account_id' => $owner->id, 'cidr' => '10.0.0.0/8']));
+    $policy = app(IpAllowlistPolicy::class);
+    expect(Make::system(fn () => $policy->allows(fsiAccount($owner), '149.40.161.14')))->toBeTrue();
+
+    $session = Make::webSession($owner);
+    $auth = Make::system(fn () => AuthSession::query()->findOrFail($session['auth_session_id']));
+    Make::system(fn () => $auth->forceFill(['ip' => '149.40.161.14'])->save());
+    Make::system(fn () => LoginAccount::query()->withoutGlobalScopes()->whereKey($owner->id)->update(['email' => 'o@example.com', 'email_verified_at' => now()]));
+    app(FirstSignIn::class)->complete(fsiAccount($owner), ['full_name' => 'Owner Two', 'phone' => '0300-1234567'], $auth);
+
+    expect(Make::system(fn () => IpAllowlistEntry::query()->withoutGlobalScopes()->where('login_account_id', $owner->id)->orderBy('cidr')->pluck('cidr')->all()))
+        ->toBe(['10.0.0.0/8', '149.40.161.0/24'])
+        ->and(Make::system(fn () => $policy->allows(fsiAccount($owner), '149.40.161.14')))->toBeTrue()
+        ->and(Make::system(fn () => $policy->allows(fsiAccount($owner), '8.8.8.8')))->toBeFalse();
+});

@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\IpUtils;
 
 /**
  * A new user's first sign-in, in three steps before any screen opens:
@@ -160,8 +161,8 @@ final class FirstSignIn
                 $done[] = 'device '.($device->name ?? $device->platform).' approved';
             }
             $ip = $session->ip;
-            if ($ip !== null && $account->isOwner() && config('ricemill.security.super_admin_require_ip_allowlist')
-                && ! IpAllowlistEntry::query()->withoutGlobalScopes()->where('login_account_id', $account->id)->exists()) {
+            $listed = IpAllowlistEntry::query()->withoutGlobalScopes()->where('login_account_id', $account->id)->pluck('cidr')->all();
+            if ($ip !== null && $account->isOwner() && config('ricemill.security.super_admin_require_ip_allowlist') && ! IpUtils::checkIp($ip, $listed)) {
                 $cidr = self::network($ip);
                 IpAllowlistEntry::query()->create([
                     'entity_id' => $account->entity_id, 'login_account_id' => $account->id, 'cidr' => $cidr,
