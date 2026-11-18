@@ -142,6 +142,8 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(PanelsRenderHook::HEAD_END, fn () => view('filament.hooks.language-styles'))
             // The motion of the sign-in checks (shield panel, 6-box code, scan line): before Alpine starts.
             ->renderHook(PanelsRenderHook::HEAD_END, fn () => view('filament.hooks.verify-motion'))
+            // Recommendation for a login without a confirmed e-mail: add it (My security e-mail).
+            ->renderHook(PanelsRenderHook::CONTENT_START, fn () => view('filament.hooks.security-email-reminder'))
             // The role of the person signed in, with its animated icon; the menu icons come alive on hover.
             ->renderHook(PanelsRenderHook::USER_MENU_BEFORE, fn () => view('filament.hooks.role-badge'))
             // Pictures drawn here (initials on the role's colours): ui-avatars.com is outside the security policy.

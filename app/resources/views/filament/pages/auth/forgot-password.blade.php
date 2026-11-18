@@ -27,6 +27,11 @@
     @endif
 
     @unless ($done)
+        {{-- No e-mail field here on purpose: anyone who knows a username could put their own address and take the login. --}}
+        <div class="rounded-lg bg-gray-50 p-3 text-xs text-gray-600 dark:bg-white/5 dark:text-gray-300">
+            <strong>{{ __('No e-mail on your login, or an old one?') }}</strong>
+            {{ __('A code cannot be sent. Ask your administrator to add or update it (Security → Logins); the SaaS owner\'s server administrator can do it with: php artisan auth:contact. Recommended: once signed in, keep it up to date under Security → My security e-mail.') }}
+        </div>
         <p class="text-center text-sm"><a href="{{ filament()->getLoginUrl() }}" class="text-primary-600 underline">{{ __('Back to sign in') }}</a></p>
     @endunless
 </x-filament-panels::page.simple>
