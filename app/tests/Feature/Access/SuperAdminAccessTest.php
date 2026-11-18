@@ -5,12 +5,16 @@ declare(strict_types=1);
 use App\Domain\Access\PermissionCatalog;
 use App\Domain\Access\RoleTemplates;
 use App\Domain\Auth\AuthContextBinder;
+use App\Filament\Pages\AiIntegrationPage;
 use App\Filament\Pages\ArchiveSearch;
+use App\Filament\Pages\FirstSignInPage;
 use App\Filament\Pages\MyDocumentsPage;
+use App\Filament\Pages\NewNetworkPage;
 use App\Filament\Pages\PartyPortalPage;
 use App\Filament\Pages\PaymentRequiredPage;
 use App\Filament\Pages\SecuritySettings;
 use App\Filament\Pages\SwitchContext;
+use App\Filament\Pages\WhatsAppWebhookPage;
 use App\Filament\Resources\Pricing\PriceListResource\Pages\CreatePriceList;
 use App\Http\Middleware\EnsureWebAuthSession;
 use App\Http\Middleware\RequireWorkingEntityForCreate;
@@ -54,7 +58,9 @@ function adminUrls(LoginAccount $sa, ?string $workingEntity): array
     }
     // Own-records pages (an employee's documents, a party's account), the Office Desk (the Office Coordinator's alone:
     // its 403 for everyone else is tested in ArchiveScreenTest) and the platform admin's pages.
-    foreach (array_filter(array_diff(Filament::getPanel('admin')->getPages(), [MyDocumentsPage::class, PartyPortalPage::class, SecuritySettings::class, PaymentRequiredPage::class, ArchiveSearch::class, \App\Filament\Pages\AiIntegrationPage::class, \App\Filament\Pages\WhatsAppWebhookPage::class]), fn (string $p) => ! str_contains($p, '\\Platform\\')) as $page) {
+    foreach (array_filter(array_diff(Filament::getPanel('admin')->getPages(), [MyDocumentsPage::class, PartyPortalPage::class, SecuritySettings::class, PaymentRequiredPage::class, ArchiveSearch::class, AiIntegrationPage::class, WhatsAppWebhookPage::class,
+        // The sign-in checks: only for a new person or a held sign-in (FirstSignInTest, SignInChecksTest); others go on.
+        FirstSignInPage::class, NewNetworkPage::class]), fn (string $p) => ! str_contains($p, '\\Platform\\')) as $page) {
         $urls[$page::getUrl()] = 'page';
     }
     Make::reset();

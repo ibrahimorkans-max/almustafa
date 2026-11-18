@@ -17,6 +17,7 @@ use App\Filament\Resources\LoginAccountResource\Pages\CreateLoginAccount;
 use App\Http\Middleware\EnsureWebAuthSession;
 use App\Mail\FirstSignInVerificationMail;
 use App\Models\AuthSession;
+use App\Models\Device;
 use App\Models\IpAllowlistEntry;
 use App\Models\LoginAccount;
 use App\Models\Person;
@@ -100,9 +101,9 @@ it('holds a web sign-in from a new network until the code from the confirmed e-m
     app(NewNetwork::class)->sendCode(sicFresh($owner), $session);
     expect(fn () => app(NewNetwork::class)->verifyCode(sicFresh($owner), $session, sicCode('owner@example.com') === '000000' ? '111111' : '000000', NEW_IP))
         ->toThrow(BusinessRuleViolation::class, 'tries left');
-    $cidr = app(NewNetwork::class)->verifyCode(sicFresh($owner), $session, sicCode('owner@example.com'), NEW_IP);
+    $done = app(NewNetwork::class)->verifyCode(sicFresh($owner), $session, sicCode('owner@example.com'), NEW_IP);
 
-    expect($cidr)->toBe('149.40.161.0/24')
+    expect($done)->toBe(['network' => '149.40.161.0/24', 'device' => null])
         ->and(Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->find($session->id))->network_pending_at)->toBeNull()
         ->and(Make::system(fn () => app(IpAllowlistPolicy::class)->allows(sicFresh($owner), NEW_IP)))->toBeTrue();
     $this->actingAs(sicFresh($owner), 'web')->withSession($web)->withServerVariables(['REMOTE_ADDR' => NEW_IP])->get('/admin')->assertOk();
@@ -251,4 +252,47 @@ it('brings an Owner without an e-mail or mobile to My security e-mail after sign
     });
     expect(sicFresh($owner)->missingSecurityContact())->toBeFalse();
     $this->actingAs(sicFresh($owner), 'web')->withSession($web)->get('/admin')->assertOk();
+});
+
+it('approves a new device with the code sent to the e-mail on the login, without anybody else', function () {
+    $owner = sicAccount('ND1', 'OWNER', 'nd1@example.com');
+    Make::trustedDevice($owner, (string) Str::uuid());   // an earlier device: another Owner would have to approve a new one
+    $uid = (string) Str::uuid();
+
+    // The app (API) still waits for an Owner's approval.
+    app(AuthContextBinder::class)->bind($owner);
+    expect(fn () => app(LoginService::class)->completeLogin(sicFresh($owner), AuthSession::CHANNEL_API, new DeviceInfo((string) Str::uuid(), 'android', 'Phone'), '127.0.0.1', 'pest', true))
+        ->toThrow(AuthenticationFailed::class);
+    Make::reset();
+
+    // The web sign-in goes on, held until the e-mail code proves the device.
+    app(AuthContextBinder::class)->bind(sicFresh($owner));
+    $session = app(LoginService::class)->completeLogin(sicFresh($owner), AuthSession::CHANNEL_WEB, new DeviceInfo($uid, 'web', 'Chrome on Windows'), '127.0.0.1', 'pest', true);
+    Make::reset();
+    $session = Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->findOrFail($session->id));
+    $web = [EnsureWebAuthSession::SESSION_KEY => $session->id];
+    expect($session->device_pending_at)->not->toBeNull()->and($session->network_pending_at)->toBeNull();
+
+    $this->actingAs(sicFresh($owner), 'web')->withSession($web)->get('/admin')->assertRedirect('/admin/new-network');
+    $this->actingAs(sicFresh($owner), 'web')->withSession($web)->get('/admin/new-network')->assertOk()
+        ->assertSee('You are signing in on a new device')->assertSee('Nobody else has to approve this device');
+
+    app(NewNetwork::class)->sendCode(sicFresh($owner), $session);
+    Mail::assertSent(FirstSignInVerificationMail::class, fn (FirstSignInVerificationMail $m) => $m->purpose === EmailCode::NEW_DEVICE && $m->hasTo('nd1@example.com'));
+    $done = app(NewNetwork::class)->verifyCode(sicFresh($owner), $session, sicCode('nd1@example.com'), '127.0.0.1');
+
+    expect($done)->toBe(['network' => null, 'device' => 'Chrome on Windows'])
+        ->and(Make::system(fn () => Device::query()->withoutGlobalScopes()->where('device_uid', $uid)->where('platform', 'web')->sole())->isTrusted())->toBeTrue()
+        ->and(Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->find($session->id))->device_pending_at)->toBeNull();
+    $this->actingAs(sicFresh($owner), 'web')->withSession($web)->get('/admin')->assertOk();
+});
+
+it('still asks an Owner to approve a new device when the login has no e-mail', function () {
+    $owner = sicAccount('ND2', 'OWNER', null);
+    Make::trustedDevice($owner, (string) Str::uuid());
+
+    expect(app(NewNetwork::class)->canProveDevice(sicFresh($owner)))->toBeFalse();
+    app(AuthContextBinder::class)->bind(sicFresh($owner));
+    expect(fn () => app(LoginService::class)->completeLogin(sicFresh($owner), AuthSession::CHANNEL_WEB, new DeviceInfo((string) Str::uuid(), 'web', 'Chrome'), '127.0.0.1', 'pest', true))
+        ->toThrow(AuthenticationFailed::class);
 });

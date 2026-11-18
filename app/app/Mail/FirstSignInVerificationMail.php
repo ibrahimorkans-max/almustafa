@@ -48,6 +48,7 @@ final class FirstSignInVerificationMail extends Mailable
             'username' => $this->account->username,
             'intro' => match ($this->purpose) {
                 EmailCode::NEW_NETWORK => __('Someone signed in as :username from a network not used before. If it was you, type this code on the screen where you are signing in:', $user),
+                EmailCode::NEW_DEVICE => __('Someone signed in as :username on a device not used before. If it was you, type this code on that device to approve it:', $user),
                 EmailCode::PASSWORD_RESET => __('Someone asked to reset the password of :username. If it was you, type this code on the password reset screen:', $user),
                 EmailCode::CONFIRM_EMAIL => __(':username asked to use this address for security codes. If it was you, type this code on the screen that asked for it:', $user),
                 default => __('Someone signed in for the first time as :username. If it was you, type this code on the screen where you are signing in:', $user),
@@ -56,7 +57,7 @@ final class FirstSignInVerificationMail extends Mailable
             'at' => $first ? $this->account->first_sign_in_at?->timezone('Asia/Karachi')->format('d M Y, h:i A') : now()->timezone('Asia/Karachi')->format('d M Y, h:i A'),
             'code' => $this->code,
             'url' => match ($this->purpose) {
-                EmailCode::NEW_NETWORK => NewNetworkPage::getUrl(panel: 'admin'),
+                EmailCode::NEW_NETWORK, EmailCode::NEW_DEVICE => NewNetworkPage::getUrl(panel: 'admin'),
                 EmailCode::PASSWORD_RESET => route('filament.admin.auth.forgot-password'),
                 EmailCode::CONFIRM_EMAIL => SecurityEmailPage::getUrl(panel: 'admin'),
                 default => FirstSignInPage::getUrl(panel: 'admin'),

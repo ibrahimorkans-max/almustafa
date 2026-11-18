@@ -11,7 +11,10 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Pages\SimplePage;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
@@ -42,12 +45,14 @@ class ForgotPassword extends SimplePage implements HasForms
 
     public bool $done = false;
 
+    /** The 6-box code being typed (x-verify.otp). */
+    public string $otp = '';
+
     public function mount(): void
     {
         if (Filament::auth()->check()) {
-            $this->redirect(Filament::getUrl());
-
-            return;
+            // A plain redirect: Livewire's own one cannot leave a page while it is first opened.
+            throw new HttpResponseException(new RedirectResponse(Filament::getUrl()));
         }
         abort_unless(app(PasswordReset::class)->enabled(), 404);
         $this->requestForm->fill();
@@ -75,8 +80,6 @@ class ForgotPassword extends SimplePage implements HasForms
     public function resetForm(Form $form): Form
     {
         return $form->statePath('resetData')->schema([
-            TextInput::make('code')->label(__('Code from the e-mail'))->required()->length(6)
-                ->autocomplete('one-time-code')->extraInputAttributes(['inputmode' => 'numeric', 'dir' => 'ltr', 'pattern' => '[0-9]*'])->placeholder('123456'),
             TextInput::make('password')->label(__('New password'))->password()->revealable()->required()
                 ->rule(Password::defaults())->confirmed()->autocomplete('new-password'),
             TextInput::make('password_confirmation')->label(__('Repeat new password'))->password()->required()->autocomplete('new-password'),
@@ -97,13 +100,21 @@ class ForgotPassword extends SimplePage implements HasForms
     public function resetPassword(): void
     {
         $data = $this->resetForm->getState();
-        try {
-            app(PasswordReset::class)->reset((string) $this->username, (string) $data['code'], (string) $data['password'], $this->browser(), request()->ip());
-        } catch (BusinessRuleViolation $e) {
-            $this->resetData['code'] = null;
+        if (strlen(preg_replace('/\D/', '', $this->otp) ?? '') !== 6) {
+            Notification::make()->title(__('Type the 6-digit code from the e-mail.'))->danger()->send();
 
-            throw ValidationException::withMessages(['resetData.code' => __($e->getMessage())]);
+            return;
         }
+        try {
+            app(PasswordReset::class)->reset((string) $this->username, $this->otp, (string) $data['password'], $this->browser(), request()->ip());
+        } catch (BusinessRuleViolation $e) {
+            $this->otp = '';
+            $this->dispatch('rmv-otp-invalid');   // the boxes shake and clear
+            Notification::make()->title(__($e->getMessage()))->danger()->send();
+
+            return;
+        }
+        $this->dispatch('rmv-otp-valid');
         session()->forget(self::BROWSER);
         $this->done = true;
     }

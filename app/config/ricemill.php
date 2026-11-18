@@ -62,6 +62,9 @@ return [
         // A web sign-in from a network the login may not use is held until it is proven (e-mail code, else QR
         // approval) and the network is then added; off: refused as before.
         'new_network_check' => (bool) env('RICEMILL_NEW_NETWORK_CHECK', true),
+        // A web sign-in from a device not approved yet, by somebody with an e-mail on the login: the code sent there
+        // approves the device (nobody else has to). Off: another Owner / the administrator approves it, as before.
+        'new_device_email_check' => (bool) env('RICEMILL_NEW_DEVICE_EMAIL_CHECK', true),
         // "Forgot your password?" on the sign-in page, for the SaaS owner, Owners and Super Admins (code by e-mail).
         'password_reset' => (bool) env('RICEMILL_PASSWORD_RESET', true),
         // The SaaS owner, Owners and Super Admins must have an e-mail (the only address security codes go to) and a

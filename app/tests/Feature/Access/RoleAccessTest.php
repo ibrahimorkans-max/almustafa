@@ -6,6 +6,8 @@ use App\Domain\Access\RoleTemplates;
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Security\AccessReview;
 use App\Filament\Pages\AccessReviewPage;
+use App\Filament\Pages\FirstSignInPage;
+use App\Filament\Pages\NewNetworkPage;
 use App\Models\AuditLog;
 use Filament\Facades\Filament;
 use Livewire\Livewire;
@@ -29,8 +31,15 @@ it('answers every screen a role may not open with an explaining 403 page, never 
     $forbidden = 0;
     foreach ($urls as $url) {
         $res = $this->get($url);
+        // The sign-in check screens (first sign-in, a held new device or network) send somebody they do not apply to
+        // on to the start page.
+        if ($res->isRedirect() && in_array($url, [FirstSignInPage::getUrl(), NewNetworkPage::getUrl()], true)) {
+            expect($res->headers->get('Location'))->toBe(Filament::getUrl());
+
+            continue;
+        }
         if ($res->isRedirect()) {
-            // Only the Office Coordinator's start page redirects: straight to the Office Desk.
+            // Otherwise only the Office Coordinator's start page redirects: straight to the Office Desk.
             expect($role)->toBe('OFFICE_COORDINATOR')->and($res->headers->get('Location'))->toContain('/admin/office-desk');
 
             continue;

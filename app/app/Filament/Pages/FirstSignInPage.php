@@ -21,6 +21,8 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\RedirectResponse;
 
 /**
  * A new user's first sign-in (App\Domain\Auth\FirstSignIn), one check after the other: shows where the sign-in came
@@ -56,6 +58,9 @@ class FirstSignInPage extends Page implements HasForms
 
     public bool $emailSent = false;
 
+    /** The 6-box code being typed (x-verify.otp). */
+    public string $otp = '';
+
     /** Done: the page shows the success animation, then opens the dashboard. */
     public bool $finished = false;
 
@@ -72,9 +77,8 @@ class FirstSignInPage extends Page implements HasForms
     {
         $account = $this->account();
         if (! $account->needsFirstSignIn()) {
-            $this->redirect(Filament::getUrl());
-
-            return;
+            // A plain redirect: Livewire's own one cannot leave a page while it is first opened.
+            throw new HttpResponseException(new RedirectResponse(Filament::getUrl()));
         }
         $this->emailSent = $account->email_verify_sent_at !== null && $account->email_verified_at === null;
         $this->emailForm->fill(['email' => $account->email ?? $account->person?->email]);
@@ -171,16 +175,19 @@ class FirstSignInPage extends Page implements HasForms
 
     public function checkCode(): void
     {
-        $code = (string) ($this->codeForm->getState()['code'] ?? '');
+        $code = $this->otp;
         try {
             app(FirstSignIn::class)->verifyCode($this->account(), $code, $this->sessionId());
         } catch (BusinessRuleViolation $e) {
-            $this->codeForm->fill();
+            $this->otp = '';
+            $this->dispatch('rmv-otp-invalid');   // the boxes shake and clear
             Notification::make()->title(__($e->getMessage()))->danger()->send();
 
             return;
         }
         $this->emailSent = false;
+        $this->otp = '';
+        $this->dispatch('rmv-otp-valid');
         Notification::make()->success()->title(__('E-mail confirmed.'))->send();
         $this->startApproval();
     }

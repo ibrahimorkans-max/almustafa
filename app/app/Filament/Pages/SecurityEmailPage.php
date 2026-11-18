@@ -62,6 +62,9 @@ class SecurityEmailPage extends Page implements HasForms
 
     public bool $codeSent = false;
 
+    /** The 6-box code being typed (x-verify.otp). */
+    public string $otp = '';
+
     public bool $justConfirmed = false;
 
     public static function canAccess(): bool
@@ -157,9 +160,10 @@ class SecurityEmailPage extends Page implements HasForms
     {
         $account = $this->account();
         try {
-            app(EmailCode::class)->check($account, (string) ($this->codeForm->getState()['code'] ?? ''), $this->sessionId());
+            app(EmailCode::class)->check($account, $this->otp, $this->sessionId());
         } catch (BusinessRuleViolation $e) {
-            $this->codeForm->fill();
+            $this->otp = '';
+            $this->dispatch('rmv-otp-invalid');   // the boxes shake and clear
             Notification::make()->title(__($e->getMessage()))->danger()->send();
 
             return;
@@ -167,7 +171,8 @@ class SecurityEmailPage extends Page implements HasForms
         app(AuditLogger::class)->record('auth.security_email.confirmed', $account, meta: ['email' => FirstSignIn::masked((string) $account->email)]);
         $this->codeSent = false;
         $this->justConfirmed = true;
-        $this->codeForm->fill();
+        $this->otp = '';
+        $this->dispatch('rmv-otp-valid');
     }
 
     public function savePhone(): void
