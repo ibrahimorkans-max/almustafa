@@ -117,17 +117,69 @@ final class NewNetwork
     }
 
     /**
-     * The code from the e-mail: whatever this sign-in waited for is let go — the network of this request is added, the
-     * device is approved.
+     * After the e-mail code, the second check: the QR code scanned and the number picked on a device already signed in
+     * — the person's own ("Is it you?") or an Owner's / administrator's — or, with no device to scan it, a code sent to
+     * the mobile number (MobileCode). Skipped (and recorded) only when none of these is possible, so a sole SaaS owner
+     * is never shut out.
+     */
+    public function approvalNeeded(LoginAccount $account, AuthSession $session): bool
+    {
+        return (bool) config('ricemill.auth.held_sign_in_approval', true)
+            && (app(SignInApprovals::class)->canBeApproved($account, $session->id) || app(MobileCode::class)->available($account));
+    }
+
+    /**
+     * The second check by the code sent to the mobile (instead of the QR code + number): after the e-mail code, the sign-in
+     * is let go.
      *
-     * @return array{network: string|null, device: string|null} the network added and the device approved
+     * @return array{network: string|null, device: string|null}
+     */
+    public function verifyMobile(LoginAccount $account, AuthSession $session, string $code): array
+    {
+        $session = $this->tenant->runAsSystem(fn () => AuthSession::query()->withoutGlobalScopes()->find($session->id)) ?? $session;
+        if (($this->byEmail($account) || $this->canAddEmail($account)) && $session->code_proven_at === null) {
+            throw new BusinessRuleViolation('Confirm the code from the e-mail first.');
+        }
+        app(MobileCode::class)->check($account, $session, $code);
+
+        return $this->release($account, $session, 'e-mail code + mobile code');
+    }
+
+    /**
+     * The code from the e-mail. When somebody can approve the sign-in it is the first of two checks (marked; the QR code
+     * and number come next, SignInApprovals); otherwise whatever this sign-in waited for is let go now.
+     *
+     * @return array{network: string|null, device: string|null, approval: bool} the network added, the device approved,
+     *                                                                          or that the approval comes next
      */
     public function verifyCode(LoginAccount $account, AuthSession $session, string $code, ?string $ip): array
     {
         app(EmailCode::class)->check($account, $code, $session->id);
+        if ($this->approvalNeeded($account, $session)) {
+            $this->tenant->runAsSystem(fn () => AuthSession::query()->withoutGlobalScopes()->whereKey($session->id)->toBase()->update(['code_proven_at' => now()]));
+            $session->forceFill(['code_proven_at' => now()]);
+            $this->audit->record('auth.held_sign_in.code_proven', $account, meta: ['session_id' => $session->id]);
+
+            return ['network' => null, 'device' => null, 'approval' => true];
+        }
+        if (config('ricemill.auth.held_sign_in_approval', true)) {
+            $this->audit->record('auth.held_sign_in.approval_skipped', $account, meta: ['reason' => 'nobody_can_approve', 'session_id' => $session->id]);
+        }
+
+        return $this->release($account, $session, 'e-mail code', $ip) + ['approval' => false];
+    }
+
+    /**
+     * Lets the held sign-in go: the network of this request is added, the device approved.
+     *
+     * @return array{network: string|null, device: string|null}
+     */
+    public function release(LoginAccount $account, AuthSession $session, string $how, ?string $ip = null): array
+    {
+        $session = $this->tenant->runAsSystem(fn () => AuthSession::query()->withoutGlobalScopes()->find($session->id)) ?? $session;
 
         return [
-            'network' => $session->network_pending_at !== null ? $this->allow($account, $session, $ip ?? $session->ip, 'e-mail code') : null,
+            'network' => $session->network_pending_at !== null ? $this->allow($account, $session, $ip ?? $session->ip, $how) : null,
             'device' => $session->device_pending_at !== null ? $this->approveDevice($account, $session) : null,
         ];
     }

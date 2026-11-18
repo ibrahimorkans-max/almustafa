@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Domain\Auth\EmailCode;
 use App\Domain\Auth\FirstSignIn;
 use App\Domain\Auth\MfaService;
+use App\Domain\Auth\MobileCode;
 use App\Domain\Auth\NewNetwork;
 use App\Domain\Auth\SignInApprovals;
 use App\Domain\Shared\BusinessRuleViolation;
@@ -50,6 +51,11 @@ class NewNetworkPage extends Page implements HasForms
 
     public bool $codeSent = false;
 
+    /** The second check by the mobile (MobileCode): sent, and the code being typed. */
+    public bool $mobileSent = false;
+
+    public string $mobileOtp = '';
+
     /** The e-mail a login without one gives here (NewNetwork::canAddEmail); kept from the first code on. */
     public string $newEmail = '';
 
@@ -77,9 +83,37 @@ class NewNetworkPage extends Page implements HasForms
             throw new HttpResponseException(new RedirectResponse(Filament::getUrl()));
         }
         $this->codeForm->fill();
-        if (! $this->byEmail() && ! $this->canAddEmail() && $this->networkHeld()) {
+        if ($this->stage() === 'approval') {
             $this->startApproval();
         }
+    }
+
+    /**
+     * Where this held sign-in stands: 'email' (the code first), 'approval' (then the QR code + number on a device
+     * already signed in), or 'done'.
+     */
+    public function stage(): string
+    {
+        return match (true) {
+            $this->finished => 'done',
+            $this->session()?->code_proven_at !== null => 'approval',
+            $this->byEmail() || $this->canAddEmail() => 'email',
+            default => 'approval',
+        };
+    }
+
+    /** Whether the QR code + number is one of this sign-in's checks (somebody can approve it). */
+    public function hasApprovalStep(): bool
+    {
+        $session = $this->session();
+
+        return $session !== null && (! ($this->byEmail() || $this->canAddEmail()) || app(NewNetwork::class)->approvalNeeded($this->account(), $session));
+    }
+
+    /** Whether the person has another device signed in that can say "it is me" (Google-style). */
+    public function hasOwnDevice(): bool
+    {
+        return app(SignInApprovals::class)->ownSessions($this->account(), $this->session()?->id)->isNotEmpty();
     }
 
     /** @return list<string> */
@@ -173,6 +207,7 @@ class NewNetworkPage extends Page implements HasForms
             $done = app(NewNetwork::class)->verifyCode($this->account(), $session, $this->otp, request()->ip());
             $this->addedNetwork = $done['network'];
             $this->approvedDevice = $done['device'];
+            $next = $done['approval'];
         } catch (BusinessRuleViolation $e) {
             $this->otp = '';
             $this->dispatch('rmv-otp-invalid');   // the boxes shake and clear
@@ -181,16 +216,76 @@ class NewNetworkPage extends Page implements HasForms
             return;
         }
         $this->dispatch('rmv-otp-valid');
+        if ($next) {
+            $this->startApproval();   // the e-mail code is the first check; the QR code + number come next
+
+            return;
+        }
         $this->finished = true;
     }
 
     public function startApproval(): void
     {
+        // Nobody could scan a QR code (no other device signed in, no Owner / administrator): the mobile code alone.
+        if (! app(SignInApprovals::class)->canBeApproved($this->account(), $this->session()?->id)) {
+            $this->approvalState = null;
+
+            return;
+        }
         $opened = app(SignInApprovals::class)->open($this->account(), $this->session(), EmailCode::NEW_NETWORK);
         $this->approvalId = $opened['approval']->id;
         $this->approvalToken = $opened['token'];
         $this->approvalNumber = $opened['approval']->number;
         $this->approvalState = 'pending';
+    }
+
+    /** Whether the code to the mobile can be the second check (a mobile on the login; WhatsApp or SMS set up). */
+    public function mobileAvailable(): bool
+    {
+        return app(MobileCode::class)->available($this->account());
+    }
+
+    public function maskedMobile(): string
+    {
+        return app(MobileCode::class)->masked($this->account());
+    }
+
+    public function sendMobileCode(): void
+    {
+        $session = $this->session();
+        if ($session === null) {
+            return;
+        }
+        try {
+            app(MobileCode::class)->send($this->account(), $session);
+        } catch (BusinessRuleViolation $e) {
+            Notification::make()->title(__($e->getMessage()))->danger()->send();
+
+            return;
+        }
+        $this->mobileSent = true;
+        Notification::make()->success()->title(__('Code sent to your mobile :number.', ['number' => $this->maskedMobile()]))->send();
+    }
+
+    public function checkMobileCode(): void
+    {
+        $session = $this->session();
+        if ($session === null) {
+            return;
+        }
+        try {
+            $done = app(NewNetwork::class)->verifyMobile($this->account(), $session, $this->mobileOtp);
+        } catch (BusinessRuleViolation $e) {
+            $this->mobileOtp = '';
+            $this->dispatch('rmv-otp-invalid');
+            Notification::make()->title(__($e->getMessage()))->danger()->send();
+
+            return;
+        }
+        $this->addedNetwork = $done['network'];
+        $this->approvedDevice = $done['device'];
+        $this->dispatch('rmv-otp-valid');
+        $this->finished = true;
     }
 
     /** Asked every few seconds while the approval is waiting. */

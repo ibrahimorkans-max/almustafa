@@ -8,10 +8,13 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Security\SecurityNotifier;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Pages\SignInApprovalPage;
 use App\Models\AuthSession;
 use App\Models\Entity;
 use App\Models\LoginAccount;
 use App\Models\SignInApproval;
+use Filament\Notifications\Actions\Action as NotificationAction;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -60,6 +63,29 @@ final class SignInApprovals
             ->values());
     }
 
+    /**
+     * The person's own other sign-ins that can approve (Google-style "Is it you?"): web sessions still open, not held
+     * themselves, on approved devices — never the sign-in being approved.
+     *
+     * @return Collection<int, AuthSession>
+     */
+    public function ownSessions(LoginAccount $account, ?string $exceptSessionId): Collection
+    {
+        return $this->tenant->runAsSystem(fn () => AuthSession::query()->withoutGlobalScopes()->with('device')
+            ->where('login_account_id', $account->id)->where('channel', AuthSession::CHANNEL_WEB)
+            ->whereNull('revoked_at')->where('expires_at', '>', now())->whereNull('network_pending_at')->whereNull('device_pending_at')
+            ->when($exceptSessionId !== null, fn ($q) => $q->whereKeyNot($exceptSessionId))
+            ->get()
+            ->filter(fn (AuthSession $s) => $s->device?->isTrusted() ?? false)
+            ->values());
+    }
+
+    /** Whether somebody — the person on another device, or an Owner / administrator — could approve this sign-in. */
+    public function canBeApproved(LoginAccount $account, ?string $sessionId): bool
+    {
+        return $this->ownSessions($account, $sessionId)->isNotEmpty() || $this->approvers($account)->isNotEmpty();
+    }
+
     /** Whether this person's first sign-in still waits for an approval. */
     public function needed(LoginAccount $account): bool
     {
@@ -102,6 +128,13 @@ final class SignInApprovals
             return ['approval' => $approval, 'token' => $token];   // the screen was opened again: already told
         }
         $network = $purpose === EmailCode::NEW_NETWORK;
+        if ($network) {
+            // "Is it you?" on the person's own devices already signed in (the bell): they pick the number shown.
+            Notification::make()->warning()->title(__('Is it you signing in?'))
+                ->body(__('A sign-in to your account from :ip is waiting. If it is you, open Approve sign-ins and pick the number shown on that screen. If not, refuse it.', ['ip' => $session->ip ?? '?']))
+                ->actions([NotificationAction::make('open')->label(__('Approve sign-ins'))->url(SignInApprovalPage::getUrl(panel: 'admin'))->markAsRead()])
+                ->sendToDatabase($account);
+        }
         app(SecurityNotifier::class)->owners($account->entity_id, ($network ? 'Approve a sign-in from a new network: ' : 'Approve a first sign-in: ').$account->username,
             $account->username.($network ? ' is signing in from a new network' : ' is signing in for the first time').($session?->ip ? " from {$session->ip}" : '')
             .'. If you expect it, open Security → Approve sign-ins (or scan the QR code on their screen) and pick the number their screen shows.');
@@ -125,16 +158,25 @@ final class SignInApprovals
      *
      * @return Collection<int, SignInApproval>
      */
-    public function pendingFor(LoginAccount $approver): Collection
+    public function pendingFor(LoginAccount $approver, ?string $currentSessionId = null): Collection
     {
         return $this->tenant->runAsSystem(fn () => SignInApproval::query()->withoutGlobalScopes()
             ->with('loginAccount.person', 'loginAccount.role', 'loginAccount.entity')
             ->where('status', SignInApproval::PENDING)->where('expires_at', '>', now())->latest('created_at')->get())
-            ->filter(fn (SignInApproval $a) => $a->loginAccount !== null && $this->mayDecide($approver, $a))->values();
+            ->filter(fn (SignInApproval $a) => $a->loginAccount !== null && $this->mayDecide($approver, $a, $currentSessionId))->values();
     }
 
-    public function mayDecide(LoginAccount $approver, SignInApproval $approval): bool
+    /**
+     * An Owner / administrator who may approve this person; or — for a held sign-in (new network or device) — the person
+     * themself, on another of their sign-ins (`$currentSessionId`), never on the one being approved.
+     */
+    public function mayDecide(LoginAccount $approver, SignInApproval $approval, ?string $currentSessionId = null): bool
     {
+        if ($approver->id === $approval->login_account_id) {
+            return $approval->purpose !== EmailCode::FIRST_SIGN_IN && $currentSessionId !== null
+                && $currentSessionId !== $approval->auth_session_id
+                && $this->ownSessions($approver, $approval->auth_session_id)->contains(fn (AuthSession $s) => $s->id === $currentSessionId);
+        }
         $requester = $this->tenant->runAsSystem(fn () => LoginAccount::query()->withoutGlobalScopes()->with('role')->find($approval->login_account_id));
 
         return $requester !== null && $this->approvers($requester)->contains(fn (LoginAccount $a) => $a->id === $approver->id);
@@ -145,9 +187,9 @@ final class SignInApprovals
      *
      * @return bool approved
      */
-    public function pick(LoginAccount $approver, string $approvalId, int $picked): bool
+    public function pick(LoginAccount $approver, string $approvalId, int $picked, ?string $currentSessionId = null): bool
     {
-        $approval = $this->decidable($approver, $approvalId);
+        $approval = $this->decidable($approver, $approvalId, $currentSessionId);
         if ($picked !== $approval->number) {
             $this->refuse($approver, $approval, 'wrong_number');
 
@@ -161,19 +203,20 @@ final class SignInApprovals
             }
         });
         $this->audit->record('auth.sign_in_approval.approved', $approval->loginAccount, meta: ['approval_id' => $approval->id, 'purpose' => $approval->purpose, 'by' => $approver->username]);
-        // A new network: it is added and the held sign-in goes on.
+        // A held sign-in: what it waited for (a new network, a new device) is let go.
         $session = $approval->auth_session_id !== null ? $this->tenant->runAsSystem(fn () => AuthSession::query()->withoutGlobalScopes()->find($approval->auth_session_id)) : null;
         if ($approval->purpose === EmailCode::NEW_NETWORK && $session !== null) {
-            app(NewNetwork::class)->allow($approval->loginAccount, $session, $session->ip, 'approved by '.$approver->username);
+            app(NewNetwork::class)->release($approval->loginAccount, $session,
+                $approver->id === $approval->login_account_id ? 'QR code + number on their own device' : 'QR code + number, approved by '.$approver->username);
         }
 
         return true;
     }
 
     /** "Not me / not expected": refused, and that sign-in ends. */
-    public function deny(LoginAccount $approver, string $approvalId): void
+    public function deny(LoginAccount $approver, string $approvalId, ?string $currentSessionId = null): void
     {
-        $this->refuse($approver, $this->decidable($approver, $approvalId), 'denied');
+        $this->refuse($approver, $this->decidable($approver, $approvalId, $currentSessionId), 'denied');
     }
 
     /** Where a request stands, for the new screen (asked every few seconds). */
@@ -188,13 +231,13 @@ final class SignInApprovals
         };
     }
 
-    private function decidable(LoginAccount $approver, string $approvalId): SignInApproval
+    private function decidable(LoginAccount $approver, string $approvalId, ?string $currentSessionId = null): SignInApproval
     {
         $approval = $this->find($approvalId);
         if ($approval === null || ! $approval->isOpen()) {
             throw new BusinessRuleViolation('This sign-in is no longer waiting (approved, refused or too old).');
         }
-        if (! $this->mayDecide($approver, $approval)) {
+        if (! $this->mayDecide($approver, $approval, $currentSessionId)) {
             throw new BusinessRuleViolation('You may not approve this sign-in.');
         }
 

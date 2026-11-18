@@ -65,6 +65,12 @@ return [
         // A web sign-in from a device not approved yet, by somebody with an e-mail on the login: the code sent there
         // approves the device (nobody else has to). Off: another Owner / the administrator approves it, as before.
         'new_device_email_check' => (bool) env('RICEMILL_NEW_DEVICE_EMAIL_CHECK', true),
+        // After the e-mail code, a held sign-in (new network or device) is also approved by the QR code + number on a
+        // device already signed in (the person's own, or an Owner's), when anybody can. Off: the e-mail code alone.
+        'held_sign_in_approval' => (bool) env('RICEMILL_HELD_SIGN_IN_APPROVAL', true),
+        // With no other device signed in to scan the QR code: a 6-digit code to the mobile on the login instead (WhatsApp,
+        // else the SMS gateway RICEMILL_SMS_URL).
+        'mobile_code' => (bool) env('RICEMILL_MOBILE_CODE', true),
         // "Forgot your password?" on the sign-in page, for the SaaS owner, Owners and Super Admins (code by e-mail).
         'password_reset' => (bool) env('RICEMILL_PASSWORD_RESET', true),
         // The SaaS owner, Owners and Super Admins must have an e-mail (the only address security codes go to) and a
