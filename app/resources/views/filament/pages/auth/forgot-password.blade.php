@@ -19,6 +19,7 @@
     @else
         <form wire:submit="resetPassword" class="rmv-enter space-y-4" wire:key="fp-reset">
             <p class="text-sm text-gray-600 dark:text-gray-300">{{ __('If this login may reset its password, a 6-digit code was sent to its e-mail. It works only in this browser, for a few minutes.') }}</p>
+            <x-verify.otp />
             {{ $this->resetForm }}
             <x-filament::button type="submit" icon="heroicon-o-key" class="w-full">{{ __('Set the new password') }}</x-filament::button>
             <button type="button" wire:click="startOver" class="w-full text-center text-sm text-gray-500 underline">{{ __('Another username') }}</button>

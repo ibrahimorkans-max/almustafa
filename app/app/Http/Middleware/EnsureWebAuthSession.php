@@ -88,8 +88,9 @@ final class EnsureWebAuthSession
             return $this->endSession($request, $ownSession ? $session : null, 'expired_or_revoked');
         }
 
-        // Signed in from a new network: held on "Verify this new network", with no rights, until it is proven.
-        $held = $session->network_pending_at !== null;
+        // Signed in from a new network or a device not approved yet: held on "Verify this sign-in", with no rights,
+        // until the e-mail code (or, for a network, an approval) proves it.
+        $held = $session->network_pending_at !== null || $session->device_pending_at !== null;
         if ($held) {
             $request->attributes->set(NewNetwork::HELD, true);
             if (! $request->is('livewire/*')) {

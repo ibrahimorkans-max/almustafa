@@ -4,6 +4,7 @@
     'title' => '',
     'subtitle' => null,
     'state' => 'working',   // working | waiting | done | failed
+    'leave' => false,       // done: the card leaves (tilt up and fade) as the dashboard opens
 ])
 @php
     $total = max(1, count($steps));
@@ -17,18 +18,24 @@
 @endphp
 
 {{-- Animated verification panel: shield, progress bar and steps (shared by the sign-in checks). --}}
-<x-verify.styles />
-
-<div class="rmv" data-state="{{ $state }}" {{ $attributes }}>
+<div class="rmv" data-state="{{ $state }}" {{ $attributes }}
+    @if ($state === 'done' && $leave) x-data x-init="setTimeout(() => $el.classList.add('rmv-exit'), 1700)" @endif>
+    {{-- Read out on every change of state. --}}
+    <span class="sr-only" aria-live="polite">{{ match ($state) {
+        'done' => __('Verified.'), 'failed' => __('Not verified.'),
+        'waiting' => __('Waiting for approval.'), default => __('Verifying…'),
+    } }} {{ $title }}</span>
     <div class="rmv-top">
         <div class="rmv-shield" aria-hidden="true">
             @if ($state === 'done')
-                <svg class="rmv-check" viewBox="0 0 52 52"><circle cx="26" cy="26" r="24" fill="none" stroke="rgb(var(--success-600))" stroke-width="4"/><path d="M15 27 l7 7 l15 -16" fill="none" stroke="rgb(var(--success-600))" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="rmv-flash"></span>
+                <svg class="rmv-check rmv-icon-ok" viewBox="0 0 52 52"><circle cx="26" cy="26" r="24" fill="none" stroke="rgb(var(--rmv-ok))" stroke-width="3.5"/><path d="M15 27 l7 7 l15 -16" fill="none" stroke="rgb(var(--rmv-ok))" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             @elseif ($state === 'failed')
-                <svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24" fill="rgb(var(--danger-600))"/><path d="M18 18 L34 34 M34 18 L18 34" stroke="#fff" stroke-width="5" stroke-linecap="round"/></svg>
+                <span class="rmv-bad-ring"></span>
+                <svg class="rmv-icon-bad" viewBox="0 0 52 52"><circle cx="26" cy="26" r="24" fill="rgb(var(--rmv-bad))"/><path d="M18 18 L34 34 M34 18 L18 34" stroke="#0f1115" stroke-width="5" stroke-linecap="round"/></svg>
             @else
-                <svg viewBox="0 0 64 64"><path d="M32 4 L54 12 V30 C54 45 44 55 32 60 C20 55 10 45 10 30 V12 Z" fill="rgb(var(--primary-600))"/><rect x="23" y="29" width="18" height="14" rx="3" fill="#fff"/><path d="M26 29 v-4 a6 6 0 0 1 12 0 v4" fill="none" stroke="#fff" stroke-width="3"/></svg>
-                <span class="rmv-scan"></span>
+                <span class="rmv-radar"></span><span class="rmv-ring"></span><span class="rmv-ring"></span><span class="rmv-ring"></span>
+                <svg viewBox="0 0 64 64"><path d="M32 6 L52 13 V30 C52 44 43 53 32 58 C21 53 12 44 12 30 V13 Z" fill="rgba(79,125,255,.18)" stroke="rgb(var(--rmv-accent))" stroke-width="2.5"/><rect x="24" y="29" width="16" height="12" rx="2.5" fill="rgb(var(--rmv-accent))"/><path d="M27 29 v-3.5 a5 5 0 0 1 10 0 V29" fill="none" stroke="rgb(var(--rmv-accent))" stroke-width="2.5"/></svg>
             @endif
         </div>
         <div class="min-w-0">

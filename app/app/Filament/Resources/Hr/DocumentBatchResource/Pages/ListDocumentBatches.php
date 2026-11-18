@@ -39,7 +39,7 @@ class ListDocumentBatches extends ListRecords
             Action::make('start')->label(__('New bulk generation'))->icon('heroicon-o-plus')
                 ->visible(fn () => DocumentActions::allowed())
                 ->form([
-                    Select::make('doc_type')->label(__('Documents'))->options(\App\Support\Locales::options(self::KINDS))->default('payslip')->required()->live(),
+                    Select::make('doc_type')->label(__('Document type'))->options(\App\Support\Locales::options(self::KINDS))->default('payslip')->required()->live(),
                     Select::make('run')->label(__('Month (finalized payroll)'))->required($monthly)->visible($monthly)
                         ->options(fn () => PayrollRun::query()->where('status', PayrollRun::FINALIZED)->orderByDesc('month')->pluck('month', 'id')),
                     Select::make('department')->label(__('Department (empty = all)'))

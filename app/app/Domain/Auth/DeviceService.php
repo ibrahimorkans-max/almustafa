@@ -31,9 +31,12 @@ final class DeviceService
     /**
      * Finds or registers the device for this account and decides whether it may sign in.
      *
+     * @param  bool  $web  a web sign-in: a device not approved yet goes on and the session is held until the code sent
+     *                     to the login's e-mail proves it (NewNetwork), instead of waiting for another Owner
+     *
      * @throws AuthenticationFailed
      */
-    public function resolveForLogin(LoginAccount $account, DeviceInfo $info, ?string $ip): Device
+    public function resolveForLogin(LoginAccount $account, DeviceInfo $info, ?string $ip, bool $web = false): Device
     {
         $device = Device::query()
             ->where('login_account_id', $account->id)
@@ -65,7 +68,7 @@ final class DeviceService
         }
 
         if (! $device->isTrusted() && $this->requiresTrustedDevice($account, $device)) {
-            $this->handleUntrustedDevice($account, $device);
+            $this->handleUntrustedDevice($account, $device, $web);
         }
 
         // A phone's browser and its installed app share the device cookie: once signed in from the app, it is the app.
@@ -224,7 +227,7 @@ final class DeviceService
         throw new AuthenticationFailed(AuthenticationFailed::DEVICE_LIMIT, 'device_limit', 403);
     }
 
-    private function handleUntrustedDevice(LoginAccount $account, Device $device): void
+    private function handleUntrustedDevice(LoginAccount $account, Device $device, bool $web = false): void
     {
         $hasTrusted = Device::query()->where('login_account_id', $account->id)->whereNotNull('trusted_at')->exists();
 
@@ -247,6 +250,13 @@ final class DeviceService
         // then (FirstSignIn::complete), while it is still their only one.
         if (! $hasTrusted && $account->needsFirstSignIn()) {
             $this->audit->record('device.first_sign_in_admitted', $device);
+
+            return;
+        }
+        // A web sign-in by somebody with an e-mail on the login: the code sent there approves the device (the session
+        // is held until then, LoginService::completeLogin). Nobody else has to approve it.
+        if ($web && app(NewNetwork::class)->canProveDevice($account)) {
+            $this->audit->record('device.held_for_email_code', $device);
 
             return;
         }

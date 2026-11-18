@@ -2,22 +2,34 @@
     @php
         $info = $this->info();
         $byEmail = $this->byEmail();
-        $steps = [__('New network found'), $byEmail ? __('E-mail code') : __('Approval (QR + number)'), __('Network added')];
+        // What this sign-in waits for: a new network, a device not approved yet, or both (one code for both).
+        $network = $finished ? $addedNetwork !== null : $this->networkHeld();
+        $device = $finished ? $approvedDevice !== null : $this->deviceHeld();
+        $found = match (true) {
+            $network && $device => __('New device and network found'),
+            $device => __('New device found'),
+            default => __('New network found'),
+        };
+        $steps = [$found, $byEmail ? __('E-mail code') : __('Approval (QR + number)'), $device ? __('Device approved') : __('Network added')];
         $at = $finished ? 3 : 1;
-        [$title, $sub] = $finished
-            ? [__('Network verified'), __('This network is added to your account. Opening your dashboard…')]
-            : ($byEmail
-                ? [__('You are signing in from a new network'), __('To keep your account safe, confirm it is you with the code we e-mail to :email.', ['email' => $this->maskedEmail()])]
-                : [__('You are signing in from a new network'), __('Someone already signed in scans the QR code and picks your number.')]);
+        [$title, $sub] = match (true) {
+            $finished && $device => [__('Device approved'), __('This device is now approved for your account. Opening your dashboard…')],
+            $finished => [__('Network verified'), __('This network is added to your account. Opening your dashboard…')],
+            ! $byEmail => [__('You are signing in from a new network'), __('Someone already signed in scans the QR code and picks your number.')],
+            $device && ! $network => [__('You are signing in on a new device'), __('To keep your account safe, confirm it is you with the code we e-mail to :email. Nobody else has to approve this device.', ['email' => $this->maskedEmail()])],
+            default => [__('You are signing in from a new network'), __('To keep your account safe, confirm it is you with the code we e-mail to :email.', ['email' => $this->maskedEmail()])],
+        };
     @endphp
 
     <x-verify.panel :steps="$steps" :at="$at" :title="$title" :subtitle="$sub"
-        :state="$finished ? 'done' : ($approvalState === 'denied' ? 'failed' : ($byEmail ? 'working' : 'waiting'))" />
+        :state="$finished ? 'done' : ($approvalState === 'denied' ? 'failed' : ($byEmail ? 'working' : 'waiting'))" :leave="$finished" />
     <x-verify.busy target="sendCode,checkCode" />
 
     @if ($finished)
+        <x-verify.scanline />
         <x-filament::section class="rmv-enter" wire:key="nn-done">
-            <p class="text-sm">✓ {{ __('Network added: :network', ['network' => $addedNetwork ?? ($info['ip'] ?? '')]) }}</p>
+            @if ($addedNetwork)<p class="text-sm">✓ {{ __('Network added: :network', ['network' => $addedNetwork]) }}</p>@endif
+            @if ($approvedDevice)<p class="text-sm">✓ {{ __('Device approved: :device', ['device' => $approvedDevice]) }}</p>@endif
             <div x-data x-init="setTimeout(() => window.location.href = @js(\Filament\Facades\Filament::getUrl()), 2200)"></div>
         </x-filament::section>
     @else
@@ -35,13 +47,13 @@
                     <p class="mb-4 text-sm">{{ __('We will send a 6-digit code to :email. It works only on this screen.', ['email' => $this->maskedEmail()]) }}</p>
                     <x-filament::button wire:click="sendCode" icon="heroicon-o-paper-airplane">{{ __('Send the code') }}</x-filament::button>
                 @else
-                    <form wire:submit="checkCode" class="max-w-sm space-y-4">
-                        {{ $this->codeForm }}
-                        <div class="flex flex-wrap gap-3">
-                            <x-filament::button type="submit" icon="heroicon-o-check-badge">{{ __('Confirm the code') }}</x-filament::button>
-                            <x-filament::button color="gray" wire:click="sendCode" icon="heroicon-o-arrow-path">{{ __('Send the e-mail again') }}</x-filament::button>
-                        </div>
-                    </form>
+                    <div class="rmv-enter mt-6 space-y-4 border-t border-gray-200 pt-6 dark:border-white/10" wire:key="nn-code">
+                    <x-verify.otp submit="checkCode" />
+                    <div class="flex flex-wrap gap-3">
+                        <x-filament::button wire:click="checkCode" icon="heroicon-o-check-badge">{{ __('Confirm the code') }}</x-filament::button>
+                        <x-filament::button color="gray" wire:click="sendCode" icon="heroicon-o-arrow-path">{{ __('Send the e-mail again') }}</x-filament::button>
+                    </div>
+                </div>
                 @endif
             </x-filament::section>
         @else

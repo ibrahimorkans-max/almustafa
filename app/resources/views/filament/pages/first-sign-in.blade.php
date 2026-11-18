@@ -22,10 +22,11 @@
     @endphp
 
     <x-verify.panel :steps="array_column($steps, 'label')" :at="$at" :title="$title" :subtitle="$sub"
-        :state="$finished ? 'done' : ($step === 'approval' ? 'waiting' : 'working')" />
+        :state="$finished ? 'done' : ($step === 'approval' ? 'waiting' : 'working')" :leave="$finished" />
     <x-verify.busy target="sendEmail,checkCode,saveDetails" />
 
     @if ($finished)
+        <x-verify.scanline />
         <div x-data x-init="setTimeout(() => window.location.href = @js(\Filament\Facades\Filament::getUrl()), 2200)"></div>
     @else
     <x-filament::section :heading="__('This sign-in')" icon="heroicon-o-map-pin" collapsible :collapsed="$step !== 'email'">
@@ -51,10 +52,12 @@
                 <x-filament::button type="submit" icon="heroicon-o-paper-airplane" :color="$emailSent ? 'gray' : 'primary'">{{ $emailSent ? __('Send the e-mail again') : __('Send the code') }}</x-filament::button>
             </form>
             @if ($emailSent)
-                <form wire:submit="checkCode" class="mt-6 max-w-sm space-y-4 border-t border-gray-200 pt-6 dark:border-white/10">
-                    {{ $this->codeForm }}
-                    <x-filament::button type="submit" icon="heroicon-o-check-badge">{{ __('Confirm the code') }}</x-filament::button>
-                </form>
+                <div class="rmv-enter mt-6 space-y-4 border-t border-gray-200 pt-6 dark:border-white/10" wire:key="fsi-code">
+                    <x-verify.otp submit="checkCode" />
+                    <div class="flex flex-wrap gap-3">
+                        <x-filament::button wire:click="checkCode" icon="heroicon-o-check-badge">{{ __('Confirm the code') }}</x-filament::button>
+                    </div>
+                </div>
             @endif
         </x-filament::section>
     @elseif ($step === 'approval')

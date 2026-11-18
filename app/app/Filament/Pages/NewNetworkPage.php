@@ -22,6 +22,8 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\RedirectResponse;
 
 /**
  * A sign-in from a network the login may not use, held here (App\Domain\Auth\NewNetwork) with no rights: the person
@@ -37,7 +39,7 @@ class NewNetworkPage extends Page implements HasForms
 
     protected static ?string $slug = 'new-network';
 
-    protected static ?string $title = 'Verify this new network';
+    protected static ?string $title = 'Verify this sign-in';
 
     protected static bool $shouldRegisterNavigation = false;
 
@@ -48,9 +50,14 @@ class NewNetworkPage extends Page implements HasForms
 
     public bool $codeSent = false;
 
+    /** The 6-box code being typed (x-verify.otp). */
+    public string $otp = '';
+
     public bool $finished = false;
 
     public ?string $addedNetwork = null;
+
+    public ?string $approvedDevice = null;
 
     public ?string $approvalId = null;
 
@@ -63,12 +70,11 @@ class NewNetworkPage extends Page implements HasForms
     public function mount(): void
     {
         if (! $this->held()) {
-            $this->redirect(Filament::getUrl());
-
-            return;
+            // A plain redirect: Livewire's own one cannot leave a page while it is first opened.
+            throw new HttpResponseException(new RedirectResponse(Filament::getUrl()));
         }
         $this->codeForm->fill();
-        if (! $this->byEmail()) {
+        if (! $this->byEmail() && $this->networkHeld()) {
             $this->startApproval();
         }
     }
@@ -106,7 +112,19 @@ class NewNetworkPage extends Page implements HasForms
 
     public function held(): bool
     {
+        return $this->networkHeld() || $this->deviceHeld();
+    }
+
+    /** Signed in from a network the login may not use. */
+    public function networkHeld(): bool
+    {
         return $this->session()?->network_pending_at !== null;
+    }
+
+    /** Signed in on a device not approved yet: the e-mail code approves it. */
+    public function deviceHeld(): bool
+    {
+        return $this->session()?->device_pending_at !== null;
     }
 
     /** @return array<string, mixed> where this sign-in comes from */
@@ -143,13 +161,17 @@ class NewNetworkPage extends Page implements HasForms
             return;
         }
         try {
-            $this->addedNetwork = app(NewNetwork::class)->verifyCode($this->account(), $session, (string) ($this->codeForm->getState()['code'] ?? ''), request()->ip());
+            $done = app(NewNetwork::class)->verifyCode($this->account(), $session, $this->otp, request()->ip());
+            $this->addedNetwork = $done['network'];
+            $this->approvedDevice = $done['device'];
         } catch (BusinessRuleViolation $e) {
-            $this->codeForm->fill();
+            $this->otp = '';
+            $this->dispatch('rmv-otp-invalid');   // the boxes shake and clear
             Notification::make()->title(__($e->getMessage()))->danger()->send();
 
             return;
         }
+        $this->dispatch('rmv-otp-valid');
         $this->finished = true;
     }
 

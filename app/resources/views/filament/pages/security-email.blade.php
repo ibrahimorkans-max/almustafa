@@ -35,10 +35,12 @@
                 <x-filament::button type="submit" icon="heroicon-o-paper-airplane" :color="$codeSent ? 'gray' : 'primary'">{{ $codeSent ? __('Send the e-mail again') : __('Send the code') }}</x-filament::button>
             </form>
             @if ($codeSent)
-                <form wire:submit="checkCode" class="rmv-enter mt-6 max-w-sm space-y-4 border-t border-gray-200 pt-6 dark:border-white/10" wire:key="se-code">
-                    {{ $this->codeForm }}
-                    <x-filament::button type="submit" icon="heroicon-o-check-badge">{{ __('Confirm the code') }}</x-filament::button>
-                </form>
+                <div class="rmv-enter mt-6 space-y-4 border-t border-gray-200 pt-6 dark:border-white/10" wire:key="se-code">
+                    <x-verify.otp submit="checkCode" />
+                    <div class="flex flex-wrap gap-3">
+                        <x-filament::button wire:click="checkCode" icon="heroicon-o-check-badge">{{ __('Confirm the code') }}</x-filament::button>
+                    </div>
+                </div>
             @endif
         @endif
     </x-filament::section>

@@ -25,6 +25,9 @@ final class EmailCode
 
     public const NEW_NETWORK = 'new_network';
 
+    /** A sign-in from a device not approved yet (NewNetwork::holdDevice). */
+    public const NEW_DEVICE = 'new_device';
+
     public const PASSWORD_RESET = 'password_reset';
 
     /** A signed-in person confirming the e-mail the codes go to. */

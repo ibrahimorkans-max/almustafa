@@ -140,6 +140,8 @@ class AdminPanelProvider extends PanelProvider
             // The language can be chosen before signing in too; right-to-left fonts for Urdu, Pashto and Sindhi.
             ->renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_BEFORE, fn () => view('filament.hooks.language-switch'))
             ->renderHook(PanelsRenderHook::HEAD_END, fn () => view('filament.hooks.language-styles'))
+            // The motion of the sign-in checks (shield panel, 6-box code, scan line): before Alpine starts.
+            ->renderHook(PanelsRenderHook::HEAD_END, fn () => view('filament.hooks.verify-motion'))
             // The role of the person signed in, with its animated icon; the menu icons come alive on hover.
             ->renderHook(PanelsRenderHook::USER_MENU_BEFORE, fn () => view('filament.hooks.role-badge'))
             // Pictures drawn here (initials on the role's colours): ui-avatars.com is outside the security policy.
