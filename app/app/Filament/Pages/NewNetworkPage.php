@@ -50,6 +50,9 @@ class NewNetworkPage extends Page implements HasForms
 
     public bool $codeSent = false;
 
+    /** The e-mail a login without one gives here (NewNetwork::canAddEmail); kept from the first code on. */
+    public string $newEmail = '';
+
     /** The 6-box code being typed (x-verify.otp). */
     public string $otp = '';
 
@@ -74,7 +77,7 @@ class NewNetworkPage extends Page implements HasForms
             throw new HttpResponseException(new RedirectResponse(Filament::getUrl()));
         }
         $this->codeForm->fill();
-        if (! $this->byEmail() && $this->networkHeld()) {
+        if (! $this->byEmail() && ! $this->canAddEmail() && $this->networkHeld()) {
             $this->startApproval();
         }
     }
@@ -103,6 +106,12 @@ class NewNetworkPage extends Page implements HasForms
     public function byEmail(): bool
     {
         return app(NewNetwork::class)->byEmail($this->account());
+    }
+
+    /** No e-mail on the login yet: the person may give one here (after the password and the authenticator code). */
+    public function canAddEmail(): bool
+    {
+        return app(NewNetwork::class)->canAddEmail($this->account());
     }
 
     public function maskedEmail(): string
@@ -143,7 +152,7 @@ class NewNetworkPage extends Page implements HasForms
             return;
         }
         try {
-            app(NewNetwork::class)->sendCode($this->account(), $session);
+            app(NewNetwork::class)->sendCode($this->account(), $session, $this->byEmail() ? null : $this->newEmail);
         } catch (BusinessRuleViolation $e) {
             Notification::make()->title(__($e->getMessage()))->danger()->send();
 

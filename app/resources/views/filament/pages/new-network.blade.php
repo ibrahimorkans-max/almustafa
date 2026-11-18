@@ -2,6 +2,7 @@
     @php
         $info = $this->info();
         $byEmail = $this->byEmail();
+        $addEmail = ! $byEmail && $this->canAddEmail();   // no e-mail on the login yet: it is given here
         // What this sign-in waits for: a new network, a device not approved yet, or both (one code for both).
         $network = $finished ? $addedNetwork !== null : $this->networkHeld();
         $device = $finished ? $approvedDevice !== null : $this->deviceHeld();
@@ -10,11 +11,12 @@
             $device => __('New device found'),
             default => __('New network found'),
         };
-        $steps = [$found, $byEmail ? __('E-mail code') : __('Approval (QR + number)'), $device ? __('Device approved') : __('Network added')];
+        $steps = [$found, $byEmail || $addEmail ? __('E-mail code') : __('Approval (QR + number)'), $device ? __('Device approved') : __('Network added')];
         $at = $finished ? 3 : 1;
         [$title, $sub] = match (true) {
             $finished && $device => [__('Device approved'), __('This device is now approved for your account. Opening your dashboard…')],
             $finished => [__('Network verified'), __('This network is added to your account. Opening your dashboard…')],
+            $addEmail => [$device && ! $network ? __('You are signing in on a new device') : __('You are signing in from a new network'), __('Your login has no e-mail yet. Add yours: a 6-digit code goes there, and from then on all your security codes do.')],
             ! $byEmail => [__('You are signing in from a new network'), __('Someone already signed in scans the QR code and picks your number.')],
             $device && ! $network => [__('You are signing in on a new device'), __('To keep your account safe, confirm it is you with the code we e-mail to :email. Nobody else has to approve this device.', ['email' => $this->maskedEmail()])],
             default => [__('You are signing in from a new network'), __('To keep your account safe, confirm it is you with the code we e-mail to :email.', ['email' => $this->maskedEmail()])],
@@ -22,7 +24,7 @@
     @endphp
 
     <x-verify.panel :steps="$steps" :at="$at" :title="$title" :subtitle="$sub"
-        :state="$finished ? 'done' : ($approvalState === 'denied' ? 'failed' : ($byEmail ? 'working' : 'waiting'))" :leave="$finished" />
+        :state="$finished ? 'done' : ($approvalState === 'denied' ? 'failed' : ($byEmail || $addEmail ? 'working' : 'waiting'))" :leave="$finished" />
     <x-verify.busy target="sendCode,checkCode" />
 
     @if ($finished)
@@ -41,9 +43,18 @@
             </dl>
         </x-filament::section>
 
-        @if ($byEmail)
+        @if ($byEmail || $addEmail)
             <x-filament::section :heading="__('Confirm it is you')" icon="heroicon-o-envelope" class="rmv-enter" wire:key="nn-email">
-                @if (! $codeSent)
+                @if ($addEmail)
+                    {{-- No e-mail on the login yet: given here once, then kept for every security code. --}}
+                    <form wire:submit="sendCode" class="max-w-lg space-y-3">
+                        <label class="block text-sm font-medium" for="nn-new-email">{{ __('Your e-mail address') }}</label>
+                        <input id="nn-new-email" type="email" wire:model="newEmail" required maxlength="191" autocomplete="email" dir="ltr"
+                            class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5">
+                        <p class="text-xs text-gray-500">{{ __('Recommended: use an address only you can open, and keep it up to date under Security → My security e-mail. Your administrator can change it later (Security → Logins).') }}</p>
+                        <x-filament::button type="submit" icon="heroicon-o-paper-airplane">{{ __('Send the code') }}</x-filament::button>
+                    </form>
+                @elseif (! $codeSent)
                     <p class="mb-4 text-sm">{{ __('We will send a 6-digit code to :email. It works only on this screen.', ['email' => $this->maskedEmail()]) }}</p>
                     <x-filament::button wire:click="sendCode" icon="heroicon-o-paper-airplane">{{ __('Send the code') }}</x-filament::button>
                 @else

@@ -6,6 +6,7 @@ namespace App\Domain\Auth;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Security\SecurityNotifier;
+use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\AuthSession;
 use App\Models\Device;
@@ -43,7 +44,17 @@ final class NewNetwork
     public function possible(LoginAccount $account): bool
     {
         return $this->enabled() && ! $account->needsFirstSignIn() && ! $account->is_machine
-            && ($this->byEmail($account) || app(SignInApprovals::class)->approvers($account)->isNotEmpty());
+            && ($this->byEmail($account) || $this->canAddEmail($account) || app(SignInApprovals::class)->approvers($account)->isNotEmpty());
+    }
+
+    /**
+     * A login with no e-mail yet may give one on the check screen and prove the sign-in with its code — only when it
+     * has its authenticator (2FA) set up: the person then got past the password and the authenticator code; the
+     * address is kept from then on (EmailCode) and the Owners are told.
+     */
+    public function canAddEmail(LoginAccount $account): bool
+    {
+        return blank($account->email) && $account->hasMfa();
     }
 
     /** The check is the code to the login's own e-mail (else the QR approval). */
@@ -70,7 +81,7 @@ final class NewNetwork
     public function canProveDevice(LoginAccount $account): bool
     {
         return (bool) config('ricemill.auth.new_device_email_check', true) && ! $account->needsFirstSignIn() && ! $account->is_machine
-            && $this->byEmail($account);
+            && ($this->byEmail($account) || $this->canAddEmail($account));
     }
 
     /** The sign-in is held until its device is proven by the e-mail code. */
@@ -87,11 +98,22 @@ final class NewNetwork
         return (bool) ($request ?? request())->attributes->get(self::HELD, false);
     }
 
-    public function sendCode(LoginAccount $account, AuthSession $session): void
+    /** @param  string|null  $firstEmail  a login without an e-mail gives it here (canAddEmail); it is kept */
+    public function sendCode(LoginAccount $account, AuthSession $session, ?string $firstEmail = null): void
     {
+        if (blank($account->email) && ! $this->canAddEmail($account)) {
+            throw new BusinessRuleViolation('This login has no e-mail. Ask your administrator to add it (Security → Logins).');
+        }
+        $added = blank($account->email);
         $purpose = $session->network_pending_at === null && $session->device_pending_at !== null ? EmailCode::NEW_DEVICE : EmailCode::NEW_NETWORK;
-        app(EmailCode::class)->send($account, null, $session->id, $purpose,
+        app(EmailCode::class)->send($account, $firstEmail, $session->id, $purpose,
             signInInfo: array_filter(['ip' => $session->ip, 'browser' => $session->browser, 'os' => $session->os, 'city' => $session->city, 'country' => $session->country_name ?? $session->country]));
+        if ($added) {
+            $this->audit->record('auth.security_email.added_at_sign_in', $account, meta: ['email' => FirstSignIn::masked((string) $account->email), 'ip' => $session->ip]);
+            app(SecurityNotifier::class)->owners($account->entity_id, "E-mail added at a sign-in: {$account->username}",
+                "{$account->username} had no e-mail and gave ".FirstSignIn::masked((string) $account->email)." while signing in from {$session->ip} "
+                .'(after the password and the authenticator code). Security codes now go there. If this was not them, suspend the login.', includeOwners: true);
+        }
     }
 
     /**

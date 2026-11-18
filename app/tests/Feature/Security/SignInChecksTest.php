@@ -127,8 +127,9 @@ it('lets somebody approve a new network with the QR code and number when there i
         ->and(sicFresh($admin)->first_sign_in_approved_at)->toBeNull();
 });
 
-it('still refuses a new network when nobody and no e-mail can prove it', function () {
+it('still refuses a new network when nobody, no e-mail and no authenticator can prove it', function () {
     $admin = sicAccount('NN3', 'SUPER_ADMIN', null, ['10.0.0.0/8']);
+    Make::system(fn () => LoginAccount::query()->withoutGlobalScopes()->whereKey($admin->id)->toBase()->update(['mfa_secret' => null, 'mfa_confirmed_at' => null]));   // no authenticator: cannot add an e-mail here
 
     expect(app(NewNetwork::class)->possible(sicFresh($admin)))->toBeFalse()
         ->and(fn () => app(LoginService::class)->verifyPassword($admin->username, Make::PASSWORD, NEW_IP, newNetworkCheck: true))
@@ -287,12 +288,51 @@ it('approves a new device with the code sent to the e-mail on the login, without
     $this->actingAs(sicFresh($owner), 'web')->withSession($web)->get('/admin')->assertOk();
 });
 
-it('still asks an Owner to approve a new device when the login has no e-mail', function () {
+it('still asks an Owner to approve a new device when the login has no e-mail and no authenticator', function () {
     $owner = sicAccount('ND2', 'OWNER', null);
+    Make::system(fn () => LoginAccount::query()->withoutGlobalScopes()->whereKey($owner->id)->toBase()->update(['mfa_secret' => null, 'mfa_confirmed_at' => null]));   // no authenticator: cannot add an e-mail here
     Make::trustedDevice($owner, (string) Str::uuid());
 
     expect(app(NewNetwork::class)->canProveDevice(sicFresh($owner)))->toBeFalse();
     app(AuthContextBinder::class)->bind(sicFresh($owner));
     expect(fn () => app(LoginService::class)->completeLogin(sicFresh($owner), AuthSession::CHANNEL_WEB, new DeviceInfo((string) Str::uuid(), 'web', 'Chrome'), '127.0.0.1', 'pest', true))
         ->toThrow(AuthenticationFailed::class);
+});
+
+it('lets the server admin set the e-mail and mobile of the SaaS owner, so a new network is proven by its code (auth:contact)', function () {
+    $saas = Make::platformAdmin(Make::entity('AC1'));
+    Make::system(fn () => LoginAccount::query()->withoutGlobalScopes()->whereKey($saas->id)->update(['first_sign_in_completed_at' => now(),
+        'mfa_secret' => null, 'mfa_confirmed_at' => null]));   // no authenticator either: nothing can prove a new network
+    expect(app(NewNetwork::class)->possible(sicFresh($saas)))->toBeFalse();
+
+    $this->artisan('auth:contact', ['username' => $saas->username])->expectsOutputToContain('nothing yet')->assertSuccessful();
+    $this->artisan('auth:contact', ['username' => $saas->username, '--email' => 'not-an-email'])->assertFailed();
+    $this->artisan('auth:contact', ['username' => $saas->username, '--email' => 'Saas@Example.com', '--phone' => '0300-1234567'])
+        ->expectsOutputToContain('the code sent to that e-mail')->assertSuccessful();
+
+    expect(sicFresh($saas)->email)->toBe('saas@example.com')
+        ->and(app(NewNetwork::class)->possible(sicFresh($saas)))->toBeTrue()
+        ->and(sicFresh($saas)->person->phone)->toBe(PakistanIds::normalizeMobile('0300-1234567'));
+});
+
+it('lets a login without an e-mail (but with its authenticator) give one on the check screen and prove the new network', function () {
+    config(['ricemill.security.super_admin_require_ip_allowlist' => true]);
+    $saas = sicAccount('NE1', 'OWNER', null, ['10.0.0.0/8']);
+    Make::system(fn () => LoginAccount::query()->withoutGlobalScopes()->whereKey($saas->id)->update(['is_platform_admin' => true]));
+
+    expect(app(NewNetwork::class)->possible(sicFresh($saas)))->toBeTrue()
+        ->and(app(NewNetwork::class)->canAddEmail(sicFresh($saas)))->toBeTrue();
+    $session = sicSession(sicFresh($saas), NEW_IP);
+    $web = [EnsureWebAuthSession::SESSION_KEY => $session->id];
+    $this->actingAs(sicFresh($saas), 'web')->withSession($web)->withServerVariables(['REMOTE_ADDR' => NEW_IP])
+        ->get('/admin/new-network')->assertOk()->assertSee('Your login has no e-mail yet')->assertSee('Your e-mail address');
+
+    app(NewNetwork::class)->sendCode(sicFresh($saas), $session, 'Owner.New@Example.com');
+    expect(sicFresh($saas)->email)->toBe('owner.new@example.com')->and(sicFresh($saas)->email_verified_at)->toBeNull();
+    $done = app(NewNetwork::class)->verifyCode(sicFresh($saas), $session, sicCode('owner.new@example.com'), NEW_IP);
+
+    expect($done['network'])->toBe('149.40.161.0/24')
+        ->and(sicFresh($saas)->email_verified_at)->not->toBeNull();
+    // From then on the code goes only to that address.
+    expect(app(NewNetwork::class)->canAddEmail(sicFresh($saas)))->toBeFalse();
 });
