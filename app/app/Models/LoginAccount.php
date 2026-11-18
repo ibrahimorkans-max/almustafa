@@ -313,6 +313,16 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
         return blank($this->email) || blank($this->person?->phone);
     }
 
+    /**
+     * In the middle of a security check (first sign-in, a held new network or device, 2FA set-up, a forced password
+     * change, a missing e-mail or mobile): no menu or other screen is shown, only the check (verify-shell).
+     */
+    public function inSecurityCheck(): bool
+    {
+        return $this->needsFirstSignIn() || NewNetwork::isHeld() || ($this->mfaRequired() && ! $this->hasMfa())
+            || $this->must_change_password || $this->missingSecurityContact();
+    }
+
     /** Whether a role (by its id) is one of the top roles whose e-mail and mobile number are compulsory. */
     public static function isTopRoleId(?string $roleId): bool
     {

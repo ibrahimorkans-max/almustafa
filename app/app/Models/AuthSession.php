@@ -26,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $last_seen_at
  * @property Carbon|null $revoked_at
  * @property Carbon|null $network_pending_at held until the new network it came from is proven (App\Domain\Auth\NewNetwork)
+ * @property Carbon|null $code_proven_at a held sign-in typed its e-mail code (the QR code and number come next)
  * @property Carbon|null $device_pending_at held until its device (not approved yet) is proven by the e-mail code (NewNetwork)
  * @property string|null $revoked_by
  * @property string|null $revoked_reason
@@ -74,6 +75,7 @@ class AuthSession extends Model
             'revoked_at' => 'datetime',
             'network_pending_at' => 'datetime',
             'device_pending_at' => 'datetime',
+            'code_proven_at' => 'datetime',
             'latitude' => 'float',
             'longitude' => 'float',
             'location_accuracy_m' => 'integer',

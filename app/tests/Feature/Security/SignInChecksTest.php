@@ -9,6 +9,7 @@ use App\Domain\Auth\Exceptions\AuthenticationFailed;
 use App\Domain\Auth\FirstSignIn;
 use App\Domain\Auth\IpAllowlistPolicy;
 use App\Domain\Auth\LoginService;
+use App\Domain\Auth\MobileCode;
 use App\Domain\Auth\NewNetwork;
 use App\Domain\Auth\PasswordReset;
 use App\Domain\Auth\SignInApprovals;
@@ -24,6 +25,7 @@ use App\Models\Person;
 use App\Models\Role;
 use App\Support\Values\PakistanIds;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
@@ -103,7 +105,7 @@ it('holds a web sign-in from a new network until the code from the confirmed e-m
         ->toThrow(BusinessRuleViolation::class, 'tries left');
     $done = app(NewNetwork::class)->verifyCode(sicFresh($owner), $session, sicCode('owner@example.com'), NEW_IP);
 
-    expect($done)->toBe(['network' => '149.40.161.0/24', 'device' => null])
+    expect($done)->toBe(['network' => '149.40.161.0/24', 'device' => null, 'approval' => false])
         ->and(Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->find($session->id))->network_pending_at)->toBeNull()
         ->and(Make::system(fn () => app(IpAllowlistPolicy::class)->allows(sicFresh($owner), NEW_IP)))->toBeTrue();
     $this->actingAs(sicFresh($owner), 'web')->withSession($web)->withServerVariables(['REMOTE_ADDR' => NEW_IP])->get('/admin')->assertOk();
@@ -282,7 +284,7 @@ it('approves a new device with the code sent to the e-mail on the login, without
     Mail::assertSent(FirstSignInVerificationMail::class, fn (FirstSignInVerificationMail $m) => $m->purpose === EmailCode::NEW_DEVICE && $m->hasTo('nd1@example.com'));
     $done = app(NewNetwork::class)->verifyCode(sicFresh($owner), $session, sicCode('nd1@example.com'), '127.0.0.1');
 
-    expect($done)->toBe(['network' => null, 'device' => 'Chrome on Windows'])
+    expect($done)->toBe(['network' => null, 'device' => 'Chrome on Windows', 'approval' => false])
         ->and(Make::system(fn () => Device::query()->withoutGlobalScopes()->where('device_uid', $uid)->where('platform', 'web')->sole())->isTrusted())->toBeTrue()
         ->and(Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->find($session->id))->device_pending_at)->toBeNull();
     $this->actingAs(sicFresh($owner), 'web')->withSession($web)->get('/admin')->assertOk();
@@ -335,4 +337,61 @@ it('lets a login without an e-mail (but with its authenticator) give one on the 
         ->and(sicFresh($saas)->email_verified_at)->not->toBeNull();
     // From then on the code goes only to that address.
     expect(app(NewNetwork::class)->canAddEmail(sicFresh($saas)))->toBeFalse();
+});
+
+it('asks for all the checks on a new network: the e-mail code, then QR + number picked on the person\'s own other device', function () {
+    config(['ricemill.security.super_admin_require_ip_allowlist' => true]);
+    $owner = sicAccount('AL1', 'OWNER', 'all@example.com', ['10.0.0.0/8', '127.0.0.0/24']);
+    $mine = sicSession(sicFresh($owner), '127.0.0.1');            // already signed in at the office (an approved device)
+    $held = sicSession(sicFresh($owner), NEW_IP);                 // the new sign-in, held
+    expect($held->network_pending_at)->not->toBeNull()
+        ->and(app(NewNetwork::class)->approvalNeeded(sicFresh($owner), $held))->toBeTrue();
+
+    // 1. The e-mail code: not enough on its own, the QR code + number come next.
+    app(NewNetwork::class)->sendCode(sicFresh($owner), $held);
+    $done = app(NewNetwork::class)->verifyCode(sicFresh($owner), $held, sicCode('all@example.com'), NEW_IP);
+    $held = Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->find($held->id));
+    expect($done['approval'])->toBeTrue()->and($held->code_proven_at)->not->toBeNull()->and($held->network_pending_at)->not->toBeNull();
+
+    // 2. "Is it you?": the person's other sign-in sees it and picks the number; the held one itself cannot.
+    $request = app(SignInApprovals::class)->open(sicFresh($owner), $held, EmailCode::NEW_NETWORK)['approval'];
+    expect(app(SignInApprovals::class)->pendingFor(sicFresh($owner), $mine->id)->pluck('id')->all())->toBe([$request->id])
+        ->and(app(SignInApprovals::class)->pendingFor(sicFresh($owner), $held->id))->toBeEmpty()
+        ->and(fn () => app(SignInApprovals::class)->pick(sicFresh($owner), $request->id, $request->number, $held->id))->toThrow(BusinessRuleViolation::class);
+    expect(app(SignInApprovals::class)->pick(sicFresh($owner), $request->id, $request->number, $mine->id))->toBeTrue();
+
+    $held = Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->find($held->id));
+    expect($held->network_pending_at)->toBeNull()
+        ->and(Make::system(fn () => app(IpAllowlistPolicy::class)->allows(sicFresh($owner), NEW_IP)))->toBeTrue();
+});
+
+it('uses a code to the mobile as the second check when no other device is signed in to scan the QR code', function () {
+    config(['ricemill.security.super_admin_require_ip_allowlist' => true, 'ricemill.messaging.sms_url' => 'https://sms.example.test/send']);
+    $texts = [];
+    Http::fake(['sms.example.test/*' => function ($request) use (&$texts) {
+        $texts[] = $request['text'];
+
+        return Http::response(['ok' => true]);
+    }]);
+    $owner = sicAccount('MC1', 'OWNER', 'mc@example.com', ['10.0.0.0/8']);
+    Make::system(fn () => Person::query()->withoutGlobalScopes()->whereKey($owner->person_id)->update(['phone' => '+923001234567']));
+    $held = sicSession(sicFresh($owner), NEW_IP);
+    expect(app(SignInApprovals::class)->canBeApproved(sicFresh($owner), $held->id))->toBeFalse()
+        ->and(app(MobileCode::class)->available(sicFresh($owner)))->toBeTrue()
+        ->and(app(NewNetwork::class)->approvalNeeded(sicFresh($owner), $held))->toBeTrue();
+
+    // Not before the e-mail code.
+    expect(fn () => app(NewNetwork::class)->verifyMobile(sicFresh($owner), $held, '123456'))->toThrow(BusinessRuleViolation::class, 'e-mail first');
+    app(NewNetwork::class)->sendCode(sicFresh($owner), $held);
+    expect(app(NewNetwork::class)->verifyCode(sicFresh($owner), $held, sicCode('mc@example.com'), NEW_IP)['approval'])->toBeTrue();
+
+    app(MobileCode::class)->send(sicFresh($owner), $held);
+    preg_match('/\d{6}/', (string) end($texts), $m);
+    $code = $m[0];
+    expect(fn () => app(NewNetwork::class)->verifyMobile(sicFresh($owner), $held, $code === '000000' ? '111111' : '000000'))
+        ->toThrow(BusinessRuleViolation::class, '4 tries left');
+    $done = app(NewNetwork::class)->verifyMobile(sicFresh($owner), $held, $code);
+
+    expect($done['network'])->toBe('149.40.161.0/24')
+        ->and(Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->find($held->id))->network_pending_at)->toBeNull();
 });

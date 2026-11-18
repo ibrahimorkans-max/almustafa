@@ -9,6 +9,7 @@ use App\Domain\Auth\SignInApprovals;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Filament\Concerns\TranslatesLabels;
+use App\Http\Middleware\EnsureWebAuthSession;
 use App\Models\AuthSession;
 use App\Models\LoginAccount;
 use App\Models\SignInApproval;
@@ -50,7 +51,23 @@ class SignInApprovalPage extends Page
     {
         $user = Filament::auth()->user();
 
-        return $user instanceof LoginAccount && $user->hasPermission(SignInApprovals::RIGHT);
+        // Owners / administrators; and anybody with a sign-in of their own waiting for "Is it you?".
+        return $user instanceof LoginAccount && ($user->hasPermission(SignInApprovals::RIGHT)
+            || app(SignInApprovals::class)->pendingFor($user, self::currentSessionId())->isNotEmpty());
+    }
+
+    /** This browser's sign-in: a person approves their own held sign-in only from another one. */
+    public static function currentSessionId(): ?string
+    {
+        $id = session()->get(EnsureWebAuthSession::SESSION_KEY);
+
+        return is_string($id) ? $id : null;
+    }
+
+    /** The request is the person's own sign-in somewhere else (Google-style "Is it you?"). */
+    public function isOwn(SignInApproval $r): bool
+    {
+        return $r->login_account_id === $this->approver()->id;
     }
 
     public static function getNavigationBadge(): ?string
@@ -59,7 +76,7 @@ class SignInApprovalPage extends Page
         if (! $user instanceof LoginAccount || ! app(SignInApprovals::class)->enabled()) {
             return null;
         }
-        $count = app(SignInApprovals::class)->pendingFor($user)->count();
+        $count = app(SignInApprovals::class)->pendingFor($user, self::currentSessionId())->count();
 
         return $count > 0 ? (string) $count : null;
     }
@@ -72,7 +89,7 @@ class SignInApprovalPage extends Page
     /** @return Collection<int, SignInApproval> the open requests, the scanned one first */
     public function requests(): Collection
     {
-        $pending = app(SignInApprovals::class)->pendingFor($this->approver());
+        $pending = app(SignInApprovals::class)->pendingFor($this->approver(), self::currentSessionId());
         $scanned = $this->token !== null ? app(SignInApprovals::class)->findByToken($this->token) : null;
 
         return $scanned === null ? $pending : $pending->sortByDesc(fn (SignInApproval $a) => $a->id === $scanned->id)->values();
@@ -107,7 +124,7 @@ class SignInApprovalPage extends Page
     public function pick(string $approvalId, int $number): void
     {
         try {
-            $ok = app(SignInApprovals::class)->pick($this->approver(), $approvalId, $number);
+            $ok = app(SignInApprovals::class)->pick($this->approver(), $approvalId, $number, self::currentSessionId());
         } catch (BusinessRuleViolation $e) {
             Notification::make()->title(__($e->getMessage()))->danger()->send();
 
@@ -122,7 +139,7 @@ class SignInApprovalPage extends Page
     public function deny(string $approvalId): void
     {
         try {
-            app(SignInApprovals::class)->deny($this->approver(), $approvalId);
+            app(SignInApprovals::class)->deny($this->approver(), $approvalId, self::currentSessionId());
         } catch (BusinessRuleViolation $e) {
             Notification::make()->title(__($e->getMessage()))->danger()->send();
 

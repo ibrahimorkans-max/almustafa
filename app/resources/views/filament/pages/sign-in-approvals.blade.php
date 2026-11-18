@@ -25,7 +25,7 @@
                 $isNetwork = $r->purpose === \App\Domain\Auth\EmailCode::NEW_NETWORK;
                 $place = implode(', ', array_filter([$info['city'] ?? null, $info['region'] ?? null, $info['country'] ?? null]));
             @endphp
-            <x-filament::section :heading="$isNetwork ? __('New network: :username', ['username' => $who->username]) : __('First sign-in: :username', ['username' => $who->username])" :icon="$isNetwork ? 'heroicon-o-globe-alt' : 'heroicon-o-user-plus'" class="rmv-enter">
+            <x-filament::section :heading="$this->isOwn($r) ? __('Is it you signing in?') : ($isNetwork ? __('New network or device: :username', ['username' => $who->username]) : __('First sign-in: :username', ['username' => $who->username]))" :icon="$isNetwork ? 'heroicon-o-globe-alt' : 'heroicon-o-user-plus'" class="rmv-enter">
                 <dl class="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
                     <div><dt class="text-gray-500">{{ __('Name') }}</dt><dd class="font-medium">{{ $who->person?->full_name ?? '—' }}</dd></div>
                     <div><dt class="text-gray-500">{{ __('Role') }}</dt><dd class="font-medium">{{ $who->role?->name ?? '—' }} · {{ $who->entity?->name }}</dd></div>
