@@ -9,10 +9,17 @@
     <tr><td style="padding-top:16px;font-size:15px;line-height:1.6">
         {{ __('Hello!') }}<br>
         {{ $intro }}
+        @if ($match !== null)<br><b>{{ __('First type the 6-digit code, then pick the 2-digit number.') }}</b>@endif
     </td></tr>
     <tr><td style="padding:22px 0" align="center">
         <div dir="ltr" style="display:inline-block;background:#eef6f1;border:2px dashed #0f4c3a;border-radius:10px;padding:14px 26px;font-size:34px;font-weight:bold;letter-spacing:10px;color:#0f4c3a;font-family:Consolas,Menlo,monospace">{{ $code }}</div>
     </td></tr>
+    @if ($match !== null)
+    <tr><td style="padding:0 0 8px;font-size:14px;color:#1d2329" align="center">{{ __('Then pick this number on the screen:') }}</td></tr>
+    <tr><td style="padding:0 0 22px" align="center">
+        <div dir="ltr" style="display:inline-block;background:#0f4c3a;border-radius:50%;width:84px;height:84px;line-height:84px;font-size:38px;font-weight:bold;color:#ffffff;font-family:Consolas,Menlo,monospace;text-align:center">{{ $match }}</div>
+    </td></tr>
+    @endif
     <tr><td style="padding-bottom:18px" align="center">
         <a href="{{ $url }}" style="display:inline-block;background:#0f4c3a;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:11px 24px;border-radius:8px">{{ __('Open the sign-in screen') }}</a>
     </td></tr>

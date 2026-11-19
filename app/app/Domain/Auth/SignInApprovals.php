@@ -89,7 +89,10 @@ final class SignInApprovals
     /** Whether this person's first sign-in still waits for an approval. */
     public function needed(LoginAccount $account): bool
     {
-        return $this->enabled() && $account->first_sign_in_approved_at === null && $this->approvers($account)->isNotEmpty();
+        // Nobody else approves: the e-mail codes and the person's own second factor (SecondFactor) do it. Only with that
+        // switched off do other people approve — and never the SaaS owner, Owners and Super Admins.
+        return $this->enabled() && ! $account->isTopRole() && ! app(SecondFactor::class)->enabled()
+            && $account->first_sign_in_approved_at === null && $this->approvers($account)->isNotEmpty();
     }
 
     /**

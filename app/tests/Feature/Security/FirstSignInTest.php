@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Auth\AuthContextBinder;
 use App\Domain\Auth\DeviceInfo;
+use App\Domain\Auth\EmailCode;
 use App\Domain\Auth\FirstSignIn;
 use App\Domain\Auth\IpAllowlistPolicy;
 use App\Domain\Auth\LoginService;
@@ -66,6 +67,10 @@ it('confirms the e-mail with the code typed on the signing-in screen, then the u
         ->and(fn () => app(FirstSignIn::class)->verifyCode(fsiAccount($user), $code === '000000' ? '111111' : '000000', $sessionId))
         ->toThrow(BusinessRuleViolation::class, '4 tries left');
     app(FirstSignIn::class)->verifyCode(fsiAccount($user), $code, $sessionId);
+    // The 6-digit code is only the first: the 2-digit number of the same e-mail is picked next, from four.
+    expect(fsiAccount($user)->email_verified_at)->toBeNull()
+        ->and(app(EmailCode::class)->choices(fsiAccount($user)))->toHaveCount(4)->toContain(fsiNumber('ali.raza@example.com'));
+    app(FirstSignIn::class)->verifyNumber(fsiAccount($user), fsiNumber('ali.raza@example.com'), $sessionId);
     expect(fsiAccount($user)->email_verified_at)->not->toBeNull();
 
     app(FirstSignIn::class)->complete(fsiAccount($user), ['full_name' => 'Ali Raza', 'phone' => '0300-1234567']);
@@ -133,6 +138,7 @@ it('lets a new Owner finish the first sign-in from an unlisted network and a new
 
     app(FirstSignIn::class)->sendVerification(fsiAccount($owner), 'owner@example.com', $auth->id);
     app(FirstSignIn::class)->verifyCode(fsiAccount($owner), fsiCode('owner@example.com'), $auth->id);
+    app(FirstSignIn::class)->verifyNumber(fsiAccount($owner), fsiNumber('owner@example.com'), $auth->id);
     app(FirstSignIn::class)->complete(fsiAccount($owner), ['full_name' => 'Firdous Amr', 'phone' => '0300-1234567'], $auth);
 
     $owner = fsiAccount($owner);
@@ -197,11 +203,41 @@ function fsiCode(string $to, int $nth = 1): string
     return $mails[$nth - 1]->code;
 }
 
+/** The 2-digit number of the last e-mail to that address. */
+function fsiNumber(string $to): int
+{
+    return (int) Mail::sent(FirstSignInVerificationMail::class, fn (FirstSignInVerificationMail $m) => $m->hasTo($to))->last()->match;
+}
+
+it('cancels the e-mail\'s codes when a wrong number is picked, and takes no number before the code', function () {
+    $user = Make::account(Make::entity('FSN'), 'SUPER_ADMIN', ['mfa' => true]);
+    app(FirstSignIn::class)->sendVerification(fsiAccount($user), 'n2@example.com');
+    $right = fsiNumber('n2@example.com');
+    $wrong = collect(app(EmailCode::class)->choices(fsiAccount($user)))->first(fn ($n) => $n !== $right);
+
+    expect(fn () => app(FirstSignIn::class)->verifyNumber(fsiAccount($user), $right, null))->toThrow(BusinessRuleViolation::class, '6-digit code');
+    app(FirstSignIn::class)->verifyCode(fsiAccount($user), fsiCode('n2@example.com'), null);
+    expect(fn () => app(FirstSignIn::class)->verifyNumber(fsiAccount($user), $wrong, null))->toThrow(BusinessRuleViolation::class, 'Wrong number')
+        ->and(fn () => app(FirstSignIn::class)->verifyNumber(fsiAccount($user), $right, null))->toThrow(BusinessRuleViolation::class)
+        ->and(fsiAccount($user)->email_verified_at)->toBeNull();
+});
+
+it('needs nobody else to approve the first sign-in of a Super Admin or an Owner', function () {
+    $entity = Make::entity('FST2');
+    $other = Make::account($entity, 'OWNER', ['mfa' => true]);
+    Make::system(fn () => LoginAccount::query()->withoutGlobalScopes()->whereKey($other->id)->update(['first_sign_in_completed_at' => now()]));
+    $admin = Make::account($entity, 'SUPER_ADMIN', ['mfa' => true]);
+    $clerk = Make::account($entity, 'ACCOUNTANT', ['mfa' => true]);
+
+    expect(app(SignInApprovals::class)->needed(fsiAccount($admin)))->toBeFalse()
+        ->and(app(SignInApprovals::class)->needed(fsiAccount($clerk)))->toBeTrue();
+});
+
 it('waits for somebody signed in to approve the sign-in: QR code, then the matching number', function () {
     $entity = Make::entity('FSA');
     $approver = Make::account($entity, 'OWNER', ['mfa' => true]);
     Make::system(fn () => LoginAccount::query()->withoutGlobalScopes()->whereKey($approver->id)->update(['first_sign_in_completed_at' => now()]));
-    $newbie = Make::account($entity, 'SUPER_ADMIN', ['mfa' => true]);
+    $newbie = Make::account($entity, 'ACCOUNTANT', ['mfa' => true]);   // a top role is approved by nobody else
     $session = Make::webSession($newbie);
     $authId = $session['auth_session_id'];
     Make::system(fn () => LoginAccount::query()->withoutGlobalScopes()->whereKey($newbie->id)->update(['email' => 'n@example.com', 'email_verified_at' => now()]));
@@ -258,4 +294,16 @@ it('skips the approval when nobody else could approve (a new company\'s first Ow
     expect(app(SignInApprovals::class)->needed(fsiAccount($owner)))->toBeFalse();
     app(FirstSignIn::class)->complete(fsiAccount($owner), ['full_name' => 'First Owner', 'phone' => '0300-1234567']);
     expect(fsiAccount($owner)->needsFirstSignIn())->toBeFalse();
+});
+
+it('needs nobody else to approve anybody when the second factor is asked', function () {
+    config(['ricemill.auth.second_factor' => true]);
+    $entity = Make::entity('FSL');
+    $other = Make::account($entity, 'OWNER', ['mfa' => true]);
+    Make::system(fn () => LoginAccount::query()->withoutGlobalScopes()->whereKey($other->id)->update(['first_sign_in_completed_at' => now()]));
+    $clerk = Make::account($entity, 'ACCOUNTANT', ['mfa' => true]);
+
+    expect(app(SignInApprovals::class)->needed(fsiAccount($clerk)))->toBeFalse();
+    config(['ricemill.auth.second_factor' => false]);
+    expect(app(SignInApprovals::class)->needed(fsiAccount($clerk)))->toBeTrue();
 });

@@ -20,6 +20,7 @@ use App\Models\Hr\PayrollItem;
 use App\Models\Hr\PayrollRun;
 use App\Models\Hr\PayrollRunAttendance;
 use App\Models\Hr\Payslip;
+use App\Models\Hr\SalaryVoucher;
 use App\Models\LoginAccount;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
@@ -274,6 +275,8 @@ final class PayrollService
         return Employee::query()->with(['person', 'shift'])
             ->where('joining_date', '<=', $end->toDateString())
             ->where(fn ($q) => $q->whereNull('exited_on')->orWhere('exited_on', '>=', $start->toDateString()))
+            // A month already paid on a salary voucher (App\Domain\Hr\SalaryVouchers) is not paid again by the run.
+            ->whereNotIn('id', SalaryVoucher::query()->where('kind', 'salary')->where('month', $month)->select('employee_id'))
             ->orderBy('code')->get();
     }
 

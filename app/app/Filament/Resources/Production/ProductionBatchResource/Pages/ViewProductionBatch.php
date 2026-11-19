@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Production\ProductionBatchResource\Pages;
 
 use App\Domain\Production\ProductionService;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Resources\Inventory\RequisitionResource;
 use App\Filament\Resources\Production\ProductionBatchResource;
+use App\Filament\Support\MillingWeights;
 use App\Filament\Support\PrintButton;
 use App\Filament\Support\ProductSelect;
 use App\Filament\Support\RunsDomainActions;
@@ -19,6 +21,7 @@ use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -31,9 +34,8 @@ use Filament\Resources\Pages\ViewRecord;
  */
 class ViewProductionBatch extends ViewRecord
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use RunsDomainActions;
+    use TranslatesLabels;
 
     protected static string $resource = ProductionBatchResource::class;
 
@@ -56,13 +58,15 @@ class ViewProductionBatch extends ViewRecord
                 ->modalDescription(__('Takes the paddy out of the godown now. For stores-controlled issue use a requisition.'))
                 ->form([
                     Select::make('godown_id')->label(__('From godown'))->required()->options($godowns),
-                    TextInput::make('quantity_kg')->label(__('Quantity (kg)'))->required()->regex(Units::DECIMAL_3),
+                    MillingWeights::help(),
+                    Grid::make(4)->schema(MillingWeights::fields()),
+                    TextInput::make('quantity_kg')->label(__('Net quantity (kg)'))->required()->regex(Units::DECIMAL_3),
                     ...$period,
                     Textarea::make('note')->maxLength(1000),
                 ])
                 ->action(fn (ProductionBatch $b, array $data) => $this->runDomain(fn () => $service()->recordInput(
                     $b, Godown::query()->findOrFail($data['godown_id']), (string) $data['quantity_kg'],
-                    $at($data, 'period_start'), $at($data, 'period_end'), $data['note'] ?? null,
+                    $at($data, 'period_start'), $at($data, 'period_end'), MillingWeights::note($data, $data['note'] ?? null),
                 ), 'Input logged')),
             Action::make('output')->label(__('Log output'))->icon('heroicon-o-arrow-up-on-square')->color('success')
                 ->visible(fn (ProductionBatch $b) => $open($b) && $can('production.log'))
@@ -70,13 +74,15 @@ class ViewProductionBatch extends ViewRecord
                     Select::make('product_id')->label(__('Rice / by-product'))->required()
                         ->options(fn () => Product::query()->whereIn('category', ProductionService::OUTPUT_CATEGORIES)->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
                     Select::make('godown_id')->label(__('Into godown'))->required()->options($godowns),
-                    TextInput::make('quantity_kg')->label(__('Quantity (kg)'))->required()->regex(Units::DECIMAL_3),
+                    MillingWeights::help(),
+                    Grid::make(4)->schema(MillingWeights::fields()),
+                    TextInput::make('quantity_kg')->label(__('Net quantity (kg)'))->required()->regex(Units::DECIMAL_3),
                     ...$period,
                     Textarea::make('note')->maxLength(1000),
                 ])
                 ->action(fn (ProductionBatch $b, array $data) => $this->runDomain(fn () => $service()->recordOutput(
                     $b, Product::query()->findOrFail($data['product_id']), Godown::query()->findOrFail($data['godown_id']), (string) $data['quantity_kg'],
-                    $at($data, 'period_start'), $at($data, 'period_end'), $data['note'] ?? null,
+                    $at($data, 'period_start'), $at($data, 'period_end'), MillingWeights::note($data, $data['note'] ?? null),
                 ), 'Output logged')),
             Action::make('outputs')->label(__('Log several outputs'))->icon('heroicon-o-squares-plus')->color('success')
                 ->visible(fn (ProductionBatch $b) => $open($b) && $can('production.log'))
@@ -88,7 +94,8 @@ class ViewProductionBatch extends ViewRecord
                             Select::make('product_id')->label(__('Product'))->required()->searchable()
                                 ->options(fn () => ProductSelect::options(ProductionService::OUTPUT_CATEGORIES)),
                             Select::make('godown_id')->label(__('Into godown'))->required()->options($godowns),
-                            TextInput::make('quantity_kg')->label(__('Quantity (kg)'))->required()->regex(Units::DECIMAL_3),
+                            TextInput::make('quantity_kg')->label(__('Net quantity (kg)'))->required()->regex(Units::DECIMAL_3),
+                            Grid::make(4)->columnSpanFull()->schema(MillingWeights::fields()),
                         ]),
                     ...$period,
                     Textarea::make('note')->maxLength(1000),

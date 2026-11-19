@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Hr;
 
+use App\Filament\Concerns\TranslatesResourceLabels;
 use App\Filament\Resources\Hr\EmployeeResource\Pages;
 use App\Filament\Resources\Hr\EmployeeResource\RelationManagers;
+use App\Filament\Support\Units;
 use App\Models\Hr\Department;
 use App\Models\Hr\Designation;
 use App\Models\Hr\Employee;
 use App\Models\Hr\Shift;
 use App\Models\LoginAccount;
+use App\Support\Locales;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Section as FormSection;
@@ -18,6 +21,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Infolists\Components\Actions\Action as InfolistAction;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
@@ -30,7 +34,7 @@ use Filament\Tables\Table;
 
 class EmployeeResource extends Resource
 {
-    use \App\Filament\Concerns\TranslatesResourceLabels;
+    use TranslatesResourceLabels;
 
     protected static ?string $model = Employee::class;
 
@@ -64,13 +68,23 @@ class EmployeeResource extends Resource
                     ->options(fn () => Department::query()->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
                 Select::make('designation_id')->label(__('Designation'))
                     ->options(fn () => Designation::query()->where('status', 'active')->orderBy('name')->pluck('name', 'id')),
-                Select::make('employment_type')->options(\App\Support\Locales::options(Employee::TYPES))->required(),
+                Select::make('employment_type')->options(Locales::options(Employee::TYPES))->required(),
                 Select::make('shift_id')->label(__('Shift'))
                     ->options(fn () => Shift::query()->where('status', 'active')->orderBy('code')->get()
                         ->mapWithKeys(fn (Shift $s) => [$s->id => "{$s->name} ({$s->start_time}–{$s->end_time})"])->all()),
                 DatePicker::make('joining_date')->required()->disabledOn('edit')->maxDate(now()->addMonths(3)),
                 TextInput::make('notice_period_days')->label(__('Notice period (days)'))->numeric()->minValue(0)->maxValue(180)->default(30),
             ]),
+            // The salary, set while adding the employee (later changes: "New salary version" on the employee).
+            FormSection::make('Salary')->columns(3)->visibleOn('create')
+                ->visible(fn () => Filament::auth()->user()?->can('hr.salary.edit') ?? false)
+                ->description(__('Paid from the joining date. Allowances and later increments: "New salary version" on the employee.'))
+                ->schema([
+                    Select::make('salary_basis')->label(__('Paid'))->default('monthly')->live()
+                        ->options(['monthly' => __('Monthly salary'), 'daily' => __('Daily wage')]),
+                    TextInput::make('salary_amount')->label(fn (Get $get) => $get('salary_basis') === 'daily' ? __('Daily wage (Rs)') : __('Monthly salary (Rs)'))
+                        ->regex(Units::DECIMAL_2)->prefix('Rs')->placeholder('35000'),
+                ]),
             FormSection::make('Personal details')->columns(2)
                 ->description(__('Encrypted. CNIC and NTN are shown masked; leave a field empty on edit to keep the stored value.'))
                 ->schema([
@@ -106,7 +120,7 @@ class EmployeeResource extends Resource
             ->filters([
                 SelectFilter::make('status')->options(['active' => __('Active'), 'on_notice' => __('On notice'), 'exited' => __('Exited')]),
                 SelectFilter::make('department_id')->label(__('Department'))->relationship('department', 'name'),
-                SelectFilter::make('employment_type')->label(__('Type'))->options(\App\Support\Locales::options(Employee::TYPES)),
+                SelectFilter::make('employment_type')->label(__('Type'))->options(Locales::options(Employee::TYPES)),
                 SelectFilter::make('contractor_party_id')->label(__('Contractor'))->relationship('contractor', 'name'),
             ])
             ->actions([ViewAction::make()]);

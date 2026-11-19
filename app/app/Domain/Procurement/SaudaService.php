@@ -13,6 +13,8 @@ use App\Models\LoginAccount;
 use App\Models\Procurement\Quote;
 use App\Models\Procurement\Sauda;
 use App\Models\Procurement\SaudaEvent;
+use App\Models\Sales\DispatchOrder;
+use App\Models\Sales\QuickBill;
 use App\Support\Values\Weight;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -133,6 +135,59 @@ final class SaudaService
                 $sauda->save();
                 $this->event($sauda, 'completed', ['delivered_kg' => $delivered->kg]);
             }
+
+            return $sauda;
+        });
+    }
+
+    /**
+     * A quick bill delivering on the deal (App\Domain\Sales\QuickBills: a direct dispatch, a sale or a purchase on the
+     * spot). Unlike a vehicle at the gate it may not go beyond what is left (with the tolerance): it is refused.
+     */
+    public function recordBillDelivery(Sauda $sauda, QuickBill $bill, Weight $kg): Sauda
+    {
+        return DB::transaction(function () use ($sauda, $bill, $kg): Sauda {
+            /** @var Sauda $sauda */
+            $sauda = Sauda::query()->lockForUpdate()->findOrFail($sauda->id);
+            if (! $sauda->isOpenForDelivery()) {
+                throw new BusinessRuleViolation("Sauda {$sauda->number} is {$sauda->status}; it cannot take deliveries.");
+            }
+            $ordered = Weight::kg((string) DispatchOrder::query()->where('sauda_id', $sauda->id)->whereIn('status', DispatchOrder::EXPOSED)->sum('quantity_kg') ?: '0');
+            $left = $sauda->maximumQuantity()->minus(Weight::kg($sauda->delivered_kg))->minus($ordered);
+            if ($kg->compare($left) > 0) {
+                throw new BusinessRuleViolation(sprintf('Only %s kg (%s maund) of sauda %s is left (incl. tolerance and open dispatch orders).',
+                    $left->isNegative() ? '0' : $left->kg, $left->isNegative() ? '0' : $left->in('maund', 2), $sauda->number));
+            }
+            $delivered = Weight::kg($sauda->delivered_kg)->plus($kg);
+            $sauda->delivered_kg = $delivered->kg;
+            $sauda->status = Sauda::STATUS_IN_DELIVERY;
+            $sauda->save();
+            $this->event($sauda, 'delivery', ['quick_bill_id' => $bill->id, 'quick_bill_number' => $bill->number, 'payable_kg' => $kg->kg, 'delivered_kg' => $delivered->kg]);
+            if ($delivered->compare($sauda->completionThreshold()) >= 0) {
+                $sauda->status = Sauda::STATUS_COMPLETED;
+                $sauda->completed_at = now();
+                $sauda->save();
+                $this->event($sauda, 'completed', ['delivered_kg' => $delivered->kg]);
+            }
+
+            return $sauda;
+        });
+    }
+
+    /** A cancelled quick bill gives its weight back to the deal (a completed deal opens again when it falls short). */
+    public function returnBillDelivery(Sauda $sauda, QuickBill $bill, Weight $kg): Sauda
+    {
+        return DB::transaction(function () use ($sauda, $bill, $kg): Sauda {
+            /** @var Sauda $sauda */
+            $sauda = Sauda::query()->lockForUpdate()->findOrFail($sauda->id);
+            $delivered = Weight::kg($sauda->delivered_kg)->minus($kg);
+            $sauda->delivered_kg = $delivered->isNegative() ? '0.000' : $delivered->kg;
+            if ($sauda->status === Sauda::STATUS_COMPLETED && Weight::kg($sauda->delivered_kg)->compare($sauda->completionThreshold()) < 0) {
+                $sauda->status = Sauda::STATUS_IN_DELIVERY;
+                $sauda->completed_at = null;
+            }
+            $sauda->save();
+            $this->event($sauda, 'delivery_returned', ['quick_bill_id' => $bill->id, 'quick_bill_number' => $bill->number, 'kg' => $kg->kg, 'delivered_kg' => $sauda->delivered_kg]);
 
             return $sauda;
         });

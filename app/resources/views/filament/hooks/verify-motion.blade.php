@@ -67,3 +67,10 @@
         }));
     });
 </script>
+
+{{-- The number pick (x-verify.pick-number). --}}
+<style>
+    .rmv-pick { animation: rmv-pick-in .45s cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: calc(var(--i, 0) * 70ms); }
+    @keyframes rmv-pick-in { from { opacity: 0; transform: translateY(10px) scale(.92); } }
+    @media (prefers-reduced-motion: reduce) { .rmv-pick { animation: none !important; } }
+</style>

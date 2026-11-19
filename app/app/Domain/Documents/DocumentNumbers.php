@@ -60,6 +60,12 @@ final class DocumentNumbers
 
     public const EXPENSE = 'EXP';
 
+    /** A quick bill: a sale, purchase, rice for paddy, milling or weighing made on the spot. */
+    public const QUICK_BILL = 'QB';
+
+    /** A salary (or bonus) paid to one employee on the spot (App\Domain\Hr\SalaryVouchers). */
+    public const SALARY_VOUCHER = 'SV';
+
     public function __construct(private readonly TenantContext $tenant) {}
 
     public function next(string $series, ?CarbonInterface $date = null): string

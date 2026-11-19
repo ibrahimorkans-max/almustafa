@@ -57,6 +57,16 @@
         } catch (e) { alertBox(explain(e)); }
     };
 
+    /** A sign-in check ("prove it is you"): the person's own passkey signs a challenge; the page checks it is theirs. */
+    window.rmPasskeyVerify = async function ($wire) {
+        if (!supported()) { alertBox('This browser cannot use passkeys here. Choose another way.'); return; }
+        try {
+            const options = await $wire.passkeyOptions();
+            const cred = await navigator.credentials.get({ publicKey: requestOptions(options) });
+            await $wire.provePasskey(toJSON(cred));
+        } catch (e) { alertBox(explain(e)); }
+    };
+
     /** "My passkeys" page: create a key on this device and store its public half. */
     window.rmPasskeyRegister = async function ($wire, name) {
         if (!supported()) { alertBox('This browser cannot create passkeys here.'); return; }

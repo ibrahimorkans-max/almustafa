@@ -13,13 +13,17 @@ use App\Models\Accounts\VoucherLine;
 use App\Models\Claims\Claim;
 use App\Models\DailyWages\DailyWageSheet;
 use App\Models\Entity;
+use App\Models\Hr\SalaryVoucher;
 use App\Models\Inventory\Requisition;
 use App\Models\LoginAccount;
 use App\Models\Procurement\Sauda;
 use App\Models\Production\ProductionBatch;
 use App\Models\Sales\DispatchOrder;
+use App\Models\Sales\QuickBill;
+use App\Models\Sales\QuickBillLine;
 use App\Support\Values\AmountInWords;
 use App\Support\Values\Money;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -40,6 +44,8 @@ final class RecordDocuments
         'requisition' => [Requisition::class, 'Stores issue slip', 'stock.view'],
         'batch' => [ProductionBatch::class, 'Production batch report', 'production.view'],
         'daily_wage' => [DailyWageSheet::class, 'Daily wage slip', 'wages.daily.manage'],
+        'quick_bill' => [QuickBill::class, 'Bill', 'sales.view'],
+        'salary_voucher' => [SalaryVoucher::class, 'Salary voucher', 'hr.payroll.run'],
     ];
 
     public function __construct(
@@ -58,12 +64,14 @@ final class RecordDocuments
             'requisition' => $this->requisition($record),
             'batch' => $this->batch($record),
             'daily_wage' => $this->dailyWage($record),
+            'quick_bill' => $this->quickBill($record),
+            'salary_voucher' => $this->salaryVoucher($record),
             default => throw new BusinessRuleViolation("Unknown document {$type}."),
         };
         $entity = $this->tenant->runAsSystem(fn () => Entity::query()->find($record->getAttribute('entity_id')));
 
         // A dispatch order and a sale sauda are selling documents: the sales logo.
-        $sales = $type === 'dispatch' || ($type === 'sauda' && $record->getAttribute('direction') === 'sale');
+        $sales = $type === 'dispatch' || ($type === 'quick_bill' && $record->getAttribute('kind') === 'sale') || ($type === 'sauda' && $record->getAttribute('direction') === 'sale');
 
         return $this->pdf->render('documents.record', ['doc' => $doc, 'title' => $doc['title']] + ($sales ? ['brand_use' => 'sales'] : []), $entity, ($doc['small'] ?? false) ? 'A5' : 'A4');
     }
@@ -170,6 +178,88 @@ final class RecordDocuments
             ]]],
             'notes' => array_values(array_filter([$d->note])),
             'signs' => [['Ordered by', 'آرڈر کنندہ', $this->name($d->created_by)], ['Store keeper', 'اسٹور کیپر'], ['Driver / buyer', 'ڈرائیور']],
+        ];
+    }
+
+    /**
+     * A quick bill: date and time, the party (or walk-in customer), the vehicle, every line with its weights, deductions,
+     * rate per maund and amount, the charges, the total, what is paid and the balance (PAID / UNPAID).
+     *
+     * @return array<string, mixed>
+     */
+    private function quickBill(Model $b): array
+    {
+        /** @var QuickBill $b */
+        $b->loadMissing(['party', 'lines', 'charges', 'payments', 'sauda']);
+        [$title, $titleUr] = match ($b->kind) {
+            'purchase' => ['PURCHASE BILL', 'خریداری بل'],
+            'exchange' => ['HISAAB BILL (RICE FOR PADDY)', 'حساب بل'],
+            'milling' => ['MILLING BILL (MAZDOORI)', 'پسائی بل'],
+            'weighing' => ['WEIGHING SLIP', 'کنڈا پرچی'],
+            default => ['SALE BILL', 'فروخت بل'],
+        };
+        $status = $b->status === QuickBill::CANCELLED ? 'CANCELLED — '.$b->cancel_reason : ['paid' => 'PAID', 'partial' => 'PARTLY PAID', 'unpaid' => 'UNPAID'][$b->paymentStatus()];
+        $rows = $b->lines->map(fn (QuickBillLine $l) => [
+            ($l->direction === 'in' ? '(In) ' : ($l->direction === 'out' && $b->kind === 'exchange' ? '(Out) ' : '')).$l->description.($l->variety ? " — {$l->variety}" : ''),
+            $l->bags ?? '—',
+            number_format((float) $l->gross_kg, 2),
+            number_format((float) bcadd($l->tare_kg, $l->deductionKg(), 3), 2).((float) $l->deduction_per_bag_kg > 0 ? " ({$l->deduction_per_bag_kg}/bag)" : ''),
+            number_format((float) $l->net_kg, 2),
+            bcdiv($l->net_kg, '40', 2),
+            Money::paise($l->rate_paise_per_maund)->grouped(),
+            Money::paise($l->amount_paise)->grouped(),
+        ])->values()->all();
+        foreach ($b->charges as $c) {
+            $rows[] = [($c->effect === 'add' ? '+ ' : '− ').$c->label, '', '', '', '', '', '', ($c->effect === 'less' ? '-' : '').Money::paise($c->amount_paise)->grouped()];
+        }
+        $fields = [['Bill no.', $b->number], ['Date and time', $b->billed_at->timezone('Asia/Karachi')->format('d M Y, h:i A')],
+            [$b->kind === 'purchase' ? 'Seller' : 'Party / customer', $b->customer().($b->customer_phone ? " ({$b->customer_phone})" : '')],
+            ['Vehicle', trim((QuickBill::VEHICLES[$b->vehicle_type] ?? '').' '.($b->vehicle_no ?? '')) ?: '—'], ['Payment', $status]];
+        if ($b->sauda !== null) {
+            $fields[] = ['Sauda', $b->sauda->number];
+        }
+        if ($b->kind === 'weighing') {
+            $fields[] = ['Weights', "{$b->first_weight_kg} kg / {$b->second_weight_kg} kg — net ".ltrim(bcsub((string) $b->first_weight_kg, (string) $b->second_weight_kg, 3), '-').' kg'];
+        }
+        $totals = [['Bill total'.($b->net_paise < 0 ? ' (mill pays)' : ''), Money::paise(abs($b->net_paise))->format()], ['Paid', Money::paise($b->paid_paise)->format()],
+            ['Balance', Money::paise($b->balancePaise())->format()]];
+
+        return [
+            'title' => $title, 'titleUr' => $titleUr, 'small' => count($rows) <= 6,
+            'fields' => $fields,
+            'table' => ['columns' => ['Item', 'Bags', 'Weight (kg)', 'Less (kg)', 'Net (kg)', 'Maund', 'Rate / maund (Rs)', 'Amount (Rs)'], 'right' => [1, 2, 3, 4, 5, 6, 7],
+                'rows' => $rows, 'totals' => $totals],
+            'words' => AmountInWords::rupees(abs($b->net_paise)),
+            'notes' => array_values(array_filter([$b->note, ...$b->payments->map(fn ($p) => 'Paid '.Money::paise($p->amount_paise)->format().' by '
+                .(QuickBill::PAYMENT_MODES[$p->mode] ?? $p->mode).($p->reference ? " {$p->reference}" : '').' on '.$p->paid_at->timezone('Asia/Karachi')->format('d M Y, h:i A'))->all()])),
+            'signs' => [['Made by', 'تیار کنندہ', $this->name($b->created_by)], ['Party', 'فریق'], ['Accounts', 'اکاؤنٹس']],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function salaryVoucher(Model $s): array
+    {
+        /** @var SalaryVoucher $s */
+        $s->loadMissing(['employee.person', 'employee.designation', 'ledger', 'advance']);
+        $rows = [[SalaryVoucher::KINDS[$s->kind].($s->month ? ' — '.CarbonImmutable::createFromFormat('!Y-m', $s->month)->format('F Y') : '').($s->days ? " ({$s->days} days)" : ''),
+            Money::paise($s->gross_paise)->grouped()]];
+        if ($s->advance_paise > 0) {
+            $rows[] = ['Less: advance / loan instalment'.($s->advance ? " ({$s->advance->number})" : ''), '-'.Money::paise($s->advance_paise)->grouped()];
+        }
+        if ($s->other_deduction_paise > 0) {
+            $rows[] = ['Less: '.($s->other_deduction_note ?: 'other deduction'), '-'.Money::paise($s->other_deduction_paise)->grouped()];
+        }
+
+        return [
+            'title' => 'SALARY VOUCHER', 'titleUr' => 'تنخواہ واؤچر', 'small' => true,
+            'fields' => [['Voucher no.', $s->number], ['Date and time', $s->paid_at->timezone('Asia/Karachi')->format('d M Y, h:i A')],
+                ['Employee', $s->employee->code.' — '.$s->employee->name()], ['Designation', $s->employee->designation->name ?? '—'],
+                ['Paid by', (SalaryVoucher::MODES[$s->mode] ?? $s->mode).($s->reference ? " {$s->reference}" : '').' · '.$s->ledger->name]],
+            'table' => ['columns' => ['Description', 'Amount (Rs)'], 'right' => [1], 'rows' => $rows,
+                'totals' => [['Net paid', Money::paise($s->net_paise)->format()]]],
+            'words' => AmountInWords::rupees($s->net_paise),
+            'notes' => array_values(array_filter([$s->note])),
+            'signs' => [['Prepared by', 'تیار کنندہ', $this->name($s->created_by)], ['Approved by', 'منظور کنندہ'], ['Received by (signature / thumb)', 'وصول کنندہ']],
         ];
     }
 

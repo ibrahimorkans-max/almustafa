@@ -7,14 +7,16 @@
         // Steps: this sign-in, e-mail code, approval (when somebody can approve), your details.
         $steps = array_values(array_filter([
             ['key' => 'recorded', 'label' => __('This sign-in is recorded')],
-            ['key' => 'email', 'label' => __('E-mail code')],
+            ['key' => 'email', 'label' => __('E-mail code + number')],
+            $this->hasFactorStep() ? ['key' => 'factor', 'label' => __('Prove it is you')] : null,
             $withApproval ? ['key' => 'approval', 'label' => __('Approval (QR + number)')] : null,
             ['key' => 'details', 'label' => __('Your details')],
         ]));
         $order = array_column($steps, 'key');
         $at = $finished ? count($steps) : array_search($step, $order, true);
         [$title, $sub] = match ($step) {
-            'email' => [__('Checking it is really you'), __('Confirm your e-mail with the 6-digit code we send you.')],
+            'email' => [__('Checking it is really you'), $this->numberPending() ? __('Now tap the 2-digit number from the same e-mail.') : __('Confirm your e-mail: type the 6-digit code we send you, then tap its 2-digit number.')],
+            'factor' => [__('Prove it is you'), __('Use your passkey, authenticator app, a recovery code or a code to your mobile.')],
             'approval' => [__('Waiting for approval'), __('Someone already signed in scans the QR code and picks your number.')],
             'details' => [__('Almost done'), __('Tell us your name and mobile number.')],
             default => [__('You are verified'), __('Welcome! Opening your dashboard…')],
@@ -23,7 +25,7 @@
 
     <x-verify.panel :steps="array_column($steps, 'label')" :at="$at" :title="$title" :subtitle="$sub"
         :state="$finished ? 'done' : ($step === 'approval' ? 'waiting' : 'working')" :leave="$finished" />
-    <x-verify.busy target="sendEmail,checkCode,saveDetails" />
+    <x-verify.busy target="sendEmail,checkCode,pickNumber,saveDetails" />
 
     @if ($finished)
         <x-verify.scanline />
@@ -51,7 +53,11 @@
                 {{ $this->emailForm }}
                 <x-filament::button type="submit" icon="heroicon-o-paper-airplane" :color="$emailSent ? 'gray' : 'primary'">{{ $emailSent ? __('Send the e-mail again') : __('Send the code') }}</x-filament::button>
             </form>
-            @if ($emailSent)
+            @if ($this->numberPending())
+                <div class="mt-6 border-t border-gray-200 pt-6 dark:border-white/10" wire:key="fsi-number">
+                    <x-verify.pick-number :choices="$this->numberChoices()" />
+                </div>
+            @elseif ($emailSent)
                 <div class="rmv-enter mt-6 space-y-4 border-t border-gray-200 pt-6 dark:border-white/10" wire:key="fsi-code">
                     <x-verify.otp submit="checkCode" />
                     <div class="flex flex-wrap gap-3">
@@ -59,6 +65,10 @@
                     </div>
                 </div>
             @endif
+        </x-filament::section>
+    @elseif ($step === 'factor')
+        <x-filament::section :heading="__('Prove it is you')" icon="heroicon-o-finger-print" class="rmv-enter" wire:key="fsi-factor">
+            <x-verify.second-factor />
         </x-filament::section>
     @elseif ($step === 'approval')
         <x-filament::section :heading="__('Approval by someone already signed in')" icon="heroicon-o-qr-code" class="rmv-enter" wire:key="fsi-approval">

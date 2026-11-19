@@ -124,7 +124,10 @@ final class NewNetwork
      */
     public function approvalNeeded(LoginAccount $account, AuthSession $session): bool
     {
+        // Nobody else approves once the e-mail codes are proven: the person's own second factor is the last check (for
+        // everybody); with that switched off, the SaaS owner, Owners and Super Admins still need nobody else.
         return (bool) config('ricemill.auth.held_sign_in_approval', true)
+            && ! ($session->code_proven_at !== null && ($account->isTopRole() || app(SecondFactor::class)->enabled()))
             && (app(SignInApprovals::class)->canBeApproved($account, $session->id) || app(MobileCode::class)->available($account));
     }
 
@@ -140,33 +143,72 @@ final class NewNetwork
         if (($this->byEmail($account) || $this->canAddEmail($account)) && $session->code_proven_at === null) {
             throw new BusinessRuleViolation('Confirm the code from the e-mail first.');
         }
+        if (! app(SecondFactor::class)->proven($account, $session->id)) {
+            throw new BusinessRuleViolation('Prove it is you first: passkey, authenticator code, recovery code or mobile code.');
+        }
         app(MobileCode::class)->check($account, $session, $code);
 
         return $this->release($account, $session, 'e-mail code + mobile code');
     }
 
-    /**
-     * The code from the e-mail. When somebody can approve the sign-in it is the first of two checks (marked; the QR code
-     * and number come next, SignInApprovals); otherwise whatever this sign-in waited for is let go now.
-     *
-     * @return array{network: string|null, device: string|null, approval: bool} the network added, the device approved,
-     *                                                                          or that the approval comes next
-     */
-    public function verifyCode(LoginAccount $account, AuthSession $session, string $code, ?string $ip): array
+    /** The 6-digit code from the e-mail: the first check. The 2-digit number of the same e-mail is picked next. */
+    public function verifyCode(LoginAccount $account, AuthSession $session, string $code): void
     {
-        app(EmailCode::class)->check($account, $code, $session->id);
-        if ($this->approvalNeeded($account, $session)) {
-            $this->tenant->runAsSystem(fn () => AuthSession::query()->withoutGlobalScopes()->whereKey($session->id)->toBase()->update(['code_proven_at' => now()]));
-            $session->forceFill(['code_proven_at' => now()]);
-            $this->audit->record('auth.held_sign_in.code_proven', $account, meta: ['session_id' => $session->id]);
+        app(EmailCode::class)->check($account, $code, $session->id, numberNext: true);
+    }
 
-            return ['network' => null, 'device' => null, 'approval' => true];
+    /**
+     * The 2-digit number of the e-mail, picked from the four on the screen: the e-mail checks are passed (marked). What
+     * comes next: the person's own second factor (SecondFactor), then — for everybody but the top roles, when somebody can — the QR code + number
+     * (SignInApprovals) or the mobile code; else the sign-in is let go.
+     *
+     * @return array{stage: string, network: string|null, device: string|null}
+     */
+    public function verifyNumber(LoginAccount $account, AuthSession $session, int $number, ?string $ip): array
+    {
+        app(EmailCode::class)->pick($account, $number, $session->id);
+        $this->tenant->runAsSystem(fn () => AuthSession::query()->withoutGlobalScopes()->whereKey($session->id)->toBase()->update(['code_proven_at' => now()]));
+        $session->forceFill(['code_proven_at' => now()]);
+        $this->audit->record('auth.held_sign_in.code_proven', $account, meta: ['session_id' => $session->id]);
+
+        return $this->next($account, $session, $ip);
+    }
+
+    /**
+     * After the second factor is proven on the screen (SecondFactor): what comes next. Refused before the e-mail codes.
+     *
+     * @return array{stage: string, network: string|null, device: string|null}
+     */
+    public function afterSecondFactor(LoginAccount $account, AuthSession $session, ?string $ip): array
+    {
+        $session = $this->tenant->runAsSystem(fn () => AuthSession::query()->withoutGlobalScopes()->find($session->id)) ?? $session;
+        if (($this->byEmail($account) || $this->canAddEmail($account)) && $session->code_proven_at === null) {
+            throw new BusinessRuleViolation('Confirm the code from the e-mail first.');
+        }
+
+        return $this->next($account, $session, $ip);
+    }
+
+    /**
+     * What this held sign-in waits for now: 'factor' (passkey / authenticator / recovery / mobile code), 'approval' (QR + number, or the mobile code), or 'done' (let go).
+     *
+     * @return array{stage: string, network: string|null, device: string|null}
+     */
+    public function next(LoginAccount $account, AuthSession $session, ?string $ip): array
+    {
+        if (! app(SecondFactor::class)->proven($account, $session->id)) {
+            return ['stage' => 'factor', 'network' => null, 'device' => null];
+        }
+        // Without the e-mail codes proven, only an approval (QR + number) lets the sign-in go — never the second factor alone.
+        if ($session->code_proven_at === null || $this->approvalNeeded($account, $session)) {
+            return ['stage' => 'approval', 'network' => null, 'device' => null];
         }
         if (config('ricemill.auth.held_sign_in_approval', true)) {
-            $this->audit->record('auth.held_sign_in.approval_skipped', $account, meta: ['reason' => 'nobody_can_approve', 'session_id' => $session->id]);
+            $this->audit->record('auth.held_sign_in.approval_skipped', $account,
+                meta: ['reason' => $account->isTopRole() ? 'top_role' : 'nobody_can_approve', 'session_id' => $session->id]);
         }
 
-        return $this->release($account, $session, 'e-mail code', $ip) + ['approval' => false];
+        return ['stage' => 'done'] + $this->release($account, $session, 'e-mail code + number + own second factor', $ip);
     }
 
     /**

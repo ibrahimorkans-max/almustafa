@@ -6,6 +6,8 @@ namespace App\Filament\Pages\Auth;
 
 use App\Domain\Auth\PasswordReset;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Filament\Concerns\ProvesSecondFactor;
+use App\Models\LoginAccount;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -30,6 +32,7 @@ use Illuminate\Validation\ValidationException;
 class ForgotPassword extends SimplePage implements HasForms
 {
     use InteractsWithForms;
+    use ProvesSecondFactor;
 
     private const BROWSER = 'rm_password_reset_browser';
 
@@ -47,6 +50,14 @@ class ForgotPassword extends SimplePage implements HasForms
 
     /** The 6-box code being typed (x-verify.otp). */
     public string $otp = '';
+
+    /** @var list<int> after the code: the four numbers to pick the e-mail's 2-digit number from */
+    public array $choices = [];
+
+    /** The number was right: the person's own second factor, then the new password. */
+    public bool $numberOk = false;
+
+    public bool $factorOk = false;
 
     public function mount(): void
     {
@@ -97,16 +108,16 @@ class ForgotPassword extends SimplePage implements HasForms
         $this->username = mb_strtolower(trim($username));
     }
 
-    public function resetPassword(): void
+    /** Step 1: the 6-digit code. */
+    public function checkCode(): void
     {
-        $data = $this->resetForm->getState();
         if (strlen(preg_replace('/\D/', '', $this->otp) ?? '') !== 6) {
             Notification::make()->title(__('Type the 6-digit code from the e-mail.'))->danger()->send();
 
             return;
         }
         try {
-            app(PasswordReset::class)->reset((string) $this->username, $this->otp, (string) $data['password'], $this->browser(), request()->ip());
+            $this->choices = app(PasswordReset::class)->checkCode((string) $this->username, $this->otp, $this->browser());
         } catch (BusinessRuleViolation $e) {
             $this->otp = '';
             $this->dispatch('rmv-otp-invalid');   // the boxes shake and clear
@@ -114,7 +125,52 @@ class ForgotPassword extends SimplePage implements HasForms
 
             return;
         }
+        $this->otp = '';
         $this->dispatch('rmv-otp-valid');
+    }
+
+    /** Step 2: the 2-digit number of the e-mail. Wrong: start again with a new e-mail. */
+    public function pickNumber(int $number): void
+    {
+        try {
+            app(PasswordReset::class)->pickNumber((string) $this->username, $number, $this->browser());
+        } catch (BusinessRuleViolation $e) {
+            Notification::make()->title(__($e->getMessage()))->danger()->send();
+            $this->startOver();
+
+            return;
+        }
+        $this->numberOk = true;
+        $this->factorOk = ! app(PasswordReset::class)->factorNeeded((string) $this->username, $this->browser());
+    }
+
+    /** Step 3: the person's own second factor (ProvesSecondFactor). */
+    protected function factorAccount(): LoginAccount
+    {
+        return app(PasswordReset::class)->factorAccount((string) $this->username, $this->browser());
+    }
+
+    protected function factorKey(): string
+    {
+        return $this->browser();
+    }
+
+    protected function factorProven(): void
+    {
+        $this->factorOk = true;
+    }
+
+    /** Step 4: the new password. */
+    public function resetPassword(): void
+    {
+        $data = $this->resetForm->getState();
+        try {
+            app(PasswordReset::class)->reset((string) $this->username, (string) $data['password'], $this->browser(), request()->ip());
+        } catch (BusinessRuleViolation $e) {
+            Notification::make()->title(__($e->getMessage()))->danger()->send();
+
+            return;
+        }
         session()->forget(self::BROWSER);
         $this->done = true;
     }
@@ -122,6 +178,10 @@ class ForgotPassword extends SimplePage implements HasForms
     public function startOver(): void
     {
         $this->username = null;
+        $this->choices = [];
+        $this->numberOk = false;
+        $this->factorOk = false;
+        $this->otp = '';
         $this->resetForm->fill();
     }
 

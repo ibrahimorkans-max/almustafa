@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Sales\DispatchOrderResource\Pages;
 use App\Domain\Approvals\Exceptions\ApprovalDenied;
 use App\Domain\Sales\DispatchService;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Resources\Sales\DispatchOrderResource;
 use App\Filament\Support\OffersPrintAfterCreate;
 use App\Models\Masters\Godown;
@@ -19,9 +20,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreateDispatchOrder extends CreateRecord
 {
-    use \App\Filament\Concerns\TranslatesLabels;
-
     use OffersPrintAfterCreate;
+    use TranslatesLabels;
 
     protected string $printType = 'dispatch';
 
@@ -30,6 +30,13 @@ class CreateDispatchOrder extends CreateRecord
     /** @param  array<string, mixed>  $data */
     protected function handleRecordCreation(array $data): Model
     {
+        if (($data['mode'] ?? 'gate') === 'direct') {
+            try {
+                return app(DispatchService::class)->createDirect(Sauda::query()->findOrFail($data['sauda_id']), $data);
+            } catch (BusinessRuleViolation|ApprovalDenied $e) {
+                throw ValidationException::withMessages(['data.sauda_id' => __($e->getMessage())]);
+            }
+        }
         try {
             $order = app(DispatchService::class)->create(
                 Sauda::query()->findOrFail($data['sauda_id']),

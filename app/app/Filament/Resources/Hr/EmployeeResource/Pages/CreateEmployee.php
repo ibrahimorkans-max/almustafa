@@ -5,15 +5,20 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Hr\EmployeeResource\Pages;
 
 use App\Domain\Hr\EmployeeService;
+use App\Domain\Hr\SalaryStructureService;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Filament\Concerns\TranslatesLabels;
 use App\Filament\Resources\Hr\EmployeeResource;
+use App\Support\Values\Money;
+use Carbon\CarbonImmutable;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CreateEmployee extends CreateRecord
 {
-    use \App\Filament\Concerns\TranslatesLabels;
+    use TranslatesLabels;
 
     protected static string $resource = EmployeeResource::class;
 
@@ -22,10 +27,25 @@ class CreateEmployee extends CreateRecord
     /** @param  array<string, mixed>  $data */
     protected function handleRecordCreation(array $data): Model
     {
+        $basis = (string) ($data['salary_basis'] ?? 'monthly');
+        $amount = trim((string) ($data['salary_amount'] ?? ''));
+        unset($data['salary_basis'], $data['salary_amount']);
         try {
-            return app(EmployeeService::class)->create($data);
+            // The employee and the salary are saved together, or not at all.
+            return DB::transaction(function () use ($data, $basis, $amount): Model {
+                $employee = app(EmployeeService::class)->create($data);
+                if ($amount !== '' && Money::rupees($amount)->paise > 0) {
+                    app(SalaryStructureService::class)->create($employee, CarbonImmutable::parse($employee->joining_date)->startOfDay(),
+                        $basis === 'daily' ? 'daily' : 'monthly', ['BASIC' => Money::rupees($amount)->paise], 'Salary on joining');
+                }
+
+                return $employee;
+            });
         } catch (BusinessRuleViolation $e) {
-            throw ValidationException::withMessages([self::fieldFor($e->getMessage()) => $e->getMessage()]);
+            $field = str_contains($e->getMessage(), 'Basic') || str_contains($e->getMessage(), 'salary') || str_contains($e->getMessage(), 'pay head')
+                ? 'data.salary_amount' : self::fieldFor($e->getMessage());
+
+            throw ValidationException::withMessages([$field => __($e->getMessage())]);
         }
     }
 

@@ -9,6 +9,7 @@ use App\Domain\Approvals\ApprovalService;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Documents\DocumentNumbers;
 use App\Domain\Inventory\StockLedger;
+use App\Domain\Pricing\PricingService;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Models\Entity;
 use App\Models\Masters\Godown;
@@ -16,6 +17,7 @@ use App\Models\Masters\Party;
 use App\Models\Masters\Product;
 use App\Models\Procurement\Sauda;
 use App\Models\Sales\DispatchOrder;
+use App\Models\Sales\QuickBillLine;
 use App\Support\Values\Money;
 use App\Support\Values\Weight;
 use Illuminate\Support\Facades\DB;
@@ -82,6 +84,79 @@ final class DispatchService
                     $note);
                 $order->forceFill(['credit_override_request_id' => $request->id])->save();
             }
+
+            return $order;
+        });
+    }
+
+    /**
+     * A direct dispatch — no vehicle at the weighbridge: by hand, on a bike, a small quantity; the weights are typed.
+     * Every product goes on one bill (QuickBills, kind sale, on the sauda: its weight counts against the deal), at the
+     * sauda's rate unless changed, with any per-bag deduction, charges and money received now. The order is recorded
+     * as dispatched at once, linked to the bill. Over the buyer's credit limit it is refused unless paid now (a gate
+     * order can wait for a credit override instead).
+     *
+     * @param  array<string, mixed>  $data  billed_at, vehicle_type, vehicle_no, driver_name, lines[], charges[], payment{}, note
+     */
+    public function createDirect(Sauda $sauda, array $data): DispatchOrder
+    {
+        $this->require('dispatch.manage');
+        if ($sauda->direction !== 'sale') {
+            throw new BusinessRuleViolation('Dispatch orders are for sales saudas.');
+        }
+        if (! $sauda->isOpenForDelivery()) {
+            throw new BusinessRuleViolation("Sauda {$sauda->number} is {$sauda->status}.");
+        }
+        /** @var Party $party */
+        $party = Party::query()->findOrFail($sauda->party_id);
+        $lines = array_values((array) ($data['lines'] ?? []));
+        foreach ($lines as $i => $l) {
+            $lines[$i]['direction'] = 'out';
+            if (blank($l['rate'] ?? null)) {
+                // The sauda's product at the sauda's rate; anything else at today's list rate.
+                $own = ($l['product_id'] ?? null) === $sauda->product_id || blank($l['product_id'] ?? null);
+                $rate = $own ? (int) $sauda->rate_paise_per_maund
+                    : app(PricingService::class)->listRate(Product::query()->findOrFail($l['product_id']));
+                $lines[$i]['rate'] = $rate === null ? null : Money::paise($rate)->toDecimal();
+                $lines[$i]['product_id'] = $own ? $sauda->product_id : $l['product_id'];
+            }
+        }
+        // The credit check on what stays unpaid.
+        $estimate = 0;
+        foreach ($lines as $l) {
+            try {
+                $estimate += QuickBills::lineAmount((string) ($l['gross_kg'] ?? '0'), (string) (($l['tare_kg'] ?? '') ?: '0'), filled($l['bags'] ?? null) ? (int) $l['bags'] : null,
+                    (string) (($l['deduction_per_bag_kg'] ?? '') ?: '0'), (string) (($l['other_deduction_kg'] ?? '') ?: '0'), Money::rupees((string) $l['rate'])->paise)['amount_paise'];
+            } catch (\Throwable) {
+                // a bad line is reported by QuickBills
+            }
+        }
+        $paidNow = 0;
+        try {
+            $paidNow = filled($data['payment']['amount'] ?? null) ? Money::rupees((string) $data['payment']['amount'])->paise : 0;
+        } catch (\Throwable) {
+        }
+        if (! $this->credit->allows($party, max(0, $estimate - $paidNow))) {
+            throw new BusinessRuleViolation(sprintf('Over %s\'s credit limit: take the payment now, or make a gate dispatch order (it waits for a credit override).', $party->name));
+        }
+
+        return DB::transaction(function () use ($sauda, $party, $data, $lines): DispatchOrder {
+            $bill = app(QuickBills::class)->create([
+                'kind' => 'sale', 'sauda_id' => $sauda->id, 'party_id' => $party->id,
+                'billed_at' => $data['billed_at'] ?? null, 'vehicle_type' => $data['vehicle_type'] ?? null,
+                'vehicle_no' => $data['vehicle_no'] ?? null, 'driver_name' => $data['driver_name'] ?? null,
+                'lines' => $lines, 'charges' => $data['charges'] ?? [], 'payment' => $data['payment'] ?? null, 'note' => $data['note'] ?? null,
+            ]);
+            $own = QuickBillLine::query()->where('quick_bill_id', $bill->id)->where('product_id', $sauda->product_id)->orderBy('line_no')->get();
+            $order = DispatchOrder::query()->create([
+                'number' => $this->numbers->next(DocumentNumbers::DISPATCH_ORDER, $bill->billed_at),
+                'sauda_id' => $sauda->id, 'party_id' => $party->id, 'product_id' => $sauda->product_id,
+                'godown_id' => $own->first()->godown_id ?? QuickBillLine::query()->where('quick_bill_id', $bill->id)->whereNotNull('godown_id')->value('godown_id'),
+                'quantity_kg' => (string) $bill->sauda_kg, 'bag_count' => $own->sum('bags') ?: null, 'bag_weight_kg' => null,
+                'estimated_value_paise' => $bill->net_paise, 'note' => $data['note'] ?? null,
+            ]);
+            $order->forceFill(['status' => DispatchOrder::DISPATCHED, 'quick_bill_id' => $bill->id,
+                'vehicle_type' => $bill->vehicle_type, 'dispatched_at' => $bill->billed_at])->save();
 
             return $order;
         });

@@ -1,7 +1,7 @@
 @php
     $session = auth('web')->check() ? app(\App\Domain\Auth\ActorContext::class)->session() : null;
 @endphp
-<script src="{{ asset('js/passkeys.js') }}?v=1" defer></script>
+<script src="{{ asset('js/passkeys.js') }}?v=2" defer></script>
 @auth('web')
     <script src="{{ asset('js/sidebar-keep-open.js') }}?v=1"></script>
     <script src="{{ asset('js/print-frame.js') }}?v=1"></script>

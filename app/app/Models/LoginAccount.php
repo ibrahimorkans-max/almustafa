@@ -38,6 +38,7 @@ use Spatie\LaravelPasskeys\Models\Concerns\InteractsWithPasskeys;
  * @property Carbon|null $email_verified_at
  * @property string|null $email_verify_token_hash
  * @property Carbon|null $email_verify_sent_at
+ * @property Carbon|null $email_code_ok_at
  * @property Carbon|null $first_sign_in_at
  * @property array<string, mixed>|null $first_sign_in where the first sign-in came from (IP, place, device)
  * @property Carbon|null $first_sign_in_completed_at
@@ -102,7 +103,7 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
         'entity_id', 'person_id', 'role_id', 'username', 'password', 'status', 'must_change_password',
     ];
 
-    protected $hidden = ['password', 'mfa_secret', 'duress_pin_hash'];
+    protected $hidden = ['password', 'mfa_secret', 'duress_pin_hash', 'email_verify_token_hash', 'email_match_hash'];
 
     /** @var list<string> */
     protected array $auditSecret = ['password', 'mfa_secret', 'duress_pin_hash'];
@@ -139,6 +140,7 @@ class LoginAccount extends Authenticatable implements FilamentUser, HasName, Has
             'first_sign_in' => 'array',
             'first_sign_in_completed_at' => 'datetime',
             'first_sign_in_approved_at' => 'datetime',
+            'email_code_ok_at' => 'datetime',
         ];
     }
 
