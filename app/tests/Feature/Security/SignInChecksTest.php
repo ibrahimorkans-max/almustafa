@@ -9,9 +9,12 @@ use App\Domain\Auth\Exceptions\AuthenticationFailed;
 use App\Domain\Auth\FirstSignIn;
 use App\Domain\Auth\IpAllowlistPolicy;
 use App\Domain\Auth\LoginService;
+use App\Domain\Auth\MfaService;
 use App\Domain\Auth\MobileCode;
 use App\Domain\Auth\NewNetwork;
+use App\Domain\Auth\PasskeyService;
 use App\Domain\Auth\PasswordReset;
+use App\Domain\Auth\SecondFactor;
 use App\Domain\Auth\SignInApprovals;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Filament\Resources\LoginAccountResource\Pages\CreateLoginAccount;
@@ -30,6 +33,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\Support\Make;
+use Tests\Support\VirtualAuthenticator;
 
 beforeEach(function () {
     config(['ricemill.auth.first_sign_in_check' => true]);
@@ -80,6 +84,12 @@ function sicCode(string $to): string
     return Mail::sent(FirstSignInVerificationMail::class, fn (FirstSignInVerificationMail $m) => $m->hasTo($to))->last()->code;
 }
 
+/** The 2-digit number of the last e-mail to that address (picked after the code). */
+function sicNumber(string $to): int
+{
+    return (int) Mail::sent(FirstSignInVerificationMail::class, fn (FirstSignInVerificationMail $m) => $m->hasTo($to))->last()->match;
+}
+
 it('holds a web sign-in from a new network until the code from the confirmed e-mail is typed, then adds the network', function () {
     config(['ricemill.security.super_admin_require_ip_allowlist' => true]);
     $owner = sicAccount('NN1', 'OWNER', 'owner@example.com', ['10.0.0.0/8']);
@@ -101,11 +111,14 @@ it('holds a web sign-in from a new network until the code from the confirmed e-m
         ->get('/admin/new-network')->assertOk()->assertSee('You are signing in from a new network')->assertSee('Send the code');
 
     app(NewNetwork::class)->sendCode(sicFresh($owner), $session);
-    expect(fn () => app(NewNetwork::class)->verifyCode(sicFresh($owner), $session, sicCode('owner@example.com') === '000000' ? '111111' : '000000', NEW_IP))
+    expect(fn () => app(NewNetwork::class)->verifyCode(sicFresh($owner), $session, sicCode('owner@example.com') === '000000' ? '111111' : '000000'))
         ->toThrow(BusinessRuleViolation::class, 'tries left');
-    $done = app(NewNetwork::class)->verifyCode(sicFresh($owner), $session, sicCode('owner@example.com'), NEW_IP);
+    app(NewNetwork::class)->verifyCode(sicFresh($owner), $session, sicCode('owner@example.com'));
+    expect(Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->find($session->id))->network_pending_at)->not->toBeNull();
+    // An Owner: after the code and the number, nobody else has to approve it.
+    $done = app(NewNetwork::class)->verifyNumber(sicFresh($owner), $session, sicNumber('owner@example.com'), NEW_IP);
 
-    expect($done)->toBe(['network' => '149.40.161.0/24', 'device' => null, 'approval' => false])
+    expect($done)->toBe(['stage' => 'done', 'network' => '149.40.161.0/24', 'device' => null])
         ->and(Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->find($session->id))->network_pending_at)->toBeNull()
         ->and(Make::system(fn () => app(IpAllowlistPolicy::class)->allows(sicFresh($owner), NEW_IP)))->toBeTrue();
     $this->actingAs(sicFresh($owner), 'web')->withSession($web)->withServerVariables(['REMOTE_ADDR' => NEW_IP])->get('/admin')->assertOk();
@@ -156,10 +169,14 @@ it('resets the password of an Owner or Super Admin with the code sent to the con
 
     app(PasswordReset::class)->request(strtoupper($admin->username), $browser, '127.0.0.1');
     $code = sicCode('admin@example.com');
-    expect(fn () => app(PasswordReset::class)->reset($admin->username, $code, 'A-new-Passw0rd-2026', (string) Str::uuid(), '127.0.0.1'))
-        ->toThrow(BusinessRuleViolation::class, 'wrong or too old');
+    expect(fn () => app(PasswordReset::class)->checkCode($admin->username, $code, (string) Str::uuid()))
+        ->toThrow(BusinessRuleViolation::class, 'wrong or too old')
+        ->and(fn () => app(PasswordReset::class)->reset($admin->username, 'A-new-Passw0rd-2026', $browser, '127.0.0.1'))
+        ->toThrow(BusinessRuleViolation::class, 'Start again');
 
-    app(PasswordReset::class)->reset($admin->username, $code, 'A-new-Passw0rd-2026', $browser, '127.0.0.1');
+    expect(app(PasswordReset::class)->checkCode($admin->username, $code, $browser))->toHaveCount(4)->toContain(sicNumber('admin@example.com'));
+    app(PasswordReset::class)->pickNumber($admin->username, sicNumber('admin@example.com'), $browser);
+    app(PasswordReset::class)->reset($admin->username, 'A-new-Passw0rd-2026', $browser, '127.0.0.1');
     $admin = sicFresh($admin);
     expect(Hash::check('A-new-Passw0rd-2026', $admin->password))->toBeTrue()
         ->and(Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->find($old->id))->revoked_at)->not->toBeNull()
@@ -175,7 +192,7 @@ it('sends nothing (and says nothing) for other roles, unknown usernames and logi
     app(PasswordReset::class)->request('nobody.here', 'b3', '10.1.1.3');
 
     Mail::assertNothingSent();
-    expect(fn () => app(PasswordReset::class)->reset($clerk->username, '123456', 'A-new-Passw0rd-2026', 'b1', '10.1.1.1'))
+    expect(fn () => app(PasswordReset::class)->checkCode($clerk->username, '123456', 'b1'))
         ->toThrow(BusinessRuleViolation::class, 'wrong or too old');
 });
 
@@ -235,6 +252,7 @@ it('sends every code only to the e-mail on the login, never to another one typed
     $newbie = Make::account(Make::entity('SC3'), 'SUPER_ADMIN', ['mfa' => true]);
     app(FirstSignIn::class)->sendVerification(sicFresh($newbie), 'First@Example.com', null);
     app(FirstSignIn::class)->verifyCode(sicFresh($newbie), sicCode('first@example.com'), null);
+    app(FirstSignIn::class)->verifyNumber(sicFresh($newbie), sicNumber('first@example.com'), null);
     expect(sicFresh($newbie)->email)->toBe('first@example.com')->and(sicFresh($newbie)->email_verified_at)->not->toBeNull();
 });
 
@@ -282,9 +300,10 @@ it('approves a new device with the code sent to the e-mail on the login, without
 
     app(NewNetwork::class)->sendCode(sicFresh($owner), $session);
     Mail::assertSent(FirstSignInVerificationMail::class, fn (FirstSignInVerificationMail $m) => $m->purpose === EmailCode::NEW_DEVICE && $m->hasTo('nd1@example.com'));
-    $done = app(NewNetwork::class)->verifyCode(sicFresh($owner), $session, sicCode('nd1@example.com'), '127.0.0.1');
+    app(NewNetwork::class)->verifyCode(sicFresh($owner), $session, sicCode('nd1@example.com'));
+    $done = app(NewNetwork::class)->verifyNumber(sicFresh($owner), $session, sicNumber('nd1@example.com'), '127.0.0.1');
 
-    expect($done)->toBe(['network' => null, 'device' => 'Chrome on Windows', 'approval' => false])
+    expect($done)->toBe(['stage' => 'done', 'network' => null, 'device' => 'Chrome on Windows'])
         ->and(Make::system(fn () => Device::query()->withoutGlobalScopes()->where('device_uid', $uid)->where('platform', 'web')->sole())->isTrusted())->toBeTrue()
         ->and(Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->find($session->id))->device_pending_at)->toBeNull();
     $this->actingAs(sicFresh($owner), 'web')->withSession($web)->get('/admin')->assertOk();
@@ -331,7 +350,8 @@ it('lets a login without an e-mail (but with its authenticator) give one on the 
 
     app(NewNetwork::class)->sendCode(sicFresh($saas), $session, 'Owner.New@Example.com');
     expect(sicFresh($saas)->email)->toBe('owner.new@example.com')->and(sicFresh($saas)->email_verified_at)->toBeNull();
-    $done = app(NewNetwork::class)->verifyCode(sicFresh($saas), $session, sicCode('owner.new@example.com'), NEW_IP);
+    app(NewNetwork::class)->verifyCode(sicFresh($saas), $session, sicCode('owner.new@example.com'));
+    $done = app(NewNetwork::class)->verifyNumber(sicFresh($saas), $session, sicNumber('owner.new@example.com'), NEW_IP);
 
     expect($done['network'])->toBe('149.40.161.0/24')
         ->and(sicFresh($saas)->email_verified_at)->not->toBeNull();
@@ -339,19 +359,20 @@ it('lets a login without an e-mail (but with its authenticator) give one on the 
     expect(app(NewNetwork::class)->canAddEmail(sicFresh($saas)))->toBeFalse();
 });
 
-it('asks for all the checks on a new network: the e-mail code, then QR + number picked on the person\'s own other device', function () {
-    config(['ricemill.security.super_admin_require_ip_allowlist' => true]);
-    $owner = sicAccount('AL1', 'OWNER', 'all@example.com', ['10.0.0.0/8', '127.0.0.0/24']);
+it('asks for all the checks on a new network: the e-mail code and number, then QR + number picked on the person\'s own other device', function () {
+    $owner = sicAccount('AL1', 'ACCOUNTANT', 'all@example.com', ['10.0.0.0/8', '127.0.0.0/24']);   // a top role would need nobody
     $mine = sicSession(sicFresh($owner), '127.0.0.1');            // already signed in at the office (an approved device)
+    Make::system(fn () => Device::query()->withoutGlobalScopes()->whereKey($mine->device_id)->update(['trusted_at' => now()]));
     $held = sicSession(sicFresh($owner), NEW_IP);                 // the new sign-in, held
     expect($held->network_pending_at)->not->toBeNull()
         ->and(app(NewNetwork::class)->approvalNeeded(sicFresh($owner), $held))->toBeTrue();
 
     // 1. The e-mail code: not enough on its own, the QR code + number come next.
     app(NewNetwork::class)->sendCode(sicFresh($owner), $held);
-    $done = app(NewNetwork::class)->verifyCode(sicFresh($owner), $held, sicCode('all@example.com'), NEW_IP);
+    app(NewNetwork::class)->verifyCode(sicFresh($owner), $held, sicCode('all@example.com'));
+    $done = app(NewNetwork::class)->verifyNumber(sicFresh($owner), $held, sicNumber('all@example.com'), NEW_IP);
     $held = Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->find($held->id));
-    expect($done['approval'])->toBeTrue()->and($held->code_proven_at)->not->toBeNull()->and($held->network_pending_at)->not->toBeNull();
+    expect($done['stage'])->toBe('approval')->and($held->code_proven_at)->not->toBeNull()->and($held->network_pending_at)->not->toBeNull();
 
     // 2. "Is it you?": the person's other sign-in sees it and picks the number; the held one itself cannot.
     $request = app(SignInApprovals::class)->open(sicFresh($owner), $held, EmailCode::NEW_NETWORK)['approval'];
@@ -373,7 +394,7 @@ it('uses a code to the mobile as the second check when no other device is signed
 
         return Http::response(['ok' => true]);
     }]);
-    $owner = sicAccount('MC1', 'OWNER', 'mc@example.com', ['10.0.0.0/8']);
+    $owner = sicAccount('MC1', 'ACCOUNTANT', 'mc@example.com', ['10.0.0.0/8']);   // a top role would need nobody
     Make::system(fn () => Person::query()->withoutGlobalScopes()->whereKey($owner->person_id)->update(['phone' => '+923001234567']));
     $held = sicSession(sicFresh($owner), NEW_IP);
     expect(app(SignInApprovals::class)->canBeApproved(sicFresh($owner), $held->id))->toBeFalse()
@@ -383,7 +404,8 @@ it('uses a code to the mobile as the second check when no other device is signed
     // Not before the e-mail code.
     expect(fn () => app(NewNetwork::class)->verifyMobile(sicFresh($owner), $held, '123456'))->toThrow(BusinessRuleViolation::class, 'e-mail first');
     app(NewNetwork::class)->sendCode(sicFresh($owner), $held);
-    expect(app(NewNetwork::class)->verifyCode(sicFresh($owner), $held, sicCode('mc@example.com'), NEW_IP)['approval'])->toBeTrue();
+    app(NewNetwork::class)->verifyCode(sicFresh($owner), $held, sicCode('mc@example.com'));
+    expect(app(NewNetwork::class)->verifyNumber(sicFresh($owner), $held, sicNumber('mc@example.com'), NEW_IP)['stage'])->toBe('approval');
 
     app(MobileCode::class)->send(sicFresh($owner), $held);
     preg_match('/\d{6}/', (string) end($texts), $m);
@@ -394,4 +416,95 @@ it('uses a code to the mobile as the second check when no other device is signed
 
     expect($done['network'])->toBe('149.40.161.0/24')
         ->and(Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->find($held->id))->network_pending_at)->toBeNull();
+});
+
+it('asks the person\'s own second factor after the e-mail codes — authenticator, recovery or mobile code — and nobody else', function () {
+    config(['ricemill.auth.second_factor' => true, 'ricemill.messaging.sms_url' => 'https://sms.example.test/send']);
+    $texts = [];
+    Http::fake(['sms.example.test/*' => function ($request) use (&$texts) {
+        $texts[] = $request['text'];
+
+        return Http::response(['ok' => true]);
+    }]);
+    $owner = sicAccount('SF1', 'ACCOUNTANT', 'sf@example.com', ['10.0.0.0/8']);   // not a top role: still nobody else approves
+    Make::system(fn () => Person::query()->withoutGlobalScopes()->whereKey($owner->person_id)->update(['phone' => '+923001234567']));
+    $held = sicSession(sicFresh($owner), NEW_IP);
+    $factor = app(SecondFactor::class);
+    expect($factor->methods(sicFresh($owner)))->toContain('totp')->toContain('mobile')
+        ->and(app(NewNetwork::class)->approvalNeeded(sicFresh($owner), Make::system(fn () => AuthSession::query()->withoutGlobalScopes()->find($held->id))->forceFill(['code_proven_at' => now()])))->toBeFalse();
+
+    app(NewNetwork::class)->sendCode(sicFresh($owner), $held);
+    app(NewNetwork::class)->verifyCode(sicFresh($owner), $held, sicCode('sf@example.com'));
+    // The e-mail codes alone do not let it go.
+    expect(app(NewNetwork::class)->verifyNumber(sicFresh($owner), $held, sicNumber('sf@example.com'), NEW_IP)['stage'])->toBe('factor')
+        ->and(fn () => app(NewNetwork::class)->verifyMobile(sicFresh($owner), $held, '123456'))->toThrow(BusinessRuleViolation::class, 'Prove it is you first');
+
+    $code = Make::totp(sicFresh($owner));
+    expect(fn () => $factor->proveCode(sicFresh($owner), $held->id, 'totp', $code === '000000' ? '111111' : '000000'))
+        ->toThrow(BusinessRuleViolation::class, 'tries left');
+    $factor->proveCode(sicFresh($owner), $held->id, 'totp', $code);
+    expect($factor->proven(sicFresh($owner), $held->id))->toBeTrue()
+        // The same authenticator code cannot be used again.
+        ->and(fn () => $factor->proveCode(sicFresh($owner), 'other-check', 'totp', $code))->toThrow(BusinessRuleViolation::class);
+
+    $done = app(NewNetwork::class)->afterSecondFactor(sicFresh($owner), $held, NEW_IP);
+    expect($done)->toBe(['stage' => 'done', 'network' => '149.40.161.0/24', 'device' => null]);
+
+    // A code to the mobile works too (for another check), and a recovery code.
+    $factor->sendMobile(sicFresh($owner), 'browser-x');
+    preg_match('/\d{6}/', (string) end($texts), $m);
+    $factor->proveMobile(sicFresh($owner), 'browser-x', $m[0]);
+    expect($factor->proven(sicFresh($owner), 'browser-x'))->toBeTrue();
+    app(AuthContextBinder::class)->bind(sicFresh($owner));
+    $recovery = app(MfaService::class)->regenerateRecoveryCodes(sicFresh($owner));
+    Make::reset();
+    expect($factor->methods(sicFresh($owner)))->toContain('recovery');
+    $factor->proveCode(sicFresh($owner), 'browser-y', 'recovery', $recovery[0]);
+    expect($factor->proven(sicFresh($owner), 'browser-y'))->toBeTrue()
+        ->and(fn () => $factor->proveCode(sicFresh($owner), 'browser-z', 'recovery', $recovery[0]))->toThrow(BusinessRuleViolation::class);
+});
+
+it('resets a password only after the second factor too', function () {
+    config(['ricemill.auth.second_factor' => true]);
+    $admin = sicAccount('SF2', 'SUPER_ADMIN', 'sf2@example.com');
+    $browser = (string) Str::uuid();
+    app(PasswordReset::class)->request($admin->username, $browser, '127.0.0.1');
+    app(PasswordReset::class)->checkCode($admin->username, sicCode('sf2@example.com'), $browser);
+    app(PasswordReset::class)->pickNumber($admin->username, sicNumber('sf2@example.com'), $browser);
+
+    expect(app(PasswordReset::class)->factorNeeded($admin->username, $browser))->toBeTrue()
+        ->and(fn () => app(PasswordReset::class)->reset($admin->username, 'A-new-Passw0rd-2026', $browser, '127.0.0.1'))->toThrow(BusinessRuleViolation::class, 'Start again')
+        ->and(fn () => app(PasswordReset::class)->factorAccount($admin->username, (string) Str::uuid()))->toThrow(BusinessRuleViolation::class);
+
+    app(SecondFactor::class)->proveCode(app(PasswordReset::class)->factorAccount($admin->username, $browser), $browser, 'totp', Make::totp(sicFresh($admin)));
+    app(PasswordReset::class)->reset($admin->username, 'A-new-Passw0rd-2026', $browser, '127.0.0.1');
+    expect(Hash::check('A-new-Passw0rd-2026', sicFresh($admin)->password))->toBeTrue();
+    $this->get('/admin/forgot-password')->assertOk();
+});
+
+it('takes the person\'s own passkey as the second factor, never somebody else\'s, and shows the step on the check screen', function () {
+    config(['ricemill.auth.second_factor' => true]);
+    $owner = sicAccount('SF3', 'OWNER', 'sf3@example.com', ['10.0.0.0/8']);
+    $other = sicAccount('SF4', 'OWNER', 'sf4@example.com');
+    $passkeys = app(PasskeyService::class);
+    $mine = new VirtualAuthenticator;
+    $theirs = new VirtualAuthenticator;
+    $passkeys->register(sicFresh($owner), $mine->register($passkeys->registrationOptions(sicFresh($owner))), 'My phone');
+    $passkeys->register(sicFresh($other), $theirs->register($passkeys->registrationOptions(sicFresh($other))), 'Their phone');
+    Make::reset();
+
+    $factor = app(SecondFactor::class);
+    expect($factor->methods(sicFresh($owner))[0])->toBe('passkey');
+    expect(fn () => $factor->provePasskey(sicFresh($owner), 'k1', $theirs->assert($passkeys->authenticationOptions(), $other->id)))
+        ->toThrow(BusinessRuleViolation::class, 'not one of this login');
+    $factor->provePasskey(sicFresh($owner), 'k1', $mine->assert($passkeys->authenticationOptions(), $owner->id));
+    expect($factor->proven(sicFresh($owner), 'k1'))->toBeTrue();
+
+    // The check screen shows the step once the e-mail codes are done.
+    $held = sicSession(sicFresh($owner), NEW_IP);
+    app(NewNetwork::class)->sendCode(sicFresh($owner), $held);
+    app(NewNetwork::class)->verifyCode(sicFresh($owner), $held, sicCode('sf3@example.com'));
+    app(NewNetwork::class)->verifyNumber(sicFresh($owner), $held, sicNumber('sf3@example.com'), NEW_IP);
+    $this->actingAs(sicFresh($owner), 'web')->withSession([EnsureWebAuthSession::SESSION_KEY => $held->id])->withServerVariables(['REMOTE_ADDR' => NEW_IP])
+        ->get('/admin/new-network')->assertOk()->assertSee('Prove it is you')->assertSee('Use my passkey')->assertSee('Authenticator app');
 });

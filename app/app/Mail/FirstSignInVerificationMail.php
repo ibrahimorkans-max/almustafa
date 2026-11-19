@@ -31,6 +31,8 @@ final class FirstSignInVerificationMail extends Mailable
         public readonly string $purpose = EmailCode::FIRST_SIGN_IN,
         /** @var array<string, mixed> where this sign-in came from (a new network's) */
         public readonly array $signInInfo = [],
+        /** The 2-digit number picked on the screen after the code (EmailCode). */
+        public readonly ?int $match = null,
     ) {}
 
     public function envelope(): Envelope
@@ -56,6 +58,7 @@ final class FirstSignInVerificationMail extends Mailable
             'info' => $first ? ($this->account->first_sign_in ?? []) : $this->signInInfo,
             'at' => $first ? $this->account->first_sign_in_at?->timezone('Asia/Karachi')->format('d M Y, h:i A') : now()->timezone('Asia/Karachi')->format('d M Y, h:i A'),
             'code' => $this->code,
+            'match' => $this->match,
             'url' => match ($this->purpose) {
                 EmailCode::NEW_NETWORK, EmailCode::NEW_DEVICE => NewNetworkPage::getUrl(panel: 'admin'),
                 EmailCode::PASSWORD_RESET => route('filament.admin.auth.forgot-password'),

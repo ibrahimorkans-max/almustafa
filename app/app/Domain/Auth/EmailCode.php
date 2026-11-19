@@ -13,9 +13,11 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 
 /**
- * The 6-digit code sent by e-mail for a check on one sign-in (a new person's first sign-in, or a sign-in from a new
- * network): typed on the screen that asked for it, so a forwarded or stolen e-mail is of no use anywhere else. Works
- * for a few minutes and a few tries; at most one e-mail a minute and five an hour. Only its keyed hash is kept.
+ * The codes sent by e-mail for a check on one sign-in (a new person's first sign-in, a sign-in from a new network or
+ * device, a password reset): a 6-digit code, typed first on the screen that asked for it, and then a 2-digit number,
+ * picked from four numbers that screen shows (the screen moves on by itself). A wrong number cancels both: a new
+ * e-mail is needed. So a forwarded or stolen e-mail is of no use anywhere else. Works for a few minutes and a few tries;
+ * at most one e-mail a minute and five an hour. Only their keyed hashes are kept.
  */
 final class EmailCode
 {
@@ -63,14 +65,30 @@ final class EmailCode
         RateLimiter::hit($key, 3600);
 
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        // The 2-digit number, and three other numbers shown with it on the screen (the order changes every time).
+        $match = random_int(10, 99);
+        $choices = [$match];
+        while (count($choices) < 4) {
+            $n = random_int(10, 99);
+            if (! in_array($n, $choices, true)) {
+                $choices[] = $n;
+            }
+        }
+        shuffle($choices);
         $this->write($account, $alsoWrite + ['email_verify_token_hash' => $this->hash($account, $code), 'email_verify_sent_at' => now(),
-            'email_verify_session_id' => $sessionId, 'email_verify_attempts' => 0]);
-        Mail::to($email)->send(new FirstSignInVerificationMail($account->fresh() ?? $account, $code, $this->minutes(), $purpose, $signInInfo));
+            'email_verify_session_id' => $sessionId, 'email_verify_attempts' => 0,
+            'email_match_hash' => $this->hash($account, 'match|'.$match), 'email_match_choices' => json_encode($choices), 'email_code_ok_at' => null]);
+        Mail::to($email)->send(new FirstSignInVerificationMail($account->fresh() ?? $account, $code, $this->minutes(), $purpose, $signInInfo, $purpose === self::CONFIRM_EMAIL ? null : $match));
         $this->audit->record('auth.email_code.sent', $account, meta: ['purpose' => $purpose, 'email' => FirstSignIn::masked($email)]);
     }
 
-    /** @throws BusinessRuleViolation when it is wrong, too old, for another sign-in or tried too often */
-    public function check(LoginAccount $account, string $code, ?string $sessionId): void
+    /**
+     * The 6-digit code. With `$numberNext` (every sign-in check) it is only the first of the two: the 2-digit number is
+     * picked next (pick()); without it (confirming a new security e-mail) the address is confirmed now.
+     *
+     * @throws BusinessRuleViolation when it is wrong, too old, for another sign-in or tried too often
+     */
+    public function check(LoginAccount $account, string $code, ?string $sessionId, bool $numberNext = false): void
     {
         $code = preg_replace('/\D/', '', $code) ?? '';
         $hash = $account->email_verify_token_hash;
@@ -90,8 +108,58 @@ final class EmailCode
 
             throw new BusinessRuleViolation($left > 0 ? sprintf('Wrong code. %d tries left.', $left) : 'Wrong code too many times. Send a new e-mail.');
         }
+        if ($numberNext && filled($account->getAttributes()['email_match_hash'] ?? null)) {
+            $this->write($account, ['email_verify_token_hash' => null, 'email_verify_attempts' => 0, 'email_code_ok_at' => now()]);
+            $this->audit->record('auth.email_code.code_ok', $account, meta: ['number_next' => true]);
+
+            return;
+        }
         // The code reached the address: it is confirmed.
-        $this->write($account, ['email_verify_token_hash' => null, 'email_verify_attempts' => 0, 'email_verified_at' => $account->email_verified_at ?? now()]);
+        $this->write($account, ['email_verify_token_hash' => null, 'email_verify_attempts' => 0, 'email_verified_at' => $account->email_verified_at ?? now(),
+            'email_match_hash' => null, 'email_match_choices' => null, 'email_code_ok_at' => null]);
+    }
+
+    /** Whether the 6-digit code of this sign-in was right and its 2-digit number is to be picked now. */
+    public function numberPending(LoginAccount $account, ?string $sessionId): bool
+    {
+        $okAt = $account->email_code_ok_at;
+        $forSession = $account->getAttributes()['email_verify_session_id'] ?? null;
+
+        return $okAt !== null && $okAt->gt(now()->subMinutes($this->minutes())) && filled($account->getAttributes()['email_match_hash'] ?? null)
+            && ($forSession === null || $forSession === $sessionId);
+    }
+
+    /** @return list<int> the four numbers shown on the screen (the e-mail's among them) */
+    public function choices(LoginAccount $account): array
+    {
+        $raw = $account->getAttributes()['email_match_choices'] ?? null;
+        $list = is_string($raw) ? json_decode($raw, true) : $raw;
+
+        return is_array($list) ? array_values(array_map('intval', $list)) : [];
+    }
+
+    /**
+     * The number picked on the screen. Right: the e-mail is confirmed and the check is passed. Wrong: both codes are
+     * cancelled (a new e-mail is needed) — guessing gets no second try.
+     *
+     * @throws BusinessRuleViolation
+     */
+    public function pick(LoginAccount $account, int $number, ?string $sessionId): void
+    {
+        if (! $this->numberPending($account, $sessionId)) {
+            throw new BusinessRuleViolation('Type the 6-digit code from the e-mail first (or send a new e-mail: it is too old).');
+        }
+        $right = hash_equals((string) $account->getAttributes()['email_match_hash'], $this->hash($account, 'match|'.$number))
+            && in_array($number, $this->choices($account), true);
+        if (! $right) {
+            $this->write($account, ['email_verify_token_hash' => null, 'email_match_hash' => null, 'email_match_choices' => null, 'email_code_ok_at' => null]);
+            $this->audit->record('auth.email_code.wrong_number', $account, meta: ['picked' => $number]);
+
+            throw new BusinessRuleViolation('Wrong number: the codes of this e-mail are cancelled. Send a new e-mail.');
+        }
+        $this->write($account, ['email_match_hash' => null, 'email_match_choices' => null, 'email_code_ok_at' => null,
+            'email_verified_at' => $account->email_verified_at ?? now()]);
+        $this->audit->record('auth.email_code.number_ok', $account);
     }
 
     public function minutes(): int

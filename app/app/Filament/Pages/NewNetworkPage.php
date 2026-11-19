@@ -9,9 +9,11 @@ use App\Domain\Auth\FirstSignIn;
 use App\Domain\Auth\MfaService;
 use App\Domain\Auth\MobileCode;
 use App\Domain\Auth\NewNetwork;
+use App\Domain\Auth\SecondFactor;
 use App\Domain\Auth\SignInApprovals;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\ProvesSecondFactor;
 use App\Filament\Concerns\TranslatesLabels;
 use App\Http\Middleware\EnsureWebAuthSession;
 use App\Models\AuthSession;
@@ -36,6 +38,7 @@ use Illuminate\Http\RedirectResponse;
 class NewNetworkPage extends Page implements HasForms
 {
     use InteractsWithForms;
+    use ProvesSecondFactor;
     use TranslatesLabels;
 
     protected static ?string $slug = 'new-network';
@@ -84,7 +87,12 @@ class NewNetworkPage extends Page implements HasForms
         }
         $this->codeForm->fill();
         if ($this->stage() === 'approval') {
-            $this->startApproval();
+            $session = $this->session();
+            if ($session !== null && $session->code_proven_at !== null && ! app(NewNetwork::class)->approvalNeeded($this->account(), $session)) {
+                $this->moveOn(app(NewNetwork::class)->next($this->account(), $session, request()->ip()));   // all checks done already
+            } else {
+                $this->startApproval();
+            }
         }
     }
 
@@ -96,10 +104,78 @@ class NewNetworkPage extends Page implements HasForms
     {
         return match (true) {
             $this->finished => 'done',
-            $this->session()?->code_proven_at !== null => 'approval',
-            $this->byEmail() || $this->canAddEmail() => 'email',
+            $this->session()?->code_proven_at === null && ($this->byEmail() || $this->canAddEmail()) => 'email',
+            ! app(SecondFactor::class)->proven($this->account(), $this->session()?->id) => 'factor',
             default => 'approval',
         };
+    }
+
+    public function hasFactorStep(): bool
+    {
+        return app(SecondFactor::class)->required($this->account());
+    }
+
+    /** The 6-digit code was right: the e-mail's 2-digit number is picked now. */
+    public function numberPending(): bool
+    {
+        return app(EmailCode::class)->numberPending($this->account(), $this->session()?->id);
+    }
+
+    /** @return list<int> */
+    public function numberChoices(): array
+    {
+        return app(EmailCode::class)->choices($this->account());
+    }
+
+    public function pickNumber(int $number): void
+    {
+        $session = $this->session();
+        if ($session === null) {
+            return;
+        }
+        try {
+            $done = app(NewNetwork::class)->verifyNumber($this->account(), $session, $number, request()->ip());
+        } catch (BusinessRuleViolation $e) {
+            $this->codeSent = false;   // the e-mail's codes are cancelled: a new one is sent
+            Notification::make()->title(__($e->getMessage()))->danger()->send();
+
+            return;
+        }
+        $this->moveOn($done);
+    }
+
+    protected function factorAccount(): LoginAccount
+    {
+        return $this->account();
+    }
+
+    protected function factorKey(): string
+    {
+        return (string) $this->session()?->id;
+    }
+
+    protected function factorProven(): void
+    {
+        $session = $this->session();
+        if ($session === null) {
+            return;
+        }
+        try {
+            $this->moveOn(app(NewNetwork::class)->afterSecondFactor($this->account(), $session, request()->ip()));
+        } catch (BusinessRuleViolation $e) {
+            Notification::make()->title(__($e->getMessage()))->danger()->send();
+        }
+    }
+
+    /** @param  array{stage: string, network: string|null, device: string|null}  $done */
+    private function moveOn(array $done): void
+    {
+        $this->addedNetwork = $done['network'];
+        $this->approvedDevice = $done['device'];
+        if ($done['stage'] === 'approval') {
+            $this->startApproval();
+        }
+        $this->finished = $done['stage'] === 'done';
     }
 
     /** Whether the QR code + number is one of this sign-in's checks (somebody can approve it). */
@@ -204,10 +280,7 @@ class NewNetworkPage extends Page implements HasForms
             return;
         }
         try {
-            $done = app(NewNetwork::class)->verifyCode($this->account(), $session, $this->otp, request()->ip());
-            $this->addedNetwork = $done['network'];
-            $this->approvedDevice = $done['device'];
-            $next = $done['approval'];
+            app(NewNetwork::class)->verifyCode($this->account(), $session, $this->otp);
         } catch (BusinessRuleViolation $e) {
             $this->otp = '';
             $this->dispatch('rmv-otp-invalid');   // the boxes shake and clear
@@ -215,13 +288,8 @@ class NewNetworkPage extends Page implements HasForms
 
             return;
         }
-        $this->dispatch('rmv-otp-valid');
-        if ($next) {
-            $this->startApproval();   // the e-mail code is the first check; the QR code + number come next
-
-            return;
-        }
-        $this->finished = true;
+        $this->otp = '';
+        $this->dispatch('rmv-otp-valid');   // the 2-digit number of the same e-mail comes next
     }
 
     public function startApproval(): void

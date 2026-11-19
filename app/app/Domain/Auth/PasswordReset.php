@@ -10,14 +10,15 @@ use App\Domain\Security\SecurityNotifier;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\LoginAccount;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * "Forgot your password?" on the sign-in page — only for the people at the top: the SaaS owner, a company's Owners and
- * a mill's administrator (Super Admin); everybody else asks them. A 6-digit code goes to the login's own e-mail
- * (EmailCode, for this browser only); with it a new password is set, every session ends and the Owners are told.
+ * a mill's administrator (Super Admin); everybody else asks them. A 6-digit code and a 2-digit number go to the login's
+ * own e-mail (EmailCode, for this browser only); after them the person's own second factor (SecondFactor: passkey, authenticator, recovery or mobile code), then a new password is set, every session ends and the Owners are told.
  * Two-step verification is not touched: it is still asked at the next sign-in. Whether a login exists, may reset or
  * has an e-mail is never shown: the answers are the same for every username.
  */
@@ -67,17 +68,68 @@ final class PasswordReset
         }
     }
 
-    /** The code and the new password: set, every session ends, the Owners are told. */
-    public function reset(string $username, string $code, string $password, string $browserToken, ?string $ip): void
+    /**
+     * Step 1: the 6-digit code from the e-mail.
+     *
+     * @return list<int> the four numbers to pick the e-mail's 2-digit number from
+     */
+    public function checkCode(string $username, string $code, string $browserToken): array
     {
         $account = $this->find($username);
         if ($account === null || ! $this->eligible($account)) {
             throw new BusinessRuleViolation('The code is wrong or too old.');
         }
         try {
-            $this->tenant->runAsSystem(fn () => app(EmailCode::class)->check($account, $code, $browserToken));
+            $this->tenant->runAsSystem(fn () => app(EmailCode::class)->check($account, $code, $browserToken, numberNext: true));
         } catch (BusinessRuleViolation $e) {
             throw new BusinessRuleViolation(str_contains($e->getMessage(), 'too many') ? $e->getMessage() : 'The code is wrong or too old.');
+        }
+
+        return app(EmailCode::class)->choices($account);
+    }
+
+    /** Step 2: the 2-digit number of the e-mail, picked on the screen. Wrong: a new e-mail is needed. */
+    public function pickNumber(string $username, int $number, string $browserToken): void
+    {
+        $account = $this->find($username);
+        if ($account === null || ! $this->eligible($account)) {
+            throw new BusinessRuleViolation('The code is wrong or too old.');
+        }
+        $this->tenant->runAsSystem(fn () => app(EmailCode::class)->pick($account, $number, $browserToken));
+        Cache::put($this->okKey($account, $browserToken), true, now()->addMinutes(15));
+    }
+
+    /**
+     * Step 3: the login whose own second factor is asked now (SecondFactor) — only once the e-mail codes are done in this
+     * browser.
+     *
+     * @throws BusinessRuleViolation
+     */
+    public function factorAccount(string $username, string $browserToken): LoginAccount
+    {
+        $account = $this->find($username);
+        if ($account === null || ! $this->eligible($account) || ! Cache::has($this->okKey($account, $browserToken))) {
+            throw new BusinessRuleViolation('Start again: the codes are too old.');
+        }
+
+        return $account;
+    }
+
+    /** Whether the second factor is still to be proven (after the number). */
+    public function factorNeeded(string $username, string $browserToken): bool
+    {
+        $account = $this->find($username);
+
+        return $account !== null && ! app(SecondFactor::class)->proven($account, $browserToken);
+    }
+
+    /** Step 4: the new password, once the code, the number and the second factor are done. Every session ends, the Owners are told. */
+    public function reset(string $username, string $password, string $browserToken, ?string $ip): void
+    {
+        $account = $this->find($username);
+        if ($account === null || ! $this->eligible($account) || ! Cache::has($this->okKey($account, $browserToken))
+            || ! app(SecondFactor::class)->proven($account, $browserToken)) {
+            throw new BusinessRuleViolation('Start again: the codes are too old.');
         }
         if ($account->duress_pin_hash !== null && Hash::check($password, $account->duress_pin_hash)) {
             throw new BusinessRuleViolation('The new password must be different from your duress PIN.');
@@ -93,10 +145,16 @@ final class PasswordReset
                 app(SessionService::class)->revokeAllFor($account, 'password_reset');
             });
         });
+        Cache::forget($this->okKey($account, $browserToken));
         $this->tenant->runAsSystem(fn () => $this->audit->record('auth.password_reset.done', $account, meta: ['ip' => $ip]));
         app(SecurityNotifier::class)->owners($account->entity_id, "Password reset: {$account->username}",
             "The password of {$account->username} was reset with a code sent to its e-mail, from {$ip}. Every session of the login was ended. "
             .'If this was not them, suspend the login at once.', includeOwners: true);
+    }
+
+    private function okKey(LoginAccount $account, string $browserToken): string
+    {
+        return 'password-reset-ok:'.$account->id.':'.hash('sha256', $browserToken);
     }
 
     private function find(string $username): ?LoginAccount

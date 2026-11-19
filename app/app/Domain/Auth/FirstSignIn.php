@@ -86,10 +86,16 @@ final class FirstSignIn
         app(EmailCode::class)->send($account, $email, $sessionId, EmailCode::FIRST_SIGN_IN);
     }
 
-    /** The code from the e-mail, typed on the screen that asked for it: the address is then confirmed. */
+    /** The 6-digit code from the e-mail, typed on the screen that asked for it: the 2-digit number is picked next. */
     public function verifyCode(LoginAccount $account, string $code, ?string $sessionId): void
     {
-        app(EmailCode::class)->check($account, $code, $sessionId);
+        app(EmailCode::class)->check($account, $code, $sessionId, numberNext: true);
+    }
+
+    /** The 2-digit number of the e-mail, picked from the four on the screen: the address is then confirmed. */
+    public function verifyNumber(LoginAccount $account, int $number, ?string $sessionId): void
+    {
+        app(EmailCode::class)->pick($account, $number, $sessionId);
         $this->write($account, ['email_verified_at' => now()]);
         $this->audit->record('auth.first_sign_in.email_verified', $account, meta: ['email' => self::masked((string) $account->email)]);
     }
@@ -103,6 +109,9 @@ final class FirstSignIn
     {
         if ($account->email_verified_at === null) {
             throw new BusinessRuleViolation('Confirm your e-mail address first: type the code from the e-mail.');
+        }
+        if (! app(SecondFactor::class)->proven($account, $session?->id)) {
+            throw new BusinessRuleViolation('Prove it is you first: passkey, authenticator code, recovery code or mobile code.');
         }
         $approvals = app(SignInApprovals::class);
         if ($approvals->needed($account)) {

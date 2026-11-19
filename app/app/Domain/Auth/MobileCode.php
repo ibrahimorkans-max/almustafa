@@ -50,7 +50,7 @@ final class MobileCode
     }
 
     /** Sends the code for this sign-in. At most once a minute and five times an hour. */
-    public function send(LoginAccount $account, AuthSession $session): void
+    public function send(LoginAccount $account, AuthSession|string $session): void
     {
         $to = $this->number($account);
         if ($to === null || ! $this->available($account)) {
@@ -75,11 +75,11 @@ final class MobileCode
         }
         Cache::put($this->key($session), ['hash' => $this->hash($account, $code), 'tries' => 0], now()->addMinutes(self::MINUTES));
         Cache::put($this->key($session).':recent', true, now()->addMinute());
-        $this->audit->record('auth.mobile_code.sent', $account, meta: ['session_id' => $session->id, 'to' => $this->masked($account)]);
+        $this->audit->record('auth.mobile_code.sent', $account, meta: ['session_id' => $this->id($session), 'to' => $this->masked($account)]);
     }
 
     /** @throws BusinessRuleViolation when it is wrong, too old or tried too often */
-    public function check(LoginAccount $account, AuthSession $session, string $code): void
+    public function check(LoginAccount $account, AuthSession|string $session, string $code): void
     {
         $code = preg_replace('/\D/', '', $code) ?? '';
         $stored = Cache::get($this->key($session));
@@ -100,7 +100,7 @@ final class MobileCode
             throw new BusinessRuleViolation(sprintf('Wrong code. %d tries left.', self::TRIES - $tries));
         }
         Cache::forget($this->key($session));
-        $this->audit->record('auth.mobile_code.proven', $account, meta: ['session_id' => $session->id]);
+        $this->audit->record('auth.mobile_code.proven', $account, meta: ['session_id' => $this->id($session)]);
     }
 
     private function sms(string $to, string $text): bool
@@ -114,9 +114,15 @@ final class MobileCode
         }
     }
 
-    private function key(AuthSession $session): string
+    /** The check the code is for: a held sign-in (its session), or a password-reset browser (a hash of its token). */
+    private function id(AuthSession|string $session): string
     {
-        return 'mobile-code:'.$session->id;
+        return $session instanceof AuthSession ? $session->id : hash('sha256', $session);
+    }
+
+    private function key(AuthSession|string $session): string
+    {
+        return 'mobile-code:'.$this->id($session);
     }
 
     private function hash(LoginAccount $account, string $code): string

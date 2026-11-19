@@ -45,6 +45,7 @@
         <env name="RICEMILL_GEOCODER" value="off"/>
         <env name="RICEMILL_FIRST_SIGN_IN_CHECK" value="false"/>
         <env name="RICEMILL_REQUIRE_SECURITY_CONTACT" value="false"/>
+        <env name="RICEMILL_SECOND_FACTOR" value="false"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

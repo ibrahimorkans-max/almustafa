@@ -76,6 +76,9 @@ return [
         // The SaaS owner, Owners and Super Admins must have an e-mail (the only address security codes go to) and a
         // mobile number: required on their login, and asked for after signing in until given.
         'require_security_contact' => (bool) env('RICEMILL_REQUIRE_SECURITY_CONTACT', true),
+        // After the e-mail codes, the person's own second factor — passkey, authenticator code, recovery code or mobile code —
+        // at every sign-in check (App\Domain\Auth\SecondFactor); nobody else approves.
+        'second_factor' => (bool) env('RICEMILL_SECOND_FACTOR', true),
 
         'recovery_codes' => 10,
         'password_min_length' => 12,

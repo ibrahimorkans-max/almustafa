@@ -16,6 +16,7 @@ use App\Support\Eloquent\TracksCreator;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * What one vehicle is to load against a sales sauda, and from which godown.
@@ -44,6 +45,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read Product $product
  * @property-read Godown $godown
  * @property-read GateEntry|null $gateEntry
+ * @property string|null $quick_bill_id the bill of a direct dispatch (no weighbridge)
+ * @property string|null $vehicle_type
+ * @property Carbon|null $dispatched_at
+ * @property-read QuickBill|null $quickBill
  */
 class DispatchOrder extends Model
 {
@@ -77,7 +82,7 @@ class DispatchOrder extends Model
     protected function casts(): array
     {
         return [
-            'quantity_kg' => 'decimal:3', 'bag_count' => 'integer', 'bag_weight_kg' => 'decimal:3',
+            'quantity_kg' => 'decimal:3', 'bag_count' => 'integer', 'bag_weight_kg' => 'decimal:3', 'dispatched_at' => 'datetime',
             'estimated_value_paise' => 'integer', 'version' => 'integer',
         ];
     }
@@ -104,6 +109,12 @@ class DispatchOrder extends Model
     public function godown(): BelongsTo
     {
         return $this->belongsTo(Godown::class);
+    }
+
+    /** @return BelongsTo<QuickBill, $this> */
+    public function quickBill(): BelongsTo
+    {
+        return $this->belongsTo(QuickBill::class);
     }
 
     /** @return BelongsTo<GateEntry, $this> */

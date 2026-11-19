@@ -14,12 +14,16 @@
         // The checks, one after the other: the e-mail code, then the QR code + number (when somebody can approve).
         $stage = $this->stage();
         $withEmail = $byEmail || $addEmail;
-        $steps = array_values(array_filter([$found, $withEmail ? __('E-mail code') : null,
-            $this->hasApprovalStep() ? __('QR code + number') : null, $device ? __('Device approved') : __('Network added')]));
-        $at = match ($stage) { 'done' => count($steps), 'approval' => count($steps) - 2, default => 1 };
+        $keyed = array_filter(['found' => $found, 'email' => $withEmail ? __('E-mail code + number') : null,
+            'factor' => $this->hasFactorStep() ? __('Prove it is you') : null,
+            'approval' => $this->hasApprovalStep() ? __('QR code + number') : null, 'final' => $device ? __('Device approved') : __('Network added')]);
+        $steps = array_values($keyed);
+        $at = $stage === 'done' ? count($steps) : max(1, (int) array_search($stage, array_keys($keyed), true));
         [$title, $sub] = match (true) {
             $finished && $device => [__('Device approved'), __('This device is now approved for your account. Opening your dashboard…')],
             $finished => [__('Network verified'), __('This network is added to your account. Opening your dashboard…')],
+            $stage === 'factor' => [__('Prove it is you'), __('Use your passkey, authenticator app, a recovery code or a code to your mobile. Nobody else has to approve this.')],
+            $stage === 'email' && $this->numberPending() => [__('Now tap the number'), __('Tap the 2-digit number shown in the same e-mail.')],
             $stage === 'approval' => [__('One more check: is it you?'), $this->hasOwnDevice()
                 ? __('On a device where you are already signed in, open the bell (Is it you signing in?) or scan this QR code, and pick the number shown here.')
                 : ($approvalState === null && $this->mobileAvailable() ? __('Type the 6-digit code we send to your mobile.') : __('Someone already signed in scans the QR code and picks your number.'))],
@@ -32,7 +36,7 @@
 
     <x-verify.panel :steps="$steps" :at="$at" :title="$title" :subtitle="$sub"
         :state="$finished ? 'done' : ($approvalState === 'denied' ? 'failed' : ($stage === 'approval' ? 'waiting' : 'working'))" :leave="$finished" />
-    <x-verify.busy target="sendCode,checkCode,sendMobileCode,checkMobileCode" />
+    <x-verify.busy target="sendCode,checkCode,pickNumber,sendMobileCode,checkMobileCode" />
 
     @if ($finished)
         <x-verify.scanline />
@@ -52,7 +56,9 @@
 
         @if ($stage === 'email')
             <x-filament::section :heading="__('Confirm it is you')" icon="heroicon-o-envelope" class="rmv-enter" wire:key="nn-email">
-                @if ($addEmail)
+                @if ($this->numberPending())
+                    <div wire:key="nn-number"><x-verify.pick-number :choices="$this->numberChoices()" /></div>
+                @elseif ($addEmail)
                     {{-- No e-mail on the login yet: given here once, then kept for every security code. --}}
                     <form wire:submit="sendCode" class="max-w-lg space-y-3">
                         <label class="block text-sm font-medium" for="nn-new-email">{{ __('Your e-mail address') }}</label>
@@ -62,7 +68,7 @@
                         <x-filament::button type="submit" icon="heroicon-o-paper-airplane">{{ __('Send the code') }}</x-filament::button>
                     </form>
                 @elseif (! $codeSent)
-                    <p class="mb-4 text-sm">{{ __('We will send a 6-digit code to :email. It works only on this screen.', ['email' => $this->maskedEmail()]) }}</p>
+                    <p class="mb-4 text-sm">{{ __('We will e-mail a 6-digit code and a 2-digit number to :email. Type the code, then tap the number. They work only on this screen.', ['email' => $this->maskedEmail()]) }}</p>
                     <x-filament::button wire:click="sendCode" icon="heroicon-o-paper-airplane">{{ __('Send the code') }}</x-filament::button>
                 @else
                     <div class="rmv-enter mt-6 space-y-4 border-t border-gray-200 pt-6 dark:border-white/10" wire:key="nn-code">
@@ -73,6 +79,10 @@
                     </div>
                 </div>
                 @endif
+            </x-filament::section>
+        @elseif ($stage === 'factor')
+            <x-filament::section :heading="__('Prove it is you')" icon="heroicon-o-finger-print" class="rmv-enter" wire:key="nn-factor">
+                <x-verify.second-factor />
             </x-filament::section>
         @else
             <x-filament::section :heading="__('Approval by someone already signed in')" icon="heroicon-o-qr-code" class="rmv-enter" wire:key="nn-approval">

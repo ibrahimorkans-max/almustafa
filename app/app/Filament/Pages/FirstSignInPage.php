@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
+use App\Domain\Auth\EmailCode;
 use App\Domain\Auth\FirstSignIn;
 use App\Domain\Auth\MfaService;
+use App\Domain\Auth\SecondFactor;
 use App\Domain\Auth\SignInApprovals;
 use App\Domain\Shared\BusinessRuleViolation;
 use App\Domain\Tenancy\TenantContext;
+use App\Filament\Concerns\ProvesSecondFactor;
 use App\Filament\Concerns\TranslatesLabels;
 use App\Http\Middleware\EnsureWebAuthSession;
 use App\Models\AuthSession;
@@ -37,6 +40,7 @@ use Illuminate\Http\RedirectResponse;
 class FirstSignInPage extends Page implements HasForms
 {
     use InteractsWithForms;
+    use ProvesSecondFactor;
     use TranslatesLabels;
 
     protected static ?string $slug = 'first-sign-in';
@@ -134,11 +138,12 @@ class FirstSignInPage extends Page implements HasForms
         return $this->account()->email_verified_at !== null;
     }
 
-    /** The current step: email, approval or details. */
+    /** The current step: email (the code, then the number), factor (the person's own), approval or details. */
     public function step(): string
     {
         return match (true) {
             ! $this->verified() => 'email',
+            ! app(SecondFactor::class)->proven($this->account(), $this->sessionId()) => 'factor',
             app(SignInApprovals::class)->needed($this->account()) => 'approval',
             default => 'details',
         };
@@ -149,7 +154,54 @@ class FirstSignInPage extends Page implements HasForms
     {
         $approvals = app(SignInApprovals::class);
 
-        return $approvals->enabled() && ($this->account()->first_sign_in_approved_at !== null || $approvals->approvers($this->account())->isNotEmpty());
+        return $approvals->enabled() && ($this->account()->first_sign_in_approved_at !== null
+            || (! $this->account()->isTopRole() && ! app(SecondFactor::class)->enabled() && $approvals->approvers($this->account())->isNotEmpty()));
+    }
+
+    public function hasFactorStep(): bool
+    {
+        return app(SecondFactor::class)->required($this->account());
+    }
+
+    /** The 6-digit code was right: the e-mail's 2-digit number is picked now. */
+    public function numberPending(): bool
+    {
+        return app(EmailCode::class)->numberPending($this->account(), $this->sessionId());
+    }
+
+    /** @return list<int> */
+    public function numberChoices(): array
+    {
+        return app(EmailCode::class)->choices($this->account());
+    }
+
+    public function pickNumber(int $number): void
+    {
+        try {
+            app(FirstSignIn::class)->verifyNumber($this->account(), $number, $this->sessionId());
+        } catch (BusinessRuleViolation $e) {
+            Notification::make()->title(__($e->getMessage()))->danger()->send();
+
+            return;
+        }
+        $this->emailSent = false;
+        Notification::make()->success()->title(__('E-mail confirmed.'))->send();
+        $this->startApproval();
+    }
+
+    protected function factorAccount(): LoginAccount
+    {
+        return $this->account();
+    }
+
+    protected function factorKey(): string
+    {
+        return (string) $this->sessionId();
+    }
+
+    protected function factorProven(): void
+    {
+        $this->startApproval();
     }
 
     /** @return array<string, mixed> where the first sign-in came from */
@@ -185,11 +237,8 @@ class FirstSignInPage extends Page implements HasForms
 
             return;
         }
-        $this->emailSent = false;
         $this->otp = '';
         $this->dispatch('rmv-otp-valid');
-        Notification::make()->success()->title(__('E-mail confirmed.'))->send();
-        $this->startApproval();
     }
 
     /** Opens (again, when the old one is too old or was refused) the request somebody signed in approves. */
