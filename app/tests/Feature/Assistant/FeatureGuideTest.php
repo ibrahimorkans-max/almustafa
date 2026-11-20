@@ -26,6 +26,28 @@ it('has a purpose for every screen it explains, and steps for each', function ()
     }
 });
 
+it('explains every screen that has a purpose, all of it in Urdu too', function () {
+    expect(array_keys(array_diff_key(FeatureDescriptions::ALL, FeatureHowTo::ALL)))->toBe([]);
+
+    $ur = json_decode((string) file_get_contents(lang_path('ur.json')), true);
+    $missing = [];
+    foreach (FeatureHowTo::ALL as $entry) {
+        foreach ([$entry['how'], ...$entry['steps']] as $text) {
+            if (! isset($ur[$text])) {
+                $missing[] = $text;
+            }
+        }
+    }
+    expect($missing)->toBe([]);
+});
+
+it('answers how-to questions about the other screens too', function () {
+    $bot = app(Assistant::class);
+    expect($bot->ask($this->owner, 'how do I lock a month')->text)->toStartWith('Period locks:')
+        ->and($bot->ask($this->owner, 'how to import old records from excel')->text)->toStartWith('Old records (from paper):')
+        ->and($bot->ask($this->owner, 'how do I approve a new device')->text)->toStartWith('Devices:');
+});
+
 it('shows how to use each screen on the Features guide', function () {
     $this->get('/admin/features-guide')->assertOk()
         ->assertSee('How to use')
