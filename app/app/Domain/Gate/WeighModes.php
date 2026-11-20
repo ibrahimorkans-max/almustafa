@@ -235,9 +235,15 @@ final class WeighModes
                 return $config;
             });
         });
-        app(self::class)->cache = [];
+        self::forget();
 
         return $result;
+    }
+
+    /** Forget the modes worked out in this request: after a change of the modes, or of the mill's weigh-before-lab setting they fall back on. */
+    public static function forget(): void
+    {
+        app(self::class)->cache = [];
     }
 
     /** Before the modes: the mill's "weigh before lab" setting (on: mode 1, off: mode 4). */

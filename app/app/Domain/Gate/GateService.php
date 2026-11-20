@@ -52,6 +52,9 @@ use Illuminate\Support\Facades\DB;
  */
 final class GateService
 {
+    /** Set while a noted known weight is being recorded, so recording it does not try again. */
+    private bool $applyingKnownWeight = false;
+
     public function __construct(
         private readonly DocumentNumbers $numbers,
         private readonly DeductionCalculator $deductions,
@@ -1264,8 +1267,54 @@ final class GateService
         }
         $entry->flags = $flags->unique()->values()->all();
         $entry->save();
+        $this->applyKnownWeight($entry);
 
         return $entry;
+    }
+
+    /**
+     * A weight the vehicle already has (e.g. its empty weight from another weighbridge's slip), noted before its turn
+     * (ManualWeight::noteKnown). It is recorded by itself when that weight becomes the vehicle's next step.
+     *
+     * @param  array<string, mixed>  $data  kind, weight_kg, reason, evidence_attachment_id, evidence_sha256
+     */
+    public function noteKnownWeight(GateEntry $entry, array $data): GateEvent
+    {
+        return DB::transaction(function () use ($entry, $data): GateEvent {
+            $entry = $this->lock($entry);
+            $event = $this->appendEvent($entry, 'known_weight_noted', $data, now(), true);
+            $this->project($entry);   // already its turn (e.g. noted while the step was being reached): used at once
+
+            return $event;
+        });
+    }
+
+    /** The noted known weight of the vehicle's next step, recorded as a weight typed by hand (once). */
+    private function applyKnownWeight(GateEntry $entry): void
+    {
+        if ($this->applyingKnownWeight || in_array($entry->status, ['cancelled', 'exited'], true)) {
+            return;
+        }
+        $kind = LiveCapture::nextKind($entry);
+        if ($kind === null || Weighment::query()->where('gate_entry_id', $entry->id)->where('kind', $kind)->exists()) {
+            return;
+        }
+        $noted = GateEvent::query()->where('gate_entry_id', $entry->id)->where('event', 'known_weight_noted')->orderByDesc('seq')->get()
+            ->first(fn (GateEvent $e) => ($e->data['kind'] ?? null) === $kind);
+        if ($noted === null) {
+            return;
+        }
+        $evidence = $noted->data['evidence_attachment_id'] ?? null;
+        $this->applyingKnownWeight = true;
+        try {
+            $this->recordWeighment($entry, $kind, (string) $noted->data['weight_kg'], null,
+                ['manual_entry' => true, 'known_weight_event_id' => $noted->id, 'noted_by' => $noted->actor_login_account_id,
+                    'evidence_attachment_id' => $evidence, 'evidence_sha256' => $noted->data['evidence_sha256'] ?? null],
+                null, strict: false, source: Weighment::SOURCE_MANUAL, reason: (string) $noted->data['reason'],
+                extraFlags: $evidence === null ? ['manual_entry', 'known_weight', 'no_slip_evidence'] : ['manual_entry', 'known_weight']);
+        } finally {
+            $this->applyingKnownWeight = false;
+        }
     }
 
     // ------------------------------------------------------------------ helpers

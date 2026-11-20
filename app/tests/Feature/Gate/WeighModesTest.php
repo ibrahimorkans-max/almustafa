@@ -22,7 +22,7 @@ use Tests\Support\Make;
 beforeEach(function () {
     $this->f = new GateFixtures(Make::entity('WMD'));
     $this->gate = app(GateService::class);
-    $this->platform = Make::platformAdmin(Make::entity('PLT'));
+    $this->platform = Make::platformAdmin(Make::platformOffice());
     Filament::setCurrentPanel(Filament::getPanel('admin'));
 });
 

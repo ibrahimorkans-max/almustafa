@@ -48,6 +48,7 @@ final class GatePolicy
     {
         app(SettingsService::class)->put(self::WEIGH_BEFORE_LAB, $weighFirst ? 'on' : 'off', $entityId);
         app(self::class)->cache = [];
+        WeighModes::forget();   // a mill without modes set falls back on this setting
     }
 
     /** Whether the lab result of a paddy lot can still be recorded or decided: before its loaded weight (lab first), else before unloading. */

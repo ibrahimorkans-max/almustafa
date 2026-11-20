@@ -23,8 +23,11 @@ final class Preflight
      * Installation-level tables that name an entity but must be readable from every firm's requests:
      * a whole-system lock (entity_id NULL) has to be visible to everyone, which a firm-scoped
      * row-level policy would hide. They hold no business data and change only through audited services.
+     * The SaaS owner's settings for each company (entity_id NULL) or mill — weighing modes and their history, the lab
+     * features allowed, the name messages go out under — are the same: set only by the SaaS owner and read through their
+     * services (WeighModes, LabSetup, SenderIdentities), always for one mill or company.
      */
-    private const INSTALLATION_TABLES = ['system_locks'];
+    private const INSTALLATION_TABLES = ['system_locks', 'weighment_mode_configs', 'weighment_mode_changes', 'lab_feature_configs', 'sender_identities'];
 
     /**
      * @param  bool  $beforeMigrate  deploy step before `migrate`: migrations still to run are expected, not a failure

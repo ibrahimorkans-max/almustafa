@@ -251,9 +251,10 @@ final class LoginService
         ?string $userAgent,
         bool $mfaPassed,
         string $method = 'password',
+        bool $deviceProven = false,
     ): AuthSession {
         $web = $channel === AuthSession::CHANNEL_WEB;
-        $device = $this->devices->resolveForLogin($account, $deviceInfo, $ip, $web);
+        $device = $this->devices->resolveForLogin($account, $deviceInfo, $ip, $web, $deviceProven);
         $session = $this->sessions->start($account, $channel, $device, $ip, $userAgent, $mfaPassed, $method);
         // A device not approved yet (let through on the web only when the e-mail code can prove it): held until it does.
         if ($web && ! $device->isTrusted() && ! $account->needsFirstSignIn() && $this->devices->requiresTrustedDevice($account, $device)) {

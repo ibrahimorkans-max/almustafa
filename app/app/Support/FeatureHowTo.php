@@ -31,9 +31,14 @@ final class FeatureHowTo
             'steps' => ['Open the screen to see the current weight and whether it is steady.', 'Weigh a vehicle from its gate entry: the steady reading is used.', 'If no reading comes, check Connect weighbridge.'],
         ],
         'ManualWeighingPage' => [
-            'how' => 'When the indicator cannot be read (power, cable, a bike or small load), the weight is typed. Every typed weight is marked as manual and goes to Weight checks.',
-            'steps' => ['Pick the vehicle or gate entry.', 'Type the first weight, and later the second weight.', 'Add a photo of the indicator or a note if you can.', 'Save: the weight is flagged for checking.'],
-            'words' => 'typed weight by hand manual kanta',
+            'how' => 'The Owner decides whether weights may be typed by hand, whether both of a vehicle\'s weights may be, and who may type them. A weight the vehicle already has — its empty or loaded weight from another kanta\'s slip — can be typed at any step, even at arrival: if it is the next weight it counts at once; otherwise it is used by itself when the vehicle reaches that step, so the vehicle is weighed only once here. Every typed weight is marked "typed by hand" and goes to the weight checks.',
+            'steps' => [
+                'Owner: switch on "Allow weights to be typed by hand". Allow both weights only when the weighbridge is out of order.',
+                'Tick the people who may type weights (nobody ticked: Supervisor, Super Admin and Owner).',
+                'At the weighbridge press "Enter one weight manually", or on the vehicle\'s page "Enter a weight it already has".',
+                'Choose empty (tare) or loaded (gross), type the kg and the reason, and add the slip photo if you have it.',
+            ],
+            'words' => 'manual weight, typed weight, known weight, already weighed, other kanta, tare, gross, empty weight, loaded weight, kanta',
         ],
         'LabQueuePage' => [
             'how' => 'Paddy vehicles that arrived and are not yet tested wait here, oldest first. The lab result decides the deductions and whether the paddy is accepted.',
@@ -208,7 +213,7 @@ final class FeatureHowTo
             'words' => 'new network new device wifi location sign in check',
         ],
         'TwoFactor' => [
-            'how' => 'An authenticator app (Google or Microsoft Authenticator) gives a new 6-digit code every 30 seconds. It is your own second check at sign-in, so nobody else has to approve you. Recovery codes are spare one-time codes for when the phone is lost.',
+            'how' => 'An authenticator app (Google or Microsoft Authenticator) gives a new 6-digit code every 30 seconds. It is your own second check at sign-in, so nobody else has to approve you. The same code also approves a new phone in the mobile app. Recovery codes are spare one-time codes for when the phone is lost.',
             'steps' => ['Open this screen and scan the QR code with the authenticator app.', 'Type the 6-digit code it shows to switch it on.', 'Save the recovery codes somewhere safe, on paper.'],
             'words' => 'authenticator two factor 2fa totp recovery codes google authenticator',
         ],
@@ -225,6 +230,15 @@ final class FeatureHowTo
         'SecurityEmailPage' => [
             'how' => 'All sign-in codes go to this e-mail. Without a confirmed e-mail you cannot pass new-network checks or reset a forgotten password.',
             'steps' => ['Type your e-mail.', 'Type the code sent to it to confirm.'],
+        ],
+        'RoleResource' => [
+            'how' => 'What each role may see and do. A change of permissions needs a second person\'s approval. The Owner or Super Admin can also make two-factor (an authenticator app) compulsory for everyone in a role.',
+            'steps' => [
+                'Open a role to see its permissions.',
+                'Press "Request permission change", tick the permissions and give a reason; another person approves it.',
+                'Press "Require 2FA for this role": its people set up an authenticator at their next screen. "Stop requiring 2FA" needs a reason.',
+            ],
+            'words' => 'role, permission, two factor, 2fa, authenticator, compulsory',
         ],
         'ApprovalRequestResource' => [
             'how' => 'Changes that need a second person (large payments, corrections, credit overrides) wait here until someone allowed approves or refuses.',

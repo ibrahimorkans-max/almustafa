@@ -119,7 +119,7 @@ it('holds an Owner to any of its mills, never the product owner', function () {
     expect(app(SignInArea::class)->mills($owner))->toBe([$second->id])
         ->and(areaRefusal($owner, AWAY_LAT, AWAY_LNG))->toBe(SignInArea::OUTSIDE);   // the second mill has no site: nowhere is inside
 
-    $platform = Make::platformAdmin(Make::entity('PLT'));
+    $platform = Make::platformAdmin(Make::platformOffice());
     areaOn(Make::system(fn () => Entity::query()->findOrFail($platform->entity_id)));
     expect(areaRefusal($platform, null, null))->toBeNull();
 });
@@ -193,7 +193,7 @@ it('is switched on only with a site and from inside it; the product owner can li
     // The product owner lifts it from the customer's page.
     app('auth')->forgetGuards();
     $this->flushSession();
-    $platform = Make::platformAdmin(Make::entity('PLT'));
+    $platform = Make::platformAdmin(Make::platformOffice());
     $this->actingAs($platform, 'web')->withSession(Make::webSession($platform));
     app(AuthContextBinder::class)->bind($platform);
     Livewire::test(ViewCustomer::class, ['record' => $this->mill->customer_id])->callAction('areaOff')

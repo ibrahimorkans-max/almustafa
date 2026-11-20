@@ -65,7 +65,9 @@ final class AuthController extends Controller
                 break;
         }
 
-        $session = $login->completeLogin($account, AuthSession::CHANNEL_API, $request->device(), $request->ip(), $request->userAgent(), $mfaPassed);
+        // The authenticator code typed above also proves a new phone: it is approved without anyone else (DeviceService).
+        $session = $login->completeLogin($account, AuthSession::CHANNEL_API, $request->device(), $request->ip(), $request->userAgent(), $mfaPassed,
+            deviceProven: $mfaPassed);
         if (is_numeric($request->input('latitude')) && is_numeric($request->input('longitude'))) {
             app(TenantContext::class)->runAsSystem(fn () => $session->forceFill([
                 'latitude' => round((float) $request->input('latitude'), 6), 'longitude' => round((float) $request->input('longitude'), 6),

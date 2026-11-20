@@ -14,7 +14,7 @@ final class FeatureDescriptions
         // Gate & weighbridge
         'GateEntryResource' => 'Record every vehicle that comes to the gate and follow it through lab, weighing and slip until it leaves.',
         'LiveWeightPage' => 'Watch the weighbridge reading live, as the indicator shows it, from any screen in the mill.',
-        'ManualWeighingPage' => 'Take a weight by hand when the weighbridge indicator cannot be read; every typed weight is flagged and checked.',
+        'ManualWeighingPage' => 'Decide who may type a weight by hand — e.g. a weight the vehicle already has from another kanta — and whether one or both may be typed.',
         'LabQueuePage' => 'See the paddy vehicles waiting for their lab test and enter the results.',
         'NegotiationPage' => 'Agree a new price or deduction for a lot the lab rejected or questioned.',
         'VehicleRegisterPage' => 'Print or read the day-by-day register of every vehicle in and out.',

@@ -7,9 +7,12 @@ namespace App\Domain\Gate;
 use App\Domain\Auth\ActorContext;
 use App\Domain\Files\Attachments;
 use App\Domain\Shared\BusinessRuleViolation;
+use App\Models\Attachment;
 use App\Models\Gate\GateEntry;
+use App\Models\Gate\GateEvent;
 use App\Models\Gate\Weighment;
 use App\Models\LoginAccount;
+use App\Support\Values\Weight;
 
 /**
  * One of a vehicle's two weights typed by hand — e.g. the empty weight known from another weighbridge's
@@ -28,6 +31,48 @@ final class ManualWeight
     ) {}
 
     public function record(GateEntry $entry, string $kind, string $weightKg, string $reason, ?string $evidenceBytes = null): Weighment
+    {
+        $this->check($entry, $kind, $weightKg, $reason);
+        $evidence = $this->evidence($entry, $kind, $reason, $evidenceBytes);
+
+        return $this->gate->recordWeighment(
+            $entry, $kind, trim($weightKg), null,
+            ['manual_entry' => true, 'evidence_attachment_id' => $evidence?->id, 'evidence_sha256' => $evidence?->file->sha256],
+            null,
+            source: Weighment::SOURCE_MANUAL,
+            reason: trim($reason),
+            extraFlags: $evidence === null ? ['manual_entry', 'no_slip_evidence'] : ['manual_entry'],
+        );
+    }
+
+    /**
+     * A weight the vehicle already has — its empty weight or its loaded weight, from another weighbridge's slip —
+     * typed whenever it is known, even at arrival. When it is the vehicle's next weight it is recorded now; otherwise it
+     * is noted on the vehicle and recorded by itself when that step comes, so the vehicle is weighed only once here.
+     *
+     * @return Weighment|null the weight recorded now, or null when it is noted for later
+     */
+    public function noteKnown(GateEntry $entry, string $kind, string $weightKg, string $reason, ?string $evidenceBytes = null): ?Weighment
+    {
+        if (LiveCapture::nextKind($entry) === $kind) {
+            return $this->record($entry, $kind, $weightKg, $reason, $evidenceBytes);
+        }
+        $this->check($entry, $kind, $weightKg, $reason);
+        if (! $entry->isOpen()) {
+            throw new BusinessRuleViolation('This vehicle\'s visit is closed.');
+        }
+        if (self::current($entry, $kind) !== null) {
+            throw new BusinessRuleViolation('The '.self::label($entry, $kind).' of this vehicle is already recorded.');
+        }
+        $evidence = $this->evidence($entry, $kind, $reason, $evidenceBytes);
+        $this->gate->noteKnownWeight($entry, ['kind' => $kind, 'weight_kg' => Weight::kg(trim($weightKg))->kg, 'reason' => trim($reason),
+            'evidence_attachment_id' => $evidence?->id, 'evidence_sha256' => $evidence?->file->sha256]);
+
+        return self::current($entry->refresh(), $kind);   // null unless it was its turn after all
+    }
+
+    /** The rules every typed weight follows. */
+    private function check(GateEntry $entry, string $kind, string $weightKg, string $reason): void
     {
         $me = $this->actor->account();
         if (! ManualWeighing::enabled($entry->entity_id)) {
@@ -52,19 +97,21 @@ final class ManualWeight
             throw new BusinessRuleViolation('The '.self::label($entry, $other).' was typed by hand, so this one must come from the weighbridge.');
         }
 
-        $evidence = null;
-        if ($evidenceBytes !== null && $evidenceBytes !== '') {
-            $evidence = $this->attachments->attach($entry, 'weighbridge_slip', $evidenceBytes, 'Evidence for the typed '.self::label($entry, $kind).': '.$reason);
+        // Only one of the two may be typed (unless the Owner allows both): also counting one noted for later.
+        $otherNoted = GateEvent::query()->where('gate_entry_id', $entry->id)->where('event', 'known_weight_noted')->get()
+            ->contains(fn (GateEvent $e) => ($e->data['kind'] ?? null) === $other);
+        if ($otherNoted && $otherWeight === null && ! ManualWeighing::bothAllowed($entry->entity_id)) {
+            throw new BusinessRuleViolation('The '.self::label($entry, $other).' was typed by hand, so this one must come from the weighbridge.');
+        }
+    }
+
+    private function evidence(GateEntry $entry, string $kind, string $reason, ?string $evidenceBytes): ?Attachment
+    {
+        if ($evidenceBytes === null || $evidenceBytes === '') {
+            return null;
         }
 
-        return $this->gate->recordWeighment(
-            $entry, $kind, trim($weightKg), null,
-            ['manual_entry' => true, 'evidence_attachment_id' => $evidence?->id, 'evidence_sha256' => $evidence?->file->sha256],
-            null,
-            source: Weighment::SOURCE_MANUAL,
-            reason: $reason,
-            extraFlags: $evidence === null ? ['manual_entry', 'no_slip_evidence'] : ['manual_entry'],
-        );
+        return $this->attachments->attach($entry, 'weighbridge_slip', $evidenceBytes, 'Evidence for the typed '.self::label($entry, $kind).': '.trim($reason));
     }
 
     /** The weight of this kind that counts now (the last one, re-weighs replace earlier ones). */

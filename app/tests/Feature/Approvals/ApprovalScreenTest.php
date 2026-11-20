@@ -28,7 +28,7 @@ beforeEach(function () {
     $role = Make::system(fn () => Role::query()->where('entity_id', $this->entity->id)->where('code', 'GATE_OPERATOR')->firstOrFail());
     app(AuthContextBinder::class)->bind($this->maker);
     $this->request = app(ApprovalService::class)->submit(ChangeRolePermissions::KEY,
-        ['role_id' => $role->id, 'permissions' => [...$role->permissionCodes(), 'lab.test']], 'Gate needs lab', 'Night shift');
+        ['role_id' => $role->id, 'permissions' => [...$role->permissionCodes(), 'stock.view']], 'Gate needs stock', 'Night shift');
     $this->role = $role;
 });
 
@@ -68,7 +68,7 @@ it('approves from the page with a note, executes, notifies the requester and sho
     expect($r->status)->toBe(ApprovalRequest::STATUS_EXECUTED)
         ->and($r->checker_login_account_id)->toBe($this->checker->id)
         ->and($r->decision_note)->toBe('Checked with the shift in-charge')
-        ->and($this->role->fresh()->permissionCodes())->toContain('lab.test');
+        ->and($this->role->fresh()->permissionCodes())->toContain('stock.view');
 
     $note = DB::table('notifications')->where('notifiable_id', $this->maker->id)->first();
     expect($note)->not->toBeNull()->and($note->data)->toContain('executed');
@@ -86,10 +86,10 @@ it('needs a reason to reject, and notifies the requester', function () {
     signInApprovals($this, $this->checker);
     Livewire::test(ViewApprovalRequest::class, ['record' => $this->request->id])
         ->callAction('reject', ['note' => ''])->assertHasActionErrors(['note' => 'required'])
-        ->callAction('reject', ['note' => 'Lab tests stay with the lab'])->assertHasNoActionErrors();
+        ->callAction('reject', ['note' => 'Stock stays with the stores'])->assertHasNoActionErrors();
 
     expect($this->request->fresh()->status)->toBe('rejected')
-        ->and($this->role->fresh()->permissionCodes())->not->toContain('lab.test')
+        ->and($this->role->fresh()->permissionCodes())->not->toContain('stock.view')
         ->and(DB::table('notifications')->where('notifiable_id', $this->maker->id)->value('data'))->toContain('rejected');
 });
 
@@ -105,7 +105,7 @@ it('applies the Owner request at once and lets the Owner decide staff requests',
     $sa = Make::owner($this->entity);
     app(AuthContextBinder::class)->bind($sa);
     $own = app(ApprovalService::class)->submit(ChangeRolePermissions::KEY,
-        ['role_id' => $this->role->id, 'permissions' => [...$this->role->permissionCodes(), 'stock.view']], 'Gate sees stock');
+        ['role_id' => $this->role->id, 'permissions' => [...$this->role->permissionCodes(), 'ledger.view']], 'Gate sees ledgers');
     expect($own->status)->toBe('executed')
         ->and(app(ApprovalService::class)->decisionBlocker($sa, $this->request))->toBeNull();
 });

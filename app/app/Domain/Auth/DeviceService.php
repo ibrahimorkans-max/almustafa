@@ -36,7 +36,7 @@ final class DeviceService
      *
      * @throws AuthenticationFailed
      */
-    public function resolveForLogin(LoginAccount $account, DeviceInfo $info, ?string $ip, bool $web = false): Device
+    public function resolveForLogin(LoginAccount $account, DeviceInfo $info, ?string $ip, bool $web = false, bool $proven = false): Device
     {
         $device = Device::query()
             ->where('login_account_id', $account->id)
@@ -68,7 +68,7 @@ final class DeviceService
         }
 
         if (! $device->isTrusted() && $this->requiresTrustedDevice($account, $device)) {
-            $this->handleUntrustedDevice($account, $device, $web);
+            $this->handleUntrustedDevice($account, $device, $web, $proven);
         }
 
         // A phone's browser and its installed app share the device cookie: once signed in from the app, it is the app.
@@ -227,7 +227,7 @@ final class DeviceService
         throw new AuthenticationFailed(AuthenticationFailed::DEVICE_LIMIT, 'device_limit', 403);
     }
 
-    private function handleUntrustedDevice(LoginAccount $account, Device $device, bool $web = false): void
+    private function handleUntrustedDevice(LoginAccount $account, Device $device, bool $web = false, bool $proven = false): void
     {
         $hasTrusted = Device::query()->where('login_account_id', $account->id)->whereNotNull('trusted_at')->exists();
 
@@ -250,6 +250,16 @@ final class DeviceService
         // then (FirstSignIn::complete), while it is still their only one.
         if (! $hasTrusted && $account->needsFirstSignIn()) {
             $this->audit->record('device.first_sign_in_admitted', $device);
+
+            return;
+        }
+        // The person typed a right code from their own authenticator app at this sign-in: that proves the device.
+        if ($proven && $account->hasMfa()) {
+            $this->trust($device, null, 'proved_by_authenticator');
+            // An approval asked for at an earlier try is no longer needed: withdrawn in the person's own name.
+            ApprovalRequest::query()->where('action', TrustDevice::KEY)->where('status', ApprovalRequest::STATUS_PENDING)->get()
+                ->filter(fn (ApprovalRequest $r) => ($r->payload['device_id'] ?? null) === $device->id)
+                ->each(fn (ApprovalRequest $r) => $this->approvals->cancel($r, $account));
 
             return;
         }

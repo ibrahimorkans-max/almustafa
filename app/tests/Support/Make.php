@@ -115,6 +115,14 @@ final class Make
     }
 
     /** A platform admin (the provider): an Owner with the platform flag, set only from the command line in real life. */
+    /** The SaaS owner's own office, in its own company (the product's company is kept off the customer screens). */
+    public static function platformOffice(string $code = 'PLT'): Entity
+    {
+        return self::system(fn () => app(EntityProvisioner::class)->create([
+            'code' => $code, 'name' => "Mill {$code}", 'status' => Entity::STATUS_ACTIVE, 'customer_id' => self::customer('PLATFORM')->id,
+        ]));
+    }
+
     public static function platformAdmin(Entity $home): LoginAccount
     {
         $account = self::account($home, 'OWNER');

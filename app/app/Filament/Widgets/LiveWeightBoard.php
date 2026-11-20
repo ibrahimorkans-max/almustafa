@@ -272,7 +272,7 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
             ->visible(fn () => $this->canType())
             ->modalHeading(fn (array $arguments) => 'Enter one weight manually'.(($p = $this->plate[$arguments['scale'] ?? ''] ?? null) ? ' — '.$p : ''))
             ->modalDescription(fn () => (ManualWeighing::bothAllowed() ? 'Both weights may be typed (the Owner allows it).' : 'Only one of the two weights may be typed; the other must come from this weighbridge.')
-                .' It counts at once, is marked "typed by hand" and goes to the weight checks.')
+                .' Either one: a weight the vehicle already has (e.g. its empty weight from another kanta) can be typed now, even at arrival, and is used when that step comes. It is marked "typed by hand" and goes to the weight checks.')
             ->form([
                 Radio::make('kind')->label(__('Which weight'))->required()->default('gross')
                     ->options(['gross' => __('Loaded weight (gross)'), 'tare' => __('Empty weight (tare)')]),
@@ -302,11 +302,8 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
                             app(GateService::class)->markUnloaded($entry, godown: $godown);
                             $entry->refresh();
                         }
-                        if (LiveCapture::nextKind($entry) !== $data['kind']) {
-                            throw new BusinessRuleViolation('This vehicle needs the '.$this->nextLabel($entry).' now. '.(LiveCapture::nextKind($entry) === null ? $this->waitingReason($entry) : ''));
-                        }
-
-                        return [$entry, app(ManualWeight::class)->record($entry, (string) $data['kind'], (string) $data['weight_kg'], (string) $data['reason'],
+                        // The vehicle's next weight is recorded now; the other one is noted and used when its step comes.
+                        return [$entry, app(ManualWeight::class)->noteKnown($entry, (string) $data['kind'], (string) $data['weight_kg'], (string) $data['reason'],
                             $file instanceof TemporaryUploadedFile ? (string) $file->get() : null)];
                     });
                 } catch (BusinessRuleViolation $e) {
@@ -315,6 +312,14 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
                     return;
                 }
                 $entry->refresh();
+                if ($w === null) {
+                    Notification::make()->success()
+                        ->title(ucfirst(ManualWeight::label($entry, (string) $data['kind'])).' '.number_format((float) $data['weight_kg'], 0).' kg noted · '.$entry->vehicleLabel())
+                        ->body(__('It is used by itself when the vehicle reaches that step. The other weight comes from the weighbridge.'))->send();
+                    $this->dispatch('weigh-queue-refresh');
+
+                    return;
+                }
                 Notification::make()->success()
                     ->title(ucfirst(ManualWeight::label($entry, $w->kind)).' '.number_format((float) $w->weight_kg, 0).' kg entered · '.$entry->vehicleLabel())
                     ->body(($entry->net_kg !== null ? 'Net weight '.number_format((float) $entry->net_kg, 0).' kg. ' : '').'Marked "typed by hand" for the weight checks.')->send();

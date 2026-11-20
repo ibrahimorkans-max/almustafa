@@ -67,6 +67,14 @@ class SecurityEmailPage extends Page implements HasForms
 
     public bool $justConfirmed = false;
 
+    /** Not in an archive-only person's menu (they see the Office Desk alone); the page itself stays open to them. */
+    public static function shouldRegisterNavigation(): bool
+    {
+        $user = Filament::auth()->user();
+
+        return parent::shouldRegisterNavigation() && ! ($user instanceof LoginAccount && Dashboard::archiveOnly($user));
+    }
+
     public static function canAccess(): bool
     {
         $user = Filament::auth()->user();
