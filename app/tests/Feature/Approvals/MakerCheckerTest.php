@@ -34,29 +34,29 @@ function as_(LoginAccount $account): void
 
 function requestGateChange(ApprovalService $service, Role $role, array $permissions): ApprovalRequest
 {
-    return $service->submit(ChangeRolePermissions::KEY, ['role_id' => $role->id, 'permissions' => $permissions], 'Gate needs lab', 'Night shift');
+    return $service->submit(ChangeRolePermissions::KEY, ['role_id' => $role->id, 'permissions' => $permissions], 'Gate needs stock', 'Night shift');
 }
 
 it('changes nothing until a different person approves', function () {
     as_($this->maker);
-    $wanted = [...$this->gateRole->permissionCodes(), 'lab.test'];
+    $wanted = [...$this->gateRole->permissionCodes(), 'stock.view'];
     $request = requestGateChange($this->service, $this->gateRole, $wanted);
 
     expect($request->status)->toBe('pending')
-        ->and($this->gateRole->fresh()->permissionCodes())->not->toContain('lab.test');
+        ->and($this->gateRole->fresh()->permissionCodes())->not->toContain('stock.view');
 
     as_($this->owner2);
     $done = $this->service->approve($request, $this->owner2, 'ok');
 
     expect($done->status)->toBe('executed')
         ->and($done->checker_person_id)->toBe($this->owner2->person_id)
-        ->and($this->gateRole->fresh()->permissionCodes())->toContain('lab.test')
+        ->and($this->gateRole->fresh()->permissionCodes())->toContain('stock.view')
         ->and(AuditLog::query()->where('action', 'role.permissions.changed')->exists())->toBeTrue();
 });
 
 it('does not let the maker approve their own request', function () {
     as_($this->maker);
-    $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
+    $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'stock.view']);
 
     expect(fn () => $this->service->approve($request, $this->maker))->toThrow(ApprovalDenied::class, 'maker-checker');
 });
@@ -64,7 +64,7 @@ it('does not let the maker approve their own request', function () {
 it('does not let the same person approve through a second login account', function () {
     $other = Make::entity('MC2');
     as_($this->maker);
-    $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
+    $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'stock.view']);
 
     // Same human, Owner account in another entity, and a Super Admin account too.
     $samePersonSa = Make::account($other, 'SUPERVISOR', ['person' => $this->maker->person]);
@@ -75,7 +75,7 @@ it('does not let the same person approve through a second login account', functi
 it('requires approval.decide for the checker', function () {
     $exec = Make::account($this->entity, 'EXECUTIVE');
     as_($this->maker);
-    $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
+    $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'stock.view']);
 
     expect(fn () => $this->service->approve($request, $exec))->toThrow(ApprovalDenied::class, 'approval.decide');
 });
@@ -105,18 +105,18 @@ it('keeps the Super Admin role out of reach of entity users', function () {
 
 it('can be rejected with a reason, and then cannot be approved', function () {
     as_($this->maker);
-    $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
+    $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'stock.view']);
     as_($this->owner2);
     $rejected = $this->service->reject($request, $this->owner2, 'Not needed');
 
     expect($rejected->status)->toBe('rejected')
         ->and(fn () => $this->service->approve($rejected, $this->owner2))->toThrow(ApprovalDenied::class, 'no longer pending')
-        ->and($this->gateRole->fresh()->permissionCodes())->not->toContain('lab.test');
+        ->and($this->gateRole->fresh()->permissionCodes())->not->toContain('stock.view');
 });
 
 it('expires', function () {
     as_($this->maker);
-    $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
+    $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'stock.view']);
     $this->travel(73)->hours();
     as_($this->owner2);
 
@@ -125,8 +125,8 @@ it('expires', function () {
 
 it('refuses to apply a request made against an outdated role', function () {
     as_($this->maker);
-    $first = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
-    $second = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'stock.view']);
+    $first = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'stock.view']);
+    $second = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'production.view']);
 
     as_($this->owner2);
     $this->service->approve($first, $this->owner2);
@@ -138,7 +138,7 @@ it('refuses to apply a request made against an outdated role', function () {
 
 it('lets the maker withdraw a pending request', function () {
     as_($this->maker);
-    $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
+    $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'stock.view']);
 
     expect($this->service->cancel($request, $this->maker)->status)->toBe('cancelled')
         ->and(fn () => $this->service->cancel($request->fresh(), $this->owner2))->toThrow(ApprovalDenied::class);
@@ -146,7 +146,7 @@ it('lets the maker withdraw a pending request', function () {
 
 it('audits every step', function () {
     as_($this->maker);
-    $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
+    $request = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'stock.view']);
     as_($this->owner2);
     $this->service->approve($request, $this->owner2);
 
@@ -156,15 +156,15 @@ it('audits every step', function () {
 
 it('applies a request of the Owner or the mill\'s Super Admin at once, without a second person', function () {
     as_($this->owner);
-    $done = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'lab.test']);
+    $done = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->permissionCodes(), 'stock.view']);
 
     expect($done->status)->toBe('executed')
         ->and($done->checker_person_id)->toBe($this->owner->person_id)
         ->and($done->decision_note)->toContain('no second approval needed')
-        ->and($this->gateRole->fresh()->permissionCodes())->toContain('lab.test');
+        ->and($this->gateRole->fresh()->permissionCodes())->toContain('stock.view');
 
     // A Super Admin may also decide a pending request they raised earlier as staff… or any staff request.
     as_($this->maker);
-    $pending = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->fresh()->permissionCodes(), 'stock.view']);
+    $pending = requestGateChange($this->service, $this->gateRole, [...$this->gateRole->fresh()->permissionCodes(), 'production.view']);
     expect($this->service->canDecide($this->owner, $pending))->toBeTrue();
 });

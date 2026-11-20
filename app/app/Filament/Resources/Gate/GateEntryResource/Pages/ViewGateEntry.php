@@ -11,6 +11,8 @@ use App\Domain\Approvals\SelfApproval;
 use App\Domain\Gate\GatePolicy;
 use App\Domain\Gate\GateService;
 use App\Domain\Gate\LabStandards;
+use App\Domain\Gate\ManualWeighing;
+use App\Domain\Gate\ManualWeight;
 use App\Domain\Gate\SlipRenderer;
 use App\Domain\Gate\WeighModes;
 use App\Domain\Hr\ContractorVehicles;
@@ -36,6 +38,7 @@ use App\Models\Masters\Party;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -43,6 +46,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Get;
 use Filament\Notifications\Notification;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Support\Enums\ActionSize;
 use Illuminate\Validation\ValidationException;
@@ -285,6 +289,33 @@ class ViewGateEntry extends ViewRecord
             ])->label(fn (GateEntry $e) => 'Print token '.$e->tokenLabel())->icon('heroicon-o-ticket')->color('gray')->button()
                 ->visible(fn (GateEntry $e) => $e->token_no !== null || $e->token_serial !== null),
             AttachmentsPanel::action(),
+            // A weight the vehicle already has (another kanta's slip): typed now, used when its step comes.
+            Action::make('knownWeight')->label(__('Enter a weight it already has'))->icon('heroicon-o-pencil-square')->color('gray')
+                ->visible(fn (GateEntry $e) => $e->isOpen() && ManualWeighing::enabled($e->entity_id) && ManualWeighing::allowed($this->me()))
+                ->modalDescription(__('The empty or loaded weight this vehicle already has, e.g. from another weighbridge\'s slip. If it is the next weight it counts now; otherwise it is used by itself when the vehicle reaches that step. The other weight comes from the weighbridge. Marked "typed by hand" and sent to the weight checks.'))
+                ->form([
+                    Radio::make('kind')->label(__('Which weight'))->required()->default('tare')
+                        ->options(['tare' => __('Empty weight (tare)'), 'gross' => __('Loaded weight (gross)')]),
+                    TextInput::make('weight_kg')->label(__('Weight (kg)'))->required()->regex(Units::DECIMAL_3)->suffix('kg'),
+                    Textarea::make('reason')->label(__('Reason (optional)'))->maxLength(500)
+                        ->placeholder(__('e.g. empty weight from Kanta 2, slip no. 4512')),
+                    FileUpload::make('slip')->label(__('Slip or evidence (photo or PDF, optional)'))->storeFiles(false)
+                        ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480),
+                ])
+                ->action(function (GateEntry $e, array $data): void {
+                    $file = $data['slip'] ?? null;
+                    $file = is_array($file) ? (reset($file) ?: null) : $file;
+                    try {
+                        $w = app(ManualWeight::class)->noteKnown($e, (string) $data['kind'], (string) $data['weight_kg'], (string) ($data['reason'] ?? ''),
+                            $file instanceof TemporaryUploadedFile ? (string) $file->get() : null);
+                    } catch (BusinessRuleViolation $ex) {
+                        Notification::make()->title(__($ex->getMessage()))->danger()->send();
+
+                        return;
+                    }
+                    Notification::make()->success()->title($w !== null ? __('Weight recorded.') : __('Weight noted: it is used by itself when the vehicle reaches that step.'))->send();
+                    $this->refreshFormData(['status', 'gross_kg', 'tare_kg', 'net_kg']);
+                }),
             ActionGroup::make([
                 Action::make('manualWeight')->label(__('Enter manual weight (Owner / Super Admin)'))->icon('heroicon-o-exclamation-triangle')->color('danger')
                     ->visible(fn (GateEntry $e) => $e->isOpen() && SelfApproval::allowed($this->me()) && $can('weighment.override'))

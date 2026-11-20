@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Gate;
 
+use App\Domain\Access\RoleTemplates;
 use App\Domain\Settings\SettingsService;
 use App\Domain\Tenancy\TenantContext;
 use App\Models\LoginAccount;
@@ -13,9 +14,9 @@ use App\Models\LoginAccount;
  *  - on / off            manual entries at all;
  *  - both weights        whether both weights of a vehicle may be typed (the weighbridge is down), or only one of
  *                        them while the other comes from this weighbridge (the default);
- *  - the people ticked   only they may type weights; nobody ticked: those whose role has `weighment.manual`
- *                        (Supervisor, Super Admin, Owner), as before.
- * Every typed weight keeps its reason, is flagged "typed by hand" and goes to the weight checks.
+ *  - the people ticked   only they may type weights; nobody ticked (the default): everyone on the mill's staff.
+ * A reason is optional. Every typed weight is flagged "typed by hand" (and "no reason" without one) and goes to the
+ * weight checks.
  */
 final class ManualWeighing
 {
@@ -55,7 +56,14 @@ final class ManualWeighing
         }
         $ticked = self::users($entityId);
 
-        return $ticked === [] ? $user->hasPermission('weighment.manual') : in_array($user->id, $ticked, true);
+        return $ticked === [] ? self::staff($user) : in_array($user->id, $ticked, true);
+    }
+
+    /** Everyone working at the mill: not a party's or broker's own sign-in, nor a machine (gate agent). */
+    private static function staff(LoginAccount $user): bool
+    {
+        return ! $user->is_machine && $user->status === LoginAccount::STATUS_ACTIVE
+            && ! in_array($user->role?->code, [RoleTemplates::PARTY, RoleTemplates::BROKER], true);
     }
 
     /**

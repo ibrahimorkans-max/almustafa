@@ -76,6 +76,45 @@ paths:
       responses:
         '200': { description: New pair, content: { application/json: { schema: { $ref: '#/components/schemas/TokenPair' } } } }
         '401': { $ref: '#/components/responses/AuthError' }
+  /agent/pair:
+    post:
+      summary: Pair a weighbridge PC (gate agent) with a one-time code
+      description: >
+        The code is made under Security → Devices → Pair a weighbridge PC. It works once, for 30 minutes, and is the
+        only proof needed (no sign-in). Returns the agent's login, device id, request-signing secret and weighbridge.
+        Rate-limited to 10 tries a minute per address.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties: { code: { type: string, maxLength: 20, example: 'AB12-CD34' } }
+      responses:
+        '200':
+          description: Paired
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok] }
+                  username: { type: string }
+                  password: { type: string, description: Shown once; the agent stores it encrypted }
+                  device_uid: { type: string }
+                  signing_secret: { type: string }
+                  scale_id: { type: string, format: uuid }
+                  scale_code: { type: string }
+                  scale_name: { type: string }
+                  resolution_kg: { type: string }
+        '422':
+          description: The code is wrong, used or expired
+          content:
+            application/json:
+              schema: { type: object, properties: { error: { type: string, enum: [pairing_code_invalid] }, message: { type: string } } }
+        '429': { description: Too many tries }
   /auth/logout:
     post:
       summary: End this session

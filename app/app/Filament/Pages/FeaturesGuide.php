@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Filament\Concerns\TranslatesLabels;
+use App\Models\LoginAccount;
 use App\Providers\Filament\AdminPanelProvider;
 use App\Support\FeatureDescriptions;
 use App\Support\FeatureHowTo;
@@ -32,6 +33,14 @@ class FeaturesGuide extends Page
     protected static string $view = 'filament.pages.features-guide';
 
     protected ?string $subheading = 'What each screen is for and how to use it. Search, press "How to use" for the steps, or click a screen to open it.';
+
+    /** An archive-only person (Office Coordinator) has the Office Desk alone: nothing to guide. */
+    public static function canAccess(): bool
+    {
+        $user = Filament::auth()->user();
+
+        return parent::canAccess() && ! ($user instanceof LoginAccount && Dashboard::archiveOnly($user));
+    }
 
     /** @return array<string, list<array{label: string, url: string, description: string|null, icon: string|null, how: array{how: string, steps: list<string>}|null}>> */
     public function groups(): array
