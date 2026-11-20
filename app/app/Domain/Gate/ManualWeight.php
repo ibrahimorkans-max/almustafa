@@ -17,9 +17,9 @@ use App\Support\Values\Weight;
 /**
  * One of a vehicle's two weights typed by hand — e.g. the empty weight known from another weighbridge's
  * slip — while the other comes from this weighbridge's computer (or both, when the Owner allows it: Gate →
- * Manual weighing). Only for the people the Owner ticked there, else those with `weighment.manual`
- * (Supervisor, Super Admin, Owner), always with a reason; the other weighbridge's slip can be uploaded
- * as evidence (kept, fingerprinted, attached to the vehicle). No approval is needed: the weight counts at
+ * Manual weighing). Only for the people the Owner ticked there, else everyone on the mill's staff; a reason
+ * is optional (without one the weight is also flagged "no reason"); the other weighbridge's slip can be
+ * uploaded as evidence (kept, fingerprinted, attached to the vehicle). No approval is needed: the weight counts at
  * once, is flagged "typed by hand" everywhere and goes to the weight checks.
  */
 final class ManualWeight
@@ -30,7 +30,7 @@ final class ManualWeight
         private readonly ActorContext $actor,
     ) {}
 
-    public function record(GateEntry $entry, string $kind, string $weightKg, string $reason, ?string $evidenceBytes = null): Weighment
+    public function record(GateEntry $entry, string $kind, string $weightKg, string $reason = '', ?string $evidenceBytes = null): Weighment
     {
         $this->check($entry, $kind, $weightKg, $reason);
         $evidence = $this->evidence($entry, $kind, $reason, $evidenceBytes);
@@ -40,8 +40,8 @@ final class ManualWeight
             ['manual_entry' => true, 'evidence_attachment_id' => $evidence?->id, 'evidence_sha256' => $evidence?->file->sha256],
             null,
             source: Weighment::SOURCE_MANUAL,
-            reason: trim($reason),
-            extraFlags: $evidence === null ? ['manual_entry', 'no_slip_evidence'] : ['manual_entry'],
+            reason: trim($reason) !== '' ? trim($reason) : null,
+            extraFlags: self::flags($evidence !== null, $reason),
         );
     }
 
@@ -52,7 +52,7 @@ final class ManualWeight
      *
      * @return Weighment|null the weight recorded now, or null when it is noted for later
      */
-    public function noteKnown(GateEntry $entry, string $kind, string $weightKg, string $reason, ?string $evidenceBytes = null): ?Weighment
+    public function noteKnown(GateEntry $entry, string $kind, string $weightKg, string $reason = '', ?string $evidenceBytes = null): ?Weighment
     {
         if (LiveCapture::nextKind($entry) === $kind) {
             return $this->record($entry, $kind, $weightKg, $reason, $evidenceBytes);
@@ -65,7 +65,7 @@ final class ManualWeight
             throw new BusinessRuleViolation('The '.self::label($entry, $kind).' of this vehicle is already recorded.');
         }
         $evidence = $this->evidence($entry, $kind, $reason, $evidenceBytes);
-        $this->gate->noteKnownWeight($entry, ['kind' => $kind, 'weight_kg' => Weight::kg(trim($weightKg))->kg, 'reason' => trim($reason),
+        $this->gate->noteKnownWeight($entry, ['kind' => $kind, 'weight_kg' => Weight::kg(trim($weightKg))->kg, 'reason' => trim($reason) !== '' ? trim($reason) : null,
             'evidence_attachment_id' => $evidence?->id, 'evidence_sha256' => $evidence?->file->sha256]);
 
         return self::current($entry->refresh(), $kind);   // null unless it was its turn after all
@@ -84,10 +84,6 @@ final class ManualWeight
         if (! in_array($kind, [Weighment::GROSS, Weighment::TARE], true)) {
             throw new BusinessRuleViolation('Choose the loaded (gross) or the empty (tare) weight.');
         }
-        $reason = trim($reason);
-        if (mb_strlen($reason) < 5) {
-            throw new BusinessRuleViolation('Give the reason for typing the weight (e.g. "empty weight from Kanta 2 slip no. 4512").');
-        }
         if (! preg_match('/^\d{1,9}(\.\d{1,3})?$/', trim($weightKg))) {
             throw new BusinessRuleViolation('Type the weight in kg, e.g. 15240.');
         }
@@ -105,13 +101,19 @@ final class ManualWeight
         }
     }
 
+    /** "typed by hand", and whether its slip and its reason are missing (for the weight checks). @return list<string> */
+    public static function flags(bool $hasSlip, ?string $reason): array
+    {
+        return [...['manual_entry'], ...($hasSlip ? [] : ['no_slip_evidence']), ...(trim((string) $reason) === '' ? ['no_reason'] : [])];
+    }
+
     private function evidence(GateEntry $entry, string $kind, string $reason, ?string $evidenceBytes): ?Attachment
     {
         if ($evidenceBytes === null || $evidenceBytes === '') {
             return null;
         }
 
-        return $this->attachments->attach($entry, 'weighbridge_slip', $evidenceBytes, 'Evidence for the typed '.self::label($entry, $kind).': '.trim($reason));
+        return $this->attachments->attach($entry, 'weighbridge_slip', $evidenceBytes, 'Evidence for the typed '.self::label($entry, $kind).(trim($reason) !== '' ? ': '.trim($reason) : ''));
     }
 
     /** The weight of this kind that counts now (the last one, re-weighs replace earlier ones). */

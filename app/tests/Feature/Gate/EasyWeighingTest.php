@@ -164,18 +164,19 @@ it('lets a Supervisor type one weight by hand with the reason and the slip, neve
     expect($e->fresh()->net_kg)->toBe('15250.000');
 });
 
-it('keeps typing weights to Supervisors and above, always with a reason', function () {
+it('lets everyone on the staff type a weight, a reason optional; not a broker\'s own sign-in', function () {
     $e = ewgArrive($this);
     GateFixtures::passLab($this->gate, $e);
-    $this->f->as($this->operator);
-    expect(fn () => app(ManualWeight::class)->record($e->fresh(), 'gross', '25480', 'From another kanta'))
+    $broker = Make::account($this->f->entity, 'BROKER');
+    $this->f->as($broker);
+    expect(fn () => app(ManualWeight::class)->record($e->fresh(), 'gross', '25480'))
         ->toThrow(BusinessRuleViolation::class, 'may not type a weight');
-    $this->f->as($this->sup);
-    expect(fn () => app(ManualWeight::class)->record($e->fresh(), 'gross', '25480', ''))
-        ->toThrow(BusinessRuleViolation::class, 'Give the reason');
 
-    $w = app(ManualWeight::class)->record($e->fresh(), 'gross', '25480', 'Kanta 2 slip lost; figure read by phone');
-    expect($w->flags)->toContain('no_slip_evidence');
+    // The gate operator, with no reason: counted, and flagged for the weight checks.
+    $this->f->as($this->operator);
+    $w = app(ManualWeight::class)->record($e->fresh(), 'gross', '25480');
+    expect($w->reason)->toBeNull()->and($w->flags)->toContain('manual_entry', 'no_slip_evidence', 'no_reason')
+        ->and($e->fresh()->gross_kg)->toBe('25480.000');
 });
 
 it('shows the weight on the 3D weighbridge with one Record weight button and Enter one weight manually', function () {

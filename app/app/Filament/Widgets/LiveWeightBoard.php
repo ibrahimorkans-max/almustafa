@@ -277,7 +277,7 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
                 Radio::make('kind')->label(__('Which weight'))->required()->default('gross')
                     ->options(['gross' => __('Loaded weight (gross)'), 'tare' => __('Empty weight (tare)')]),
                 TextInput::make('weight_kg')->label(__('Weight (kg)'))->required()->regex('/^\d{1,9}(\.\d{1,3})?$/')->placeholder('15240')->suffix('kg'),
-                Textarea::make('reason')->label(__('Reason'))->required()->minLength(5)->maxLength(500)
+                Textarea::make('reason')->label(__('Reason (optional)'))->maxLength(500)
                     ->placeholder(__('e.g. empty weight from Kanta 2, slip no. 4512')),
                 FileUpload::make('slip')->label(__('Slip or evidence (photo or PDF, optional)'))->storeFiles(false)
                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480),
@@ -303,7 +303,7 @@ class LiveWeightBoard extends Widget implements HasActions, HasForms
                             $entry->refresh();
                         }
                         // The vehicle's next weight is recorded now; the other one is noted and used when its step comes.
-                        return [$entry, app(ManualWeight::class)->noteKnown($entry, (string) $data['kind'], (string) $data['weight_kg'], (string) $data['reason'],
+                        return [$entry, app(ManualWeight::class)->noteKnown($entry, (string) $data['kind'], (string) $data['weight_kg'], (string) ($data['reason'] ?? ''),
                             $file instanceof TemporaryUploadedFile ? (string) $file->get() : null)];
                     });
                 } catch (BusinessRuleViolation $e) {

@@ -82,7 +82,7 @@ class ManualWeighingPage extends Page implements HasForms
     {
         return $form->statePath('data')->schema([
             Section::make(__('Weights typed by hand'))
-                ->description(__('Every typed weight keeps its reason (and the other weighbridge\'s slip when given), is marked "typed by hand" everywhere and goes to the weight checks.'))
+                ->description(__('A reason and the other weighbridge\'s slip are optional. Every typed weight is marked "typed by hand" everywhere and goes to the weight checks.'))
                 ->schema([
                     Toggle::make('enabled')->label(__('Allow weights to be typed by hand'))->live()
                         ->helperText(__('Off: every weight must come from the weighbridge.')),
@@ -91,7 +91,7 @@ class ManualWeighingPage extends Page implements HasForms
                         ->helperText(__('For when the weighbridge is out of order. Off: only one of the two may be typed; the other must come from the weighbridge.')),
                 ]),
             Section::make(__('Who may type weights'))
-                ->description(__('Tick the people who may type weights by hand. Nobody ticked: those whose role allows it (Supervisor, Super Admin, Owner).'))
+                ->description(__('Tick the people who may type weights by hand. Nobody ticked: everyone on the mill\'s staff.'))
                 ->visible(fn (Get $get) => (bool) $get('enabled'))
                 ->schema([
                     CheckboxList::make('users')->hiddenLabel()->options(fn () => self::staff())->columns(2)->searchable()->bulkToggleable()
@@ -124,6 +124,6 @@ class ManualWeighingPage extends Page implements HasForms
         ]);
         Notification::make()->success()->title(! ($data['enabled'] ?? false) ? 'Weights can no longer be typed by hand.'
             : (($data['both'] ?? false) ? 'Both weights may be typed by hand' : 'One of the two weights may be typed by hand').
-              ($users === [] ? ', by those whose role allows it.' : ', by the '.count($users).' people ticked.'))->send();
+              ($users === [] ? ', by everyone on the staff.' : ', by the '.count($users).' people ticked.'))->send();
     }
 }

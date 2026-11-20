@@ -297,7 +297,7 @@ class ViewGateEntry extends ViewRecord
                     Radio::make('kind')->label(__('Which weight'))->required()->default('tare')
                         ->options(['tare' => __('Empty weight (tare)'), 'gross' => __('Loaded weight (gross)')]),
                     TextInput::make('weight_kg')->label(__('Weight (kg)'))->required()->regex(Units::DECIMAL_3)->suffix('kg'),
-                    Textarea::make('reason')->label(__('Reason'))->required()->minLength(5)->maxLength(500)
+                    Textarea::make('reason')->label(__('Reason (optional)'))->maxLength(500)
                         ->placeholder(__('e.g. empty weight from Kanta 2, slip no. 4512')),
                     FileUpload::make('slip')->label(__('Slip or evidence (photo or PDF, optional)'))->storeFiles(false)
                         ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])->maxSize(20480),
@@ -306,7 +306,7 @@ class ViewGateEntry extends ViewRecord
                     $file = $data['slip'] ?? null;
                     $file = is_array($file) ? (reset($file) ?: null) : $file;
                     try {
-                        $w = app(ManualWeight::class)->noteKnown($e, (string) $data['kind'], (string) $data['weight_kg'], (string) $data['reason'],
+                        $w = app(ManualWeight::class)->noteKnown($e, (string) $data['kind'], (string) $data['weight_kg'], (string) ($data['reason'] ?? ''),
                             $file instanceof TemporaryUploadedFile ? (string) $file->get() : null);
                     } catch (BusinessRuleViolation $ex) {
                         Notification::make()->title(__($ex->getMessage()))->danger()->send();

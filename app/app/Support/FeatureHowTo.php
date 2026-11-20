@@ -31,12 +31,12 @@ final class FeatureHowTo
             'steps' => ['Open the screen to see the current weight and whether it is steady.', 'Weigh a vehicle from its gate entry: the steady reading is used.', 'If no reading comes, check Connect weighbridge.'],
         ],
         'ManualWeighingPage' => [
-            'how' => 'The Owner decides whether weights may be typed by hand, whether both of a vehicle\'s weights may be, and who may type them. A weight the vehicle already has — its empty or loaded weight from another kanta\'s slip — can be typed at any step, even at arrival: if it is the next weight it counts at once; otherwise it is used by itself when the vehicle reaches that step, so the vehicle is weighed only once here. Every typed weight is marked "typed by hand" and goes to the weight checks.',
+            'how' => 'The Owner decides whether weights may be typed by hand, whether both of a vehicle\'s weights may be, and who may type them (by default everyone on the staff; a reason is optional). A weight the vehicle already has — its empty or loaded weight from another kanta\'s slip — can be typed at any step, even at arrival: if it is the next weight it counts at once; otherwise it is used by itself when the vehicle reaches that step, so the vehicle is weighed only once here. Every typed weight is marked "typed by hand" and goes to the weight checks.',
             'steps' => [
                 'Owner: switch on "Allow weights to be typed by hand". Allow both weights only when the weighbridge is out of order.',
-                'Tick the people who may type weights (nobody ticked: Supervisor, Super Admin and Owner).',
+                'Tick the people who may type weights, or tick nobody to let everyone on the staff type them.',
                 'At the weighbridge press "Enter one weight manually", or on the vehicle\'s page "Enter a weight it already has".',
-                'Choose empty (tare) or loaded (gross), type the kg and the reason, and add the slip photo if you have it.',
+                'Choose empty (tare) or loaded (gross) and type the kg. A reason and the slip photo are optional.',
             ],
             'words' => 'manual weight, typed weight, known weight, already weighed, other kanta, tare, gross, empty weight, loaded weight, kanta',
         ],

@@ -1310,8 +1310,8 @@ final class GateService
             $this->recordWeighment($entry, $kind, (string) $noted->data['weight_kg'], null,
                 ['manual_entry' => true, 'known_weight_event_id' => $noted->id, 'noted_by' => $noted->actor_login_account_id,
                     'evidence_attachment_id' => $evidence, 'evidence_sha256' => $noted->data['evidence_sha256'] ?? null],
-                null, strict: false, source: Weighment::SOURCE_MANUAL, reason: (string) $noted->data['reason'],
-                extraFlags: $evidence === null ? ['manual_entry', 'known_weight', 'no_slip_evidence'] : ['manual_entry', 'known_weight']);
+                null, strict: false, source: Weighment::SOURCE_MANUAL, reason: $noted->data['reason'] ?? null,
+                extraFlags: [...ManualWeight::flags($evidence !== null, $noted->data['reason'] ?? null), 'known_weight']);
         } finally {
             $this->applyingKnownWeight = false;
         }

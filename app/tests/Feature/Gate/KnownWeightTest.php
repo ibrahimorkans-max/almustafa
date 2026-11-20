@@ -63,6 +63,21 @@ it('takes the loaded weight while the lot is still at the lab ("lab first"), and
         ->and(LiveCapture::nextKind($e->fresh()))->toBe('tare');   // the empty weight comes from the weighbridge
 });
 
+it('lets the gate operator note it with no reason; it is flagged for the weight checks when used', function () {
+    $e = $this->gate->arrive(['registration_no' => 'MNA 21 4600', 'sauda_id' => $this->sauda->id, 'bag_count' => 300]);
+    $this->f->as(Make::account($this->f->entity, 'GATE_OPERATOR'));
+    expect(app(ManualWeight::class)->noteKnown($e->fresh(), 'tare', '10230'))->toBeNull();
+
+    $this->f->as($this->sup);
+    kwtWeigh($this->gate, $e, 'gross', '25480');
+    GateFixtures::passLab($this->gate, $e->fresh());
+    $this->gate->markUnloaded($e->fresh(), godown: $this->silo);
+
+    $tare = ManualWeight::current($e->fresh(), 'tare');
+    expect($e->fresh()->net_kg)->toBe('15250.000')->and($tare->reason)->toBeNull()
+        ->and($tare->flags)->toContain('known_weight', 'no_reason', 'no_slip_evidence');
+});
+
 it('records it at once when it is already the next weight', function () {
     $e = $this->gate->arrive(['registration_no' => 'MNA 21 4300', 'sauda_id' => $this->sauda->id]);
 
@@ -77,8 +92,7 @@ it('keeps the rules: only one typed weight, not twice, not after the visit', fun
 
     // The empty weight was typed, so the loaded one must come from the weighbridge (both only when the Owner allows it).
     expect(fn () => app(ManualWeight::class)->noteKnown($e->fresh(), 'gross', '25000', 'Kanta 2 again'))
-        ->toThrow(BusinessRuleViolation::class, 'must come from the weighbridge')
-        ->and(fn () => app(ManualWeight::class)->noteKnown($e->fresh(), 'tare', '10000', 'no'))->toThrow(BusinessRuleViolation::class, 'reason');
+        ->toThrow(BusinessRuleViolation::class, 'must come from the weighbridge');
 
     $done = $this->gate->arrive(['registration_no' => 'MNA 21 4500', 'sauda_id' => $this->sauda->id]);
     kwtWeigh($this->gate, $done, 'gross', '25000');
