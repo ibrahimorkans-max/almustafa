@@ -78,7 +78,7 @@ final class ChartOfAccounts
         // Quick bills (App\Domain\Sales\QuickBills)
         'walk_in' => ['WALK-IN', 'Walk-in customers (cash sales)', 'SUNDRY_DEBTORS', 'system'],
         'purchase_other' => ['PUR-OTHER', 'Purchase – Other goods', 'PURCHASE_ACCOUNTS', 'system'],
-        'milling_income' => ['INC-MILLING', 'Milling charges (mazdoori) received', 'DIRECT_INCOMES', 'system'],
+        'milling_income' => ['INC-MILLING', 'Milling income (customers\' own paddy)', 'DIRECT_INCOMES', 'system'],
         'weighing_income' => ['INC-WEIGHING', 'Weighbridge charges received', 'INDIRECT_INCOMES', 'system'],
         'charges_recovered' => ['INC-CHARGES', 'Vehicle rent, labour and charges recovered', 'DIRECT_INCOMES', 'system'],
         'sales_expenses' => ['EXP-SELLING', 'Carriage, labour and allowances on bills', 'DIRECT_EXPENSES', 'system'],

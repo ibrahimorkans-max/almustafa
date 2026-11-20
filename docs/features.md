@@ -42,3 +42,22 @@ audit log.
 | Stolen devices | "Mark lost / stolen": the device erases its local data at its next connection and can do nothing else; optionally the user is signed out everywhere else; owners are alerted. Sign-in slows down after 3 wrong passwords, locks for 15 minutes after 5, and after 3 lockouts in 24 hours needs an administrator to unlock. Offline apps lock after 72 hours without contact |
 | Maintenance mode | Super Admin schedules or starts a window with a message and end time; others see an honest page or 503 + Retry-After; a secret bypass link keeps the Super Admin working; offline devices keep queueing |
 | Role-limited access | Screens and records follow the role's permissions and the firm (brokers: own deals only); forbidden screens show a page that names the role and says whom to ask; Access review report (role, permissions, 2FA, last sign-in, dormant / never used / setup pending / locked / duress) with audited CSV |
+
+## Bills on the spot, salaries, balances and sign-in checks (latest)
+In the app, **Features guide** (top of the menu) shows every screen the person may open with its purpose, how it works and
+the steps; the **Assistant** answers "how do I …" questions (English or Roman Urdu, e.g. "salary voucher kaise banate hain")
+from the same guide (`app/Support/FeatureHowTo.php`), with a link to the screen.
+
+| Feature | Purpose | How it works / how to do it |
+|---|---|---|
+| Quick bills (Sales & dispatch) | Any bill made on the spot | Choose Sale, Purchase (paddy), Rice for paddy (hisaab), Milling (mazdoori) or Weighing. Party or walk-in customer (pays in full); optional sauda (its quantity left goes down) or gate entry. Vehicle of any kind incl. bike and by hand, date and time, both weights for weighing. Many lines (product/variety): net = weight − empty/bardana − bags × deduction per bag − other deduction; amount = net ÷ 40 × rate per maund. Charges added or taken off (vehicle rent, labour, commission). Paid, part-paid or unpaid by cash, cheque, IBFT, Raast, RTGS, pay order, card or wallet. Posts to the books and the stock at once; "Receive payment" / "Pay the party" later; "Cancel this bill" reverses money, stock and sauda quantity. |
+| Direct dispatch | Rice leaving by bike, by hand or in a small quantity | New dispatch order → "Direct": pick the sauda, products and prices fill in, type the weights, bags and deduction per bag, charges and payment. The credit limit is checked, the bill is made and the order is marked dispatched. |
+| Salary on the employee form | Salary from the first day | Monthly or daily amount on "New employee" becomes the salary structure from the joining date. |
+| Salary vouchers (HR) | Pay one employee on the spot | Employee, salary/bonus/other, month (or days worked for daily wage), advance instalment and other deduction, how and from which account. Posts the voucher, recovers the advance and marks the month paid so payroll skips it. |
+| Party balances (Reports) | Who owes the mill, whom the mill owes | From the books, as on any date; filter receivable/payable; unpaid bills, last money in/out; link to the statement. |
+| Employee balances (HR) | Salary paid and due | For a month: salary, paid (vouchers and payroll), still due, advance/loan balance. |
+| Stock report (Stock & production) | Paddy and rice stock for any dates | Opening, in, out, closing per product (and per godown), kg and maund, from the stock ledger. |
+| Milling weights | Paddy-to-rice weighing | On a production batch's input and output: weight on the scale − bags × bardana per bag − other deduction = net weight; the working is kept in the note. |
+| Party receipts and advances | Money received from a party | Vouchers → New entry → "Receipt from party": against invoices or on account (advance). Payments out: Payments → New payment, against bills or as an advance. |
+| Godown-to-godown | Move stock | Requisitions → "To another godown (transfer)". |
+| Sign-in checks | Prove it is you without anyone's approval | First sign-in, new network/device and forgotten password: the e-mail has a 6-digit code (typed first) and a 2-digit number; the screen shows 4 numbers and moves on when the right one is tapped (a wrong tap cancels both codes). Then the person's own second check: passkey, authenticator app, recovery code or a code on the mobile app. Owner and Super Admin never need anyone's approval. |
