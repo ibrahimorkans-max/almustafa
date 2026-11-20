@@ -12,6 +12,7 @@ use App\Domain\Assistant\Tools\CreateSaudaTool;
 use App\Domain\Assistant\Tools\DecideApprovalTool;
 use App\Domain\Assistant\Tools\FindPartyTool;
 use App\Domain\Assistant\Tools\GateStepTool;
+use App\Domain\Assistant\Tools\HowToTool;
 use App\Domain\Assistant\Tools\ListRecordsTool;
 use App\Domain\Assistant\Tools\LiveWeightTool;
 use App\Domain\Assistant\Tools\NewFormTool;
@@ -45,7 +46,7 @@ final class Assistant
 {
     /** @var list<class-string<Tool>> */
     public const TOOLS = [
-        ListRecordsTool::class, ShowRecordTool::class, NewFormTool::class,
+        HowToTool::class, ListRecordsTool::class, ShowRecordTool::class, NewFormTool::class,
         BusinessSummaryTool::class, StockTool::class, VehiclesInsideTool::class, LiveWeightTool::class, PendingApprovalsTool::class,
         FindPartyTool::class, OpenScreenTool::class,
         RegisterArrivalTool::class, RecordWeightTool::class, CheckWeightTool::class, DecideApprovalTool::class, RecordExpenseTool::class,
@@ -54,6 +55,7 @@ final class Assistant
 
     /** The features list (Assistant → Features): each group and the tools in it, in order. */
     public const GROUPS = [
+        'Learn the system' => ['how_to'],
         'Add records quickly' => ['create_party', 'register_vehicle_arrival', 'create_purchase_sauda', 'record_expense', 'request_payment', 'record_daily_wages'],
         'Gate and weighing' => ['record_lab_test', 'vehicles_inside', 'live_weight', 'record_weight', 'check_weight', 'gate_step'],
         'Business and stock' => ['business_summary', 'stock_balance', 'find_party'],
@@ -67,7 +69,7 @@ final class Assistant
         'check_weight' => 'Check a weight', 'gate_step' => 'Next gate step', 'business_summary' => 'Profit & business',
         'stock_balance' => 'Stock', 'find_party' => 'Find a party', 'pending_approvals' => 'Pending approvals',
         'decide_approval' => 'Approve or reject', 'list_records' => 'List records', 'show_record' => 'Show a record',
-        'new_form' => 'Open a new form', 'open_screen' => 'Open a screen',
+        'new_form' => 'Open a new form', 'open_screen' => 'Open a screen', 'how_to' => 'How do I …?',
     ];
 
     public function __construct(

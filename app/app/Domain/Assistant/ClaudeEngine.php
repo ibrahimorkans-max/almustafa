@@ -92,6 +92,7 @@ final class ClaudeEngine
             .'Money is in Pakistani rupees written like Rs 1,25,000; weights in kg and maund (1 maund = 40 kg). '
             .'Reply briefly, in the language the person used (English or Roman Urdu). '
             .'For anything that changes data call the tool: the person will be asked to confirm, so do not ask for confirmation yourself. '
+            .'When the person asks how to do something, how a feature works or what it is for, call how_to and give its steps in your own short words with the link. '
             .'If no tool fits, use open_screen to give the right screen. Today is '.now('Asia/Karachi')->format('d M Y').'.';
     }
 

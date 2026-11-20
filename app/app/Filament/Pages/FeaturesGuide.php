@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Filament\Concerns\TranslatesLabels;
 use App\Providers\Filament\AdminPanelProvider;
 use App\Support\FeatureDescriptions;
+use App\Support\FeatureHowTo;
 use Filament\Facades\Filament;
 use Filament\Pages\Page;
 
@@ -30,9 +31,9 @@ class FeaturesGuide extends Page
 
     protected static string $view = 'filament.pages.features-guide';
 
-    protected ?string $subheading = 'What each screen is for. Click one to open it.';
+    protected ?string $subheading = 'What each screen is for and how to use it. Search, press "How to use" for the steps, or click a screen to open it.';
 
-    /** @return array<string, list<array{label: string, url: string, description: string|null, icon: string|null}>> */
+    /** @return array<string, list<array{label: string, url: string, description: string|null, icon: string|null, how: array{how: string, steps: list<string>}|null}>> */
     public function groups(): array
     {
         $panel = Filament::getCurrentPanel();
@@ -52,7 +53,7 @@ class FeaturesGuide extends Page
             }
             $group = $class::getNavigationGroup() ?? '';
             $items[$group][] = ['label' => $class::getNavigationLabel(), 'url' => $url, 'description' => FeatureDescriptions::for($class),
-                'icon' => $class::getNavigationIcon()];
+                'icon' => $class::getNavigationIcon(), 'how' => FeatureHowTo::for($class)];
         }
         // In the menu's order; screens without a group first.
         $order = ['' => -1] + array_flip(array_map(fn (string $g) => __($g), AdminPanelProvider::NAVIGATION_GROUPS));
