@@ -21,14 +21,14 @@ final class FeatureHowTo
                 'Press "New gate entry" and type the vehicle number, driver and party (or the sauda).',
                 'Choose in (paddy) or out (rice) and save: the token is printed for the driver.',
                 'For paddy, the vehicle waits in the Lab queue until its test is entered.',
-                'Weigh it on the weighbridge (first weight), unload or load, then weigh again (second weight).',
+                'Weigh it on the weighbridge (first weight), unload or load, then weigh again (second weight). A weight it already has from another kanta can be typed at any step with "Enter a weight it already has".',
                 'Open the entry to see each step; print the weighbridge slip when both weights are in.',
             ],
             'words' => 'vehicle arrival token truck gate in out',
         ],
         'LiveWeightPage' => [
             'how' => 'The weighbridge PC sends its reading to the ERP every moment. This screen shows it, and the weight is taken from here when a vehicle is weighed, so nobody types it.',
-            'steps' => ['Open the screen to see the current weight and whether it is steady.', 'Weigh a vehicle from its gate entry: the steady reading is used.', 'If no reading comes, check Connect weighbridge.'],
+            'steps' => ['Open the screen to see the current weight and whether it is steady.', 'Weigh a vehicle from its gate entry: the steady reading is used.', 'If no reading comes, check Connect weighbridge, or press "Enter one weight manually" and type it (empty or loaded, a reason optional).'],
         ],
         'ManualWeighingPage' => [
             'how' => 'The Owner decides whether weights may be typed by hand, whether both of a vehicle\'s weights may be, and who may type them (by default everyone on the staff; a reason is optional). A weight the vehicle already has — its empty or loaded weight from another kanta\'s slip — can be typed at any step, even at arrival: if it is the next weight it counts at once; otherwise it is used by itself when the vehicle reaches that step, so the vehicle is weighed only once here. Every typed weight is marked "typed by hand" and goes to the weight checks.',
@@ -50,7 +50,7 @@ final class FeatureHowTo
             'steps' => ['Open the lot.', 'Type the agreed rate or extra deduction and the reason.', 'Accept (the vehicle goes on to weighing) or send it back.'],
         ],
         'WeighmentCheckResource' => [
-            'how' => 'Weights that look wrong are held here: typed by hand, an unusual empty weight, no photo. A second person checks and clears or corrects them.',
+            'how' => 'Weights that look wrong are held here: typed by hand (with or without a reason or slip), an unusual empty weight, no photo. A second person checks and clears or corrects them.',
             'steps' => ['Open a flagged weight.', 'Compare with the photo and the vehicle\'s usual empty weight.', 'Clear it, or correct it with a reason.'],
         ],
         'GatePassResource' => [
@@ -252,6 +252,774 @@ final class FeatureHowTo
         'FeaturesGuide' => [
             'how' => 'Every screen you may open, by menu group, with its purpose and how to use it.',
             'steps' => ['Search a word, or open a group.', 'Press "How to use" on a card for the steps, or the card to open the screen.'],
+        ],
+        // ── The other screens ──
+        'VehicleRegisterPage' => [
+            'how' => 'Every vehicle in and out, day by day, from the gate entries: times, weights and party.',
+            'steps' => [
+                'Choose the dates.',
+                'Open "Details" on a row, or print one vehicle or the whole register.',
+                'For an official slip of a vehicle use "Official weighment slip".',
+            ],
+            'words' => 'register, in out, vehicles list',
+        ],
+        'ScaleResource' => [
+            'how' => 'The weighbridges (scales) of the mill: capacity, smallest step and the stamping certificate. A weight above capacity is refused; an expired certificate is flagged.',
+            'steps' => [
+                'Press "New scale", type its code, name, capacity and resolution.',
+                'Add the stamping certificate and its expiry date; renew it before it expires.',
+            ],
+            'words' => 'scale, weighbridge, kanta, certificate',
+        ],
+        'ConnectWeighbridge' => [
+            'how' => 'The weighbridge PC sends its readings to the ERP. It is paired once with a one-time code, without typing any password.',
+            'steps' => [
+                'Make a pairing code here (or under Security → Devices → "Pair a weighbridge PC").',
+                'On the weighbridge PC, type the code in the gate agent within 30 minutes.',
+                'The live weight then shows on every screen.',
+            ],
+            'words' => 'connect weighbridge, pair, gate agent, live reading',
+        ],
+        'LabParameterResource' => [
+            'how' => 'The lab tests done on paddy (moisture, broken, chalky …) with the standard and the grace limit of each, per product or variety. Above the grace limit a lot is rejected.',
+            'steps' => [
+                'Open a test and set its standard, grace limit and whether it is compulsory.',
+                'Use "Copy tests to a product / variety" to give the same tests to another variety.',
+            ],
+            'words' => 'lab tests, limits, moisture, standard, grace',
+        ],
+        'DeductionRuleResource' => [
+            'how' => 'How much weight or price is cut for each lab result above its standard, e.g. 1 kg per maund for each 1 % of extra moisture. The lab decision freezes the rules it used.',
+            'steps' => [
+                'Open a rule: the test, from which result it applies and the cut (kg per maund or rupees).',
+                'New rules apply to lots decided after the change.',
+            ],
+            'words' => 'deduction, cut, kaat, moisture deduction',
+        ],
+        'LabTestEntryPage' => [
+            'how' => 'The lab result of one paddy vehicle, with each result checked against its standard and grace limit as you type.',
+            'steps' => [
+                'Type each result; the screen says whether it is within standard, within grace or rejected.',
+                'Choose accept or reject (when allowed) and save.',
+            ],
+            'words' => 'lab result, enter lab test',
+        ],
+        'QuoteResource' => [
+            'how' => 'Price offers from sellers before a sauda: offer, counter-offer, accept or reject. An accepted quote becomes a sauda.',
+            'steps' => [
+                'Press "New quote": the seller, variety, quantity and the rate offered.',
+                'Counter with your rate, or accept or reject.',
+            ],
+            'words' => 'quote, offer, negotiation, bhaao',
+        ],
+        'PaddyRequirementResource' => [
+            'how' => 'How much paddy of each variety the mill plans to buy, and by when, compared with what is already bought.',
+            'steps' => [
+                'Press "New paddy requirement": variety, quantity and the period.',
+                'Follow how much is covered by saudas.',
+            ],
+            'words' => 'paddy plan, requirement, purchase plan',
+        ],
+        'PaddyStockEntryResource' => [
+            'how' => 'Paddy put into a godown outside the gate flow (e.g. opening stock or a transfer from another site): a draft first, then posted to stock.',
+            'steps' => [
+                'Press "New paddy stock entry": godown, variety, bags and weight.',
+                'Check it and press "Post to stock", or "Cancel draft".',
+            ],
+            'words' => 'paddy stock, receive paddy, opening stock',
+        ],
+        'StockCountResource' => [
+            'how' => 'A physical count of a godown. The difference from the books becomes an adjustment only after a second person approves.',
+            'steps' => [
+                'Press "Record physical count", choose the godown and type what is there.',
+                'A second person approves; the stock is corrected with the reason.',
+            ],
+            'words' => 'stock count, physical count, stock taking',
+        ],
+        'OutturnStandardResource' => [
+            'how' => 'The rice and by-products each paddy variety should give (e.g. 1121: 62 % head rice). A milling batch below it raises an alert.',
+            'steps' => [
+                'Open a variety and set the expected % of each output.',
+            ],
+            'words' => 'outturn, yield, recovery',
+        ],
+        'AlertResource' => [
+            'how' => 'Warnings the system raises by itself: low outturn, odd weights, stock below zero, late lab results, payments. Each stays until someone looks at it.',
+            'steps' => [
+                'Open an alert, read why it was raised and open the record.',
+                'Mark it handled when it is dealt with.',
+            ],
+            'words' => 'alerts, warnings',
+        ],
+        'ClaimResource' => [
+            'how' => 'A quality or weight claim from a buyer or against a supplier, with its evidence, settled by a credit or debit note after approval.',
+            'steps' => [
+                'Press "New claim": party, the bill or dispatch and what is claimed.',
+                'Add notes and evidence (photos, lab reports).',
+                'Approve the settlement and post the note, or reject it.',
+            ],
+            'words' => 'claim, complaint, credit note, debit note',
+        ],
+        'PriceListResource' => [
+            'how' => 'The selling price of each product from a date. Bills take the price of their date; a change of rate is requested and approved.',
+            'steps' => [
+                'Press "New price list" with its products and rates, or "Request rate change" on one.',
+            ],
+            'words' => 'price list, rates, selling price',
+        ],
+        'MarkupSettingResource' => [
+            'how' => 'The margin added to cost when the system suggests a selling price. It is confidential: only allowed roles see it.',
+            'steps' => [
+                'Open a product group and set its margin %.',
+            ],
+            'words' => 'markup, margin, profit margin',
+        ],
+        'ExpenseCategoryResource' => [
+            'how' => 'The kinds of expenses (diesel, electricity, repairs …) and the ledger each posts to.',
+            'steps' => [
+                'Press "New expense category", give its name and ledger.',
+            ],
+            'words' => 'expense category, expense head',
+        ],
+        'RecurringExpenseResource' => [
+            'how' => 'Expenses that come every month (rent, internet, fixed salaries of guards …): a draft is made on its day to check and post.',
+            'steps' => [
+                'Press "New recurring expense": category, amount and day of the month.',
+                'Each month check the draft and post it.',
+            ],
+            'words' => 'recurring, monthly expense, rent',
+        ],
+        'LedgerAccountResource' => [
+            'how' => 'The chart of accounts: every ledger with its group and balance. System ledgers (cash, walk-in customer, salaries …) are made for you.',
+            'steps' => [
+                'Search a ledger and open it for its balance and entries.',
+                'Use Books & reports for a printed ledger statement.',
+            ],
+            'words' => 'ledger, chart of accounts, khata',
+        ],
+        'PaperRecordResource' => [
+            'how' => 'Old records from paper registers (balances, stock, purchases, sales, payments, vehicles) entered once, so the books start complete.',
+            'steps' => [
+                'Download the "Excel template", fill it and use "Import from Excel"; or "Add old record" one by one.',
+                'Each record posts its voucher; "Cancel this record" reverses it.',
+            ],
+            'words' => 'old records, paper, opening balances, import excel',
+        ],
+        'BankAccountsPage' => [
+            'how' => 'The mill\'s own bank accounts, used for payments, receipts and bank files.',
+            'steps' => [
+                'Press "Add bank account": bank, title, account number or IBAN.',
+                'Use "Edit" to change one.',
+            ],
+            'words' => 'bank account, iban',
+        ],
+        'EmailConnectionResource' => [
+            'how' => 'The mailbox where the bank sends its transaction alerts. The ERP reads the alerts to match money in and out with the books.',
+            'steps' => [
+                'Connect the mailbox (Gmail or Outlook) and choose the bank.',
+                'Alerts then appear under Bank e-mail transactions.',
+            ],
+            'words' => 'bank email, mailbox, bank alerts',
+        ],
+        'BankEmailTransactionResource' => [
+            'how' => 'Each bank alert read from e-mail: amount, date and sender, matched with a voucher or waiting to be matched.',
+            'steps' => [
+                'Open an unmatched alert and match it with its payment or receipt, or record it.',
+            ],
+            'words' => 'bank alert, bank transaction, match',
+        ],
+        'BankFileResource' => [
+            'how' => 'A bulk transfer file for the bank (salaries, supplier payments) made from approved payments, to upload to internet banking.',
+            'steps' => [
+                'Press "Create bank file", choose the bank and the payments.',
+                'Download the file and upload it to the bank.',
+            ],
+            'words' => 'bank file, bulk payment, salary transfer',
+        ],
+        'BankStatementLineResource' => [
+            'how' => 'Bank reconciliation: each line of the bank statement matched with the books, so the bank balance agrees.',
+            'steps' => [
+                'Press "Import statement" and choose the bank\'s file.',
+                'Match each line with its voucher; record bank charges or profit.',
+            ],
+            'words' => 'reconciliation, bank statement',
+        ],
+        'PeriodLockResource' => [
+            'how' => 'A closed month is locked: nothing can be posted into it any more, so filed figures cannot change.',
+            'steps' => [
+                'Press "Lock a month" and choose the month.',
+            ],
+            'words' => 'period lock, close month, month end',
+        ],
+        'DepartmentResource' => [
+            'how' => 'The departments of the mill (gate, mill floor, office …) used for staff and their costs.',
+            'steps' => [
+                'Add a department with its name.',
+            ],
+            'words' => 'department',
+        ],
+        'DesignationResource' => [
+            'how' => 'Job titles given to employees (operator, supervisor, accountant …).',
+            'steps' => [
+                'Add a designation with its name.',
+            ],
+            'words' => 'designation, job title',
+        ],
+        'ShiftResource' => [
+            'how' => 'Working shifts with their start and end, used to judge late arrival and overtime.',
+            'steps' => [
+                'Add a shift: name, start, end and grace minutes.',
+            ],
+            'words' => 'shift, timing, duty hours',
+        ],
+        'HolidayResource' => [
+            'how' => 'Public and mill holidays; attendance and pay treat them as paid days off.',
+            'steps' => [
+                'Add a holiday with its date.',
+            ],
+            'words' => 'holiday, eid, leave day',
+        ],
+        'LeaveTypeResource' => [
+            'how' => 'The kinds of leave (casual, sick, annual …) and how many days each allows in a year.',
+            'steps' => [
+                'Add a leave type with its yearly days.',
+            ],
+            'words' => 'leave type',
+        ],
+        'LeaveRequestResource' => [
+            'how' => 'Leave applied for by an employee and approved or refused; approved leave shows in attendance and pay.',
+            'steps' => [
+                'Press "New leave request": employee, type and dates.',
+                'The approver accepts or refuses it.',
+            ],
+            'words' => 'leave, chutti, apply leave',
+        ],
+        'AttendanceLogResource' => [
+            'how' => 'Every attendance punch (phone, biometric file or by hand). A missing punch is requested and approved, never typed in silently.',
+            'steps' => [
+                'Use "Import from biometric file" for the machine\'s file.',
+                'For a missed punch use "Request manual attendance"; the approver accepts or rejects it.',
+            ],
+            'words' => 'attendance, punch, biometric, hazri',
+        ],
+        'AttendanceRegisterPage' => [
+            'how' => 'The month\'s attendance of all staff on one sheet: present, absent, late, leave and holidays.',
+            'steps' => [
+                'Choose the month and the department.',
+                'Print it or download it.',
+            ],
+            'words' => 'attendance register, monthly attendance',
+        ],
+        'EmployeeDeviceResource' => [
+            'how' => 'The phones employees use to mark attendance. A new phone waits for approval so nobody marks for someone else.',
+            'steps' => [
+                'Approve or block a waiting phone.',
+            ],
+            'words' => 'attendance phone, employee device',
+        ],
+        'SiteResource' => [
+            'how' => 'The places (a GPS point and radius) where attendance may be marked, and where "Only inside the mill" sign-in is allowed.',
+            'steps' => [
+                'Add a site: name, position and radius in metres.',
+            ],
+            'words' => 'site, location, gps, geofence',
+        ],
+        'SalaryComponentResource' => [
+            'how' => 'The pay heads used in salaries: basic, allowances and deductions, each with its ledger.',
+            'steps' => [
+                'Add a pay head: name, earning or deduction, and how it is worked out.',
+            ],
+            'words' => 'pay head, allowance, salary component',
+        ],
+        'AllowanceRuleResource' => [
+            'how' => 'Rules that add an allowance by themselves, e.g. an attendance bonus for no absence in the month.',
+            'steps' => [
+                'Add a rule: the pay head, the condition and the amount.',
+            ],
+            'words' => 'allowance rule, attendance bonus',
+        ],
+        'PayAdjustmentResource' => [
+            'how' => 'One-time bonuses, fines or other changes to one month\'s pay.',
+            'steps' => [
+                'Press "Add bonus or deduction": employee, month, amount and reason.',
+                'Use "Festival bonus for all" for Eid and similar.',
+            ],
+            'words' => 'bonus, fine, deduction, eid bonus',
+        ],
+        'PayrollSettingsPage' => [
+            'how' => 'The payroll rules and the government rates: income tax slabs, EOBI and social security.',
+            'steps' => [
+                'Press "Change" on a rate and give the date it applies from.',
+            ],
+            'words' => 'payroll settings, tax slabs, eobi',
+        ],
+        'ReimbursementResource' => [
+            'how' => 'Money an employee spent for the mill (fuel, parts, travel) claimed back with the receipt and repaid after approval.',
+            'steps' => [
+                'Press "New staff claim": employee, amount, what for and the receipt.',
+                'After approval it is paid or added to the salary.',
+            ],
+            'words' => 'staff claim, reimbursement, expense claim',
+        ],
+        'PieceWorkEntryResource' => [
+            'how' => 'Work paid per piece (bags stitched, maunds loaded) with its pay from the rate.',
+            'steps' => [
+                'Add an entry: worker or group, work, quantity and date.',
+            ],
+            'words' => 'piece work, per bag, per maund',
+        ],
+        'ContractorRateResource' => [
+            'how' => 'The rates paid to labour contractors per unit of work (per bag, per maund, per vehicle).',
+            'steps' => [
+                'Set the rate of each kind of work for a contractor.',
+                'Use "Contractor vehicles" to link vehicles to a contractor.',
+            ],
+            'words' => 'contractor rate, labour contractor',
+        ],
+        'ContractorBillResource' => [
+            'how' => 'The bill of a labour contractor made from the work recorded (vehicles unloaded, bags, maunds) at the agreed rates.',
+            'steps' => [
+                'Press "New contractor bill", choose the contractor and the period.',
+                'Check the work, use "Assign workers" if needed, approve and pay.',
+            ],
+            'words' => 'contractor bill, labour bill',
+        ],
+        'DocumentTemplateResource' => [
+            'how' => 'The layout of the HR documents the system prints: payslip, offer letter, experience certificate …',
+            'steps' => [
+                'Press "New template", choose the kind and write the text with its fields.',
+            ],
+            'words' => 'template, letter, payslip design',
+        ],
+        'DocumentBatchResource' => [
+            'how' => 'Many HR documents made at once, e.g. all payslips of a month.',
+            'steps' => [
+                'Press "New bulk generation", choose the template, the month and the staff.',
+            ],
+            'words' => 'bulk documents, all payslips',
+        ],
+        'GeneratedDocumentResource' => [
+            'how' => 'Every HR document the system made, to view, print or share again.',
+            'steps' => [
+                'Search by employee or kind and open it to print or share.',
+            ],
+            'words' => 'documents, payslips, letters',
+        ],
+        'MyDocumentsPage' => [
+            'how' => 'Your own payslips and letters.',
+            'steps' => [
+                'Open one and download it.',
+            ],
+            'words' => 'my payslip, my documents',
+        ],
+        'DailyWageGroupResource' => [
+            'how' => 'The labour groups paid by daily wage, each with its leader.',
+            'steps' => [
+                'Add a group with its leader and workers.',
+            ],
+            'words' => 'labour group, daily wage group',
+        ],
+        'DailyWageCategoryResource' => [
+            'how' => 'The kinds of daily work (loading, cleaning, stitching …) and the rate of each.',
+            'steps' => [
+                'Add a kind of work with its daily rate.',
+            ],
+            'words' => 'work category, daily rate',
+        ],
+        'ProductResource' => [
+            'how' => 'Everything the mill buys, makes and sells: paddy, rice, broken, bran, husk, bags. Each with its unit and category.',
+            'steps' => [
+                'Add a product: code, name, category and unit (kg or maund).',
+            ],
+            'words' => 'product, item',
+        ],
+        'PaddyVarietyResource' => [
+            'how' => 'The paddy varieties the mill buys (1121, Super Basmati, 386 …). Lab tests and outturn standards are set per variety.',
+            'steps' => [
+                'Add a variety with its name.',
+            ],
+            'words' => 'variety, 1121, basmati',
+        ],
+        'VehicleResource' => [
+            'how' => 'The vehicles that come to the mill, with owner and usual driver. Their usual empty weight is learnt to catch an odd tare.',
+            'steps' => [
+                'Add a vehicle: number, kind, owner and driver.',
+            ],
+            'words' => 'vehicle, truck, tractor',
+        ],
+        'DriverResource' => [
+            'how' => 'The drivers who bring and take goods, with phone and CNIC.',
+            'steps' => [
+                'Add a driver with name, phone and CNIC.',
+            ],
+            'words' => 'driver',
+        ],
+        'BrandResource' => [
+            'how' => 'The rice brands the mill packs and sells under.',
+            'steps' => [
+                'Add a brand with its name and logo.',
+            ],
+            'words' => 'brand',
+        ],
+        'TaxRateResource' => [
+            'how' => 'The sales tax rates used on invoices, each from its date.',
+            'steps' => [
+                'Add a rate with its % and the date it applies from.',
+            ],
+            'words' => 'sales tax, gst rate',
+        ],
+        'CodeDirectoryPage' => [
+            'how' => 'Every code the system made (parties, products, vouchers, vehicles …) in one list, to look one up and open its record.',
+            'steps' => [
+                'Search a code or name and open it.',
+                'Download the list as Excel or PDF.',
+            ],
+            'words' => 'code, lookup, directory',
+        ],
+        'PartyMessagesPage' => [
+            'how' => 'Which messages parties get by WhatsApp or SMS (each money entry with the balance, vehicle unloaded, weights final), and what was sent.',
+            'steps' => [
+                'Switch each kind of message on or off.',
+                'Messages not sent by a gateway wait in the outbox: send them on WhatsApp and press "Mark sent".',
+            ],
+            'words' => 'party messages, whatsapp, sms',
+        ],
+        'ChatsPage' => [
+            'how' => 'WhatsApp messages from parties, read and answered from the ERP.',
+            'steps' => [
+                'Open a chat and reply.',
+            ],
+            'words' => 'chats, whatsapp messages',
+        ],
+        'SyncConflictResource' => [
+            'how' => 'Entries made offline on two devices that disagree. Nothing is overwritten silently: someone chooses.',
+            'steps' => [
+                'Open a conflict and choose "Apply device data" or "Keep server data".',
+            ],
+            'words' => 'sync, offline, conflict',
+        ],
+        'AccountsReports' => [
+            'how' => 'The books: day book, cash book, bank book, ledgers, trial balance and party ledgers.',
+            'steps' => [
+                'Choose the report and the dates.',
+                'Download it as PDF, or a ledger statement as PDF.',
+            ],
+            'words' => 'day book, cash book, trial balance, books',
+        ],
+        'FinancialReportsPage' => [
+            'how' => 'Profit and loss, balance sheet and management figures for any period.',
+            'steps' => [
+                'Choose the period (e.g. "This tax year").',
+                'Download as PDF or Excel.',
+            ],
+            'words' => 'profit and loss, balance sheet, munafa',
+        ],
+        'OperationalReportsPage' => [
+            'how' => 'Reports on vehicles, weights, stock, milling and the lab for a period.',
+            'steps' => [
+                'Choose the report and the dates.',
+                'Download as PDF or CSV.',
+            ],
+            'words' => 'operations report, weights report, lab report',
+        ],
+        'BusinessReportPage' => [
+            'how' => 'One complete report of the whole business for a period: purchases, milling, sales, money, stock and staff.',
+            'steps' => [
+                'Choose the period and print or download it.',
+            ],
+            'words' => 'business report, complete report',
+        ],
+        'AllReportsPage' => [
+            'how' => 'Every report of a period printed in one go, as one PDF.',
+            'steps' => [
+                'Choose the period and the reports, then print.',
+            ],
+            'words' => 'all reports, print all',
+        ],
+        'StatutoryReportsPage' => [
+            'how' => 'Payroll returns for government: EOBI, social security and income tax deducted.',
+            'steps' => [
+                'Choose the month and the return.',
+                'Download as PDF, Excel or CSV for filing.',
+            ],
+            'words' => 'eobi, social security, tax return, statutory',
+        ],
+        'SalesTaxReturnsPage' => [
+            'how' => 'The sales tax and withholding tax registers for filing with FBR.',
+            'steps' => [
+                'Choose the month.',
+                'Download the sales or withholding register as PDF or CSV.',
+            ],
+            'words' => 'sales tax return, fbr, withholding',
+        ],
+        'EntityResource' => [
+            'how' => 'The firms and mills in this account. Each mill keeps its own books and records apart from the others.',
+            'steps' => [
+                'Press "New entity" to add a mill, or open one to change its details.',
+            ],
+            'words' => 'firm, mill, entity, company',
+        ],
+        'BrandingPage' => [
+            'how' => 'The mill\'s name, logo, address and tax numbers printed on bills, slips and reports.',
+            'steps' => [
+                'Type the details and upload the logo.',
+                'Use "Preview a document" to see a page before saving.',
+            ],
+            'words' => 'branding, logo, letterhead, print',
+        ],
+        'IntegrationsPage' => [
+            'how' => 'The outside services the mill uses (WhatsApp, AI, notifications, scanner), and whether each works.',
+            'steps' => [
+                'Check each service; use "Send a test message" to try WhatsApp.',
+            ],
+            'words' => 'integrations, whatsapp, connected services',
+        ],
+        'SecurityCentre' => [
+            'how' => 'The mill\'s security at a glance: risks to fix, and the emergency controls.',
+            'steps' => [
+                'Act on each risk shown.',
+                'In an emergency use "Emergency lockdown" (lifted with "Lift lockdown"); plan downtime with "Schedule maintenance".',
+            ],
+            'words' => 'security, lockdown, maintenance',
+        ],
+        'AccessReviewPage' => [
+            'how' => 'Who can do what: each person\'s role, permissions, two-factor and last sign-in, to remove access no longer needed.',
+            'steps' => [
+                'Look for dormant, never-used or locked accounts and act on them.',
+                'Download the list as CSV (the download is audited).',
+            ],
+            'words' => 'access review, who can do what',
+        ],
+        'ArchiveSearch' => [
+            'how' => 'The Office Desk: closed records moved off the working screens, found by dates and restored when needed.',
+            'steps' => [
+                'Choose the dates and the kind of record and press Show records.',
+                'Open a record, or restore one or all of a period.',
+            ],
+            'words' => 'archive, office desk, old records, restore',
+        ],
+        'SubscriptionPage' => [
+            'how' => 'Your plan, its limits, invoices and how to pay.',
+            'steps' => [
+                'See the plan and what is used.',
+                'Open an invoice to pay it.',
+            ],
+            'words' => 'subscription, plan, invoice, pay',
+        ],
+        'ServiceUsagePage' => [
+            'how' => 'How much of the paid services (messages, AI, SMS) the mill used, and their cost.',
+            'steps' => [
+                'Choose the month.',
+            ],
+            'words' => 'usage, messages used, ai usage',
+        ],
+        'AiIntegrationPage' => [
+            'how' => 'The AI assistant\'s key. With it the assistant understands ordinary sentences and reads roznamcha photos; without it, short commands still work.',
+            'steps' => [
+                'Paste the key and save, then "Test the connection".',
+                'Use "Remove the key" to switch the AI off.',
+            ],
+            'words' => 'ai key, assistant key',
+        ],
+        'SearchResultsPage' => [
+            'how' => 'One search across every module: parties, vehicles, bills, vouchers, employees.',
+            'steps' => [
+                'Type in the search box at the top and open a result.',
+            ],
+            'words' => 'search, find',
+        ],
+        'WhatsAppWebhookPage' => [
+            'how' => 'Settings for the mill\'s own WhatsApp number to receive messages from parties.',
+            'steps' => [
+                'Copy the webhook address and verify token into Meta, and save the app secret.',
+            ],
+            'words' => 'whatsapp webhook',
+        ],
+        'Dashboard' => [
+            'how' => 'Today at a glance: vehicles inside, stock, money in and out, and alerts.',
+            'steps' => [
+                'Click a figure to open its screen.',
+            ],
+            'words' => 'dashboard, home, today',
+        ],
+        'PartyPortalPage' => [
+            'how' => 'For a supplier or buyer: their own vehicles, weights, bills, payments and balance with the mill.',
+            'steps' => [
+                'Choose the dates to see the entries and download the statement.',
+            ],
+            'words' => 'party portal, my account',
+        ],
+        'DeviceResource' => [
+            'how' => 'Every phone and computer that uses the ERP. A new one is approved by its owner\'s own e-mail code or authenticator code, or by an approver; a lost one can be revoked or wiped.',
+            'steps' => [
+                'Open a device to approve, revoke or wipe it.',
+                'Use "Pair a weighbridge PC" to connect a weighbridge computer.',
+            ],
+            'words' => 'devices, phone approval, new device, wipe',
+        ],
+        'AuthSessionResource' => [
+            'how' => 'Who is signed in, on which device and from where; any session can be signed out.',
+            'steps' => [
+                'Sign out a session, or "Sign out all my other sessions".',
+            ],
+            'words' => 'sessions, signed in, logout',
+        ],
+        'AuditLogResource' => [
+            'how' => 'Who changed what and when. The log is chained, so a change to it would show; it cannot be edited.',
+            'steps' => [
+                'Filter by person, record or date.',
+                'Use "verify" to check that the chain is intact.',
+            ],
+            'words' => 'audit log, history, who changed',
+        ],
+        'SignInAttempts' => [
+            'how' => 'Failed and blocked sign-ins with the real reason of each (wrong password, new device, outside the mill …).',
+            'steps' => [
+                'Look for repeated failures and act on the account or address.',
+            ],
+            'words' => 'failed sign in, blocked login',
+        ],
+        'SignInRules' => [
+            'how' => 'The mill\'s sign-in rules: whether new devices need approving (everyone, selected people or nobody), how many devices each person may use, and "Only inside the mill".',
+            'steps' => [
+                'Choose the rules and save; they apply from the next sign-in.',
+            ],
+            'words' => 'sign in rules, trusted devices, inside the mill',
+        ],
+        'ScreenProtection' => [
+            'how' => 'Sensitive screens hidden from screenshots and screen sharing on phones and the browser.',
+            'steps' => [
+                'Tick the screens to protect.',
+            ],
+            'words' => 'screen protection, screenshot',
+        ],
+        'MyDevicesPage' => [
+            'how' => 'The devices signed in to your own account. Remove any you no longer use or do not recognise.',
+            'steps' => [
+                'Press "Remove" on an old device.',
+            ],
+            'words' => 'my devices',
+        ],
+        'SignInApprovalPage' => [
+            'how' => 'Approve a sign-in waiting for you: scan the QR code on the other screen and pick the number it shows.',
+            'steps' => [
+                'Scan the QR code with this phone and pick the matching number.',
+            ],
+            'words' => 'approve sign in, qr',
+        ],
+        'DuressPin' => [
+            'how' => 'A secret PIN to type instead of your password if you are ever forced to sign in: it signs out everything and silently alerts the owners.',
+            'steps' => [
+                'Set the PIN (different from your password) and keep it secret.',
+            ],
+            'words' => 'duress pin, forced login, panic',
+        ],
+        'PlatformOverview' => [
+            'how' => 'For the SaaS owner: all customers, income and usage of the platform.',
+            'steps' => [
+                'Open a customer, or add one with "New customer".',
+            ],
+            'words' => 'platform overview, saas',
+        ],
+        'CustomerResource' => [
+            'how' => 'The companies using the platform: their mills, plan, trial and access.',
+            'steps' => [
+                'Press "New customer", or open one to "Add a mill", "Set trial period" or give lifetime access.',
+            ],
+            'words' => 'customer, company, saas customer',
+        ],
+        'PlanResource' => [
+            'how' => 'The subscription plans: price and limits (mills, users, messages).',
+            'steps' => [
+                'Open a plan and set its price and limits.',
+            ],
+            'words' => 'plan, pricing',
+        ],
+        'SaasInvoiceResource' => [
+            'how' => 'The invoices of customers and whether they are paid.',
+            'steps' => [
+                'Issue the month\'s invoices, or a "New invoice" by hand.',
+                'Mark a payment when it comes.',
+            ],
+            'words' => 'saas invoice, billing',
+        ],
+        'PaymentMethodResource' => [
+            'how' => 'The ways customers can pay (bank transfer, JazzCash, Easypaisa …) shown on their payment page.',
+            'steps' => [
+                'Add a method with its account details.',
+            ],
+            'words' => 'payment method',
+        ],
+        'DataVisibilityRuleResource' => [
+            'how' => 'How far back a customer can see its records, by plan.',
+            'steps' => [
+                'Set the months of history each plan shows.',
+            ],
+            'words' => 'data visibility, history limit',
+        ],
+        'BankEmailTemplateResource' => [
+            'how' => 'How each bank\'s alert e-mails are read (amount, date, sender), so bank alerts work for every mill.',
+            'steps' => [
+                'Open a bank\'s template and test it on a sample e-mail.',
+            ],
+            'words' => 'bank email template',
+        ],
+        'PlatformUsersPage' => [
+            'how' => 'Every user of every company and mill: role, access, password and sign-ins.',
+            'steps' => [
+                'Search a user and change the role or access, reset the password or see sign-ins.',
+                'Use "Add a user" for a new one.',
+            ],
+            'words' => 'all users, platform users',
+        ],
+        'PlatformIntegrationsPage' => [
+            'how' => 'The platform\'s connections to WhatsApp, AI and push notifications, used by every mill.',
+            'steps' => [
+                'Use "Connect WhatsApp" or "Connect Firebase", then test it.',
+            ],
+            'words' => 'platform integrations, firebase, whatsapp',
+        ],
+        'EmailIntegrationPage' => [
+            'how' => 'Gmail and Outlook sign-in for reading bank e-mails.',
+            'steps' => [
+                'Enter the app details from Google or Microsoft and save.',
+            ],
+            'words' => 'gmail, outlook, email integration',
+        ],
+        'SenderIdentitiesPage' => [
+            'how' => 'The name and number each company or mill sends its messages under.',
+            'steps' => [
+                'Press "Set" on a mill and choose its WhatsApp number, SMS sender and e-mail.',
+            ],
+            'words' => 'sender identity, sender name',
+        ],
+        'ServicePricesPage' => [
+            'how' => 'The price of each paid service and the monthly bills for what customers used.',
+            'steps' => [
+                'Use "Add a price", then "Issue monthly statements".',
+            ],
+            'words' => 'service prices, billing',
+        ],
+        'UsageCostsPage' => [
+            'how' => 'What API calls, SMS, WhatsApp and e-mail cost the platform.',
+            'steps' => [
+                'Choose the month.',
+            ],
+            'words' => 'costs, api cost',
+        ],
+        'SecuritySettings' => [
+            'how' => 'Platform-wide security rules for every mill (passwords, sessions, sign-in checks).',
+            'steps' => [
+                'Change a rule and save.',
+            ],
+            'words' => 'security settings, platform security',
+        ],
+        'WeighmentModesPage' => [
+            'how' => 'Which weighing and lab modes each company or mill may use (weigh first, lab first, no lab …), with the history of changes.',
+            'steps' => [
+                'Press "Set modes" on a company or mill, or "Lab features" for its lab options.',
+            ],
+            'words' => 'weighment modes, lab first, weigh first',
         ],
     ];
 
