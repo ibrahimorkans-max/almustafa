@@ -5,6 +5,7 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
+        "build:screens": "node resources/css/build-screens.mjs",
         "test:js": "node --test \"tests/js/*.test.mjs\""
     },
     "devDependencies": {
