@@ -32,7 +32,10 @@ class FeaturesGuide extends Page
 
     protected static string $view = 'filament.pages.features-guide';
 
-    protected ?string $subheading = 'What each screen is for and how to use it. Search, press "How to use" for the steps, or click a screen to open it.';
+    /** Use the whole width of a large screen: more cards side by side. */
+    protected ?string $maxContentWidth = 'full';
+
+    protected ?string $subheading ='What each screen is for and how to use it. Search, press "How to use" for the steps, or click a screen to open it.';
 
     /** An archive-only person (Office Coordinator) has the Office Desk alone: nothing to guide. */
     public static function canAccess(): bool

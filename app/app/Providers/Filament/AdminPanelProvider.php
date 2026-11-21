@@ -151,6 +151,9 @@ class AdminPanelProvider extends PanelProvider
             // Pictures drawn here (initials on the role's colours): ui-avatars.com is outside the security policy.
             ->defaultAvatarProvider(RoleAvatar::class)
             ->renderHook(PanelsRenderHook::HEAD_END, fn () => view('filament.hooks.product-head'))
+            // The layout and colour classes of our own screens (grids that widen on a large monitor …),
+            // which Filament's prebuilt stylesheet lacks. Built by `npm run build:screens`.
+            ->renderHook(PanelsRenderHook::HEAD_END, fn () => view('filament.hooks.screens-css'))
             // SaaS: read-only for an overdue payment, an invoice due, the trial ending.
             ->renderHook(PanelsRenderHook::CONTENT_START, fn () => view('filament.hooks.billing-banner'))
             ->renderHook(PanelsRenderHook::CONTENT_START, fn () => view('filament.hooks.visibility-banner'))
